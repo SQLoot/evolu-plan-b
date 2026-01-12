@@ -1,39 +1,31 @@
-/**
- * Structured concurrency with fibers, runners, and cancellation.
- *
- * @module
- */
 import { isNonEmptyArray } from "./Array.js";
 import { assert } from "./Assert.js";
-import { createRandomBytes, RandomBytesDep } from "./Crypto.js";
+import { createRandomBytes } from "./Crypto.js";
+import type { RandomBytesDep } from "./Crypto.js";
 import { eqArrayStrict } from "./Eq.js";
 import { constTrue, constVoid } from "./Function.js";
 import { decrement, increment } from "./Number.js";
-import { createRandom, Random, RandomDep } from "./Random.js";
-import { Ref } from "./Ref.js";
-import { Done, err, NextResult, ok, Result, tryAsync } from "./Result.js";
-import { Schedule } from "./schedule/Public.js";
+import { createRandom } from "./Random.js";
+import type { Random, RandomDep } from "./Random.js";
+import type { Ref } from "./Ref.js";
+import { err, ok, tryAsync } from "./Result.js";
+import type { Done, NextResult, Result } from "./Result.js";
+import type { Schedule } from "./schedule/index.js";
 import { addToSet, deleteFromSet, emptySet } from "./Set.js";
+import { createTime, durationToMillis, Millis } from "./Time.js";
+import type { Duration, Time, TimeDep } from "./Time.js";
+import type { TracerConfigDep, TracerDep } from "./Tracer.js";
 import {
-	createTime,
-	Duration,
-	durationToMillis,
-	Millis,
-	Time,
-	TimeDep,
-} from "./Time.js";
-import { TracerConfigDep, TracerDep } from "./Tracer.js";
-import {
-	brand,
-	createId,
-	Id,
-	NonNegativeInt,
-	typed,
-	union,
-	Unknown,
-	UnknownResult,
+  brand,
+  createId,
+  Id,
+  NonNegativeInt,
+  typed,
+  union,
+  Unknown,
+  UnknownResult,
 } from "./Type.js";
-import { Awaitable, Mutable, Predicate } from "./Types.js";
+import { type Awaitable, type Mutable, type Predicate } from "./Types.js";
 
 /**
  * JavaScript-native structured concurrency.
@@ -274,7 +266,7 @@ import { Awaitable, Mutable, Predicate } from "./Types.js";
  * @category Core
  */
 export type Task<T, E = never> = (
-	run: Runner,
+  run: Runner,
 ) => Awaitable<Result<T, E | AbortError>>;
 
 /**
@@ -283,7 +275,7 @@ export type Task<T, E = never> = (
  * @category Utilities
  */
 export type InferTaskOk<R extends Task<any, any>> =
-	R extends Task<infer T, any> ? T : never;
+  R extends Task<infer T, any> ? T : never;
 
 /**
  * Extracts the error type from a {@link Task}.
@@ -291,7 +283,7 @@ export type InferTaskOk<R extends Task<any, any>> =
  * @category Utilities
  */
 export type InferTaskErr<R extends Task<any, any>> =
-	R extends Task<any, infer E> ? E : never;
+  R extends Task<any, infer E> ? E : never;
 
 /**
  * A {@link Task} that can complete with a value, signal done, or fail.
@@ -314,11 +306,11 @@ export type NextTask<T, E = never, D = void> = Task<T, E | Done<D>>;
  * @category Utilities
  */
 export type InferTaskDone<T extends Task<any, any>> =
-	InferTaskErr<T> extends infer Errors
-		? Errors extends Done<infer D>
-			? D
-			: never
-		: never;
+  InferTaskErr<T> extends infer Errors
+    ? Errors extends Done<infer D>
+      ? D
+      : never
+    : never;
 
 /**
  * Error returned when a {@link Task} is aborted via
@@ -361,157 +353,157 @@ export type AbortError = typeof AbortError.Type;
  * @see {@link Task}
  */
 export interface Runner extends AsyncDisposable {
-	/** Runs a {@link Task} and returns a {@link Fiber} handle. */
-	<T, E>(task: Task<T, E>): Fiber<T, E>;
+  /** Runs a {@link Task} and returns a {@link Fiber} handle. */
+  <T, E>(task: Task<T, E>): Fiber<T, E>;
 
-	/** Unique {@link Id} for this runner. */
-	readonly id: Id;
+  /** Unique {@link Id} for this runner. */
+  readonly id: Id;
 
-	/** The parent {@link Runner}, if this runner was created as a child. */
-	readonly parent: Runner | null;
+  /** The parent {@link Runner}, if this runner was created as a child. */
+  readonly parent: Runner | null;
 
-	/** @see https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal */
-	readonly signal: AbortSignal;
+  /** @see https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal */
+  readonly signal: AbortSignal;
 
-	/** The abort mask depth. `0` means abortable, `>= 1` means unabortable. */
-	readonly abortMask: AbortMask;
+  /** The abort mask depth. `0` means abortable, `>= 1` means unabortable. */
+  readonly abortMask: AbortMask;
 
-	/**
-	 * Registers a callback to run when abort is requested.
-	 *
-	 * Shorthand for `signal.addEventListener("abort", ..., { once: true })`.
-	 */
-	readonly onAbort: (fn: (reason: unknown) => void) => void;
+  /**
+   * Registers a callback to run when abort is requested.
+   *
+   * Shorthand for `signal.addEventListener("abort", ..., { once: true })`.
+   */
+  readonly onAbort: (fn: (reason: unknown) => void) => void;
 
-	/** Returns the current {@link RunnerState}. */
-	readonly getState: () => RunnerState;
+  /** Returns the current {@link RunnerState}. */
+  readonly getState: () => RunnerState;
 
-	/**
-	 * Returns the fiber's completion value.
-	 *
-	 * `null` while pending. If abort was requested, this is {@link AbortError}
-	 * even if the task completed successfully — see {@link Runner.getOutcome} for
-	 * what the task actually returned.
-	 */
-	readonly getResult: () => Result<unknown, unknown> | null;
+  /**
+   * Returns the fiber's completion value.
+   *
+   * `null` while pending. If abort was requested, this is {@link AbortError}
+   * even if the task completed successfully — see {@link Runner.getOutcome} for
+   * what the task actually returned.
+   */
+  readonly getResult: () => Result<unknown, unknown> | null;
 
-	/**
-	 * Returns what the task actually returned.
-	 *
-	 * `null` while pending. Unlike {@link Runner.getResult}, not overridden by
-	 * abort.
-	 */
-	readonly getOutcome: () => Result<unknown, unknown> | null;
+  /**
+   * Returns what the task actually returned.
+   *
+   * `null` while pending. Unlike {@link Runner.getResult}, not overridden by
+   * abort.
+   */
+  readonly getOutcome: () => Result<unknown, unknown> | null;
 
-	/** Returns the current child {@link Fiber}s. */
-	readonly getChildren: () => ReadonlySet<Fiber>;
+  /** Returns the current child {@link Fiber}s. */
+  readonly getChildren: () => ReadonlySet<Fiber>;
 
-	/**
-	 * Creates a memoized {@link FiberSnapshot} of this runner.
-	 *
-	 * Use for monitoring, debugging, or building UI that visualizes task trees.
-	 *
-	 * ### Example
-	 *
-	 * ```ts
-	 * // React integration with useSyncExternalStore
-	 * const useFiberSnapshot = (runner: Runner) =>
-	 *   useSyncExternalStore(
-	 *     (callback) => {
-	 *       runner.onEvent = callback;
-	 *       return () => {
-	 *         runner.onEvent = undefined;
-	 *       };
-	 *     },
-	 *     () => runner.snapshot(),
-	 *   );
-	 * ```
-	 */
-	readonly snapshot: () => FiberSnapshot;
+  /**
+   * Creates a memoized {@link RunnerSnapshot} of this runner.
+   *
+   * Use for monitoring, debugging, or building UI that visualizes task trees.
+   *
+   * ### Example
+   *
+   * ```ts
+   * // React integration with useSyncExternalStore
+   * const useRunnerSnapshot = (runner: Runner) =>
+   *   useSyncExternalStore(
+   *     (callback) => {
+   *       runner.onEvent = callback;
+   *       return () => {
+   *         runner.onEvent = undefined;
+   *       };
+   *     },
+   *     () => runner.snapshot(),
+   *   );
+   * ```
+   */
+  readonly snapshot: () => RunnerSnapshot;
 
-	/**
-	 * Callback for monitoring runner events.
-	 *
-	 * Called when this runner or any descendant emits a {@link RunnerEvent}.
-	 * Events bubble up through parent runners, enabling centralized monitoring.
-	 * Only emitted when {@link RunnerConfig.eventsEnabled} is `true`.
-	 */
-	onEvent: ((event: RunnerEvent) => void) | undefined;
+  /**
+   * Callback for monitoring runner events.
+   *
+   * Called when this runner or any descendant emits a {@link RunnerEvent}.
+   * Events bubble up through parent runners, enabling centralized monitoring.
+   * Only emitted when {@link RunnerConfig.eventsEnabled} is `true`.
+   */
+  onEvent: ((event: RunnerEvent) => void) | undefined;
 
-	/**
-	 * Runs a {@link Task} on the root runner instead of the current runner.
-	 *
-	 * ### Example
-	 *
-	 * ```ts
-	 * const myTask: Task<void, never> = async (run) => {
-	 *   // Aborted when myTask ends
-	 *   run(helperTask);
-	 *
-	 *   // Outlives myTask, aborted when the root runner is disposed
-	 *   run.daemon(backgroundSync);
-	 *
-	 *   return ok();
-	 * };
-	 * ```
-	 */
-	readonly daemon: <T, E>(task: Task<T, E>) => Fiber<T, E>;
+  /**
+   * Runs a {@link Task} on the root runner instead of the current runner.
+   *
+   * ### Example
+   *
+   * ```ts
+   * const myTask: Task<void, never> = async (run) => {
+   *   // Aborted when myTask ends
+   *   run(helperTask);
+   *
+   *   // Outlives myTask, aborted when the root runner is disposed
+   *   run.daemon(backgroundSync);
+   *
+   *   return ok();
+   * };
+   * ```
+   */
+  readonly daemon: <T, E>(task: Task<T, E>) => Fiber<T, E>;
 
-	/**
-	 * Creates an {@link AsyncDisposable} that runs the task when disposed.
-	 *
-	 * Use for one-off task; for multiple, use {@link Runner.stack} instead.
-	 *
-	 * ### Example
-	 *
-	 * ```ts
-	 * // One-off task with defer
-	 * await using _ = run.defer(task);
-	 *
-	 * // For more tasks, a stack is more practical
-	 * await using stack = run.stack();
-	 * stack.defer(taskA);
-	 * stack.defer(taskB);
-	 *
-	 * // Spread to make any object disposable with Task
-	 * const connection = {
-	 *   send: (data: Data) => { ... },
-	 *   ...run.defer(async (run) => {
-	 *     await run(notifyPeers);
-	 *     return ok();
-	 *   }),
-	 * };
-	 * // connection[Symbol.asyncDispose] is now defined
-	 * ```
-	 */
-	readonly defer: (onDisposeAsync: Task<void>) => AsyncDisposable;
+  /**
+   * Creates an {@link AsyncDisposable} that runs the task when disposed.
+   *
+   * Use for one-off task; for multiple, use {@link Runner.stack} instead.
+   *
+   * ### Example
+   *
+   * ```ts
+   * // One-off task with defer
+   * await using _ = run.defer(task);
+   *
+   * // For more tasks, a stack is more practical
+   * await using stack = run.stack();
+   * stack.defer(taskA);
+   * stack.defer(taskB);
+   *
+   * // Spread to make any object disposable with Task
+   * const connection = {
+   *   send: (data: Data) => { ... },
+   *   ...run.defer(async (run) => {
+   *     await run(notifyPeers);
+   *     return ok();
+   *   }),
+   * };
+   * // connection[Symbol.asyncDispose] is now defined
+   * ```
+   */
+  readonly defer: (onDisposeAsync: Task<void>) => AsyncDisposable;
 
-	/**
-	 * Creates an {@link AsyncDisposableStack} bound to the root runner.
-	 *
-	 * ### Example
-	 *
-	 * ```ts
-	 * await using stack = run.stack();
-	 * stack.defer(task);
-	 * const conn = await stack.use(openConnection);
-	 * ```
-	 */
-	readonly stack: () => AsyncDisposableStack;
+  /**
+   * Creates an {@link AsyncDisposableStack} bound to the root runner.
+   *
+   * ### Example
+   *
+   * ```ts
+   * await using stack = run.stack();
+   * stack.defer(task);
+   * const conn = await stack.use(openConnection);
+   * ```
+   */
+  readonly stack: () => AsyncDisposableStack;
 
-	/**
-	 * {@link Time}.
-	 *
-	 * Used by {@link sleep}, {@link timeout}. Exposed for custom needs.
-	 */
-	readonly time: Time;
+  /**
+   * {@link Time}.
+   *
+   * Used by {@link sleep}, {@link timeout}. Exposed for custom needs.
+   */
+  readonly time: Time;
 
-	/**
-	 * {@link Random}.
-	 *
-	 * Used by {@link retry} for jitter. Exposed for custom needs.
-	 */
-	readonly random: Random;
+  /**
+   * {@link Random}.
+   *
+   * Used by {@link retry} for jitter. Exposed for custom needs.
+   */
+  readonly random: Random;
 }
 
 /**
@@ -593,90 +585,90 @@ export type RunnerState = typeof RunnerState.Type;
  * @category Core
  */
 export class Fiber<T = unknown, E = unknown>
-	implements PromiseLike<Result<T, E | AbortError>>, Disposable
+  implements PromiseLike<Result<T, E | AbortError>>, Disposable
 {
-	readonly then: PromiseLike<Result<T, E | AbortError>>["then"];
+  readonly then: PromiseLike<Result<T, E | AbortError>>["then"];
 
-	/**
-	 * Requests abort for this fiber (and any child it started).
-	 *
-	 * ### Example
-	 *
-	 * ```ts
-	 * const fiber = run(fetchData);
-	 * fiber.abort();
-	 * const result = await fiber; // err(AbortError)
-	 * ```
-	 *
-	 * When abort is requested, the fiber's result becomes {@link AbortError} even
-	 * if the task completed successfully. This keeps behavior predictable —
-	 * calling `abort()` always yields `AbortError`.
-	 *
-	 * The optional reason is stored in `AbortError.reason`. Since any value can
-	 * be passed, abort reasons are `unknown` — use typed errors for business
-	 * logic. To inspect the reason, use type guards like
-	 * `RaceLostError.is(reason)`.
-	 *
-	 * Abort is idempotent — calling multiple times has no additional effect
-	 * beyond the first call.
-	 */
-	readonly abort: (reason?: unknown) => void;
+  /**
+   * Requests abort for this fiber (and any child it started).
+   *
+   * ### Example
+   *
+   * ```ts
+   * const fiber = run(fetchData);
+   * fiber.abort();
+   * const result = await fiber; // err(AbortError)
+   * ```
+   *
+   * When abort is requested, the fiber's result becomes {@link AbortError} even
+   * if the task completed successfully. This keeps behavior predictable —
+   * calling `abort()` always yields `AbortError`.
+   *
+   * The optional reason is stored in `AbortError.reason`. Since any value can
+   * be passed, abort reasons are `unknown` — use typed errors for business
+   * logic. To inspect the reason, use type guards like
+   * `RaceLostError.is(reason)`.
+   *
+   * Abort is idempotent — calling multiple times has no additional effect
+   * beyond the first call.
+   */
+  readonly abort: (reason?: unknown) => void;
 
-	/**
-	 * A {@link Runner} whose lifetime is tied to this fiber.
-	 *
-	 * Tasks run via this runner are aborted when the fiber ends.
-	 *
-	 * ### Example
-	 *
-	 * ```ts
-	 * const fiber = run(longRunningTask);
-	 *
-	 * // helperTask is aborted when longRunningTask ends
-	 * fiber.run(helperTask);
-	 *
-	 * // Monitor this fiber's runner
-	 * fiber.run.onEvent = (event) => {
-	 *   console.log(event);
-	 * };
-	 * ```
-	 */
-	readonly run: Runner;
+  /**
+   * A {@link Runner} whose lifetime is tied to this fiber.
+   *
+   * Tasks run via this runner are aborted when the fiber ends.
+   *
+   * ### Example
+   *
+   * ```ts
+   * const fiber = run(longRunningTask);
+   *
+   * // helperTask is aborted when longRunningTask ends
+   * fiber.run(helperTask);
+   *
+   * // Monitor this fiber's runner
+   * fiber.run.onEvent = (event) => {
+   *   console.log(event);
+   * };
+   * ```
+   */
+  readonly run: Runner;
 
-	constructor(
-		run: Runner,
-		promise: Promise<Result<T, E | AbortError>>,
-		abort: (reason?: unknown) => void = constVoid,
-	) {
-		this.then = promise.then.bind(promise);
-		this.abort = abort;
-		this.run = run;
-	}
+  constructor(
+    run: Runner,
+    promise: Promise<Result<T, E | AbortError>>,
+    abort: (reason?: unknown) => void = constVoid,
+  ) {
+    this.then = promise.then.bind(promise);
+    this.abort = abort;
+    this.run = run;
+  }
 
-	/**
-	 * Returns the fiber's completion value.
-	 *
-	 * `null` while pending. If abort was requested, this is {@link AbortError}
-	 * even if the task completed successfully — see {@link Fiber.getOutcome} for
-	 * what the task actually returned.
-	 */
-	getResult(): Result<T, E | AbortError> | null {
-		return this.run.getResult() as Result<T, E | AbortError> | null;
-	}
+  /**
+   * Returns the fiber's completion value.
+   *
+   * `null` while pending. If abort was requested, this is {@link AbortError}
+   * even if the task completed successfully — see {@link Fiber.getOutcome} for
+   * what the task actually returned.
+   */
+  getResult(): Result<T, E | AbortError> | null {
+    return this.run.getResult() as Result<T, E | AbortError> | null;
+  }
 
-	/**
-	 * Returns what the task actually returned.
-	 *
-	 * `null` while pending. Unlike {@link Fiber.getResult}, not overridden by
-	 * abort.
-	 */
-	getOutcome(): Result<T, E | AbortError> | null {
-		return this.run.getOutcome() as Result<T, E | AbortError> | null;
-	}
+  /**
+   * Returns what the task actually returned.
+   *
+   * `null` while pending. Unlike {@link Fiber.getResult}, not overridden by
+   * abort.
+   */
+  getOutcome(): Result<T, E | AbortError> | null {
+    return this.run.getOutcome() as Result<T, E | AbortError> | null;
+  }
 
-	[Symbol.dispose](): void {
-		this.abort();
-	}
+  [Symbol.dispose](): void {
+    this.abort();
+  }
 }
 
 /**
@@ -685,7 +677,7 @@ export class Fiber<T = unknown, E = unknown>
  * @category Utilities
  */
 export type InferFiberOk<F extends Fiber<any, any>> =
-	F extends Fiber<infer T, any> ? T : never;
+  F extends Fiber<infer T, any> ? T : never;
 
 /**
  * Extracts the error type from a {@link Fiber}.
@@ -693,7 +685,7 @@ export type InferFiberOk<F extends Fiber<any, any>> =
  * @category Utilities
  */
 export type InferFiberErr<F extends Fiber<any, any>> =
-	F extends Fiber<any, infer E> ? E : never;
+  F extends Fiber<any, infer E> ? E : never;
 
 /**
  * A recursive snapshot of a {@link Runner} tree.
@@ -707,35 +699,35 @@ export type InferFiberErr<F extends Fiber<any, any>> =
  * @category Core
  * @see {@link Runner.snapshot}
  */
-export interface FiberSnapshot {
-	/** The {@link Runner.id} of the {@link Fiber} this snapshot represents. */
-	readonly id: Id;
+export interface RunnerSnapshot {
+  /** The {@link Runner.id} of the {@link Fiber} this snapshot represents. */
+  readonly id: Id;
 
-	/** The current lifecycle state. */
-	readonly state: RunnerState;
+  /** The current lifecycle state. */
+  readonly state: RunnerState;
 
-	/**
-	 * The fiber's completion value.
-	 *
-	 * `null` while pending. If abort was requested, this is {@link AbortError}
-	 * even if the task completed successfully — see {@link FiberSnapshot.outcome}
-	 * for what the task actually returned.
-	 */
-	readonly result: Result<unknown, unknown> | null;
+  /**
+   * The fiber's completion value.
+   *
+   * `null` while pending. If abort was requested, this is {@link AbortError}
+   * even if the task completed successfully — see {@link RunnerSnapshot.outcome}
+   * for what the task actually returned.
+   */
+  readonly result: Result<unknown, unknown> | null;
 
-	/**
-	 * What the task actually returned.
-	 *
-	 * `null` while pending. Unlike {@link FiberSnapshot.result}, not overridden
-	 * by abort.
-	 */
-	readonly outcome: Result<unknown, unknown> | null;
+  /**
+   * What the task actually returned.
+   *
+   * `null` while pending. Unlike {@link RunnerSnapshot.result}, not overridden
+   * by abort.
+   */
+  readonly outcome: Result<unknown, unknown> | null;
 
-	/** Child snapshots in spawn (start) order. */
-	readonly children: ReadonlyArray<FiberSnapshot>;
+  /** Child snapshots in spawn (start) order. */
+  readonly children: ReadonlyArray<RunnerSnapshot>;
 
-	/** The abort mask depth. `0` means abortable, `>= 1` means unabortable. */
-	readonly abortMask: AbortMask;
+  /** The abort mask depth. `0` means abortable, `>= 1` means unabortable. */
+  readonly abortMask: AbortMask;
 }
 
 /**
@@ -744,9 +736,9 @@ export interface FiberSnapshot {
  * @category Monitoring
  */
 export const RunnerEventChildAdded = typed("childAdded", {
-	runnerId: Id,
-	childId: Id,
-	timestamp: Millis,
+  runnerId: Id,
+  childId: Id,
+  timestamp: Millis,
 });
 export type RunnerEventChildAdded = typeof RunnerEventChildAdded.Type;
 
@@ -756,9 +748,9 @@ export type RunnerEventChildAdded = typeof RunnerEventChildAdded.Type;
  * @category Monitoring
  */
 export const RunnerEventChildRemoved = typed("childRemoved", {
-	runnerId: Id,
-	childId: Id,
-	timestamp: Millis,
+  runnerId: Id,
+  childId: Id,
+  timestamp: Millis,
 });
 export type RunnerEventChildRemoved = typeof RunnerEventChildRemoved.Type;
 
@@ -768,9 +760,9 @@ export type RunnerEventChildRemoved = typeof RunnerEventChildRemoved.Type;
  * @category Monitoring
  */
 export const RunnerEventStateChanged = typed("stateChanged", {
-	runnerId: Id,
-	state: RunnerState,
-	timestamp: Millis,
+  runnerId: Id,
+  state: RunnerState,
+  timestamp: Millis,
 });
 export type RunnerEventStateChanged = typeof RunnerEventStateChanged.Type;
 
@@ -780,10 +772,10 @@ export type RunnerEventStateChanged = typeof RunnerEventStateChanged.Type;
  * @category Monitoring
  */
 export const RunnerEventResultSet = typed("resultSet", {
-	runnerId: Id,
-	result: UnknownResult,
-	outcome: UnknownResult,
-	timestamp: Millis,
+  runnerId: Id,
+  result: UnknownResult,
+  outcome: UnknownResult,
+  timestamp: Millis,
 });
 export type RunnerEventResultSet = typeof RunnerEventResultSet.Type;
 
@@ -796,10 +788,10 @@ export type RunnerEventResultSet = typeof RunnerEventResultSet.Type;
  * @category Monitoring
  */
 export const RunnerEvent = union(
-	RunnerEventChildAdded,
-	RunnerEventChildRemoved,
-	RunnerEventStateChanged,
-	RunnerEventResultSet,
+  RunnerEventChildAdded,
+  RunnerEventChildRemoved,
+  RunnerEventStateChanged,
+  RunnerEventResultSet,
 );
 export type RunnerEvent = typeof RunnerEvent.Type;
 
@@ -833,122 +825,122 @@ export type RunnerEvent = typeof RunnerEvent.Type;
  * @category Resource management
  */
 export class AsyncDisposableStack implements AsyncDisposable {
-	readonly #stack = new globalThis.AsyncDisposableStack();
-	readonly #daemon: Runner["daemon"];
+  readonly #stack = new globalThis.AsyncDisposableStack();
+  readonly #daemon: Runner["daemon"];
 
-	constructor(run: Runner) {
-		this.#daemon = run.daemon;
-	}
+  constructor(run: Runner) {
+    this.#daemon = run.daemon;
+  }
 
-	#run<T, E>(task: Task<T, E>): Fiber<T, E> {
-		return this.#daemon(unabortable(task));
-	}
+  #run<T, E>(task: Task<T, E>): Fiber<T, E> {
+    return this.#daemon(unabortable(task));
+  }
 
-	#runVoid(task: Task<void>): PromiseLike<void> {
-		return this.#run(task).then(constVoid);
-	}
+  #runVoid(task: Task<void>): PromiseLike<void> {
+    return this.#run(task).then(constVoid);
+  }
 
-	/**
-	 * Registers a {@link Task} to run when the stack is disposed.
-	 *
-	 * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/AsyncDisposableStack/defer
-	 */
-	defer(onDisposeAsync: Task<void>): void {
-		this.#stack.defer(() => this.#runVoid(onDisposeAsync));
-	}
+  /**
+   * Registers a {@link Task} to run when the stack is disposed.
+   *
+   * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/AsyncDisposableStack/defer
+   */
+  defer(onDisposeAsync: Task<void>): void {
+    this.#stack.defer(() => this.#runVoid(onDisposeAsync));
+  }
 
-	/**
-	 * Registers a disposable resource and returns it.
-	 *
-	 * Accepts either a direct value (sync) or a {@link Task} (async acquisition).
-	 *
-	 * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/AsyncDisposableStack/use
-	 */
-	use<T extends AsyncDisposable | Disposable | null | undefined>(value: T): T;
-	use<T extends AsyncDisposable | Disposable | null | undefined, E>(
-		acquire: Task<T, E>,
-	): PromiseLike<Result<T, E | AbortError>>;
-	use<T extends AsyncDisposable | Disposable | null | undefined, E>(
-		valueOrAcquire: T | Task<T, E>,
-	): T | PromiseLike<Result<T, E | AbortError>> {
-		if (
-			valueOrAcquire == null ||
-			Symbol.dispose in valueOrAcquire ||
-			Symbol.asyncDispose in valueOrAcquire
-		) {
-			return this.#stack.use(valueOrAcquire as T);
-		}
-		return this.#run(valueOrAcquire).then((result) => {
-			if (result.ok) this.#stack.use(result.value);
-			return result;
-		});
-	}
+  /**
+   * Registers a disposable resource and returns it.
+   *
+   * Accepts either a direct value (sync) or a {@link Task} (async acquisition).
+   *
+   * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/AsyncDisposableStack/use
+   */
+  use<T extends AsyncDisposable | Disposable | null | undefined>(value: T): T;
+  use<T extends AsyncDisposable | Disposable | null | undefined, E>(
+    acquire: Task<T, E>,
+  ): PromiseLike<Result<T, E | AbortError>>;
+  use<T extends AsyncDisposable | Disposable | null | undefined, E>(
+    valueOrAcquire: T | Task<T, E>,
+  ): T | PromiseLike<Result<T, E | AbortError>> {
+    if (
+      valueOrAcquire == null ||
+      Symbol.dispose in valueOrAcquire ||
+      Symbol.asyncDispose in valueOrAcquire
+    ) {
+      return this.#stack.use(valueOrAcquire as T);
+    }
+    return this.#run(valueOrAcquire).then((result) => {
+      if (result.ok) this.#stack.use(result.value);
+      return result;
+    });
+  }
 
-	/**
-	 * Adopts a value with a {@link Task}-based disposal.
-	 *
-	 * For values that don't implement {@link AsyncDisposable} and need disposal.
-	 * If the value is already disposable, use {@link use} instead.
-	 *
-	 * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/AsyncDisposableStack/adopt
-	 */
-	async adopt<T, E = never>(
-		acquire: Task<T, E>,
-		release: (value: T) => Task<void>,
-	): Promise<Result<T, E | AbortError>> {
-		const result = await this.#run(acquire);
-		if (result.ok) {
-			this.#stack.adopt(result.value, (v) => this.#runVoid(release(v)));
-		}
-		return result;
-	}
+  /**
+   * Adopts a value with a {@link Task}-based disposal.
+   *
+   * For values that don't implement {@link AsyncDisposable} and need disposal.
+   * If the value is already disposable, use {@link use} instead.
+   *
+   * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/AsyncDisposableStack/adopt
+   */
+  async adopt<T, E = never>(
+    acquire: Task<T, E>,
+    release: (value: T) => Task<void>,
+  ): Promise<Result<T, E | AbortError>> {
+    const result = await this.#run(acquire);
+    if (result.ok) {
+      this.#stack.adopt(result.value, (v) => this.#runVoid(release(v)));
+    }
+    return result;
+  }
 
-	/**
-	 * Transfers disposal responsibility to a new stack, marking this one
-	 * disposed.
-	 *
-	 * Enables transferring ownership out of the current scope — if an error
-	 * occurs, resources are disposed; if successful, the caller takes ownership.
-	 *
-	 * ### Example
-	 *
-	 * ```ts
-	 * const createBundle: Task<Bundle, CreateBundleError> = async (run) => {
-	 *   await using stack = run.stack();
-	 *
-	 *   const a = await stack.use(createResource("a"));
-	 *   if (!a.ok) return a;
-	 *
-	 *   const b = await stack.use(createResource("b"));
-	 *   if (!b.ok) return b;
-	 *
-	 *   const moved = stack.move();
-	 *   return ok({
-	 *     a: a.value,
-	 *     b: b.value,
-	 *     [Symbol.asyncDispose]: () => moved.disposeAsync(),
-	 *   });
-	 * };
-	 * ```
-	 *
-	 * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DisposableStack/move
-	 */
-	move(): globalThis.AsyncDisposableStack {
-		return this.#stack.move();
-	}
+  /**
+   * Transfers disposal responsibility to a new stack, marking this one
+   * disposed.
+   *
+   * Enables transferring ownership out of the current scope — if an error
+   * occurs, resources are disposed; if successful, the caller takes ownership.
+   *
+   * ### Example
+   *
+   * ```ts
+   * const createBundle: Task<Bundle, CreateBundleError> = async (run) => {
+   *   await using stack = run.stack();
+   *
+   *   const a = await stack.use(createResource("a"));
+   *   if (!a.ok) return a;
+   *
+   *   const b = await stack.use(createResource("b"));
+   *   if (!b.ok) return b;
+   *
+   *   const moved = stack.move();
+   *   return ok({
+   *     a: a.value,
+   *     b: b.value,
+   *     [Symbol.asyncDispose]: () => moved.disposeAsync(),
+   *   });
+   * };
+   * ```
+   *
+   * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DisposableStack/move
+   */
+  move(): globalThis.AsyncDisposableStack {
+    return this.#stack.move();
+  }
 
-	/** Whether this stack has been disposed. */
-	get disposed(): boolean {
-		return this.#stack.disposed;
-	}
+  /** Whether this stack has been disposed. */
+  get disposed(): boolean {
+    return this.#stack.disposed;
+  }
 
-	disposeAsync(): Promise<void> {
-		return this.#stack.disposeAsync();
-	}
+  disposeAsync(): Promise<void> {
+    return this.#stack.disposeAsync();
+  }
 
-	[Symbol.asyncDispose](): Promise<void> {
-		return this.#stack.disposeAsync();
-	}
+  [Symbol.asyncDispose](): Promise<void> {
+    return this.#stack.disposeAsync();
+  }
 }
 
 /**
@@ -957,30 +949,30 @@ export class AsyncDisposableStack implements AsyncDisposable {
  * @category Monitoring
  */
 export interface RunnerConfig {
-	/**
-	 * Whether to emit {@link RunnerEvent}s.
-	 *
-	 * Use a {@link Ref} to enable/disable at runtime without recreating the
-	 * runner. Disabled by default for zero overhead in production.
-	 */
-	readonly eventsEnabled: Ref<boolean>;
+  /**
+   * Whether to emit {@link RunnerEvent}s.
+   *
+   * Use a {@link Ref} to enable/disable at runtime without recreating the
+   * runner. Disabled by default for zero overhead in production.
+   */
+  readonly eventsEnabled: Ref<boolean>;
 }
 
 export interface RunnerConfigDep {
-	readonly runnerConfig: RunnerConfig;
+  readonly runnerConfig: RunnerConfig;
 }
 
 export type RunnerDeps = RandomBytesDep &
-	RandomDep &
-	TimeDep &
-	Partial<RunnerConfigDep> &
-	Partial<TracerConfigDep> & // TODO:
-	Partial<TracerDep>; // TODO:
+  RandomDep &
+  TimeDep &
+  Partial<RunnerConfigDep> &
+  Partial<TracerConfigDep> & // TODO:
+  Partial<TracerDep>; // TODO:
 
 const defaultDeps: RunnerDeps = {
-	random: createRandom(),
-	randomBytes: createRandomBytes(),
-	time: createTime(),
+  random: createRandom(),
+  randomBytes: createRandomBytes(),
+  time: createTime(),
 };
 
 /**
@@ -1002,232 +994,224 @@ const defaultDeps: RunnerDeps = {
  * @category Core
  */
 export const createRunner = (deps = defaultDeps): Runner =>
-	createRunnerInternal(deps)();
+  createRunnerInternal(deps)();
 
 /** Internal Runner properties, hidden from public API via TypeScript types. */
 interface RunnerInternal extends Runner {
-	readonly requestAbort: (reason: AbortError) => void;
-	readonly requestSignal: AbortSignal;
-	readonly setResultAndOutcome: (
-		result: Result<unknown, unknown>,
-		outcome: Result<unknown, unknown>,
-	) => void;
+  readonly requestAbort: (reason: AbortError) => void;
+  readonly requestSignal: AbortSignal;
+  readonly setResultAndOutcome: (
+    result: Result<unknown, unknown>,
+    outcome: Result<unknown, unknown>,
+  ) => void;
 }
 
 const createRunnerInternal =
-	(deps: RunnerDeps) =>
-	(
-		parent?: RunnerInternal,
-		daemon?: RunnerInternal,
-		behavior?: AbortBehavior,
-	): RunnerInternal => {
-		const parentMask = parent?.abortMask ?? isAbortable;
+  (deps: RunnerDeps) =>
+  (
+    parent?: RunnerInternal,
+    daemon?: RunnerInternal,
+    behavior?: AbortBehavior,
+  ): RunnerInternal => {
+    const parentMask = parent?.abortMask ?? isAbortable;
 
-		let abortMask: AbortMask;
-		switch (behavior) {
-			case undefined:
-				abortMask = parentMask;
-				break;
-			case "unabortable":
-				abortMask = increment(parentMask) as AbortMask;
-				break;
-			default:
-				assert(
-					behavior <= parentMask,
-					"restore used outside its unabortableMask",
-				);
-				abortMask = behavior;
-		}
+    let abortMask: AbortMask;
+    switch (behavior) {
+      case undefined:
+        abortMask = parentMask;
+        break;
+      case "unabortable":
+        abortMask = increment(parentMask) as AbortMask;
+        break;
+      default:
+        assert(
+          behavior <= parentMask,
+          "restore used outside its unabortableMask",
+        );
+        abortMask = behavior;
+    }
 
-		const requestController = new AbortController();
-		const signalController = new AbortController();
+    const requestController = new AbortController();
+    const signalController = new AbortController();
 
-		let state: RunnerState = "active";
-		let children: ReadonlySet<Fiber> = emptySet;
+    let state: RunnerState = "active";
+    let children: ReadonlySet<Fiber> = emptySet;
 
-		// AbortController ensures idempotence.
-		const requestAbort = (reason: AbortError) => {
-			requestController.abort(reason);
-			if (abortMask === isAbortable) signalController.abort(reason);
-		};
+    // AbortController ensures idempotence.
+    const requestAbort = (reason: AbortError) => {
+      requestController.abort(reason);
+      if (abortMask === isAbortable) signalController.abort(reason);
+    };
 
-		if (parent) {
-			const handleParentAbort = () => {
-				requestAbort(parent.requestSignal.reason as AbortError);
-			};
-			if (parent.requestSignal.aborted) {
-				handleParentAbort();
-			} else {
-				parent.requestSignal.addEventListener("abort", handleParentAbort, {
-					signal: requestController.signal,
-				});
-			}
-		}
+    if (parent) {
+      const handleParentAbort = () => {
+        requestAbort(parent.requestSignal.reason as AbortError);
+      };
+      if (parent.requestSignal.aborted) {
+        handleParentAbort();
+      } else {
+        parent.requestSignal.addEventListener("abort", handleParentAbort, {
+          signal: requestController.signal,
+        });
+      }
+    }
 
-		type RunnerEventPayload<T> = T extends RunnerEvent
-			? Omit<T, "runnerId" | "timestamp">
-			: never;
+    type RunnerEventPayload<T> = T extends RunnerEvent
+      ? Omit<T, "runnerId" | "timestamp">
+      : never;
 
-		const emitEvent = (event: RunnerEventPayload<RunnerEvent>) => {
-			if (!deps.runnerConfig?.eventsEnabled.get()) return;
-			const fullEvent = {
-				...event,
-				runnerId: self.id,
-				timestamp: deps.time.now(),
-			};
-			for (let node: Runner | null = self; node; node = node.parent)
-				node.onEvent?.(fullEvent);
-		};
+    const emitEvent = (event: RunnerEventPayload<RunnerEvent>) => {
+      if (!deps.runnerConfig?.eventsEnabled.get()) return;
+      const fullEvent = {
+        ...event,
+        runnerId: self.id,
+        timestamp: deps.time.now(),
+      };
+      for (let node: Runner | null = self; node; node = node.parent)
+        node.onEvent?.(fullEvent);
+    };
 
-		const run = <T, E>(task: Task<T, E>): Fiber<T, E> => {
-			const runner = createRunnerInternal(deps)(
-				self,
-				daemon ?? self,
-				getAbortBehavior(task),
-			);
+    const run = <T, E>(task: Task<T, E>): Fiber<T, E> => {
+      const runner = createRunnerInternal(deps)(
+        self,
+        daemon ?? self,
+        getAbortBehavior(task),
+      );
 
-			if (state !== "active") {
-				runner.requestAbort(runnerClosingError);
-				task = () => Promise.resolve(err(runnerClosingError));
-			} else if (
-				signalController.signal.aborted &&
-				runner.abortMask === isAbortable
-			) {
-				const abortReason = signalController.signal.reason as AbortError;
-				runner.requestAbort(abortReason);
-				task = () => Promise.resolve(err(abortReason));
-			}
+      if (state !== "active") {
+        runner.requestAbort(runnerClosingError);
+        task = () => Promise.resolve(err(runnerClosingError));
+      } else if (
+        signalController.signal.aborted &&
+        runner.abortMask === isAbortable
+      ) {
+        const abortReason = signalController.signal.reason as AbortError;
+        runner.requestAbort(abortReason);
+        task = () => Promise.resolve(err(abortReason));
+      }
 
-			// Promise.try is not standard, use async wrapper
-			// eslint-disable-next-line @typescript-eslint/no-base-to-string
-			const promise = (async () => task(runner))()
-				.then((taskOutcome) => {
-					const childResult = runner.signal.aborted
-						? err(runner.signal.reason)
-						: taskOutcome;
-					runner.setResultAndOutcome(
-						childResult,
-						taskOutcome as Result<unknown, unknown>,
-					);
-					return childResult;
-				})
-				.finally(runner[Symbol.asyncDispose])
-				.finally(() => {
-					children = deleteFromSet(children, fiber);
-					emitEvent({ type: "childRemoved", childId: runner.id });
-				});
+      const promise = Promise.try(task, runner)
+        .then((taskOutcome) => {
+          const childResult = runner.signal.aborted
+            ? err(runner.signal.reason)
+            : taskOutcome;
+          runner.setResultAndOutcome(childResult, taskOutcome);
+          return childResult;
+        })
+        .finally(runner[Symbol.asyncDispose])
+        .finally(() => {
+          children = deleteFromSet(children, fiber);
+          emitEvent({ type: "childRemoved", childId: runner.id });
+        });
 
-			const fiber = new Fiber<T, E>(runner, promise, (reason?: unknown) => {
-				runner.requestAbort(createAbortError(reason));
-			});
+      const fiber = new Fiber<T, E>(runner, promise, (reason?: unknown) => {
+        runner.requestAbort(createAbortError(reason));
+      });
 
-			children = addToSet(children, fiber);
-			emitEvent({ type: "childAdded", childId: runner.id });
+      children = addToSet(children, fiber);
+      emitEvent({ type: "childAdded", childId: runner.id });
 
-			return fiber;
-		};
+      return fiber;
+    };
 
-		const self = run as RunnerInternal;
+    const self = run as RunnerInternal;
 
-		{
-			const run = self as Mutable<RunnerInternal>;
-			const id = createId(deps);
+    {
+      const run = self as Mutable<RunnerInternal>;
+      const id = createId(deps);
 
-			let result: Result<unknown, unknown> | null = null;
-			let outcome: Result<unknown, unknown> | null = null;
-			let snapshot: FiberSnapshot | null = null;
-			let disposing: Promise<void> | null = null;
+      let result: Result<unknown, unknown> | null = null;
+      let outcome: Result<unknown, unknown> | null = null;
+      let snapshot: RunnerSnapshot | null = null;
+      let disposing: Promise<void> | null = null;
 
-			run.id = id;
-			run.parent = parent ?? null;
+      run.id = id;
+      run.parent = parent ?? null;
 
-			run.signal = signalController.signal;
-			run.abortMask = abortMask;
-			run.onAbort = (fn: (reason: unknown) => void) => {
-				signalController.signal.addEventListener(
-					"abort",
-					() => {
-						fn((signalController.signal.reason as AbortError).reason);
-					},
-					{ once: true },
-				);
-			};
+      run.signal = signalController.signal;
+      run.abortMask = abortMask;
+      run.onAbort = (fn) => {
+        signalController.signal.addEventListener(
+          "abort",
+          () => {
+            fn((signalController.signal.reason as AbortError).reason);
+          },
+          { once: true },
+        );
+      };
 
-			run.getState = () => state;
-			run.getResult = () => result;
-			run.getOutcome = () => outcome;
-			run.getChildren = () => children;
+      run.getState = () => state;
+      run.getResult = () => result;
+      run.getOutcome = () => outcome;
+      run.getChildren = () => children;
 
-			run.snapshot = () => {
-				const childSnapshots = Array.from(children).map((fiber) =>
-					fiber.run.snapshot(),
-				);
-				if (
-					snapshot?.state !== state ||
-					snapshot.result !== result ||
-					// No need to check outcome — it's set together with result
-					!eqArrayStrict(snapshot.children, childSnapshots)
-				) {
-					snapshot = {
-						id,
-						state,
-						result,
-						outcome,
-						children: childSnapshots,
-						abortMask,
-					};
-				}
-				return snapshot!;
-			};
-			run.onEvent = undefined;
+      run.snapshot = () => {
+        const childSnapshots = Array.from(children).map((fiber) =>
+          fiber.run.snapshot(),
+        );
+        if (
+          snapshot?.state !== state ||
+          snapshot.result !== result ||
+          // No need to check outcome — it's set together with result
+          !eqArrayStrict(snapshot.children, childSnapshots)
+        ) {
+          snapshot = {
+            id,
+            state,
+            result,
+            outcome,
+            children: childSnapshots,
+            abortMask,
+          };
+        }
+        return snapshot;
+      };
+      run.onEvent = undefined;
 
-			run.daemon = <T, E>(task: Task<T, E>) => (daemon ?? self)(task);
-			run.defer = (task: Task<void>) => ({
-				[Symbol.asyncDispose]: () =>
-					run.daemon(unabortable(task)).then(constVoid),
-			});
-			run.stack = () => new AsyncDisposableStack(self);
+      run.daemon = (task) => (daemon ?? self)(task);
+      run.defer = (task) => ({
+        [Symbol.asyncDispose]: () =>
+          run.daemon(unabortable(task)).then(constVoid),
+      });
+      run.stack = () => new AsyncDisposableStack(self);
 
-			run.time = deps.time;
-			run.random = deps.random;
+      run.time = deps.time;
+      run.random = deps.random;
 
-			run[Symbol.asyncDispose] = () => {
-				if (disposing) return disposing;
+      run[Symbol.asyncDispose] = () => {
+        if (disposing) return disposing;
 
-				state = "disposing";
-				emitEvent({ type: "stateChanged", state });
+        state = "disposing";
+        emitEvent({ type: "stateChanged", state });
 
-				requestAbort(runnerClosingError);
+        requestAbort(runnerClosingError);
 
-				disposing = Promise.allSettled(children)
-					.then(constVoid)
-					.finally(() => {
-						state = "disposed";
-						emitEvent({ type: "stateChanged", state });
-					});
+        disposing = Promise.allSettled(children)
+          .then(constVoid)
+          .finally(() => {
+            state = "disposed";
+            emitEvent({ type: "stateChanged", state });
+          });
 
-				return disposing;
-			};
+        return disposing;
+      };
 
-			// Internal properties (hidden from public Runner type)
-			run.requestAbort = requestAbort;
-			run.requestSignal = requestController.signal;
-			run.setResultAndOutcome = (
-				fiberResult: Result<unknown, unknown>,
-				taskOutcome: Result<unknown, unknown>,
-			) => {
-				result = fiberResult;
-				outcome = taskOutcome;
-				emitEvent({
-					type: "resultSet",
-					result: fiberResult,
-					outcome: taskOutcome,
-				});
-			};
-		}
+      // Internal properties (hidden from public Runner type)
+      run.requestAbort = requestAbort;
+      run.requestSignal = requestController.signal;
+      run.setResultAndOutcome = (fiberResult, taskOutcome) => {
+        result = fiberResult;
+        outcome = taskOutcome;
+        emitEvent({
+          type: "resultSet",
+          result: fiberResult,
+          outcome: taskOutcome,
+        });
+      };
+    }
 
-		return self;
-	};
+    return self;
+  };
 
 /** Mask value indicating the task is abortable. */
 const isAbortable = AbortMask.orThrow(0);
@@ -1241,8 +1225,8 @@ export const RunnerClosingError = typed("RunnerClosingError");
 export type RunnerClosingError = typeof RunnerClosingError.Type;
 
 const createAbortError = (reason: unknown): AbortError => ({
-	type: "AbortError",
-	reason,
+  type: "AbortError",
+  reason,
 });
 
 /**
@@ -1253,25 +1237,25 @@ const createAbortError = (reason: unknown): AbortError => ({
  * @category Core
  */
 export const runnerClosingError = createAbortError({
-	type: "RunnerClosingError",
+  type: "RunnerClosingError",
 } satisfies RunnerClosingError);
 
 type AbortBehavior = "unabortable" | AbortMask;
 
 interface MaybeAbortBehavior {
-	[_abortBehavior]?: AbortBehavior;
+  [_abortBehavior]?: AbortBehavior;
 }
 
 const getAbortBehavior = (task: Task<any, any>): AbortBehavior | undefined =>
-	(task as MaybeAbortBehavior)[_abortBehavior];
+  (task as MaybeAbortBehavior)[_abortBehavior];
 
 const abortBehavior =
-	(behavior: AbortBehavior) =>
-	<T, E>(task: Task<T, E>): Task<T, E> => {
-		const wrapper: Task<T, E> = (run) => run(task);
-		(wrapper as MaybeAbortBehavior)[_abortBehavior] = behavior;
-		return wrapper;
-	};
+  (behavior: AbortBehavior) =>
+  <T, E>(task: Task<T, E>): Task<T, E> => {
+    const wrapper: Task<T, E> = (run) => run(task);
+    (wrapper as MaybeAbortBehavior)[_abortBehavior] = behavior;
+    return wrapper;
+  };
 
 const _abortBehavior = Symbol("evolu.Task.abortBehavior");
 
@@ -1335,11 +1319,11 @@ export const unabortable = abortBehavior("unabortable");
  * @category Abort Masking
  */
 export const unabortableMask = <T, E>(
-	fn: (restore: <T2, E2>(task: Task<T2, E2>) => Task<T2, E2>) => Task<T, E>,
+  fn: (restore: <T2, E2>(task: Task<T2, E2>) => Task<T2, E2>) => Task<T, E>,
 ): Task<T, E> =>
-	unabortable((run) =>
-		fn(abortBehavior(AbortMask.orThrow(decrement(run.abortMask))))(run),
-	);
+  unabortable((run) =>
+    fn(abortBehavior(AbortMask.orThrow(decrement(run.abortMask))))(run),
+  );
 
 /**
  * Yields execution to allow other work to proceed.
@@ -1399,18 +1383,18 @@ export const unabortableMask = <T, E>(
  * @see https://web.dev/articles/optimize-long-tasks
  */
 export const yieldNow: Task<void> = () =>
-	// tryAsync prepares for scheduler.yield({ signal }) which rejects on abort.
-	tryAsync(
-		() => yieldImpl(),
-		(error): AbortError => ({ type: "AbortError", reason: error }),
-	);
+  // tryAsync prepares for scheduler.yield({ signal }) which rejects on abort.
+  tryAsync(
+    () => yieldImpl(),
+    (error): AbortError => ({ type: "AbortError", reason: error }),
+  );
 
 const yieldImpl: () => Promise<void> =
-	"scheduler" in globalThis && "yield" in globalThis.scheduler
-		? () => globalThis.scheduler.yield()
-		: typeof setImmediate !== "undefined"
-			? () => new Promise<void>(setImmediate)
-			: () => new Promise<void>((r) => setTimeout(r, 0)); // Safari
+  "scheduler" in globalThis && "yield" in globalThis.scheduler
+    ? () => globalThis.scheduler.yield()
+    : typeof setImmediate !== "undefined"
+      ? () => new Promise<void>(setImmediate)
+      : () => new Promise<void>((r) => setTimeout(r, 0)); // Safari
 
 /**
  * Pauses execution for a specified duration.
@@ -1430,18 +1414,18 @@ const yieldImpl: () => Promise<void> =
  * @experimental
  */
 export const sleep =
-	(duration: Duration): Task<void> =>
-	(run) =>
-		new Promise((resolve) => {
-			const id = run.time.setTimeout(() => {
-				resolve(ok());
-			}, durationToMillis(duration));
+  (duration: Duration): Task<void> =>
+  (run) =>
+    new Promise((resolve) => {
+      const id = run.time.setTimeout(() => {
+        resolve(ok());
+      }, durationToMillis(duration));
 
-			run.onAbort((reason) => {
-				run.time.clearTimeout(id);
-				resolve(err({ type: "AbortError", reason }));
-			});
-		});
+      run.onAbort((reason) => {
+        run.time.clearTimeout(id);
+        resolve(err({ type: "AbortError", reason }));
+      });
+    });
 
 /**
  * Returns a {@link Task} that completes first.
@@ -1480,26 +1464,26 @@ export const sleep =
  * @experimental
  */
 export const race =
-	<T extends readonly [Task<any, any>, ...ReadonlyArray<Task<any, any>>]>(
-		tasks: T,
-		{
-			abortReason = raceLostError,
-		}: {
-			/** Abort reason for losing tasks. Defaults to {@link raceLostError}. */
-			abortReason?: unknown;
-		} = {},
-	): Task<InferTaskOk<T[number]>, InferTaskErr<T[number]>> =>
-	async (run) => {
-		const fibers = tasks.map(run.daemon);
-		const abortPending = (reason: unknown) => {
-			for (const fiber of fibers)
-				if (fiber.getResult() === null) fiber.abort(reason);
-			return ok();
-		};
-		run.onAbort(abortPending);
-		await using _ = run.defer(() => abortPending(abortReason));
-		return await Promise.race(fibers);
-	};
+  <T extends readonly [Task<any, any>, ...ReadonlyArray<Task<any, any>>]>(
+    tasks: T,
+    {
+      abortReason = raceLostError,
+    }: {
+      /** Abort reason for losing tasks. Defaults to {@link raceLostError}. */
+      abortReason?: unknown;
+    } = {},
+  ): Task<InferTaskOk<T[number]>, InferTaskErr<T[number]>> =>
+  async (run) => {
+    const fibers = tasks.map(run.daemon);
+    const abortPending = (reason: unknown) => {
+      for (const fiber of fibers)
+        if (fiber.getResult() === null) fiber.abort(reason);
+      return ok();
+    };
+    run.onAbort(abortPending);
+    await using _ = run.defer(() => abortPending(abortReason));
+    return await Promise.race(fibers);
+  };
 
 /**
  * Abort reason for tasks that lose a {@link race}.
@@ -1537,28 +1521,28 @@ export const raceLostError: RaceLostError = { type: "RaceLostError" };
  * @experimental
  */
 export const timeout = <T, E>(
-	duration: Duration,
-	task: Task<T, E>,
-	{
-		abortReason = timeoutError,
-	}: {
-		/**
-		 * Abort reason for the task when timeout fires. Defaults to
-		 * {@link timeoutError}.
-		 */
-		abortReason?: unknown;
-	} = {},
+  duration: Duration,
+  task: Task<T, E>,
+  {
+    abortReason = timeoutError,
+  }: {
+    /**
+     * Abort reason for the task when timeout fires. Defaults to
+     * {@link timeoutError}.
+     */
+    abortReason?: unknown;
+  } = {},
 ): Task<T, E | TimeoutError> =>
-	race(
-		[
-			task,
-			async (run) => {
-				await run(sleep(duration));
-				return err(timeoutError);
-			},
-		],
-		{ abortReason },
-	);
+  race(
+    [
+      task,
+      async (run) => {
+        await run(sleep(duration));
+        return err(timeoutError);
+      },
+    ],
+    { abortReason },
+  );
 
 /**
  * Typed error returned by {@link timeout} when a task exceeds its time limit.
@@ -1581,11 +1565,11 @@ export const timeoutError: TimeoutError = { type: "TimeoutError" };
  * @category Composition
  */
 export interface RetryError<E> {
-	readonly type: "RetryError";
-	/** The error from the final attempt. */
-	readonly cause: E;
-	/** Total attempts made (initial + retries). */
-	readonly attempts: number;
+  readonly type: "RetryError";
+  /** The error from the final attempt. */
+  readonly cause: E;
+  /** Total attempts made (initial + retries). */
+  readonly attempts: number;
 }
 
 /**
@@ -1637,72 +1621,72 @@ export interface RetryError<E> {
  * @experimental
  */
 export const retry =
-	<T, E>(
-		{
-			schedule,
-			retryable = constTrue,
-			onRetry,
-		}: {
-			/**
-			 * Schedule controlling retry timing. Determines delays and attempt
-			 * limits.
-			 */
-			schedule: Schedule<unknown, E>;
-			/** Predicate to determine if error is retryable. Defaults to all errors. */
-			retryable?: Predicate<E>;
-			/**
-			 * Callback invoked before each retry attempt with error and attempt
-			 * number.
-			 */
-			onRetry?: (error: E, attempt: number) => void;
-		},
-		task: Task<T, E>,
-	): Task<T, E | RetryError<E>> =>
-	async (run) => {
-		const step = schedule(run);
-		let attempt = 0;
-		let lastError: E | undefined;
+  <T, E>(
+    {
+      schedule,
+      retryable = constTrue,
+      onRetry,
+    }: {
+      /**
+       * Schedule controlling retry timing. Determines delays and attempt
+       * limits.
+       */
+      schedule: Schedule<unknown, E>;
+      /** Predicate to determine if error is retryable. Defaults to all errors. */
+      retryable?: Predicate<E>;
+      /**
+       * Callback invoked before each retry attempt with error and attempt
+       * number.
+       */
+      onRetry?: (error: E, attempt: number) => void;
+    },
+    task: Task<T, E>,
+  ): Task<T, E | RetryError<E>> =>
+  async (run) => {
+    const step = schedule(run);
+    let attempt = 0;
+    let lastError: E | undefined;
 
-		for (;;) {
-			attempt++;
+    for (;;) {
+      attempt++;
 
-			// On retry (not first attempt), wait according to schedule
-			if (lastError !== undefined) {
-				const scheduleResult = step(lastError);
-				if (!scheduleResult.ok) {
-					// Schedule exhausted
-					return err<RetryError<E>>({
-						type: "RetryError",
-						cause: lastError,
-						attempts: attempt - 1,
-					});
-				}
+      // On retry (not first attempt), wait according to schedule
+      if (lastError !== undefined) {
+        const scheduleResult = step(lastError);
+        if (!scheduleResult.ok) {
+          // Schedule exhausted
+          return err<RetryError<E>>({
+            type: "RetryError",
+            cause: lastError,
+            attempts: attempt - 1,
+          });
+        }
 
-				onRetry?.(lastError, attempt - 1);
+        onRetry?.(lastError, attempt - 1);
 
-				const [, delay] = scheduleResult.value;
-				if (delay > 0) {
-					const sleepResult = await run(sleep(delay));
-					if (!sleepResult.ok) return sleepResult;
-				}
-			}
+        const [, delay] = scheduleResult.value;
+        if (delay > 0) {
+          const sleepResult = await run(sleep(delay));
+          if (!sleepResult.ok) return sleepResult;
+        }
+      }
 
-			const result = await run(task);
-			if (result.ok) return result;
+      const result = await run(task);
+      if (result.ok) return result;
 
-			// Never retry AbortError
-			if (AbortError.is(result.error)) return result;
+      // Never retry AbortError
+      if (AbortError.is(result.error)) return result;
 
-			lastError = result.error;
-			if (!retryable(lastError)) {
-				return err<RetryError<E>>({
-					type: "RetryError",
-					cause: lastError,
-					attempts: attempt,
-				});
-			}
-		}
-	};
+      lastError = result.error;
+      if (!retryable(lastError)) {
+        return err<RetryError<E>>({
+          type: "RetryError",
+          cause: lastError,
+          attempts: attempt,
+        });
+      }
+    }
+  };
 
 /**
  * Repeats a {@link Task} according to a {@link Schedule}.
@@ -1730,30 +1714,30 @@ export const retry =
  * @experimental
  */
 export const repeat = <T, E>(
-	schedule: Schedule<unknown, T>,
-	task: Task<T, E>,
+  schedule: Schedule<unknown, T>,
+  task: Task<T, E>,
 ): Task<T, E> => {
-	return async (run) => {
-		const step = schedule(run);
-		let lastResult: Result<T, E>;
+  return async (run) => {
+    const step = schedule(run);
+    let lastResult: Result<T, E>;
 
-		for (;;) {
-			const result = await run(task);
-			if (!result.ok) return result;
-			lastResult = result;
+    for (;;) {
+      const result = await run(task);
+      if (!result.ok) return result;
+      lastResult = result;
 
-			const next = step(result.value);
-			if (!next.ok) break;
+      const next = step(result.value);
+      if (!next.ok) break;
 
-			const [, delay] = next.value;
-			if (delay > 0) {
-				const sleepResult = await run(sleep(delay));
-				if (!sleepResult.ok) return sleepResult;
-			}
-		}
+      const [, delay] = next.value;
+      if (delay > 0) {
+        const sleepResult = await run(sleep(delay));
+        if (!sleepResult.ok) return sleepResult;
+      }
+    }
 
-		return lastResult;
-	};
+    return lastResult;
+  };
 };
 
 /**
@@ -1761,7 +1745,7 @@ export const repeat = <T, E>(
  * @experimental
  */
 export const all = (): never => {
-	throw new Error("TODO: later");
+  throw new Error("TODO: later");
 };
 
 /**
@@ -1769,7 +1753,7 @@ export const all = (): never => {
  * @experimental
  */
 export const createSemaphore = (): never => {
-	throw new Error("TODO: later");
+  throw new Error("TODO: later");
 };
 
 /**
@@ -1777,7 +1761,7 @@ export const createSemaphore = (): never => {
  * @experimental
  */
 export const createMutex = (): never => {
-	throw new Error("TODO: later");
+  throw new Error("TODO: later");
 };
 
 // TODO: Implement `all` and `any` with concurrency option:

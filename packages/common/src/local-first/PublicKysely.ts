@@ -1,22 +1,24 @@
+import { sql } from "kysely";
 import {
-	type AliasableExpression,
-	AliasNode,
-	ColumnNode,
-	type Expression,
-	ExpressionWrapper,
-	IdentifierNode,
-	type RawBuilder,
-	ReferenceNode,
-	type SelectQueryNode,
-	type Simplify,
-	sql,
-	TableNode,
-	ValueNode,
+  AliasNode,
+  ColumnNode,
+  ExpressionWrapper,
+  IdentifierNode,
+  ReferenceNode,
+  TableNode,
+  ValueNode,
+} from "kysely";
+import type {
+  AliasableExpression,
+  Expression,
+  RawBuilder,
+  SelectQueryNode,
+  Simplify,
 } from "kysely";
 import { kyselyJsonIdentifier } from "./Query.js";
 
-export type { NotNull } from "kysely";
 export { sql } from "kysely";
+export type { NotNull } from "kysely";
 
 /**
  * A SQLite helper for aggregating a subquery into a JSON array.
@@ -68,12 +70,12 @@ export { sql } from "kysely";
 // Kysely expects strict AST.
 // prettier-ignore
 export function jsonArrayFrom<O>(
-	expr: SelectQueryBuilderExpression<O>,
-): RawBuilder<Array<Simplify<O>>> {
-	return sql`(select ${sql.lit(kyselyJsonIdentifier)} || coalesce(json_group_array(json_object(${sql.join(
-		getSqliteJsonObjectArgs(expr.toOperationNode(), "agg"),
-	)})), '[]') from ${expr} as agg)`;
-}
+    expr: SelectQueryBuilderExpression<O>,
+  ): RawBuilder<Array<Simplify<O>>> {
+    return sql`(select ${sql.lit(kyselyJsonIdentifier)} || coalesce(json_group_array(json_object(${sql.join(
+      getSqliteJsonObjectArgs(expr.toOperationNode(), 'agg'),
+    )})), '[]') from ${expr} as agg)`
+  }
 
 /**
  * A SQLite helper for turning a subquery into a JSON object.
@@ -125,12 +127,12 @@ export function jsonArrayFrom<O>(
 // Kysely expects strict AST.
 // prettier-ignore
 export function jsonObjectFrom<O>(
-	expr: SelectQueryBuilderExpression<O>,
-): RawBuilder<Simplify<O> | null> {
-	return sql`(select ${sql.lit(kyselyJsonIdentifier)} || json_object(${sql.join(
-		getSqliteJsonObjectArgs(expr.toOperationNode(), "obj"),
-	)}) from ${expr} as obj)`;
-}
+    expr: SelectQueryBuilderExpression<O>,
+  ): RawBuilder<Simplify<O> | null> {
+    return sql`(select ${sql.lit(kyselyJsonIdentifier)} || json_object(${sql.join(
+      getSqliteJsonObjectArgs(expr.toOperationNode(), 'obj'),
+    )}) from ${expr} as obj)`
+  }
 
 /**
  * The SQLite `json_object` function.
@@ -175,65 +177,65 @@ export function jsonObjectFrom<O>(
 // Kysely expects strict AST.
 // prettier-ignore
 export function jsonBuildObject<O extends Record<string, Expression<unknown>>>(
-	obj: O,
-): RawBuilder<
-	Simplify<{
-		[K in keyof O]: O[K] extends Expression<infer V> ? V : never;
-	}>
-> {
-	return sql`${sql.lit(kyselyJsonIdentifier)} || json_object(${sql.join(
-		Object.keys(obj).flatMap((k) => [sql.lit(k), obj[k]]),
-	)})`;
-}
+    obj: O,
+  ): RawBuilder<
+    Simplify<{
+      [K in keyof O]: O[K] extends Expression<infer V> ? V : never
+    }>
+  > {
+    return sql`${sql.lit(kyselyJsonIdentifier)} || json_object(${sql.join(
+      Object.keys(obj).flatMap((k) => [sql.lit(k), obj[k]]),
+    )})`
+  }
 
 interface SelectQueryBuilderExpression<O> extends AliasableExpression<O> {
-	get isSelectQueryBuilder(): true;
-	toOperationNode(): SelectQueryNode;
+  get isSelectQueryBuilder(): true;
+  toOperationNode(): SelectQueryNode;
 }
 
 function getSqliteJsonObjectArgs(
-	node: SelectQueryNode,
-	table: string,
+  node: SelectQueryNode,
+  table: string,
 ): Array<Expression<unknown> | string> {
-	try {
-		return getJsonObjectArgs(node, table);
-	} catch {
-		throw new Error(
-			"SQLite jsonArrayFrom and jsonObjectFrom functions can only handle explicit selections due to limitations of the json_object function. selectAll() is not allowed in the subquery.",
-		);
-	}
+  try {
+    return getJsonObjectArgs(node, table);
+  } catch {
+    throw new Error(
+      "SQLite jsonArrayFrom and jsonObjectFrom functions can only handle explicit selections due to limitations of the json_object function. selectAll() is not allowed in the subquery.",
+    );
+  }
 }
 
 export function getJsonObjectArgs(
-	node: SelectQueryNode,
-	table: string,
+  node: SelectQueryNode,
+  table: string,
 ): Array<Expression<unknown> | string> {
-	const args: Array<Expression<unknown> | string> = [];
+  const args: Array<Expression<unknown> | string> = [];
+  
+  for (const { selection: s } of node.selections ?? []) {
+    if (ReferenceNode.is(s) && ColumnNode.is(s.column)) {
+      args.push(
+        colName(s.column.column.name),
+        colRef(table, s.column.column.name),
+      );
+    } else if (ColumnNode.is(s)) {
+      args.push(colName(s.column.name), colRef(table, s.column.name));
+    } else if (AliasNode.is(s) && IdentifierNode.is(s.alias)) {
+      args.push(colName(s.alias.name), colRef(table, s.alias.name));
+    } else {
+      throw new Error(`can't extract column names from the select query node`);
+    }
+  }
 
-	for (const { selection: s } of node.selections ?? []) {
-		if (ReferenceNode.is(s) && ColumnNode.is(s.column)) {
-			args.push(
-				colName(s.column.column.name),
-				colRef(table, s.column.column.name),
-			);
-		} else if (ColumnNode.is(s)) {
-			args.push(colName(s.column.name), colRef(table, s.column.name));
-		} else if (AliasNode.is(s) && IdentifierNode.is(s.alias)) {
-			args.push(colName(s.alias.name), colRef(table, s.alias.name));
-		} else {
-			throw new Error(`can't extract column names from the select query node`);
-		}
-	}
-
-	return args;
+  return args;
 }
 
 function colName(col: string): Expression<unknown> {
-	return new ExpressionWrapper(ValueNode.createImmediate(col));
+  return new ExpressionWrapper(ValueNode.createImmediate(col));
 }
 
 function colRef(table: string, col: string): Expression<unknown> {
-	return new ExpressionWrapper(
-		ReferenceNode.create(ColumnNode.create(col), TableNode.create(table)),
-	);
+  return new ExpressionWrapper(
+    ReferenceNode.create(ColumnNode.create(col), TableNode.create(table)),
+  );
 }

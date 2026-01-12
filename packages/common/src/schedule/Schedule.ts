@@ -1,14 +1,14 @@
 import { fibonacciAt, FibonacciIndex } from "../Number.js";
-import { RandomDep } from "../Random.js";
-import { done, err, NextResult, ok } from "../Result.js";
+import type { RandomDep } from "../Random.js";
+import { done, err, type NextResult, ok } from "../Result.js";
 import {
-	Duration,
-	durationToMillis,
-	Millis,
-	minMillis,
-	TimeDep,
+  type Duration,
+  durationToMillis,
+  Millis,
+  minMillis,
+  type TimeDep,
 } from "../Time.js";
-import { Predicate } from "../Types.js";
+import type { Predicate } from "../Types.js";
 
 /**
  * Composable scheduling strategies for retry, repeat, and rate limiting.
@@ -56,15 +56,8 @@ import { Predicate } from "../Types.js";
  *
  * @experimental
  */
-/**
- * A schedule that defines the delay and whether to continue.
- *
- * @see {@link retry}
- * @see {@link repeat}
- * @public
- */
 export type Schedule<out Output, in Input = unknown> = (
-	deps: ScheduleDeps,
+  deps: ScheduleDeps,
 ) => (input: Input) => NextResult<readonly [Output, Millis]>;
 
 /**
@@ -84,12 +77,12 @@ export type ScheduleDeps = TimeDep & RandomDep;
  * @experimental
  */
 interface ScheduleStepMetrics {
-	/** Current attempt number (1-indexed). */
-	readonly attempt: number;
-	/** Milliseconds elapsed since the schedule started. */
-	readonly elapsed: Millis;
-	/** Milliseconds since the previous step. On first step, this is 0. */
-	readonly elapsedSincePrevious: Millis;
+  /** Current attempt number (1-indexed). */
+  readonly attempt: number;
+  /** Milliseconds elapsed since the schedule started. */
+  readonly elapsed: Millis;
+  /** Milliseconds since the previous step. On first step, this is 0. */
+  readonly elapsedSincePrevious: Millis;
 }
 
 /**
@@ -100,22 +93,22 @@ interface ScheduleStepMetrics {
  * @experimental
  */
 const createScheduleStepMetrics = (
-	deps: TimeDep,
+  deps: TimeDep,
 ): (() => ScheduleStepMetrics) => {
-	let attempt = 0;
-	let start: Millis | null = null;
-	let previous: Millis | null = null;
+  let attempt = 0;
+  let start: Millis | null = null;
+  let previous: Millis | null = null;
 
-	return () => {
-		const now = deps.time.now();
-		attempt++;
-		start ??= now;
-		const elapsed = (now - start) as Millis;
-		const elapsedSincePrevious =
-			previous === null ? (0 as Millis) : ((now - previous) as Millis);
-		previous = now;
-		return { attempt, elapsed, elapsedSincePrevious };
-	};
+  return () => {
+    const now = deps.time.now();
+    attempt++;
+    start ??= now;
+    const elapsed = (now - start) as Millis;
+    const elapsedSincePrevious =
+      previous === null ? (0 as Millis) : ((now - previous) as Millis);
+    previous = now;
+    return { attempt, elapsed, elapsedSincePrevious };
+  };
 };
 
 /**
@@ -135,8 +128,8 @@ const createScheduleStepMetrics = (
  * @experimental
  */
 export const forever: Schedule<number> = () => {
-	let attempt = 0;
-	return () => ok([attempt++, minMillis]);
+  let attempt = 0;
+  return () => ok([attempt++, minMillis]);
 };
 
 /**
@@ -155,12 +148,12 @@ export const forever: Schedule<number> = () => {
  * @experimental
  */
 export const once: Schedule<number> = () => {
-	let finished = false;
-	return () => {
-		if (finished) return err(done());
-		finished = true;
-		return ok([0, minMillis]);
-	};
+  let finished = false;
+  return () => {
+    if (finished) return err(done());
+    finished = true;
+    return ok([0, minMillis]);
+  };
 };
 
 /**
@@ -204,11 +197,11 @@ export const recurs = (n: number): Schedule<number> => take(n)(forever);
  * @experimental
  */
 export const spaced =
-	(duration: Duration): Schedule<Millis> =>
-	() => {
-		const ms = durationToMillis(duration);
-		return () => ok([ms, ms]);
-	};
+  (duration: Duration): Schedule<Millis> =>
+  () => {
+    const ms = durationToMillis(duration);
+    return () => ok([ms, ms]);
+  };
 
 /**
  * Exponential backoff schedule.
@@ -236,17 +229,17 @@ export const spaced =
  * @experimental
  */
 export const exponential =
-	(base: Duration, factor = 2): Schedule<Millis> =>
-	() => {
-		const baseMs = durationToMillis(base);
-		let attempt = 0;
-		return () => {
-			attempt++;
-			const rawDelay = baseMs * Math.pow(factor, attempt - 1);
-			const delay = Millis.orThrow(Math.max(0, Math.round(rawDelay)));
-			return ok([delay, delay]);
-		};
-	};
+  (base: Duration, factor = 2): Schedule<Millis> =>
+  () => {
+    const baseMs = durationToMillis(base);
+    let attempt = 0;
+    return () => {
+      attempt++;
+      const rawDelay = baseMs * Math.pow(factor, attempt - 1);
+      const delay = Millis.orThrow(Math.max(0, Math.round(rawDelay)));
+      return ok([delay, delay]);
+    };
+  };
 
 /**
  * Linear backoff schedule.
@@ -271,16 +264,16 @@ export const exponential =
  * @experimental
  */
 export const linear =
-	(base: Duration): Schedule<Millis> =>
-	() => {
-		const ms = durationToMillis(base);
-		let attempt = 0;
-		return () => {
-			attempt++;
-			const delay = Millis.orThrow(ms * attempt);
-			return ok([delay, delay]);
-		};
-	};
+  (base: Duration): Schedule<Millis> =>
+  () => {
+    const ms = durationToMillis(base);
+    let attempt = 0;
+    return () => {
+      attempt++;
+      const delay = Millis.orThrow(ms * attempt);
+      return ok([delay, delay]);
+    };
+  };
 
 /**
  * Fibonacci backoff schedule.
@@ -307,18 +300,18 @@ export const linear =
  * @experimental
  */
 export const fibonacci =
-	(initial: Duration): Schedule<Millis> =>
-	() => {
-		const ms = durationToMillis(initial);
-		let index = 1;
-		return () => {
-			const delay = Millis.orThrow(
-				ms * fibonacciAt(FibonacciIndex.orThrow(index)),
-			);
-			index++;
-			return ok([delay, delay]);
-		};
-	};
+  (initial: Duration): Schedule<Millis> =>
+  () => {
+    const ms = durationToMillis(initial);
+    let index = 1;
+    return () => {
+      const delay = Millis.orThrow(
+        ms * fibonacciAt(FibonacciIndex.orThrow(index)),
+      );
+      index++;
+      return ok([delay, delay]);
+    };
+  };
 
 /**
  * Fixed interval schedule aligned to time windows.
@@ -345,23 +338,23 @@ export const fibonacci =
  * @experimental
  */
 export const fixed =
-	(interval: Duration): Schedule<number> =>
-	(deps) => {
-		const intervalMs = durationToMillis(interval);
-		const metrics = createScheduleStepMetrics(deps);
-		let count = 0;
-		return () => {
-			const { elapsed } = metrics();
-			// Which window should we be in based on count?
-			const expectedWindowEnd = (count + 1) * intervalMs;
-			const runningBehind = intervalMs > 0 && elapsed >= expectedWindowEnd;
-			// Time until next window boundary
-			const remainder = intervalMs === 0 ? 0 : elapsed % intervalMs;
-			const boundary = intervalMs - remainder;
-			const delay = runningBehind ? 0 : boundary;
-			return ok([count++, delay as Millis]);
-		};
-	};
+  (interval: Duration): Schedule<number> =>
+  (deps) => {
+    const intervalMs = durationToMillis(interval);
+    const metrics = createScheduleStepMetrics(deps);
+    let count = 0;
+    return () => {
+      const { elapsed } = metrics();
+      // Which window should we be in based on count?
+      const expectedWindowEnd = (count + 1) * intervalMs;
+      const runningBehind = intervalMs > 0 && elapsed >= expectedWindowEnd;
+      // Time until next window boundary
+      const remainder = intervalMs === 0 ? 0 : elapsed % intervalMs;
+      const boundary = intervalMs - remainder;
+      const delay = runningBehind ? 0 : boundary;
+      return ok([count++, delay as Millis]);
+    };
+  };
 
 /**
  * Divides the timeline into fixed windows and sleeps until the next boundary.
@@ -383,18 +376,18 @@ export const fixed =
  * @experimental
  */
 export const windowed =
-	(interval: Duration): Schedule<number> =>
-	(deps) => {
-		const intervalMs = durationToMillis(interval);
-		const metrics = createScheduleStepMetrics(deps);
-		let count = 0;
-		return () => {
-			const { elapsed } = metrics();
-			const remainder = intervalMs === 0 ? 0 : elapsed % intervalMs;
-			const delay = intervalMs === 0 ? 0 : intervalMs - remainder;
-			return ok([count++, delay as Millis]);
-		};
-	};
+  (interval: Duration): Schedule<number> =>
+  (deps) => {
+    const intervalMs = durationToMillis(interval);
+    const metrics = createScheduleStepMetrics(deps);
+    let count = 0;
+    return () => {
+      const { elapsed } = metrics();
+      const remainder = intervalMs === 0 ? 0 : elapsed % intervalMs;
+      const delay = intervalMs === 0 ? 0 : intervalMs - remainder;
+      return ok([count++, delay as Millis]);
+    };
+  };
 
 /**
  * A schedule that runs once with a single delay.
@@ -412,7 +405,7 @@ export const windowed =
  * @experimental
  */
 export const fromDelay = (delay: Duration): Schedule<Millis> =>
-	take(1)(spaced(delay));
+  take(1)(spaced(delay));
 
 /**
  * A schedule that runs through a sequence of delays.
@@ -431,7 +424,7 @@ export const fromDelay = (delay: Duration): Schedule<Millis> =>
  * @experimental
  */
 export const fromDelays = (
-	...delays: ReadonlyArray<Duration>
+  ...delays: ReadonlyArray<Duration>
 ): Schedule<Millis> => sequence(...delays.map((d) => fromDelay(d)));
 
 /**
@@ -455,8 +448,8 @@ export const fromDelays = (
  * @experimental
  */
 export const elapsed: Schedule<Millis> = (deps) => {
-	const metrics = createScheduleStepMetrics(deps);
-	return () => ok([metrics().elapsed, minMillis]);
+  const metrics = createScheduleStepMetrics(deps);
+  return () => ok([metrics().elapsed, minMillis]);
 };
 
 /**
@@ -479,7 +472,7 @@ export const elapsed: Schedule<Millis> = (deps) => {
  * @experimental
  */
 export const during = (duration: Duration): Schedule<Millis> =>
-	whileOutput((ms: Millis) => ms <= durationToMillis(duration))(elapsed);
+  whileOutput((ms: Millis) => ms <= durationToMillis(duration))(elapsed);
 
 /**
  * A schedule that always outputs a constant value.
@@ -535,17 +528,17 @@ export const succeed = <A>(value: A): Schedule<A> => map(() => value)(forever);
  * @experimental
  */
 export const unfold = <State>(
-	initial: State,
-	next: (state: State) => State,
+  initial: State,
+  next: (state: State) => State,
 ): Schedule<State> => {
-	return () => {
-		let state = initial;
-		return () => {
-			const current = state;
-			state = next(state);
-			return ok([current, minMillis]);
-		};
-	};
+  return () => {
+    let state = initial;
+    return () => {
+      const current = state;
+      state = next(state);
+      return ok([current, minMillis]);
+    };
+  };
 };
 
 /**
@@ -565,17 +558,17 @@ export const unfold = <State>(
  * @experimental
  */
 export const take =
-	(n: number) =>
-	<Output, Input>(schedule: Schedule<Output, Input>): Schedule<Output, Input> =>
-	(deps) => {
-		const step = schedule(deps);
-		let attempt = 0;
-		return (input) => {
-			attempt++;
-			if (attempt > n) return err(done());
-			return step(input);
-		};
-	};
+  (n: number) =>
+  <Output, Input>(schedule: Schedule<Output, Input>): Schedule<Output, Input> =>
+  (deps) => {
+    const step = schedule(deps);
+    let attempt = 0;
+    return (input) => {
+      attempt++;
+      if (attempt > n) return err(done());
+      return step(input);
+    };
+  };
 
 /**
  * Limits schedule execution to a maximum elapsed time.
@@ -594,18 +587,18 @@ export const take =
  * @experimental
  */
 export const maxElapsed = (duration: Duration) => {
-	const maxMs = durationToMillis(duration);
-	return <Output, Input>(
-		schedule: Schedule<Output, Input>,
-	): Schedule<Output, Input> =>
-		(deps) => {
-			const step = schedule(deps);
-			const metrics = createScheduleStepMetrics(deps);
-			return (input) => {
-				const { elapsed } = metrics();
-				return elapsed >= maxMs ? err(done()) : step(input);
-			};
-		};
+  const maxMs = durationToMillis(duration);
+  return <Output, Input>(
+      schedule: Schedule<Output, Input>,
+    ): Schedule<Output, Input> =>
+    (deps) => {
+      const step = schedule(deps);
+      const metrics = createScheduleStepMetrics(deps);
+      return (input) => {
+        const { elapsed } = metrics();
+        return elapsed >= maxMs ? err(done()) : step(input);
+      };
+    };
 };
 
 /**
@@ -625,19 +618,19 @@ export const maxElapsed = (duration: Duration) => {
  * @experimental
  */
 export const maxDelay = (max: Duration) => {
-	const maxMs = durationToMillis(max);
-	return <Output, Input>(
-		schedule: Schedule<Output, Input>,
-	): Schedule<Output, Input> =>
-		(deps) => {
-			const step = schedule(deps);
-			return (input) => {
-				const result = step(input);
-				if (!result.ok) return result;
-				const [output, delay] = result.value;
-				return ok([output, Millis.orThrow(Math.min(delay, maxMs))]);
-			};
-		};
+  const maxMs = durationToMillis(max);
+  return <Output, Input>(
+      schedule: Schedule<Output, Input>,
+    ): Schedule<Output, Input> =>
+    (deps) => {
+      const step = schedule(deps);
+      return (input) => {
+        const result = step(input);
+        if (!result.ok) return result;
+        const [output, delay] = result.value;
+        return ok([output, Millis.orThrow(Math.min(delay, maxMs))]);
+      };
+    };
 };
 
 /**
@@ -664,18 +657,18 @@ export const maxDelay = (max: Duration) => {
  * @experimental
  */
 export const jitter =
-	(factor = 0.5) =>
-	<Output, Input>(schedule: Schedule<Output, Input>): Schedule<Output, Input> =>
-	(deps) => {
-		const step = schedule(deps);
-		return (input) => {
-			const result = step(input);
-			if (!result.ok) return result;
-			const [output, delay] = result.value;
-			const jittered = delay * (1 - factor + deps.random.next() * 2 * factor);
-			return ok([output, Millis.orThrow(Math.max(0, Math.round(jittered)))]);
-		};
-	};
+  (factor = 0.5) =>
+  <Output, Input>(schedule: Schedule<Output, Input>): Schedule<Output, Input> =>
+  (deps) => {
+    const step = schedule(deps);
+    return (input) => {
+      const result = step(input);
+      if (!result.ok) return result;
+      const [output, delay] = result.value;
+      const jittered = delay * (1 - factor + deps.random.next() * 2 * factor);
+      return ok([output, Millis.orThrow(Math.max(0, Math.round(jittered)))]);
+    };
+  };
 
 /**
  * Adds an initial delay before the first attempt.
@@ -693,23 +686,23 @@ export const jitter =
  * @experimental
  */
 export const delayed = (initialDelay: Duration) => {
-	const initialMs = durationToMillis(initialDelay);
-	return <Output, Input>(
-		schedule: Schedule<Output, Input>,
-	): Schedule<Output, Input> =>
-		(deps) => {
-			const step = schedule(deps);
-			let first = true;
-			return (input) => {
-				const result = step(input);
-				if (!result.ok) return result;
-				if (first) {
-					first = false;
-					return ok([result.value[0], initialMs]);
-				}
-				return result;
-			};
-		};
+  const initialMs = durationToMillis(initialDelay);
+  return <Output, Input>(
+      schedule: Schedule<Output, Input>,
+    ): Schedule<Output, Input> =>
+    (deps) => {
+      const step = schedule(deps);
+      let first = true;
+      return (input) => {
+        const result = step(input);
+        if (!result.ok) return result;
+        if (first) {
+          first = false;
+          return ok([result.value[0], initialMs]);
+        }
+        return result;
+      };
+    };
 };
 
 /**
@@ -727,12 +720,12 @@ export const delayed = (initialDelay: Duration) => {
  * @experimental
  */
 export const addDelay = (
-	extra: Duration,
+  extra: Duration,
 ): (<Output, Input>(
-	schedule: Schedule<Output, Input>,
+  schedule: Schedule<Output, Input>,
 ) => Schedule<Output, Input>) => {
-	const extraMs = durationToMillis(extra);
-	return modifyDelay((d) => d + extraMs);
+  const extraMs = durationToMillis(extra);
+  return modifyDelay((d) => d + extraMs);
 };
 
 /**
@@ -754,17 +747,17 @@ export const addDelay = (
  * @experimental
  */
 export const modifyDelay =
-	(f: (delay: Millis) => number) =>
-	<Output, Input>(schedule: Schedule<Output, Input>): Schedule<Output, Input> =>
-	(deps) => {
-		const step = schedule(deps);
-		return (input) => {
-			const result = step(input);
-			if (!result.ok) return result;
-			const [output, delay] = result.value;
-			return ok([output, Millis.orThrow(Math.max(0, Math.round(f(delay))))]);
-		};
-	};
+  (f: (delay: Millis) => number) =>
+  <Output, Input>(schedule: Schedule<Output, Input>): Schedule<Output, Input> =>
+  (deps) => {
+    const step = schedule(deps);
+    return (input) => {
+      const result = step(input);
+      if (!result.ok) return result;
+      const [output, delay] = result.value;
+      return ok([output, Millis.orThrow(Math.max(0, Math.round(f(delay))))]);
+    };
+  };
 
 /**
  * Adjusts delay by subtracting execution time.
@@ -786,19 +779,19 @@ export const modifyDelay =
  * @experimental
  */
 export const compensateExecution =
-	<Output, Input>(schedule: Schedule<Output, Input>): Schedule<Output, Input> =>
-	(deps) => {
-		const step = schedule(deps);
-		const metrics = createScheduleStepMetrics(deps);
-		return (input) => {
-			const { elapsedSincePrevious } = metrics();
-			const result = step(input);
-			if (!result.ok) return result;
-			const [output, delay] = result.value;
-			const adjusted = Math.max(0, delay - elapsedSincePrevious);
-			return ok([output, adjusted as Millis]);
-		};
-	};
+  <Output, Input>(schedule: Schedule<Output, Input>): Schedule<Output, Input> =>
+  (deps) => {
+    const step = schedule(deps);
+    const metrics = createScheduleStepMetrics(deps);
+    return (input) => {
+      const { elapsedSincePrevious } = metrics();
+      const result = step(input);
+      if (!result.ok) return result;
+      const [output, delay] = result.value;
+      const adjusted = Math.max(0, delay - elapsedSincePrevious);
+      return ok([output, adjusted as Millis]);
+    };
+  };
 
 /**
  * Continues while the input satisfies a predicate.
@@ -824,15 +817,15 @@ export const compensateExecution =
  * @experimental
  */
 export const whileInput =
-	<Input>(predicate: Predicate<Input>) =>
-	<Output>(schedule: Schedule<Output, Input>): Schedule<Output, Input> =>
-	(deps) => {
-		const step = schedule(deps);
-		return (input) => {
-			if (!predicate(input)) return err(done());
-			return step(input);
-		};
-	};
+  <Input>(predicate: Predicate<Input>) =>
+  <Output>(schedule: Schedule<Output, Input>): Schedule<Output, Input> =>
+  (deps) => {
+    const step = schedule(deps);
+    return (input) => {
+      if (!predicate(input)) return err(done());
+      return step(input);
+    };
+  };
 
 /**
  * Continues until the input satisfies a predicate.
@@ -857,15 +850,15 @@ export const whileInput =
  * @experimental
  */
 export const untilInput =
-	<Input>(predicate: Predicate<Input>) =>
-	<Output>(schedule: Schedule<Output, Input>): Schedule<Output, Input> =>
-	(deps) => {
-		const step = schedule(deps);
-		return (input) => {
-			if (predicate(input)) return err(done());
-			return step(input);
-		};
-	};
+  <Input>(predicate: Predicate<Input>) =>
+  <Output>(schedule: Schedule<Output, Input>): Schedule<Output, Input> =>
+  (deps) => {
+    const step = schedule(deps);
+    return (input) => {
+      if (predicate(input)) return err(done());
+      return step(input);
+    };
+  };
 
 /**
  * Continues while the output satisfies a predicate.
@@ -885,17 +878,17 @@ export const untilInput =
  * @experimental
  */
 export const whileOutput =
-	<Output>(predicate: Predicate<Output>) =>
-	<Input>(schedule: Schedule<Output, Input>): Schedule<Output, Input> =>
-	(deps) => {
-		const step = schedule(deps);
-		return (input) => {
-			const result = step(input);
-			if (!result.ok) return result;
-			if (!predicate(result.value[0])) return err(done());
-			return result;
-		};
-	};
+  <Output>(predicate: Predicate<Output>) =>
+  <Input>(schedule: Schedule<Output, Input>): Schedule<Output, Input> =>
+  (deps) => {
+    const step = schedule(deps);
+    return (input) => {
+      const result = step(input);
+      if (!result.ok) return result;
+      if (!predicate(result.value[0])) return err(done());
+      return result;
+    };
+  };
 
 /**
  * Continues until the output satisfies a predicate.
@@ -915,17 +908,17 @@ export const whileOutput =
  * @experimental
  */
 export const untilOutput =
-	<Output>(predicate: Predicate<Output>) =>
-	<Input>(schedule: Schedule<Output, Input>): Schedule<Output, Input> =>
-	(deps) => {
-		const step = schedule(deps);
-		return (input) => {
-			const result = step(input);
-			if (!result.ok) return result;
-			if (predicate(result.value[0])) return err(done());
-			return result;
-		};
-	};
+  <Output>(predicate: Predicate<Output>) =>
+  <Input>(schedule: Schedule<Output, Input>): Schedule<Output, Input> =>
+  (deps) => {
+    const step = schedule(deps);
+    return (input) => {
+      const result = step(input);
+      if (!result.ok) return result;
+      if (predicate(result.value[0])) return err(done());
+      return result;
+    };
+  };
 
 /**
  * Resets the schedule after a period of inactivity.
@@ -945,21 +938,21 @@ export const untilOutput =
  * @experimental
  */
 export const resetAfter = (duration: Duration) => {
-	const resetMs = durationToMillis(duration);
-	return <Output, Input>(
-		schedule: Schedule<Output, Input>,
-	): Schedule<Output, Input> =>
-		(deps) => {
-			let step = schedule(deps);
-			const metrics = createScheduleStepMetrics(deps);
-			return (input) => {
-				const { elapsedSincePrevious } = metrics();
-				if (elapsedSincePrevious >= resetMs) {
-					step = schedule(deps);
-				}
-				return step(input);
-			};
-		};
+  const resetMs = durationToMillis(duration);
+  return <Output, Input>(
+      schedule: Schedule<Output, Input>,
+    ): Schedule<Output, Input> =>
+    (deps) => {
+      let step = schedule(deps);
+      const metrics = createScheduleStepMetrics(deps);
+      return (input) => {
+        const { elapsedSincePrevious } = metrics();
+        if (elapsedSincePrevious >= resetMs) {
+          step = schedule(deps);
+        }
+        return step(input);
+      };
+    };
 };
 
 /**
@@ -982,17 +975,17 @@ export const resetAfter = (duration: Duration) => {
  * @experimental
  */
 export const map =
-	<A, B>(f: (a: A) => B) =>
-	<Input>(schedule: Schedule<A, Input>): Schedule<B, Input> =>
-	(deps) => {
-		const step = schedule(deps);
-		return (input) => {
-			const result = step(input);
-			if (!result.ok) return result;
-			const [output, delay] = result.value;
-			return ok([f(output), delay]);
-		};
-	};
+  <A, B>(f: (a: A) => B) =>
+  <Input>(schedule: Schedule<A, Input>): Schedule<B, Input> =>
+  (deps) => {
+    const step = schedule(deps);
+    return (input) => {
+      const result = step(input);
+      if (!result.ok) return result;
+      const [output, delay] = result.value;
+      return ok([f(output), delay]);
+    };
+  };
 
 /**
  * Creates a schedule that outputs its input, or wraps an existing schedule to
@@ -1027,22 +1020,22 @@ export function passthrough<A>(): Schedule<A, A>;
  * @experimental
  */
 export function passthrough<Output, Input>(
-	schedule: Schedule<Output, Input>,
+  schedule: Schedule<Output, Input>,
 ): Schedule<Input, Input>;
 export function passthrough<Output, Input>(
-	schedule?: Schedule<Output, Input>,
+  schedule?: Schedule<Output, Input>,
 ): Schedule<Input, Input> {
-	if (schedule === undefined) {
-		return () => (input) => ok([input, minMillis]);
-	}
-	return (deps) => {
-		const step = schedule(deps);
-		return (input) => {
-			const result = step(input);
-			if (!result.ok) return result;
-			return ok([input, result.value[1]]);
-		};
-	};
+  if (schedule === undefined) {
+    return () => (input) => ok([input, minMillis]);
+  }
+  return (deps) => {
+    const step = schedule(deps);
+    return (input) => {
+      const result = step(input);
+      if (!result.ok) return result;
+      return ok([input, result.value[1]]);
+    };
+  };
 }
 
 /**
@@ -1082,19 +1075,19 @@ export function passthrough<Output, Input>(
  * @experimental
  */
 export const fold =
-	<Z, Output>(initial: Z, f: (acc: Z, output: Output) => Z) =>
-	<Input>(schedule: Schedule<Output, Input>): Schedule<Z, Input> =>
-	(deps) => {
-		const step = schedule(deps);
-		let acc = initial;
-		return (input) => {
-			const result = step(input);
-			if (!result.ok) return result;
-			const [output, delay] = result.value;
-			acc = f(acc, output);
-			return ok([acc, delay]);
-		};
-	};
+  <Z, Output>(initial: Z, f: (acc: Z, output: Output) => Z) =>
+  <Input>(schedule: Schedule<Output, Input>): Schedule<Z, Input> =>
+  (deps) => {
+    const step = schedule(deps);
+    let acc = initial;
+    return (input) => {
+      const result = step(input);
+      if (!result.ok) return result;
+      const [output, delay] = result.value;
+      acc = f(acc, output);
+      return ok([acc, delay]);
+    };
+  };
 
 /**
  * Wraps a schedule to output the number of repetitions instead of original
@@ -1115,7 +1108,7 @@ export const fold =
  * @experimental
  */
 export const repetitions = <Output, Input>(
-	schedule: Schedule<Output, Input>,
+  schedule: Schedule<Output, Input>,
 ): Schedule<number, Input> => fold(-1, (n) => n + 1)(schedule);
 
 /**
@@ -1139,16 +1132,16 @@ export const repetitions = <Output, Input>(
  * @experimental
  */
 export const delays =
-	<Output, Input>(schedule: Schedule<Output, Input>): Schedule<Millis, Input> =>
-	(deps) => {
-		const step = schedule(deps);
-		return (input) => {
-			const result = step(input);
-			if (!result.ok) return result;
-			const [, delay] = result.value;
-			return ok([delay, delay]);
-		};
-	};
+  <Output, Input>(schedule: Schedule<Output, Input>): Schedule<Millis, Input> =>
+  (deps) => {
+    const step = schedule(deps);
+    return (input) => {
+      const result = step(input);
+      if (!result.ok) return result;
+      const [, delay] = result.value;
+      return ok([delay, delay]);
+    };
+  };
 
 /**
  * Collects all outputs into an array.
@@ -1167,11 +1160,11 @@ export const delays =
  * @experimental
  */
 export const collectAllOutputs = <Output, Input>(
-	schedule: Schedule<Output, Input>,
+  schedule: Schedule<Output, Input>,
 ): Schedule<ReadonlyArray<Output>, Input> =>
-	fold<ReadonlyArray<Output>, Output>([], (acc, out) => [...acc, out])(
-		schedule,
-	);
+  fold<ReadonlyArray<Output>, Output>([], (acc, out) => [...acc, out])(
+    schedule,
+  );
 
 /**
  * Collects all inputs into an array.
@@ -1191,9 +1184,9 @@ export const collectAllOutputs = <Output, Input>(
  * @experimental
  */
 export const collectInputs = <Output, Input>(
-	schedule: Schedule<Output, Input>,
+  schedule: Schedule<Output, Input>,
 ): Schedule<ReadonlyArray<Input>, Input> =>
-	collectAllOutputs(passthrough(schedule));
+  collectAllOutputs(passthrough(schedule));
 
 /**
  * Collects outputs while a predicate is true.
@@ -1215,11 +1208,11 @@ export const collectInputs = <Output, Input>(
  * @experimental
  */
 export const collectWhile =
-	<Output>(predicate: Predicate<Output>) =>
-	<Input>(
-		schedule: Schedule<Output, Input>,
-	): Schedule<ReadonlyArray<Output>, Input> =>
-		collectAllOutputs(whileOutput(predicate)(schedule));
+  <Output>(predicate: Predicate<Output>) =>
+  <Input>(
+    schedule: Schedule<Output, Input>,
+  ): Schedule<ReadonlyArray<Output>, Input> =>
+    collectAllOutputs(whileOutput(predicate)(schedule));
 
 /**
  * Collects outputs until a predicate becomes true.
@@ -1241,11 +1234,11 @@ export const collectWhile =
  * @experimental
  */
 export const collectUntil =
-	<Output>(predicate: Predicate<Output>) =>
-	<Input>(
-		schedule: Schedule<Output, Input>,
-	): Schedule<ReadonlyArray<Output>, Input> =>
-		collectAllOutputs(untilOutput(predicate)(schedule));
+  <Output>(predicate: Predicate<Output>) =>
+  <Input>(
+    schedule: Schedule<Output, Input>,
+  ): Schedule<ReadonlyArray<Output>, Input> =>
+    collectAllOutputs(untilOutput(predicate)(schedule));
 
 /**
  * Sequences schedules: runs each until it stops, then continues with the next.
@@ -1269,26 +1262,26 @@ export const collectUntil =
  * @experimental
  */
 export const sequence = <Output, Input>(
-	...schedules: ReadonlyArray<Schedule<Output, Input>>
+  ...schedules: ReadonlyArray<Schedule<Output, Input>>
 ): Schedule<Output, Input> => {
-	return (deps) => {
-		let index = 0;
-		type Step =
-			| ((input: Input) => NextResult<readonly [Output, Millis]>)
-			| null;
-		let currentStep: Step = schedules.length > 0 ? schedules[0](deps) : null;
-		return (input) => {
-			while (currentStep !== null) {
-				const result = currentStep(input);
-				if (result.ok) return result;
+  return (deps) => {
+    let index = 0;
+    type Step =
+      | ((input: Input) => NextResult<readonly [Output, Millis]>)
+      | null;
+    let currentStep: Step = schedules.length > 0 ? schedules[0](deps) : null;
+    return (input) => {
+      while (currentStep !== null) {
+        const result = currentStep(input);
+        if (result.ok) return result;
 
-				// Current exhausted, try next.
-				index++;
-				currentStep = index < schedules.length ? schedules[index](deps) : null;
-			}
-			return err(done());
-		};
-	};
+        // Current exhausted, try next.
+        index++;
+        currentStep = index < schedules.length ? schedules[index](deps) : null;
+      }
+      return err(done());
+    };
+  };
 };
 
 /**
@@ -1310,22 +1303,22 @@ export const sequence = <Output, Input>(
  * @experimental
  */
 export const intersect =
-	<OutputA, OutputB, Input>(
-		a: Schedule<OutputA, Input>,
-		b: Schedule<OutputB, Input>,
-	): Schedule<[OutputA, OutputB], Input> =>
-	(deps) => {
-		const stepA = a(deps);
-		const stepB = b(deps);
-		return (input) => {
-			const resultA = stepA(input);
-			const resultB = stepB(input);
-			if (!resultA.ok || !resultB.ok) return err(done());
-			const [outputA, delayA] = resultA.value;
-			const [outputB, delayB] = resultB.value;
-			return ok([[outputA, outputB], Millis.orThrow(Math.max(delayA, delayB))]);
-		};
-	};
+  <OutputA, OutputB, Input>(
+    a: Schedule<OutputA, Input>,
+    b: Schedule<OutputB, Input>,
+  ): Schedule<[OutputA, OutputB], Input> =>
+  (deps) => {
+    const stepA = a(deps);
+    const stepB = b(deps);
+    return (input) => {
+      const resultA = stepA(input);
+      const resultB = stepB(input);
+      if (!resultA.ok || !resultB.ok) return err(done());
+      const [outputA, delayA] = resultA.value;
+      const [outputB, delayB] = resultB.value;
+      return ok([[outputA, outputB], Millis.orThrow(Math.max(delayA, delayB))]);
+    };
+  };
 
 /**
  * Combines two schedules with OR semantics.
@@ -1346,30 +1339,30 @@ export const intersect =
  * @experimental
  */
 export const union =
-	<OutputA, OutputB, Input>(
-		a: Schedule<OutputA, Input>,
-		b: Schedule<OutputB, Input>,
-	): Schedule<OutputA | OutputB, Input> =>
-	(deps) => {
-		const stepA = a(deps);
-		const stepB = b(deps);
-		return (input) => {
-			const resultA = stepA(input);
-			const resultB = stepB(input);
+  <OutputA, OutputB, Input>(
+    a: Schedule<OutputA, Input>,
+    b: Schedule<OutputB, Input>,
+  ): Schedule<OutputA | OutputB, Input> =>
+  (deps) => {
+    const stepA = a(deps);
+    const stepB = b(deps);
+    return (input) => {
+      const resultA = stepA(input);
+      const resultB = stepB(input);
 
-			if (!resultA.ok && !resultB.ok) return err(done());
-			if (!resultA.ok) return resultB;
-			if (!resultB.ok) return resultA;
+      if (!resultA.ok && !resultB.ok) return err(done());
+      if (!resultA.ok) return resultB;
+      if (!resultB.ok) return resultA;
 
-			const [outputA, delayA] = resultA.value;
-			const [outputB, delayB] = resultB.value;
-			// Use minimum delay, output from the one with smaller delay
-			const minDelay = Math.min(delayA, delayB) as Millis;
-			return delayA <= delayB
-				? ok([outputA, minDelay])
-				: ok([outputB, minDelay]);
-		};
-	};
+      const [outputA, delayA] = resultA.value;
+      const [outputB, delayB] = resultB.value;
+      // Use minimum delay, output from the one with smaller delay
+      const minDelay = Math.min(delayA, delayB) as Millis;
+      return delayA <= delayB
+        ? ok([outputA, minDelay])
+        : ok([outputB, minDelay]);
+    };
+  };
 
 /**
  * Selects between two schedules based on input.
@@ -1395,18 +1388,18 @@ export const union =
  * @experimental
  */
 export const whenInput = <Input, Output>(
-	predicate: Predicate<Input>,
-	altSchedule: Schedule<Output, Input>,
+  predicate: Predicate<Input>,
+  altSchedule: Schedule<Output, Input>,
 ) => {
-	return (schedule: Schedule<Output, Input>): Schedule<Output, Input> =>
-		(deps) => {
-			const normalStep = schedule(deps);
-			const altStep = altSchedule(deps);
-			return (input) => {
-				if (predicate(input)) return altStep(input);
-				return normalStep(input);
-			};
-		};
+  return (schedule: Schedule<Output, Input>): Schedule<Output, Input> =>
+    (deps) => {
+      const normalStep = schedule(deps);
+      const altStep = altSchedule(deps);
+      return (input) => {
+        if (predicate(input)) return altStep(input);
+        return normalStep(input);
+      };
+    };
 };
 
 /**
@@ -1434,17 +1427,17 @@ export const whenInput = <Input, Output>(
  * @experimental
  */
 export const tapOutput =
-	<Output>(f: (output: Output) => void) =>
-	<Input>(schedule: Schedule<Output, Input>): Schedule<Output, Input> =>
-	(deps) => {
-		const step = schedule(deps);
-		return (input) => {
-			const result = step(input);
-			if (!result.ok) return result;
-			f(result.value[0]);
-			return result;
-		};
-	};
+  <Output>(f: (output: Output) => void) =>
+  <Input>(schedule: Schedule<Output, Input>): Schedule<Output, Input> =>
+  (deps) => {
+    const step = schedule(deps);
+    return (input) => {
+      const result = step(input);
+      if (!result.ok) return result;
+      f(result.value[0]);
+      return result;
+    };
+  };
 
 /**
  * Executes a side effect for every input without altering the schedule.
@@ -1477,15 +1470,15 @@ export const tapOutput =
  * @experimental
  */
 export const tapInput =
-	<Input>(f: (input: Input) => void) =>
-	<Output>(schedule: Schedule<Output, Input>): Schedule<Output, Input> =>
-	(deps) => {
-		const step = schedule(deps);
-		return (input) => {
-			f(input);
-			return step(input);
-		};
-	};
+  <Input>(f: (input: Input) => void) =>
+  <Output>(schedule: Schedule<Output, Input>): Schedule<Output, Input> =>
+  (deps) => {
+    const step = schedule(deps);
+    return (input) => {
+      f(input);
+      return step(input);
+    };
+  };
 
 /**
  * AWS Standard Retry Strategy.
@@ -1499,7 +1492,7 @@ export const tapInput =
  * @see https://github.com/aws/aws-sdk-java-v2/blob/master/core/retries/src/main/java/software/amazon/awssdk/retries/DefaultRetryStrategy.java
  */
 export const retryStrategyAws: Schedule<Millis> = jitter(1)(
-	maxDelay("20s")(take(2)(exponential("100ms"))),
+  maxDelay("20s")(take(2)(exponential("100ms"))),
 );
 
 /**
@@ -1513,5 +1506,5 @@ export const retryStrategyAws: Schedule<Millis> = jitter(1)(
  * @see https://github.com/aws/aws-sdk-java-v2/blob/master/core/retries/src/main/java/software/amazon/awssdk/retries/DefaultRetryStrategy.java
  */
 export const retryStrategyAwsThrottled: Schedule<Millis> = jitter(1)(
-	maxDelay("20s")(take(2)(exponential("1s"))),
+  maxDelay("20s")(take(2)(exponential("1s"))),
 );

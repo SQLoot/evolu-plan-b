@@ -1,6 +1,8 @@
 import { isNonEmptyArray, shiftFromArray } from "./Array.js";
-import { Result, err, ok } from "./Result.js";
-import { Duration, Millis, durationToMillis } from "./Time.js";
+import type { Result } from "./Result.js";
+import { err, ok } from "./Result.js";
+import type { Duration } from "./Time.js";
+import { durationToMillis, Millis } from "./Time.js";
 import { PositiveInt } from "./Type.js";
 
 /**
@@ -145,53 +147,53 @@ import { PositiveInt } from "./Type.js";
  * follows the pattern: deps → arguments → execution context.
  */
 export interface Task<T, E> {
-	/**
-	 * Invoke the Task.
-	 *
-	 * Provide a context with an
-	 * {@link https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal | AbortSignal}
-	 * to enable cancellation. When called without a signal, {@link AbortError}
-	 * cannot occur and the error type narrows accordingly.
-	 *
-	 * ### Example
-	 *
-	 * ```ts
-	 * interface FetchError {
-	 *   readonly type: "FetchError";
-	 *   readonly error: unknown;
-	 * }
-	 *
-	 * // Task version of fetch with proper error handling and cancellation support.
-	 * const fetch = (url: string) =>
-	 *   toTask((context) =>
-	 *     tryAsync(
-	 *       () => globalThis.fetch(url, { signal: context?.signal ?? null }),
-	 *       (error): FetchError => ({ type: "FetchError", error }),
-	 *     ),
-	 *   );
-	 *
-	 * // `satisfies` shows the expected type signature.
-	 * fetch satisfies (url: string) => Task<Response, FetchError>;
-	 *
-	 * const result1 = await fetch("https://api.example.com/data")();
-	 * expectTypeOf(result1).toEqualTypeOf<Result<Response, FetchError>>();
-	 *
-	 * // With AbortController
-	 * const controller = new AbortController();
-	 * const result2 = await fetch("https://api.example.com/data")(
-	 *   controller,
-	 * );
-	 * expectTypeOf(result2).toEqualTypeOf<
-	 *   Result<Response, FetchError | AbortError>
-	 * >();
-	 * ```
-	 */
-	// eslint-disable-next-line @typescript-eslint/prefer-function-type
-	<TContext extends TaskContext | undefined = undefined>(
-		context?: TContext,
-	): Promise<
-		Result<T, TContext extends { signal: AbortSignal } ? E | AbortError : E>
-	>;
+  /**
+   * Invoke the Task.
+   *
+   * Provide a context with an
+   * {@link https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal | AbortSignal}
+   * to enable cancellation. When called without a signal, {@link AbortError}
+   * cannot occur and the error type narrows accordingly.
+   *
+   * ### Example
+   *
+   * ```ts
+   * interface FetchError {
+   *   readonly type: "FetchError";
+   *   readonly error: unknown;
+   * }
+   *
+   * // Task version of fetch with proper error handling and cancellation support.
+   * const fetch = (url: string) =>
+   *   toTask((context) =>
+   *     tryAsync(
+   *       () => globalThis.fetch(url, { signal: context?.signal ?? null }),
+   *       (error): FetchError => ({ type: "FetchError", error }),
+   *     ),
+   *   );
+   *
+   * // `satisfies` shows the expected type signature.
+   * fetch satisfies (url: string) => Task<Response, FetchError>;
+   *
+   * const result1 = await fetch("https://api.example.com/data")();
+   * expectTypeOf(result1).toEqualTypeOf<Result<Response, FetchError>>();
+   *
+   * // With AbortController
+   * const controller = new AbortController();
+   * const result2 = await fetch("https://api.example.com/data")(
+   *   controller,
+   * );
+   * expectTypeOf(result2).toEqualTypeOf<
+   *   Result<Response, FetchError | AbortError>
+   * >();
+   * ```
+   */
+  // eslint-disable-next-line @typescript-eslint/prefer-function-type
+  <TContext extends TaskContext | undefined = undefined>(
+    context?: TContext,
+  ): Promise<
+    Result<T, TContext extends { signal: AbortSignal } ? E | AbortError : E>
+  >;
 }
 
 /**
@@ -202,11 +204,11 @@ export interface Task<T, E> {
  * directly since it has a `signal` property.
  */
 export interface TaskContext {
-	/**
-	 * {@link https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal | AbortSignal}
-	 * for cancellation.
-	 */
-	readonly signal?: AbortSignal;
+  /**
+   * {@link https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal | AbortSignal}
+   * for cancellation.
+   */
+  readonly signal?: AbortSignal;
 }
 
 /**
@@ -214,15 +216,15 @@ export interface TaskContext {
  * {@link https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal | AbortSignal}.
  */
 export interface AbortError {
-	readonly type: "AbortError";
-	readonly reason?: unknown;
+  readonly type: "AbortError";
+  readonly reason?: unknown;
 }
 
 /** Narrower check to detect AbortError objects at runtime. */
 const isAbortError = (error: unknown): error is AbortError =>
-	typeof error === "object" &&
-	error !== null &&
-	(error as { type?: unknown }).type === "AbortError";
+  typeof error === "object" &&
+  error !== null &&
+  (error as { type?: unknown }).type === "AbortError";
 
 /**
  * Combines user signal from context with an internal signal.
@@ -232,12 +234,12 @@ const isAbortError = (error: unknown): error is AbortError =>
  * Otherwise, returns just the internal signal.
  */
 const combineSignal = (
-	context: TaskContext | undefined,
-	internalSignal: AbortSignal,
+  context: TaskContext | undefined,
+  internalSignal: AbortSignal,
 ): AbortSignal =>
-	context?.signal
-		? AbortSignal.any([context.signal, internalSignal])
-		: internalSignal;
+  context?.signal
+    ? AbortSignal.any([context.signal, internalSignal])
+    : internalSignal;
 
 /**
  * Converts async function returning {@link Result} to a {@link Task}.
@@ -272,46 +274,46 @@ const combineSignal = (
  * ```
  */
 export const toTask = <T, E>(
-	fn: (context?: TaskContext) => Promise<Result<T, E>>,
+  fn: (context?: TaskContext) => Promise<Result<T, E>>,
 ): Task<T, E> =>
-	// Note: Not using async to avoid Promise wrapper overhead in fast path
-	((context) => {
-		const signal = context?.signal;
+  // Note: Not using async to avoid Promise wrapper overhead in fast path
+  ((context) => {
+    const signal = context?.signal;
 
-		// Fast path when no signal – return promise directly
-		if (!signal) {
-			// Preserve future context fields (e.g., tracing) even without a signal
-			return fn(context);
-		}
+    // Fast path when no signal – return promise directly
+    if (!signal) {
+      // Preserve future context fields (e.g., tracing) even without a signal
+      return fn(context);
+    }
 
-		if (signal.aborted) {
-			return Promise.resolve(
-				err({ type: "AbortError", reason: signal.reason as unknown }),
-			);
-		}
+    if (signal.aborted) {
+      return Promise.resolve(
+        err({ type: "AbortError", reason: signal.reason as unknown }),
+      );
+    }
 
-		// Use Promise.withResolvers for clean abort handling and cleanup
-		const { promise: abortPromise, resolve: resolveAbort } =
-			Promise.withResolvers<Result<never, AbortError>>();
+    // Use Promise.withResolvers for clean abort handling and cleanup
+    const { promise: abortPromise, resolve: resolveAbort } =
+      Promise.withResolvers<Result<never, AbortError>>();
 
-		const handleAbort = () => {
-			resolveAbort(
-				err({ type: "AbortError", reason: signal.reason as unknown }),
-			);
-		};
+    const handleAbort = () => {
+      resolveAbort(
+        err({ type: "AbortError", reason: signal.reason as unknown }),
+      );
+    };
 
-		signal.addEventListener("abort", handleAbort, { once: true });
+    signal.addEventListener("abort", handleAbort, { once: true });
 
-		// No finally: we expect no throws in normal flow; Result path removes listener.
-		// Unexpected throws indicate a bug and are allowed to crash (no recovery here).
-		return Promise.race([
-			abortPromise,
-			fn(context).then((result) => {
-				signal.removeEventListener("abort", handleAbort);
-				return result;
-			}),
-		]);
-	}) as Task<T, E>;
+    // No finally: we expect no throws in normal flow; Result path removes listener.
+    // Unexpected throws indicate a bug and are allowed to crash (no recovery here).
+    return Promise.race([
+      abortPromise,
+      fn(context).then((result) => {
+        signal.removeEventListener("abort", handleAbort);
+        return result;
+      }),
+    ]);
+  }) as Task<T, E>;
 
 /**
  * Creates a {@link Task} that waits for the specified duration.
@@ -329,29 +331,29 @@ export const toTask = <T, E>(
  * ```
  */
 export const wait = (duration: Duration): Task<void, never> =>
-	toTask(
-		(context) =>
-			new Promise<Result<void>>((resolve) => {
-				const ms = durationToMillis(duration);
-				const timeoutSignal = AbortSignal.timeout(ms);
+  toTask(
+    (context) =>
+      new Promise<Result<void>>((resolve) => {
+        const ms = durationToMillis(duration);
+        const timeoutSignal = AbortSignal.timeout(ms);
 
-				const signal = combineSignal(context, timeoutSignal);
+        const signal = combineSignal(context, timeoutSignal);
 
-				// Listen for abort - either from timeout completion or external abort
-				signal.addEventListener(
-					"abort",
-					() => {
-						resolve(ok());
-					},
-					{ once: true },
-				);
-			}),
-	);
+        // Listen for abort - either from timeout completion or external abort
+        signal.addEventListener(
+          "abort",
+          () => {
+            resolve(ok());
+          },
+          { once: true },
+        );
+      }),
+  );
 
 /** Error returned when {@link timeout} exceeds the specified duration. */
 export interface TimeoutError {
-	readonly type: "TimeoutError";
-	readonly timeoutMs: number;
+  readonly type: "TimeoutError";
+  readonly timeoutMs: number;
 }
 
 /**
@@ -394,68 +396,60 @@ export interface TimeoutError {
  * ```
  */
 export const timeout = <T, E>(
-	duration: Duration,
-	task: Task<T, E>,
+  duration: Duration,
+  task: Task<T, E>,
 ): Task<T, E | TimeoutError> =>
-	toTask(async (context) => {
-		const timeoutMs = durationToMillis(duration);
-		const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  toTask(async (context) => {
+    const timeoutMs = durationToMillis(duration);
+    const timeoutSignal = AbortSignal.timeout(timeoutMs);
 
-		const signal = combineSignal(context, timeoutSignal);
+    const signal = combineSignal(context, timeoutSignal);
 
-		const result = await task({ signal });
+    const result = await task({ signal });
 
-		if (timeoutSignal.aborted) {
-			return err({ type: "TimeoutError", timeoutMs });
-		}
+    if (timeoutSignal.aborted) {
+      return err({ type: "TimeoutError", timeoutMs });
+    }
 
-		return result as Result<T, E | TimeoutError>;
-	});
+    return result as Result<T, E | TimeoutError>;
+  });
 
-/**
- * Options for configuring {@link retry} behavior.
- *
- * @public
- */
+/** Options for configuring {@link retry} behavior. */
 export interface RetryOptions<E> {
-	/** Number of retry attempts after the initial failure. */
-	readonly retries: PositiveInt;
+  /** Number of retry attempts after the initial failure. */
+  readonly retries: PositiveInt;
 
-	/**
-	 * Initial delay for exponential backoff (1st retry uses this, 2nd uses
-	 * this×factor, 3rd uses this×factor², etc.). Actual delays are randomized by
-	 * {@link RetryOptions.jitter}.
-	 */
-	readonly initialDelay?: Duration;
+  /**
+   * Initial delay for exponential backoff (1st retry uses this, 2nd uses
+   * this×factor, 3rd uses this×factor², etc.). Actual delays are randomized by
+   * {@link RetryOptions.jitter}.
+   */
+  readonly initialDelay?: Duration;
 
-	/** Maximum delay between retries. */
-	readonly maxDelay?: Duration;
+  /** Maximum delay between retries. */
+  readonly maxDelay?: Duration;
 
-	/** Exponential backoff multiplier. */
-	readonly factor?: number;
+  /** Exponential backoff multiplier. */
+  readonly factor?: number;
 
-	/** Random jitter factor (0-1) to prevent thundering herd. */
-	readonly jitter?: number;
+  /** Random jitter factor (0-1) to prevent thundering herd. */
+  readonly jitter?: number;
 
-	/**
-	 * Predicate to determine if error should trigger retry. Receives AbortError
-	 * too.
-	 */
-	readonly retryable?: (error: E | AbortError) => boolean;
+  /**
+   * Predicate to determine if error should trigger retry. Receives AbortError
+   * too.
+   */
+  readonly retryable?: (error: E | AbortError) => boolean;
 
-	/** Callback invoked before each retry attempt. */
-	readonly onRetry?: (error: E, attempt: number, delay: number) => void;
+  /** Callback invoked before each retry attempt. */
+  readonly onRetry?: (error: E, attempt: number, delay: number) => void;
 }
 
-/**
- * Error returned when {@link retry} exhausts all retry attempts.
- *
- * @public
- */
+/** Error returned when {@link retry} exhausts all retry attempts. */
 export interface RetryError<E> {
-	readonly type: "RetryError";
-	readonly cause: E;
-	readonly attempts: number;
+  readonly type: "RetryError";
+  readonly cause: E;
+  readonly attempts: number;
 }
 
 /**
@@ -499,69 +493,69 @@ export interface RetryError<E> {
  * ```
  */
 export const retry = <T, E>(
-	{
-		retries,
-		initialDelay = "1s",
-		maxDelay = "30s",
-		factor = 2,
-		jitter = 0.5,
-		retryable = (error: E | AbortError) => !isAbortError(error),
-		onRetry,
-	}: RetryOptions<E>,
-	task: Task<T, E>,
+  {
+    retries,
+    initialDelay = "1s",
+    maxDelay = "30s",
+    factor = 2,
+    jitter = 0.5,
+    retryable = (error: E | AbortError) => !isAbortError(error),
+    onRetry,
+  }: RetryOptions<E>,
+  task: Task<T, E>,
 ): Task<T, E | RetryError<E>> =>
-	toTask(async (context): Promise<Result<T, E | RetryError<E>>> => {
-		const initialDelayMs = durationToMillis(initialDelay);
-		const maxDelayMs = durationToMillis(maxDelay);
-		const maxRetries = PositiveInt.orThrow(retries);
+  toTask(async (context): Promise<Result<T, E | RetryError<E>>> => {
+    const initialDelayMs = durationToMillis(initialDelay);
+    const maxDelayMs = durationToMillis(maxDelay);
+    const maxRetries = PositiveInt.orThrow(retries);
 
-		let attempt = 0;
+    let attempt = 0;
 
-		// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-		while (true) {
-			const result = await task(context);
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    while (true) {
+      const result = await task(context);
 
-			if (result.ok) {
-				return result;
-			}
+      if (result.ok) {
+        return result;
+      }
 
-			// Never retry on AbortError; propagate it directly
-			if (isAbortError(result.error)) {
-				return err(result.error) as Result<T, E | RetryError<E>>;
-			}
+      // Never retry on AbortError; propagate it directly
+      if (isAbortError(result.error)) {
+        return err(result.error) as Result<T, E | RetryError<E>>;
+      }
 
-			attempt += 1;
+      attempt += 1;
 
-			if (attempt > maxRetries || !retryable(result.error)) {
-				return err({
-					type: "RetryError",
-					cause: result.error,
-					attempts: attempt,
-				});
-			}
+      if (attempt > maxRetries || !retryable(result.error)) {
+        return err({
+          type: "RetryError",
+          cause: result.error,
+          attempts: attempt,
+        });
+      }
 
-			// Calculate delay with exponential backoff
-			const exponentialDelay = initialDelayMs * Math.pow(factor, attempt - 1);
-			const cappedDelay = Math.min(exponentialDelay, maxDelayMs);
+      // Calculate delay with exponential backoff
+      const exponentialDelay = initialDelayMs * Math.pow(factor, attempt - 1);
+      const cappedDelay = Math.min(exponentialDelay, maxDelayMs);
 
-			// Apply jitter to prevent thundering herd problem
-			const randomFactor = 1 - jitter + Math.random() * jitter * 2;
-			const delay = Math.floor(cappedDelay * randomFactor);
+      // Apply jitter to prevent thundering herd problem
+      const randomFactor = 1 - jitter + Math.random() * jitter * 2;
+      const delay = Math.floor(cappedDelay * randomFactor);
 
-			if (onRetry) {
-				onRetry(result.error, attempt, delay);
-			}
+      if (onRetry) {
+        onRetry(result.error, attempt, delay);
+      }
 
-			// Wait before retry
-			{
-				const result = await wait(Millis.orThrow(delay))(context);
-				if (!result.ok) {
-					// If delay was aborted, return AbortError (will be handled by toTask)
-					return result;
-				}
-			}
-		}
-	});
+      // Wait before retry
+      {
+        const result = await wait(Millis.orThrow(delay))(context);
+        if (!result.ok) {
+          // If delay was aborted, return AbortError (will be handled by toTask)
+          return result;
+        }
+      }
+    }
+  });
 
 /**
  * A semaphore that limits the number of concurrent async Tasks.
@@ -572,15 +566,15 @@ export const retry = <T, E>(
  * @see {@link createSemaphore} to create a semaphore instance.
  */
 export interface Semaphore extends Disposable {
-	/**
-	 * Executes a Task while holding a semaphore permit.
-	 *
-	 * The Task will wait until a permit is available before executing. Supports
-	 * cancellation via AbortSignal - if the signal is aborted while waiting for a
-	 * permit or during execution, the Task is cancelled and permits are properly
-	 * released.
-	 */
-	readonly withPermit: <T, E>(task: Task<T, E>) => Task<T, E | AbortError>;
+  /**
+   * Executes a Task while holding a semaphore permit.
+   *
+   * The Task will wait until a permit is available before executing. Supports
+   * cancellation via AbortSignal - if the signal is aborted while waiting for a
+   * permit or during execution, the Task is cancelled and permits are properly
+   * released.
+   */
+  readonly withPermit: <T, E>(task: Task<T, E>) => Task<T, E | AbortError>;
 }
 
 /**
@@ -642,65 +636,65 @@ export interface Semaphore extends Disposable {
  * ```
  */
 export const createSemaphore = (maxConcurrent: PositiveInt): Semaphore => {
-	let isDisposed = false;
-	let availablePermits = maxConcurrent;
-	const waitingQueue: Array<() => void> = [];
-	const semaphoreController = new AbortController();
+  let isDisposed = false;
+  let availablePermits = maxConcurrent;
+  const waitingQueue: Array<() => void> = [];
+  const semaphoreController = new AbortController();
 
-	const acquire = (): Promise<void> => {
-		if (availablePermits > 0) {
-			availablePermits--;
-			return Promise.resolve();
-		}
+  const acquire = (): Promise<void> => {
+    if (availablePermits > 0) {
+      availablePermits--;
+      return Promise.resolve();
+    }
 
-		return new Promise<void>((resolve) => {
-			waitingQueue.push(resolve);
-		});
-	};
+    return new Promise<void>((resolve) => {
+      waitingQueue.push(resolve);
+    });
+  };
 
-	const release = (): void => {
-		if (isNonEmptyArray(waitingQueue)) {
-			shiftFromArray(waitingQueue)();
-		} else {
-			availablePermits++;
-		}
-	};
+  const release = (): void => {
+    if (isNonEmptyArray(waitingQueue)) {
+      shiftFromArray(waitingQueue)();
+    } else {
+      availablePermits++;
+    }
+  };
 
-	return {
-		withPermit: <T, E>(task: Task<T, E>): Task<T, E | AbortError> =>
-			toTask(async (context): Promise<Result<T, E | AbortError>> => {
-				await acquire();
+  return {
+    withPermit: <T, E>(task: Task<T, E>): Task<T, E | AbortError> =>
+      toTask(async (context): Promise<Result<T, E | AbortError>> => {
+        await acquire();
 
-				// Check if semaphore was disposed while waiting
-				if (isDisposed) {
-					return err({
-						type: "AbortError",
-						reason: "Semaphore disposed",
-					});
-				}
+        // Check if semaphore was disposed while waiting
+        if (isDisposed) {
+          return err({
+            type: "AbortError",
+            reason: "Semaphore disposed",
+          });
+        }
 
-				const signal = combineSignal(context, semaphoreController.signal);
+        const signal = combineSignal(context, semaphoreController.signal);
 
-				const result = await task({ signal });
+        const result = await task({ signal });
 
-				release();
+        release();
 
-				return result;
-			}),
+        return result;
+      }),
 
-		[Symbol.dispose]: () => {
-			if (isDisposed) return;
-			isDisposed = true;
+    [Symbol.dispose]: () => {
+      if (isDisposed) return;
+      isDisposed = true;
 
-			// Cancel all running and waiting tasks
-			semaphoreController.abort("Semaphore disposed");
+      // Cancel all running and waiting tasks
+      semaphoreController.abort("Semaphore disposed");
 
-			// Release all waiting tasks so they can continue and check isDisposed
-			while (isNonEmptyArray(waitingQueue)) {
-				shiftFromArray(waitingQueue)();
-			}
-		},
-	};
+      // Release all waiting tasks so they can continue and check isDisposed
+      while (isNonEmptyArray(waitingQueue)) {
+        shiftFromArray(waitingQueue)();
+      }
+    },
+  };
 };
 
 /**
@@ -711,13 +705,13 @@ export const createSemaphore = (maxConcurrent: PositiveInt): Semaphore => {
  * @see {@link createMutex} to create a mutex instance.
  */
 export interface Mutex extends Disposable {
-	/**
-	 * Executes a Task while holding the mutex lock.
-	 *
-	 * Only one Task can hold the lock at a time. Other Tasks will wait until the
-	 * lock is released. Supports cancellation via AbortSignal.
-	 */
-	readonly withLock: <T, E>(task: Task<T, E>) => Task<T, E | AbortError>;
+  /**
+   * Executes a Task while holding the mutex lock.
+   *
+   * Only one Task can hold the lock at a time. Other Tasks will wait until the
+   * lock is released. Supports cancellation via AbortSignal.
+   */
+  readonly withLock: <T, E>(task: Task<T, E>) => Task<T, E | AbortError>;
 }
 
 /**
@@ -748,12 +742,12 @@ export interface Mutex extends Disposable {
  * ```
  */
 export const createMutex = (): Mutex => {
-	const mutex = createSemaphore(PositiveInt.orThrow(1));
+  const mutex = createSemaphore(PositiveInt.orThrow(1));
 
-	return {
-		withLock: mutex.withPermit,
-		[Symbol.dispose]: mutex[Symbol.dispose],
-	};
+  return {
+    withLock: mutex.withPermit,
+    [Symbol.dispose]: mutex[Symbol.dispose],
+  };
 };
 
 /**
@@ -776,19 +770,19 @@ export const createMutex = (): Mutex => {
  * ```
  */
 export const requestIdleTask = <T, E>(task: Task<T, E>): Task<T, E> =>
-	toTask(
-		async (context?: TaskContext) =>
-			new Promise<Result<T, E>>((resolve) => {
-				idleCallback(() => {
-					void task(context).then(resolve);
-				});
-			}),
-	);
+  toTask(
+    async (context?: TaskContext) =>
+      new Promise<Result<T, E>>((resolve) => {
+        idleCallback(() => {
+          void task(context).then(resolve);
+        });
+      }),
+  );
 
 const idleCallback: (callback: () => void) => void =
-	typeof globalThis.requestIdleCallback === "function"
-		? globalThis.requestIdleCallback
-		: (callback) => setTimeout(callback, 0);
+  typeof globalThis.requestIdleCallback === "function"
+    ? globalThis.requestIdleCallback
+    : (callback) => setTimeout(callback, 0);
 
 /**
  * Represents a value that can be either synchronous or asynchronous.
@@ -866,10 +860,10 @@ export type MaybeAsync<T> = T | PromiseLike<T>;
  * ```
  */
 export const isAsync = <T>(
-	value: MaybeAsync<T>,
+  value: MaybeAsync<T>,
 ): value is T extends PromiseLike<unknown> ? never : PromiseLike<T> =>
-	// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-	typeof (value as any)?.then === "function";
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+  typeof (value as any)?.then === "function";
 
 // TODO: Add tracing support
 // - Extend TaskContext with optional tracing field

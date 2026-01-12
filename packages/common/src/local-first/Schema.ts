@@ -1,53 +1,54 @@
 import * as Kysely from "kysely";
 import { readonly } from "../Function.js";
 import {
-	createRecord,
-	getProperty,
-	mapObject,
-	ReadonlyRecord,
+  createRecord,
+  getProperty,
+  mapObject,
+  type ReadonlyRecord,
 } from "../Object.js";
-import { ok, Result } from "../Result.js";
+import { ok, type Result } from "../Result.js";
 import {
-	SafeSql,
-	sql,
-	SqliteBoolean,
-	SqliteDep,
-	SqliteError,
-	SqliteQuery,
-	SqliteQueryOptions,
-	SqliteValue,
+  type SafeSql,
+  sql,
+  SqliteBoolean,
+  type SqliteDep,
+  type SqliteError,
+  type SqliteQuery,
+  type SqliteQueryOptions,
+  SqliteValue,
 } from "../Sqlite.js";
 import {
-	AnyType,
-	array,
-	createIdFromString,
-	DateIso,
-	IdBytes,
-	InferErrors,
-	InferInput,
-	InferType,
-	maxMutationSize,
-	MergeObjectTypeErrors,
-	nullableToOptional,
-	NullableToOptionalProps,
-	nullOr,
-	object,
-	ObjectType,
-	omit,
-	optional,
-	OptionalType,
-	record,
-	set,
-	String,
-	TableId,
-	Type,
-	ValidMutationSize,
-	validMutationSize,
-	ValidMutationSizeError,
+  type AnyType,
+  array,
+  createIdFromString,
+  DateIso,
+  IdBytes,
+  type InferErrors,
+  type InferInput,
+  type InferType,
+  maxMutationSize,
+  type MergeObjectTypeErrors,
+  nullableToOptional,
+  type NullableToOptionalProps,
+  nullOr,
+  object,
+  type ObjectType,
+  omit,
+  optional,
+  type OptionalType,
+  record,
+  set,
+  String,
+  type TableId,
+  type Type,
+  type ValidMutationSize,
+  validMutationSize,
+  type ValidMutationSizeError,
 } from "../Type.js";
-import { Simplify } from "../Types.js";
-import { AppOwner, OwnerId } from "./Owner.js";
-import { Query, Row } from "./Query.js";
+import type { Simplify } from "../Types.js";
+import type { AppOwner } from "./Owner.js";
+import { OwnerId } from "./Owner.js";
+import type { Query, Row } from "./Query.js";
 import type { CrdtMessage, DbChange } from "./Storage.js";
 import { Timestamp, TimestampBytes } from "./Timestamp.js";
 
@@ -86,9 +87,9 @@ import { Timestamp, TimestampBytes } from "./Timestamp.js";
  * ```
  */
 export type EvoluSchema = ReadonlyRecord<
-	string,
-	// TypeScript errors are cryptic so we use ValidateSchema.
-	ReadonlyRecord<string, Type<any, any, any, any, any, any>>
+  string,
+  // TypeScript errors are cryptic so we use ValidateSchema.
+  ReadonlyRecord<string, Type<any, any, any, any, any, any>>
 >;
 
 /**
@@ -105,126 +106,126 @@ export type EvoluSchema = ReadonlyRecord<
  * 4. All column types must be compatible with SQLite (extend SqliteValue)
  */
 export type ValidateSchema<S extends EvoluSchema> =
-	ValidateSchemaHasId<S> extends never
-		? ValidateIdColumnType<S> extends never
-			? ValidateNoSystemColumns<S> extends never
-				? ValidateColumnTypes<S> extends never
-					? S
-					: ValidateColumnTypes<S>
-				: ValidateNoSystemColumns<S>
-			: ValidateIdColumnType<S>
-		: ValidateSchemaHasId<S>;
+  ValidateSchemaHasId<S> extends never
+    ? ValidateIdColumnType<S> extends never
+      ? ValidateNoSystemColumns<S> extends never
+        ? ValidateColumnTypes<S> extends never
+          ? S
+          : ValidateColumnTypes<S>
+        : ValidateNoSystemColumns<S>
+      : ValidateIdColumnType<S>
+    : ValidateSchemaHasId<S>;
 
 export type ValidateSchemaHasId<S extends EvoluSchema> =
-	keyof S extends infer TableName
-		? TableName extends keyof S
-			? "id" extends keyof S[TableName]
-				? never
-				: SchemaValidationError<`Table "${TableName & string}" is missing required id column.`>
-			: never
-		: never;
+  keyof S extends infer TableName
+    ? TableName extends keyof S
+      ? "id" extends keyof S[TableName]
+        ? never
+        : SchemaValidationError<`Table "${TableName & string}" is missing required id column.`>
+      : never
+    : never;
 
 export type ValidateIdColumnType<S extends EvoluSchema> =
-	keyof S extends infer TableName
-		? TableName extends keyof S
-			? "id" extends keyof S[TableName]
-				? S[TableName]["id"] extends TableId<any>
-					? never
-					: SchemaValidationError<`Table "${TableName & string}" id column must be a branded ID type (created with id("${TableName & string}")).`>
-				: never
-			: never
-		: never;
+  keyof S extends infer TableName
+    ? TableName extends keyof S
+      ? "id" extends keyof S[TableName]
+        ? S[TableName]["id"] extends TableId<any>
+          ? never
+          : SchemaValidationError<`Table "${TableName & string}" id column must be a branded ID type (created with id("${TableName & string}")).`>
+        : never
+      : never
+    : never;
 
 export type ValidateNoSystemColumns<S extends EvoluSchema> =
-	keyof S extends infer TableName
-		? TableName extends keyof S
-			? keyof S[TableName] extends infer ColumnName
-				? ColumnName extends keyof S[TableName]
-					? ColumnName extends
-							| "createdAt"
-							| "updatedAt"
-							| "isDeleted"
-							| "ownerId"
-						? SchemaValidationError<`Table "${TableName & string}" uses system column name "${ColumnName & string}". System columns (createdAt, updatedAt, isDeleted, ownerId) are added automatically.`>
-						: never
-					: never
-				: never
-			: never
-		: never;
+  keyof S extends infer TableName
+    ? TableName extends keyof S
+      ? keyof S[TableName] extends infer ColumnName
+        ? ColumnName extends keyof S[TableName]
+          ? ColumnName extends
+              | "createdAt"
+              | "updatedAt"
+              | "isDeleted"
+              | "ownerId"
+            ? SchemaValidationError<`Table "${TableName & string}" uses system column name "${ColumnName & string}". System columns (createdAt, updatedAt, isDeleted, ownerId) are added automatically.`>
+            : never
+          : never
+        : never
+      : never
+    : never;
 
 export type ValidateColumnTypes<S extends EvoluSchema> =
-	keyof S extends infer TableName
-		? TableName extends keyof S
-			? keyof S[TableName] extends infer ColumnName
-				? ColumnName extends keyof S[TableName]
-					? InferType<S[TableName][ColumnName]> extends SqliteValue
-						? never
-						: SchemaValidationError<`Table "${TableName & string}" column "${ColumnName & string}" type is not compatible with SQLite. Column types must extend SqliteValue (string, number, Uint8Array, or null).`>
-					: never
-				: never
-			: never
-		: never;
+  keyof S extends infer TableName
+    ? TableName extends keyof S
+      ? keyof S[TableName] extends infer ColumnName
+        ? ColumnName extends keyof S[TableName]
+          ? InferType<S[TableName][ColumnName]> extends SqliteValue
+            ? never
+            : SchemaValidationError<`Table "${TableName & string}" column "${ColumnName & string}" type is not compatible with SQLite. Column types must extend SqliteValue (string, number, Uint8Array, or null).`>
+          : never
+        : never
+      : never
+    : never;
 
 /** Schema validation error that shows clear, readable messages */
 export type SchemaValidationError<Message extends string> =
-	`❌ Schema Error: ${Message}`;
+  `❌ Schema Error: ${Message}`;
 
 export type IndexesConfig = (
-	create: (indexName: string) => Kysely.CreateIndexBuilder,
+  create: (indexName: string) => Kysely.CreateIndexBuilder,
 ) => ReadonlyArray<Kysely.CreateIndexBuilder<any>>;
 
 export const evoluSchemaToDbSchema = (
-	schema: EvoluSchema,
-	indexesConfig?: IndexesConfig,
+  schema: EvoluSchema,
+  indexesConfig?: IndexesConfig,
 ): DbSchema => {
-	const tables = mapObject(
-		schema,
-		(table) => new Set(Object.keys(table).filter((k) => k !== "id")),
-	);
+  const tables = mapObject(
+    schema,
+    (table) => new Set(Object.keys(table).filter((k) => k !== "id")),
+  );
 
-	const indexes = indexesConfig
-		? indexesConfig(createIndex).map(
-				(index): DbIndex => ({
-					name: index.toOperationNode().name.name,
-					sql: index.compile().sql,
-				}),
-			)
-		: [];
+  const indexes = indexesConfig
+    ? indexesConfig(createIndex).map(
+        (index): DbIndex => ({
+          name: index.toOperationNode().name.name,
+          sql: index.compile().sql,
+        }),
+      )
+    : [];
 
-	return { tables, indexes };
+  return { tables, indexes };
 };
 
 export type CreateQuery<S extends EvoluSchema> = <R extends Row>(
-	queryCallback: (
-		db: Pick<
-			Kysely.Kysely<
-				{
-					[Table in keyof S]: {
-						readonly [Column in keyof S[Table]]: Column extends "id"
-							? InferType<S[Table][Column]>
-							: InferType<S[Table][Column]> | null;
-					} & SystemColumns;
-				} & {
-					readonly evolu_history: {
-						readonly timestamp: TimestampBytes;
-						readonly table: keyof S;
-						readonly id: IdBytes;
-						readonly column: string;
-						readonly value: SqliteValue;
-					};
-					readonly evolu_message_quarantine: {
-						readonly timestamp: TimestampBytes;
-						readonly table: string;
-						readonly id: IdBytes;
-						readonly column: string;
-						readonly value: SqliteValue;
-					};
-				}
-			>,
-			"selectFrom" | "fn" | "with" | "withRecursive"
-		>,
-	) => Kysely.SelectQueryBuilder<any, any, R>,
-	options?: SqliteQueryOptions,
+  queryCallback: (
+    db: Pick<
+      Kysely.Kysely<
+        {
+          [Table in keyof S]: {
+            readonly [Column in keyof S[Table]]: Column extends "id"
+              ? InferType<S[Table][Column]>
+              : InferType<S[Table][Column]> | null;
+          } & SystemColumns;
+        } & {
+          readonly evolu_history: {
+            readonly timestamp: TimestampBytes;
+            readonly table: keyof S;
+            readonly id: IdBytes;
+            readonly column: string;
+            readonly value: SqliteValue;
+          };
+          readonly evolu_message_quarantine: {
+            readonly timestamp: TimestampBytes;
+            readonly table: string;
+            readonly id: IdBytes;
+            readonly column: string;
+            readonly value: SqliteValue;
+          };
+        }
+      >,
+      "selectFrom" | "fn" | "with" | "withRecursive"
+    >,
+  ) => Kysely.SelectQueryBuilder<any, any, R>,
+  options?: SqliteQueryOptions,
 ) => Query<Simplify<R>>;
 
 /**
@@ -237,15 +238,15 @@ export type CreateQuery<S extends EvoluSchema> = <R extends Row>(
  * - `ownerId`: Represents ownership and logically partitions the database.
  */
 export const SystemColumns = object({
-	createdAt: DateIso,
-	updatedAt: DateIso,
-	isDeleted: nullOr(SqliteBoolean),
-	ownerId: OwnerId,
+  createdAt: DateIso,
+  updatedAt: DateIso,
+  isDeleted: nullOr(SqliteBoolean),
+  ownerId: OwnerId,
 });
 export type SystemColumns = typeof SystemColumns.Type;
 
 export const systemColumns = readonly(
-	new Set(Object.keys(SystemColumns.props)),
+  new Set(Object.keys(SystemColumns.props)),
 );
 
 export const systemColumnsWithId = readonly([...systemColumns, "id"]);
@@ -253,81 +254,81 @@ export const systemColumnsWithId = readonly([...systemColumns, "id"]);
 export type MutationKind = "insert" | "update" | "upsert";
 
 export type Mutation<S extends EvoluSchema, Kind extends MutationKind> = <
-	TableName extends keyof S,
+  TableName extends keyof S,
 >(
-	table: TableName,
-	props: InferInput<ObjectType<MutationMapping<S[TableName], Kind>>>,
-	options?: MutationOptions,
+  table: TableName,
+  props: InferInput<ObjectType<MutationMapping<S[TableName], Kind>>>,
+  options?: MutationOptions,
 ) => Result<
-	{ readonly id: S[TableName]["id"]["Type"] },
-	| ValidMutationSizeError
-	| MergeObjectTypeErrors<ObjectType<MutationMapping<S[TableName], Kind>>>
+  { readonly id: S[TableName]["id"]["Type"] },
+  | ValidMutationSizeError
+  | MergeObjectTypeErrors<ObjectType<MutationMapping<S[TableName], Kind>>>
 >;
 
 export type MutationMapping<
-	P extends Record<string, AnyType>,
-	M extends MutationKind,
+  P extends Record<string, AnyType>,
+  M extends MutationKind,
 > = M extends "insert"
-	? InsertableProps<P>
-	: M extends "update"
-		? UpdateableProps<P>
-		: UpsertableProps<P>;
+  ? InsertableProps<P>
+  : M extends "update"
+    ? UpdateableProps<P>
+    : UpsertableProps<P>;
 
 export interface MutationOptions {
-	/**
-	 * Called after the mutation is completed and the local state is updated.
-	 * Useful for triggering side effects (e.g., notifications, UI updates) after
-	 * insert, update, or upsert.
-	 */
-	readonly onComplete?: () => void;
+  /**
+   * Called after the mutation is completed and the local state is updated.
+   * Useful for triggering side effects (e.g., notifications, UI updates) after
+   * insert, update, or upsert.
+   */
+  readonly onComplete?: () => void;
 
-	/**
-	 * Specifies the owner ID for this mutation. If omitted, the default
-	 * {@link AppOwner} is used.
-	 *
-	 * The owner must be used with `evolu.useOwner()` to enable sync. Mutations
-	 * with unused owners are stored locally but not synced until the owner is
-	 * used.
-	 *
-	 * ### Example
-	 *
-	 * ```ts
-	 * // Partition your own data by project (derived from your AppOwner)
-	 * const projectOwner = deriveShardOwner(appOwner, [
-	 *   "project",
-	 *   projectId,
-	 * ]);
-	 * evolu.insert(
-	 *   "task",
-	 *   { title: "Task 1" },
-	 *   { ownerId: projectOwner.id },
-	 * );
-	 *
-	 * // Collaborative data (independent owner shared with others)
-	 * const sharedOwner = createSharedOwner(sharedSecret);
-	 * evolu.insert(
-	 *   "comment",
-	 *   { text: "Hello" },
-	 *   { ownerId: sharedOwner.id },
-	 * );
-	 * ```
-	 *
-	 * @experimental
-	 */
-	readonly ownerId?: OwnerId;
+  /**
+   * Specifies the owner ID for this mutation. If omitted, the default
+   * {@link AppOwner} is used.
+   *
+   * The owner must be used with `evolu.useOwner()` to enable sync. Mutations
+   * with unused owners are stored locally but not synced until the owner is
+   * used.
+   *
+   * ### Example
+   *
+   * ```ts
+   * // Partition your own data by project (derived from your AppOwner)
+   * const projectOwner = deriveShardOwner(appOwner, [
+   *   "project",
+   *   projectId,
+   * ]);
+   * evolu.insert(
+   *   "task",
+   *   { title: "Task 1" },
+   *   { ownerId: projectOwner.id },
+   * );
+   *
+   * // Collaborative data (independent owner shared with others)
+   * const sharedOwner = createSharedOwner(sharedSecret);
+   * evolu.insert(
+   *   "comment",
+   *   { text: "Hello" },
+   *   { ownerId: sharedOwner.id },
+   * );
+   * ```
+   *
+   * @experimental
+   */
+  readonly ownerId?: OwnerId;
 
-	/**
-	 * Only validate, don't mutate.
-	 *
-	 * For example, `onChange` handler can call `insert`/`update`/`upsert` with
-	 * `onlyValidate: true`.
-	 */
-	readonly onlyValidate?: boolean;
+  /**
+   * Only validate, don't mutate.
+   *
+   * For example, `onChange` handler can call `insert`/`update`/`upsert` with
+   * `onlyValidate: true`.
+   */
+  readonly onlyValidate?: boolean;
 }
 
 export interface MutationChange extends DbChange {
-	/** Owner of the change. If undefined, the change belongs to the AppOwner. */
-	readonly ownerId?: OwnerId | undefined;
+  /** Owner of the change. If undefined, the change belongs to the AppOwner. */
+  readonly ownerId?: OwnerId | undefined;
 }
 
 /**
@@ -345,20 +346,20 @@ export interface MutationChange extends DbChange {
  * ```
  */
 export const insertable = <Props extends Record<string, AnyType>>(
-	props: Props,
+  props: Props,
 ): ValidMutationSize<InsertableProps<Props>> => {
-	const optionalNullable = nullableToOptional(props);
-	const withoutId = omit(optionalNullable, "id");
-	return validMutationSize(withoutId);
+  const optionalNullable = nullableToOptional(props);
+  const withoutId = omit(optionalNullable, "id");
+  return validMutationSize(withoutId);
 };
 
 export type InsertableProps<Props extends Record<string, AnyType>> = Omit<
-	NullableToOptionalProps<Props>,
-	"id"
+  NullableToOptionalProps<Props>,
+  "id"
 >;
 
 export type Insertable<Props extends Record<string, AnyType>> = InferInput<
-	ObjectType<InsertableProps<Props>>
+  ObjectType<InsertableProps<Props>>
 >;
 
 /**
@@ -381,21 +382,21 @@ export type Insertable<Props extends Record<string, AnyType>> = InferInput<
  * ```
  */
 export const updateable = <Props extends Record<string, AnyType>>(
-	props: Props,
+  props: Props,
 ): ValidMutationSize<UpdateableProps<Props>> => {
-	const propsWithIsDeleted = { ...props, isDeleted: SqliteBoolean };
-	const updateableProps = mapObject(propsWithIsDeleted, (value, key) =>
-		key === "id" ? value : optional(value),
-	) as UpdateableProps<Props>;
-	return validMutationSize(object(updateableProps));
+  const propsWithIsDeleted = { ...props, isDeleted: SqliteBoolean };
+  const updateableProps = mapObject(propsWithIsDeleted, (value, key) =>
+    key === "id" ? value : optional(value),
+  ) as UpdateableProps<Props>;
+  return validMutationSize(object(updateableProps));
 };
 
 export type UpdateableProps<Props extends Record<string, AnyType>> = {
-	[K in keyof Props]: K extends "id" ? Props[K] : OptionalType<Props[K]>;
+  [K in keyof Props]: K extends "id" ? Props[K] : OptionalType<Props[K]>;
 } & { isDeleted: OptionalType<typeof SqliteBoolean> };
 
 export type Updateable<Props extends Record<string, AnyType>> = InferInput<
-	ObjectType<UpdateableProps<Props>>
+  ObjectType<UpdateableProps<Props>>
 >;
 
 /**
@@ -422,70 +423,69 @@ export type Updateable<Props extends Record<string, AnyType>> = InferInput<
  * ```
  */
 export const upsertable = <Props extends Record<string, AnyType>>(
-	props: Props,
+  props: Props,
 ): ValidMutationSize<UpsertableProps<Props>> => {
-	const propsWithDefaults = {
-		...props,
-		isDeleted: optional(SqliteBoolean),
-	};
-	return validMutationSize(nullableToOptional(propsWithDefaults));
+  const propsWithDefaults = {
+    ...props,
+    isDeleted: optional(SqliteBoolean),
+  };
+  return validMutationSize(nullableToOptional(propsWithDefaults));
 };
 
 export type UpsertableProps<Props extends Record<string, AnyType>> =
-	NullableToOptionalProps<
-		Props & {
-			isDeleted: OptionalType<typeof SqliteBoolean>;
-		}
-	>;
+  NullableToOptionalProps<
+    Props & {
+      isDeleted: OptionalType<typeof SqliteBoolean>;
+    }
+  >;
 
 export type Upsertable<Props extends Record<string, AnyType>> = InferInput<
-	ObjectType<UpsertableProps<Props>>
+  ObjectType<UpsertableProps<Props>>
 >;
 
 export type InferEvoluSchemaError<S extends EvoluSchema> = {
-	[Table in keyof S]: InferMutationTypeErrors<S[Table]>;
+  [Table in keyof S]: InferMutationTypeErrors<S[Table]>;
 }[keyof S];
 
 export type InferMutationTypeErrors<T extends Record<string, AnyType>> =
-	| InferColumnErrors<T, "insert">
-	| InferColumnErrors<T, "update">
-	| InferColumnErrors<T, "upsert">;
+  | InferColumnErrors<T, "insert">
+  | InferColumnErrors<T, "update">
+  | InferColumnErrors<T, "upsert">;
 
 export type InferColumnErrors<
-	T extends Record<string, AnyType>,
-	M extends MutationKind,
+  T extends Record<string, AnyType>,
+  M extends MutationKind,
 > = {
-	[Column in keyof MutationMapping<T, M>]: InferErrors<
-		MutationMapping<T, M>[Column]
-	>;
+  [Column in keyof MutationMapping<T, M>]: InferErrors<
+    MutationMapping<T, M>[Column]
+  >;
 }[keyof MutationMapping<T, M>];
 
 export const DbIndex = object({ name: String, sql: String });
 export type DbIndex = typeof DbIndex.Type;
 
 export const DbSchema = object({
-	tables: record(String, set(String)),
-	indexes: array(DbIndex),
+  tables: record(String, set(String)),
+  indexes: array(DbIndex),
 });
 export type DbSchema = typeof DbSchema.Type;
 
 // TODO: Use a ref and update dbSchema on hot reloading to support
 // development workflows where schema changes without full app restart.
 export interface DbSchemaDep {
-	readonly dbSchema: DbSchema;
+  readonly dbSchema: DbSchema;
 }
 
 /** Get the current database schema by reading SQLite metadata. */
 export const getDbSchema =
-	(deps: SqliteDep) =>
-	({
-		allIndexes = false,
-	}: {
-		allIndexes?: boolean;
-	} = {}): Result<DbSchema, SqliteError> => {
-		const tables = createRecord<string, Set<string>>();
+  (deps: SqliteDep) =>
+  ({ allIndexes = false }: { allIndexes?: boolean } = {}): Result<
+    DbSchema,
+    SqliteError
+  > => {
+    const tables = createRecord<string, Set<string>>();
 
-		const tableAndColumnInfoRows = deps.sqlite.exec(sql`
+    const tableAndColumnInfoRows = deps.sqlite.exec(sql`
       select
         sqlite_master.name as tableName,
         table_info.name as columnName
@@ -494,24 +494,24 @@ export const getDbSchema =
         join pragma_table_info(sqlite_master.name) as table_info;
     `);
 
-		if (!tableAndColumnInfoRows.ok) return tableAndColumnInfoRows;
+    if (!tableAndColumnInfoRows.ok) return tableAndColumnInfoRows;
 
-		tableAndColumnInfoRows.value.rows.forEach((row) => {
-			const { tableName, columnName } = row as unknown as {
-				tableName: string;
-				columnName: string;
-			};
-			(tables[tableName] ??= new Set()).add(columnName);
-		});
+    tableAndColumnInfoRows.value.rows.forEach((row) => {
+      const { tableName, columnName } = row as unknown as {
+        tableName: string;
+        columnName: string;
+      };
+      (tables[tableName] ??= new Set()).add(columnName);
+    });
 
-		const indexesRows = deps.sqlite.exec(
-			allIndexes
-				? sql`
+    const indexesRows = deps.sqlite.exec(
+      allIndexes
+        ? sql`
             select name, sql
             from sqlite_master
             where type = 'index' and name not like 'sqlite_%';
           `
-				: sql`
+        : sql`
             select name, sql
             from sqlite_master
             where
@@ -519,102 +519,102 @@ export const getDbSchema =
               and name not like 'sqlite_%'
               and name not like 'evolu_%';
           `,
-		);
+    );
 
-		if (!indexesRows.ok) return indexesRows;
+    if (!indexesRows.ok) return indexesRows;
 
-		const indexes = indexesRows.value.rows.map(
-			(row): DbIndex => ({
-				name: row.name as string,
-				/**
-				 * SQLite returns "CREATE INDEX" for "create index" for some reason.
-				 * Other keywords remain unchanged. We have to normalize the casing for
-				 * {@link indexesAreEqual} manually.
-				 */
-				sql: (row.sql as string)
-					.replace("CREATE INDEX", "create index")
-					.replace("CREATE UNIQUE INDEX", "create unique index"),
-			}),
-		);
+    const indexes = indexesRows.value.rows.map(
+      (row): DbIndex => ({
+        name: row.name as string,
+        /**
+         * SQLite returns "CREATE INDEX" for "create index" for some reason.
+         * Other keywords remain unchanged. We have to normalize the casing for
+         * {@link indexesAreEqual} manually.
+         */
+        sql: (row.sql as string)
+          .replace("CREATE INDEX", "create index")
+          .replace("CREATE UNIQUE INDEX", "create unique index"),
+      }),
+    );
 
-		return ok({ tables, indexes });
-	};
+    return ok({ tables, indexes });
+  };
 
 const indexesAreEqual = (self: DbIndex, that: DbIndex): boolean =>
-	self.name === that.name && self.sql === that.sql;
+  self.name === that.name && self.sql === that.sql;
 
 export const ensureDbSchema =
-	(deps: SqliteDep) =>
-	(
-		newSchema: DbSchema,
-		currentSchema?: DbSchema,
-	): Result<void, SqliteError> => {
-		const queries: Array<SqliteQuery> = [];
+  (deps: SqliteDep) =>
+  (
+    newSchema: DbSchema,
+    currentSchema?: DbSchema,
+  ): Result<void, SqliteError> => {
+    const queries: Array<SqliteQuery> = [];
 
-		if (!currentSchema) {
-			const dbSchema = getDbSchema(deps)();
-			if (!dbSchema.ok) return dbSchema;
-			currentSchema = dbSchema.value;
-		}
+    if (!currentSchema) {
+      const dbSchema = getDbSchema(deps)();
+      if (!dbSchema.ok) return dbSchema;
+      currentSchema = dbSchema.value;
+    }
 
-		for (const [tableName, newColumns] of Object.entries(newSchema.tables)) {
-			const currentColumns = getProperty(currentSchema.tables, tableName);
-			if (!currentColumns) {
-				queries.push(createAppTable(tableName, newColumns));
-			} else {
-				for (const newColumn of newColumns.difference(currentColumns)) {
-					queries.push(sql`
+    for (const [tableName, newColumns] of Object.entries(newSchema.tables)) {
+      const currentColumns = getProperty(currentSchema.tables, tableName);
+      if (!currentColumns) {
+        queries.push(createAppTable(tableName, newColumns));
+      } else {
+        for (const newColumn of newColumns.difference(currentColumns)) {
+          queries.push(sql`
             alter table ${sql.identifier(tableName)}
             add column ${sql.identifier(newColumn)} any;
           `);
-				}
-			}
-		}
+        }
+      }
+    }
 
-		// Remove current indexes that are not in the newSchema.
-		currentSchema.indexes
-			.filter(
-				(currentIndex) =>
-					!newSchema.indexes.some((newIndex) =>
-						indexesAreEqual(newIndex, currentIndex),
-					),
-			)
-			.forEach((index) => {
-				queries.push(sql`drop index ${sql.identifier(index.name)};`);
-			});
+    // Remove current indexes that are not in the newSchema.
+    currentSchema.indexes
+      .filter(
+        (currentIndex) =>
+          !newSchema.indexes.some((newIndex) =>
+            indexesAreEqual(newIndex, currentIndex),
+          ),
+      )
+      .forEach((index) => {
+        queries.push(sql`drop index ${sql.identifier(index.name)};`);
+      });
 
-		// Add new indexes that are not in the currentSchema.
-		newSchema.indexes
-			.filter(
-				(newIndex) =>
-					!currentSchema.indexes.some((currentIndex) =>
-						indexesAreEqual(newIndex, currentIndex),
-					),
-			)
-			.forEach((newIndex) => {
-				queries.push({ sql: `${newIndex.sql};` as SafeSql, parameters: [] });
-			});
+    // Add new indexes that are not in the currentSchema.
+    newSchema.indexes
+      .filter(
+        (newIndex) =>
+          !currentSchema.indexes.some((currentIndex) =>
+            indexesAreEqual(newIndex, currentIndex),
+          ),
+      )
+      .forEach((newIndex) => {
+        queries.push({ sql: `${newIndex.sql};` as SafeSql, parameters: [] });
+      });
 
-		for (const query of queries) {
-			const result = deps.sqlite.exec(query);
-			if (!result.ok) return result;
-		}
-		return ok();
-	};
+    for (const query of queries) {
+      const result = deps.sqlite.exec(query);
+      if (!result.ok) return result;
+    }
+    return ok();
+  };
 
 const createAppTable = (tableName: string, columns: ReadonlySet<string>) => sql`
   create table ${sql.identifier(tableName)} (
     "id" text,
     ${sql.raw(
-			// With strict tables and any type, data is preserved exactly as received
-			// without any type affinity coercion. This allows storing any data type
-			// while maintaining strict null enforcement for primary key columns.
-			// TODO: Use proper SQLite types for system columns (text for createdAt,
-			// updatedAt, ownerId, integer for isDeleted) instead of "any".
-			[...systemColumns, ...columns]
-				.map((name) => `${sql.identifier(name).sql} any`)
-				.join(", "),
-		)},
+      // With strict tables and any type, data is preserved exactly as received
+      // without any type affinity coercion. This allows storing any data type
+      // while maintaining strict null enforcement for primary key columns.
+      // TODO: Use proper SQLite types for system columns (text for createdAt,
+      // updatedAt, ownerId, integer for isDeleted) instead of "any".
+      [...systemColumns, ...columns]
+        .map((name) => `${sql.identifier(name).sql} any`)
+        .join(", "),
+    )},
     primary key ("ownerId", "id")
   )
   without rowid, strict;
@@ -622,14 +622,14 @@ const createAppTable = (tableName: string, columns: ReadonlySet<string>) => sql`
 
 // https://kysely.dev/docs/recipes/splitting-query-building-and-execution
 export const kysely = new Kysely.Kysely({
-	dialect: {
-		createAdapter: () => new Kysely.SqliteAdapter(),
-		createDriver: () => new Kysely.DummyDriver(),
-		createIntrospector() {
-			throw new Error("Not implemeneted");
-		},
-		createQueryCompiler: () => new Kysely.SqliteQueryCompiler(),
-	},
+  dialect: {
+    createAdapter: () => new Kysely.SqliteAdapter(),
+    createDriver: () => new Kysely.DummyDriver(),
+    createIntrospector() {
+      throw new Error("Not implemeneted");
+    },
+    createQueryCompiler: () => new Kysely.SqliteQueryCompiler(),
+  },
 });
 
 const createIndex = kysely.schema.createIndex.bind(kysely.schema);
