@@ -1,4 +1,9 @@
-import type { PositiveInt } from "./Type.js";
+/**
+ * Cache implementations including LRU eviction.
+ *
+ * @module
+ */
+import { PositiveInt } from "./Type.js";
 
 /**
  * Generic cache interface providing basic key-value storage operations.
@@ -9,20 +14,20 @@ import type { PositiveInt } from "./Type.js";
  * violate the Liskov Substitution Principle.
  */
 export interface Cache<K, V> {
-	/** Checks if a key exists in the cache. */
-	has: (key: K) => boolean;
+  /** Checks if a key exists in the cache. */
+  has: (key: K) => boolean;
 
-	/** Retrieves the value for a key, or undefined if not present. */
-	get: (key: K) => V | undefined;
+  /** Retrieves the value for a key, or undefined if not present. */
+  get: (key: K) => V | undefined;
 
-	/** Stores a key-value pair in the cache. */
-	set: (key: K, val: V) => void;
+  /** Stores a key-value pair in the cache. */
+  set: (key: K, val: V) => void;
 
-	/** Removes a key from the cache. */
-	delete: (key: K) => void;
+  /** Removes a key from the cache. */
+  delete: (key: K) => void;
 
-	/** Returns a readonly view of the internal Map. */
-	readonly map: ReadonlyMap<K, V>;
+  /** Returns a readonly view of the internal Map. */
+  readonly map: ReadonlyMap<K, V>;
 }
 
 /**
@@ -42,38 +47,38 @@ export interface Cache<K, V> {
  * ```
  */
 export const createLruCache = <K, V>(capacity: PositiveInt): Cache<K, V> => {
-	const internalMap = new Map<K, V>();
+  const internalMap = new Map<K, V>();
 
-	return {
-		has: (key) => internalMap.has(key),
+  return {
+    has: (key) => internalMap.has(key),
 
-		get: (key) => {
-			const value = internalMap.get(key);
-			if (value === undefined) return undefined;
+    get: (key) => {
+      const value = internalMap.get(key);
+      if (value === undefined) return undefined;
 
-			// Move to end (most recently used)
-			internalMap.delete(key);
-			internalMap.set(key, value);
-			return value;
-		},
+      // Move to end (most recently used)
+      internalMap.delete(key);
+      internalMap.set(key, value);
+      return value;
+    },
 
-		set: (key, val) => {
-			// If key exists, delete it first to update order
-			if (internalMap.has(key)) {
-				internalMap.delete(key);
-			} else if (internalMap.size === capacity) {
-				// Evict least recently used (first entry)
-				const firstKey = internalMap.keys().next().value as K;
-				internalMap.delete(firstKey);
-			}
+    set: (key, val) => {
+      // If key exists, delete it first to update order
+      if (internalMap.has(key)) {
+        internalMap.delete(key);
+      } else if (internalMap.size === capacity) {
+        // Evict least recently used (first entry)
+        const firstKey = internalMap.keys().next().value as K;
+        internalMap.delete(firstKey);
+      }
 
-			internalMap.set(key, val);
-		},
+      internalMap.set(key, val);
+    },
 
-		delete: (key) => {
-			internalMap.delete(key);
-		},
+    delete: (key) => {
+      internalMap.delete(key);
+    },
 
-		map: internalMap,
-	};
+    map: internalMap,
+  };
 };
