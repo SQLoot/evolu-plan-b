@@ -35,6 +35,13 @@ Start the development environment (web docs + examples):
 bun dev
 ```
 
+### Web Build Notes
+
+- Uses webpack (`next build --webpack`) because SharedWorker is required.
+- Uses `NODE_OPTIONS=--max-old-space-size-percentage=75` to avoid V8 heap OOM on large docs builds.
+- On macOS Tahoe, you may need to raise Launch Services limits too (shell `ulimit -n` is not enough):
+  - `sudo launchctl limit maxfiles 262144 262144`
+
 ### Scripts
 
 - **Linting**: `bun run lint` (Check code quality with Biome)
