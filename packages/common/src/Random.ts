@@ -31,28 +31,32 @@ export type RandomNumber = number & Brand<"RandomNumber">;
  * ```
  */
 export interface Random {
-	/** Returns a floating point number in [0, 1). Just like Math.random(). */
-	next: () => RandomNumber;
+  /** Returns a floating point number in [0, 1). Just like Math.random(). */
+  next: () => RandomNumber;
 }
 
 export interface RandomDep {
-	random: Random;
+  random: Random;
 }
 
 /** Creates a {@link Random} using Math.random(). */
 export const createRandom = (): Random => ({
-	next: () => Math.random() as RandomNumber,
+  next: () => Math.random() as RandomNumber,
 });
+
+/** Creates a seeded {@link Random} for deterministic tests. Default seed "evolu". */
+export const testCreateRandom = (seed = "evolu"): Random =>
+  createRandomWithSeed(seed);
 
 /**
  * Creates {@link Random} using {@link RandomLibDep} with a seed which is useful
  * for tests.
  */
 export const createRandomWithSeed = (seed: string): Random => {
-	const random = new RandomLib(seed);
-	return {
-		next: () => random.next() as RandomNumber,
-	};
+  const random = new RandomLib(seed);
+  return {
+    next: () => random.next() as RandomNumber,
+  };
 };
 
 /**
@@ -61,16 +65,12 @@ export const createRandomWithSeed = (seed: string): Random => {
  * https://github.com/transitive-bullshit/random
  */
 export interface RandomLibDep {
-	random: RandomLib;
+  randomLib: RandomLib;
 }
 
 /** Creates a `RandomLib` using the NPM `random` package. */
 export const createRandomLib = (): RandomLib => new RandomLib();
 
-/**
- * Creates {@link RandomLibDep} using the NPM `random` package with a seed which
- * is useful for tests.
- */
-export const createRandomLibWithSeed = (seed: string): RandomLibDep => ({
-	random: new RandomLib(seed),
-});
+/** Creates a seeded `RandomLib` for deterministic tests. Default seed "evolu". */
+export const testCreateRandomLib = (seed = "evolu"): RandomLib =>
+  new RandomLib(seed);
