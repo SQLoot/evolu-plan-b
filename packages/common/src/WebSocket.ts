@@ -3,27 +3,28 @@
  *
  * @module
  */
+
 import { constVoid } from "./Function.js";
-import { err, ok } from "./Result.js";
+import type { RetryErrorOld, RetryOptions } from "./OldTask.js";
+import { retryOld } from "./OldTask.js";
 import type { Result } from "./Result.js";
-import { retry } from "./OldTask.js";
-import type { RetryError, RetryOptions } from "./OldTask.js";
+import { err, ok } from "./Result.js";
 import { maxPositiveInt } from "./Type.js";
 
 /** WebSocket with auto-reconnect and offline support. */
 export interface WebSocket extends Disposable {
-	/**
-	 * Send data through the WebSocket connection. Returns {@link Result} with an
-	 * error if the data couldn't be sent.
-	 */
-	send: (
-		data: string | ArrayBufferLike | Blob | ArrayBufferView,
-	) => Result<void, WebSocketSendError>;
+  /**
+   * Send data through the WebSocket connection. Returns {@link Result} with an
+   * error if the data couldn't be sent.
+   */
+  send: (
+    data: string | ArrayBufferLike | Blob | ArrayBufferView,
+  ) => Result<void, WebSocketSendError>;
 
-	readonly getReadyState: () => WebSocketReadyState;
+  readonly getReadyState: () => WebSocketReadyState;
 
-	/** Returns true if the WebSocket is open and ready to send data. */
-	readonly isOpen: () => boolean;
+  /** Returns true if the WebSocket is open and ready to send data. */
+  readonly isOpen: () => boolean;
 }
 
 /**
@@ -33,66 +34,66 @@ export interface WebSocket extends Disposable {
  * https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/send
  */
 export interface WebSocketSendError {
-	readonly type: "WebSocketSendError";
+  readonly type: "WebSocketSendError";
 }
 
 /** WebSocket connection states. */
 export type WebSocketReadyState = "connecting" | "open" | "closing" | "closed";
 
 export type CreateWebSocket = (
-	url: string,
-	options?: WebSocketOptions,
+  url: string,
+  options?: WebSocketOptions,
 ) => WebSocket;
 
 export interface CreateWebSocketDep {
-	readonly createWebSocket: CreateWebSocket;
+  readonly createWebSocket: CreateWebSocket;
 }
 
 /** Options for creating {@link WebSocket} */
 export interface WebSocketOptions {
-	/** Protocol(s) to use with the WebSocket connection. */
-	protocols?: string | Array<string>;
+  /** Protocol(s) to use with the WebSocket connection. */
+  protocols?: string | Array<string>;
 
-	/** Sets the binary type for the data being received. */
-	binaryType?: "blob" | "arraybuffer";
+  /** Sets the binary type for the data being received. */
+  binaryType?: "blob" | "arraybuffer";
 
-	/** Callback when the connection is established. */
-	onOpen?: () => void;
+  /** Callback when the connection is established. */
+  onOpen?: () => void;
 
-	/** Callback when an error occurs. */
-	onError?: (error: WebSocketError) => void;
+  /** Callback when an error occurs. */
+  onError?: (error: WebSocketError) => void;
 
-	/** Callback when the connection is closed. */
-	onClose?: (event: CloseEvent) => void;
+  /** Callback when the connection is closed. */
+  onClose?: (event: CloseEvent) => void;
 
-	/** Callback when message data is received. */
-	onMessage?: (data: string | ArrayBuffer | Blob) => void;
+  /** Callback when message data is received. */
+  onMessage?: (data: string | ArrayBuffer | Blob) => void;
 
-	/** Options for retry behavior. */
-	retryOptions?: Omit<RetryOptions<WebSocketRetryError>, "signal">;
+  /** Options for retry behavior. */
+  retryOptions?: Omit<RetryOptions<WebSocketRetryError>, "signal">;
 
-	/**
-	 * For custom WebSocket implementations.
-	 *
-	 * This suppors blob:
-	 *
-	 * https://github.com/callstackincubator/react-native-fast-io
-	 */
-	WebSocketConstructor?: typeof globalThis.WebSocket;
+  /**
+   * For custom WebSocket implementations.
+   *
+   * This suppors blob:
+   *
+   * https://github.com/callstackincubator/react-native-fast-io
+   */
+  WebSocketConstructor?: typeof globalThis.WebSocket;
 }
 
 export type WebSocketError =
-	| WebSocketConnectError
-	| WebSocketConnectionError
-	| RetryError<WebSocketRetryError>;
+  | WebSocketConnectError
+  | WebSocketConnectionError
+  | RetryErrorOld<WebSocketRetryError>;
 
 /**
  * An error that occurs when a connection cannot be established due to a network
  * error.
  */
 export interface WebSocketConnectError {
-	readonly type: "WebSocketConnectError";
-	readonly event: Event;
+  readonly type: "WebSocketConnectError";
+  readonly event: Event;
 }
 
 /**
@@ -102,17 +103,17 @@ export interface WebSocketConnectError {
  * https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/error_event
  */
 export interface WebSocketConnectionError {
-	readonly type: "WebSocketConnectionError";
-	readonly event: Event;
+  readonly type: "WebSocketConnectionError";
+  readonly event: Event;
 }
 
 export type WebSocketRetryError =
-	| WebSocketConnectError
-	| WebSocketConnectionCloseError;
+  | WebSocketConnectError
+  | WebSocketConnectionCloseError;
 
 export interface WebSocketConnectionCloseError {
-	readonly type: "WebSocketConnectionCloseError";
-	readonly event: CloseEvent;
+  readonly type: "WebSocketConnectionCloseError";
+  readonly event: CloseEvent;
 }
 
 /**
@@ -147,139 +148,139 @@ export interface WebSocketConnectionCloseError {
  * TODO:
  */
 export const createWebSocket: CreateWebSocket = (
-	url,
-	{
-		protocols,
-		binaryType,
-		onOpen,
-		onClose,
-		onMessage,
-		onError,
-		retryOptions,
-		WebSocketConstructor = globalThis.WebSocket,
-	} = {},
+  url,
+  {
+    protocols,
+    binaryType,
+    onOpen,
+    onClose,
+    onMessage,
+    onError,
+    retryOptions,
+    WebSocketConstructor = globalThis.WebSocket,
+  } = {},
 ) => {
-	let isDisposed = false;
+  let isDisposed = false;
 
-	const reconnectController = new AbortController();
+  const reconnectController = new AbortController();
 
-	const defaultRetryOptions: RetryOptions<WebSocketRetryError> = {
-		retries: maxPositiveInt, // Practically infinite retries
-	};
+  const defaultRetryOptions: RetryOptions<WebSocketRetryError> = {
+    retries: maxPositiveInt, // Practically infinite retries
+  };
 
-	let socket: globalThis.WebSocket | null = null;
+  let socket: globalThis.WebSocket | null = null;
 
-	const disposeSocket = () => {
-		if (!socket) return;
+  const disposeSocket = () => {
+    if (!socket) return;
 
-		// Remove all listeners before closing
-		socket.onopen = null;
-		socket.onclose = null;
-		socket.onmessage = null;
-		socket.onerror = null;
+    // Remove all listeners before closing
+    socket.onopen = null;
+    socket.onclose = null;
+    socket.onmessage = null;
+    socket.onerror = null;
 
-		if (
-			socket.readyState !== socket.CLOSING &&
-			socket.readyState !== socket.CLOSED
-		) {
-			socket.close();
-		}
-		socket = null;
-	};
+    if (
+      socket.readyState !== socket.CLOSING &&
+      socket.readyState !== socket.CLOSED
+    ) {
+      socket.close();
+    }
+    socket = null;
+  };
 
-	// To prevent a memory leak from pending connection promise.
-	let disposePromise: null | typeof constVoid = null;
+  // To prevent a memory leak from pending connection promise.
+  let disposePromise: null | typeof constVoid = null;
 
-	/**
-	 * This promise represents continuous connection which:
-	 *
-	 * - Is rejected when a connection cannot be established.
-	 * - Is rejected when a connection is closed.
-	 * - Is resolved when WebSocket is disposed().
-	 */
-	void retry(
-		{
-			...defaultRetryOptions,
-			...retryOptions,
-		},
-		(): Promise<Result<void, WebSocketRetryError>> =>
-			new Promise((resolve) => {
-				disposePromise = () => {
-					resolve(ok());
-				};
+  /**
+   * This promise represents continuous connection which:
+   *
+   * - Is rejected when a connection cannot be established.
+   * - Is rejected when a connection is closed.
+   * - Is resolved when WebSocket is disposed().
+   */
+  void retryOld(
+    {
+      ...defaultRetryOptions,
+      ...retryOptions,
+    },
+    (): Promise<Result<void, WebSocketRetryError>> =>
+      new Promise((resolve) => {
+        disposePromise = () => {
+          resolve(ok());
+        };
 
-				if (isDisposed) disposePromise();
+        if (isDisposed) disposePromise();
 
-				disposeSocket();
+        disposeSocket();
 
-				socket = new WebSocketConstructor(url, protocols);
-				if (binaryType) socket.binaryType = binaryType;
+        socket = new WebSocketConstructor(url, protocols);
+        if (binaryType) socket.binaryType = binaryType;
 
-				let isOpen = false;
+        let isOpen = false;
 
-				socket.onopen = () => {
-					isOpen = true;
-					onOpen?.();
-				};
+        socket.onopen = () => {
+          isOpen = true;
+          onOpen?.();
+        };
 
-				socket.onerror = (event) => {
-					const error: WebSocketConnectionError | WebSocketConnectError = isOpen
-						? { type: "WebSocketConnectionError", event }
-						: { type: "WebSocketConnectError", event };
-					onError?.(error);
+        socket.onerror = (event) => {
+          const error: WebSocketConnectionError | WebSocketConnectError = isOpen
+            ? { type: "WebSocketConnectionError", event }
+            : { type: "WebSocketConnectError", event };
+          onError?.(error);
 
-					// Trigger reconnect only on WebSocketConnectError.
-					if (error.type === "WebSocketConnectError") {
-						resolve(err(error));
-					}
-				};
+          // Trigger reconnect only on WebSocketConnectError.
+          if (error.type === "WebSocketConnectError") {
+            resolve(err(error));
+          }
+        };
 
-				socket.onclose = (event) => {
-					onClose?.(event);
-					resolve(err({ type: "WebSocketConnectionCloseError", event }));
-				};
+        socket.onclose = (event) => {
+          onClose?.(event);
+          resolve(err({ type: "WebSocketConnectionCloseError", event }));
+        };
 
-				socket.onmessage = (
-					event: MessageEvent<string | ArrayBuffer | Blob>,
-				) => {
-					onMessage?.(event.data);
-				};
-			}),
-	)(reconnectController).then((result) => {
-		if (result.ok || result.error.type === "AbortError") return;
-		onError?.(result.error as WebSocketError);
-	});
+        socket.onmessage = (
+          event: MessageEvent<string | ArrayBuffer | Blob>,
+        ) => {
+          onMessage?.(event.data);
+        };
+      }),
+  )(reconnectController).then((result) => {
+    if (result.ok || result.error.type === "AbortError") return;
+    onError?.(result.error as WebSocketError);
+  });
 
-	return {
-		send: (data) => {
-			// https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/send
-			if (!socket || socket.readyState === socket.CONNECTING) {
-				return err({ type: "WebSocketSendError" });
-			}
-			socket.send(data);
-			return ok();
-		},
+  return {
+    send: (data) => {
+      // https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/send
+      if (!socket || socket.readyState === socket.CONNECTING) {
+        return err({ type: "WebSocketSendError" });
+      }
+      socket.send(data);
+      return ok();
+    },
 
-		getReadyState: () =>
-			socket ? nativeToStringState[socket.readyState] : "connecting",
+    getReadyState: () =>
+      socket ? nativeToStringState[socket.readyState] : "connecting",
 
-		isOpen: () => (socket ? socket.readyState === socket.OPEN : false),
+    isOpen: () => (socket ? socket.readyState === socket.OPEN : false),
 
-		[Symbol.dispose]() {
-			if (isDisposed) return;
-			isDisposed = true;
-			reconnectController.abort();
-			disposeSocket();
-			disposePromise?.();
-		},
-	};
+    [Symbol.dispose]() {
+      if (isDisposed) return;
+      isDisposed = true;
+      reconnectController.abort();
+      disposeSocket();
+      disposePromise?.();
+    },
+  };
 };
 
 const nativeToStringState: Record<number, WebSocketReadyState> = {
-	[WebSocket.CONNECTING]: "connecting",
-	[WebSocket.OPEN]: "open",
-	[WebSocket.CLOSING]: "closing",
-	[WebSocket.CLOSED]: "closed",
+  [WebSocket.CONNECTING]: "connecting",
+  [WebSocket.OPEN]: "open",
+  [WebSocket.CLOSING]: "closing",
+  [WebSocket.CLOSED]: "closed",
 };
 
 /** Test WebSocket with methods to simulate events. */
