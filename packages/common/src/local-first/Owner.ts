@@ -9,20 +9,20 @@ import { wordlist } from "@scure/bip39/wordlists/english.js";
 import type { NonEmptyReadonlyArray } from "../Array.js";
 import type { RandomBytesDep } from "../Crypto.js";
 import {
-	createSlip21,
-	EncryptionKey,
-	Entropy16,
-	Entropy32,
+  createSlip21,
+  EncryptionKey,
+  Entropy16,
+  Entropy32,
 } from "../Crypto.js";
 import { getOrNull } from "../Result.js";
 import {
-	brand,
-	Id,
-	IdBytes,
-	idBytesToId,
-	idToIdBytes,
-	Mnemonic,
-	NonNegativeInt,
+  brand,
+  Id,
+  IdBytes,
+  idBytesToId,
+  idToIdBytes,
+  Mnemonic,
+  NonNegativeInt,
 } from "../Type.js";
 import type { EncryptedDbChange, Storage } from "./Storage.js";
 import { TimestampBytes } from "./Timestamp.js";
@@ -33,9 +33,9 @@ import { TimestampBytes } from "./Timestamp.js";
  * @see {@link createSharedReadonlyOwner}
  */
 export interface ReadonlyOwner {
-	readonly id: OwnerId;
-	/** TODO: Wrap with `Redacted` in the next major version. */
-	readonly encryptionKey: OwnerEncryptionKey;
+  readonly id: OwnerId;
+  /** TODO: Wrap with `Redacted` in the next major version. */
+  readonly encryptionKey: OwnerEncryptionKey;
 }
 
 /**
@@ -70,8 +70,8 @@ export interface ReadonlyOwner {
  * @see {@link createSharedReadonlyOwner}
  */
 export interface Owner extends ReadonlyOwner {
-	/** TODO: Wrap with `Redacted` in the next major version. */
-	readonly writeKey: OwnerWriteKey;
+  /** TODO: Wrap with `Redacted` in the next major version. */
+  readonly writeKey: OwnerWriteKey;
 }
 
 /** OwnerId is a branded {@link Id} that uniquely identifies an {@link Owner}. */
@@ -84,11 +84,11 @@ export type OwnerIdBytes = typeof OwnerIdBytes.Type;
 
 /** Converts {@link OwnerId} to {@link OwnerIdBytes}. */
 export const ownerIdToOwnerIdBytes = (ownerId: OwnerId): OwnerIdBytes =>
-	idToIdBytes(ownerId) as OwnerIdBytes;
+  idToIdBytes(ownerId) as OwnerIdBytes;
 
 /** Converts {@link OwnerIdBytes} to {@link OwnerId}. */
 export const ownerIdBytesToOwnerId = (ownerIdBytes: OwnerIdBytes): OwnerId =>
-	idBytesToId(ownerIdBytes as IdBytes) as OwnerId;
+  idBytesToId(ownerIdBytes as IdBytes) as OwnerId;
 
 export const ownerWriteKeyLength = NonNegativeInt.orThrow(16);
 
@@ -111,7 +111,7 @@ export type OwnerWriteKey = typeof OwnerWriteKey.Type;
  * key without changing the owner identity.
  */
 export const createOwnerWriteKey = (deps: RandomBytesDep): OwnerWriteKey =>
-	deps.randomBytes.create(16) as OwnerWriteKey;
+  deps.randomBytes.create(16) as OwnerWriteKey;
 
 /**
  * 32 bytes of cryptographic entropy used to derive {@link Owner} keys.
@@ -124,34 +124,34 @@ export type OwnerSecret = typeof OwnerSecret.Type;
 
 /** Creates a {@link OwnerSecret}. */
 export const createOwnerSecret = (deps: RandomBytesDep): OwnerSecret =>
-	deps.randomBytes.create(32) as OwnerSecret;
+  deps.randomBytes.create(32) as OwnerSecret;
 
 /** Converts an {@link OwnerSecret} to a {@link Mnemonic}. */
 export const ownerSecretToMnemonic = (secret: OwnerSecret): Mnemonic =>
-	bip39.entropyToMnemonic(secret, wordlist) as Mnemonic;
+  bip39.entropyToMnemonic(secret, wordlist) as Mnemonic;
 
 /** Converts a {@link Mnemonic} to an {@link OwnerSecret}. */
 export const mnemonicToOwnerSecret = (mnemonic: Mnemonic): OwnerSecret =>
-	bip39.mnemonicToEntropy(mnemonic, wordlist) as OwnerSecret;
+  bip39.mnemonicToEntropy(mnemonic, wordlist) as OwnerSecret;
 
 /**
  * Creates an {@link Owner} from a {@link OwnerSecret} using SLIP-21 key
  * derivation.
  */
 const createOwner = (secret: OwnerSecret): Owner => ({
-	id: ownerIdBytesToOwnerId(
-		OwnerIdBytes.orThrow(
-			createSlip21(secret, ["Evolu", "OwnerIdBytes"]).slice(0, 16),
-		),
-	),
+  id: ownerIdBytesToOwnerId(
+    OwnerIdBytes.orThrow(
+      createSlip21(secret, ["Evolu", "OwnerIdBytes"]).slice(0, 16),
+    ),
+  ),
 
-	encryptionKey: OwnerEncryptionKey.orThrow(
-		createSlip21(secret, ["Evolu", "OwnerEncryptionKey"]),
-	),
+  encryptionKey: OwnerEncryptionKey.orThrow(
+    createSlip21(secret, ["Evolu", "OwnerEncryptionKey"]),
+  ),
 
-	writeKey: OwnerWriteKey.orThrow(
-		createSlip21(secret, ["Evolu", "OwnerWriteKey"]).slice(0, 16),
-	),
+  writeKey: OwnerWriteKey.orThrow(
+    createSlip21(secret, ["Evolu", "OwnerWriteKey"]).slice(0, 16),
+  ),
 });
 
 /**
@@ -186,27 +186,27 @@ const createOwner = (secret: OwnerSecret): Owner => ({
  * collaborative access.
  */
 export interface AppOwner extends Owner {
-	readonly type: "AppOwner";
+  readonly type: "AppOwner";
 
-	/**
-	 * The mnemonic that was used to derive the AppOwner keys. Optional when the
-	 * AppOwner is created from external keys to avoid sharing the mnemonic with
-	 * the Evolu app.
-	 *
-	 * TODO: Wrap with `Redacted` in the next major version.
-	 */
-	readonly mnemonic?: Mnemonic | null;
+  /**
+   * The mnemonic that was used to derive the AppOwner keys. Optional when the
+   * AppOwner is created from external keys to avoid sharing the mnemonic with
+   * the Evolu app.
+   *
+   * TODO: Wrap with `Redacted` in the next major version.
+   */
+  readonly mnemonic?: Mnemonic | null;
 }
 
 export interface AppOwnerDep {
-	readonly appOwner: AppOwner;
+  readonly appOwner: AppOwner;
 }
 
 /** Creates an {@link AppOwner} from an {@link OwnerSecret}. */
 export const createAppOwner = (secret: OwnerSecret): AppOwner => ({
-	...createOwner(secret),
-	type: "AppOwner",
-	mnemonic: ownerSecretToMnemonic(secret),
+  ...createOwner(secret),
+  type: "AppOwner",
+  mnemonic: ownerSecretToMnemonic(secret),
 });
 
 /**
@@ -221,16 +221,14 @@ export const createAppOwner = (secret: OwnerSecret): AppOwner => ({
  * {@link deriveShardOwner}.
  */
 export interface ShardOwner extends Owner {
-	readonly type: "ShardOwner";
+  readonly type: "ShardOwner";
 }
 
 /** Creates a {@link ShardOwner} from an {@link OwnerSecret}. */
-export const createShardOwner = (secret: OwnerSecret): ShardOwner => {
-	return {
-		...createOwner(secret),
-		type: "ShardOwner",
-	};
-};
+export const createShardOwner = (secret: OwnerSecret): ShardOwner => ({
+  ...createOwner(secret),
+  type: "ShardOwner",
+});
 
 /**
  * Derives a {@link ShardOwner} from an {@link AppOwner} using the specified path.
@@ -251,20 +249,20 @@ export const createShardOwner = (secret: OwnerSecret): ShardOwner => {
  * - Each device can derive the same owners and set up initial structure
  */
 export const deriveShardOwner = (
-	owner: AppOwner,
-	path: NonEmptyReadonlyArray<string | number>,
+  owner: AppOwner,
+  path: NonEmptyReadonlyArray<string | number>,
 ): ShardOwner => {
-	const secret = createSlip21(owner.encryptionKey, path) as OwnerSecret;
+  const secret = createSlip21(owner.encryptionKey, path) as OwnerSecret;
 
-	return {
-		...createOwner(secret),
-		type: "ShardOwner",
-	};
+  return {
+    ...createOwner(secret),
+    type: "ShardOwner",
+  };
 };
 
 /** An {@link Owner} for collaborative data with write access. */
 export interface SharedOwner extends Owner {
-	readonly type: "SharedOwner";
+  readonly type: "SharedOwner";
 }
 
 /**
@@ -275,8 +273,8 @@ export interface SharedOwner extends Owner {
  * sharing.
  */
 export const createSharedOwner = (secret: OwnerSecret): SharedOwner => ({
-	...createOwner(secret),
-	type: "SharedOwner",
+  ...createOwner(secret),
+  type: "SharedOwner",
 });
 
 /**
@@ -285,16 +283,16 @@ export const createSharedOwner = (secret: OwnerSecret): SharedOwner => ({
  * data without write access.
  */
 export interface SharedReadonlyOwner extends ReadonlyOwner {
-	readonly type: "SharedReadonlyOwner";
+  readonly type: "SharedReadonlyOwner";
 }
 
 /** Creates a {@link SharedReadonlyOwner} from a {@link SharedOwner}. */
 export const createSharedReadonlyOwner = (
-	sharedOwner: SharedOwner,
+  sharedOwner: SharedOwner,
 ): SharedReadonlyOwner => ({
-	type: "SharedReadonlyOwner",
-	id: sharedOwner.id,
-	encryptionKey: sharedOwner.encryptionKey,
+  type: "SharedReadonlyOwner",
+  id: sharedOwner.id,
+  encryptionKey: sharedOwner.encryptionKey,
 });
 
 /**
@@ -332,8 +330,8 @@ export type OwnerTransport = OwnerWebSocketTransport;
  * @see {@link parseOwnerIdFromOwnerWebSocketTransportUrl}
  */
 export interface OwnerWebSocketTransport {
-	readonly type: "WebSocket";
-	readonly url: string;
+  readonly type: "WebSocket";
+  readonly url: string;
 }
 
 /**
@@ -360,11 +358,11 @@ export interface OwnerWebSocketTransport {
  * ```
  */
 export const createOwnerWebSocketTransport = (config: {
-	readonly url: string;
-	readonly ownerId: OwnerId;
+  readonly url: string;
+  readonly ownerId: OwnerId;
 }): OwnerWebSocketTransport => ({
-	type: "WebSocket",
-	url: `${config.url}?ownerId=${config.ownerId}`,
+  type: "WebSocket",
+  url: `${config.url}?ownerId=${config.ownerId}`,
 });
 
 /**
@@ -384,12 +382,12 @@ export const createOwnerWebSocketTransport = (config: {
  * ```
  */
 export const parseOwnerIdFromOwnerWebSocketTransportUrl = (
-	url: string,
+  url: string,
 ): OwnerId | null => getOrNull(OwnerId.fromUnknown(url.split("=")[1]));
 
 /** Common interface implemented by all owner domain errors. */
 export interface OwnerError {
-	readonly ownerId: OwnerId;
+  readonly ownerId: OwnerId;
 }
 
 /**
@@ -402,32 +400,32 @@ export interface OwnerError {
  * - Add transferredBytes for billing and monitoring network usage.
  */
 export interface OwnerUsage {
-	/** The {@link Owner} this usage data belongs to. */
-	readonly ownerId: OwnerIdBytes;
+  /** The {@link Owner} this usage data belongs to. */
+  readonly ownerId: OwnerIdBytes;
 
-	/**
-	 * Total logical data bytes stored.
-	 *
-	 * Measures the size of {@link EncryptedDbChange}s only, excluding
-	 * {@link Storage} implementation overhead (with SqliteStorage: indexes,
-	 * skiplist columns, etc.). This provides:
-	 *
-	 * - **Predictable measurement** - same data = same byte count across all
-	 *   instances
-	 * - **Quota enforcement** - consistent billing/limits independent of storage
-	 *   implementation
-	 * - **Overhead tracking** - actual Storage size can be compared against this to
-	 *   monitor efficiency
-	 */
-	readonly storedBytes: NonNegativeInt;
+  /**
+   * Total logical data bytes stored.
+   *
+   * Measures the size of {@link EncryptedDbChange}s only, excluding
+   * {@link Storage} implementation overhead (with SqliteStorage: indexes,
+   * skiplist columns, etc.). This provides:
+   *
+   * - **Predictable measurement** - same data = same byte count across all
+   *   instances
+   * - **Quota enforcement** - consistent billing/limits independent of storage
+   *   implementation
+   * - **Overhead tracking** - actual Storage size can be compared against this to
+   *   monitor efficiency
+   */
+  readonly storedBytes: NonNegativeInt;
 
-	/** Tracks the earliest timestamp for timestamp insertion strategies. */
-	readonly firstTimestamp: TimestampBytes | null;
+  /** Tracks the earliest timestamp for timestamp insertion strategies. */
+  readonly firstTimestamp: TimestampBytes | null;
 
-	/**
-	 * Tracks the latest timestamp for timestamp insertion strategies.
-	 *
-	 * Free relays can use it to identify inactive accounts for cleanup.
-	 */
-	readonly lastTimestamp: TimestampBytes | null;
+  /**
+   * Tracks the latest timestamp for timestamp insertion strategies.
+   *
+   * Free relays can use it to identify inactive accounts for cleanup.
+   */
+  readonly lastTimestamp: TimestampBytes | null;
 }
