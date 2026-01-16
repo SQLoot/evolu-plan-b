@@ -22,7 +22,7 @@
 	"devDependencies": {
 		"@evolu/biome-config": "workspace:*",
 		"@evolu/tsconfig": "workspace:*",
-		"@types/node": "^24.10.8",
+		"@types/node": "^24.10.9",
 		"typescript": "^5.9.3"
 	},
 	"engines": {
