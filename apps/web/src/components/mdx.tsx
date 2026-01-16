@@ -9,7 +9,10 @@ export const a = Link;
 export { Announcement, InlineNote, Note, Warn } from "@/components/Alerts";
 export { Button } from "@/components/Button";
 export {
-    CodeGroup, SinglePlatformCodeGroup, Code as code, Pre as pre
+	CodeGroup,
+	SinglePlatformCodeGroup,
+	Code as code,
+	Pre as pre,
 } from "@/components/Code";
 export { ConditionalPlatformAlert } from "@/components/ConditionalPlatformAlert";
 export { PlatformSelector } from "@/components/PlatformSelector";

@@ -74,14 +74,14 @@ export type ScheduleDeps = TimeDep & RandomDep;
  * @category Composition
  */
 export interface ScheduleStep<Output> {
-  /** The current attempt. */
-  readonly attempt: PositiveInt;
+	/** The current attempt. */
+	readonly attempt: PositiveInt;
 
-  /** Output from the {@link Schedule} step. */
-  readonly output: Output;
+	/** Output from the {@link Schedule} step. */
+	readonly output: Output;
 
-  /** Delay before this step executes. */
-  readonly delay: Millis;
+	/** Delay before this step executes. */
+	readonly delay: Millis;
 }
 
 /**
