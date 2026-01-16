@@ -10,5 +10,5 @@ const emptySubscribe = () => () => {};
  * @see https://kurtextrem.de/posts/react-uses-hydration
  */
 export const useIsSsr = (): boolean =>
-  // TODO: Consider useDeferredValue(isSSRSync);
-  useSyncExternalStore(emptySubscribe, constFalse, constTrue);
+	// TODO: Consider useDeferredValue(isSSRSync);
+	useSyncExternalStore(emptySubscribe, constFalse, constTrue);

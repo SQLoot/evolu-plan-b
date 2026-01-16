@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 const DocsCatchAllNotFound = (): React.ReactElement => {
-  notFound();
+	notFound();
 };
 
 export default DocsCatchAllNotFound;
