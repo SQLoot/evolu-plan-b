@@ -6,7 +6,7 @@
 		"vitest.explorer",
 		"bradlc.vscode-tailwindcss",
 		"redhat.vscode-yaml",
-		"github.copilot"
+		"davidanson.vscode-markdownlint"
 	],
 	"unwantedRecommendations": [
 		"esbenp.prettier-vscode",
