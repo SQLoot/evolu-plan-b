@@ -15,7 +15,7 @@
 		"format": "turbo format && bun run format:root",
 		"format:root": "biome check *.json *.yaml scripts --write",
 		"lint-monorepo": "bunx sherif@latest",
-		"verify": "bun run build && bun run test && bun run lint && bun run lint-monorepo && bun run typedoc",
+		"verify": "bun run build && bun run test && bun run lint && bun run lint-monorepo && bun run typedoc && bun test scripts/typedoc-plugin-evolu-type.test.mts",
 		"clean": "turbo clean && rimraf node_modules pnpm-lock.yaml bun.lock .turbo .eslintcache out",
 		"version": "changeset version",
 		"release": "bun run build && changeset publish",
