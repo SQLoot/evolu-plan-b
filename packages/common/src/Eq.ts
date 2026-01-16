@@ -6,10 +6,10 @@
 
 import type { Order } from "./Order.js";
 import type {
-  JsonArray,
-  JsonObject,
-  JsonValue,
-  JsonValueInput,
+	JsonArray,
+	JsonObject,
+	JsonValue,
+	JsonValueInput,
 } from "./Type.js";
 
 /**
@@ -32,9 +32,9 @@ export const eqNull: Eq<null> = eqStrict;
 
 /** Derives an {@link Eq} from an {@link Order}. */
 export const eqFromOrder =
-  <A>(order: Order<A>): Eq<A> =>
-  (x, y) =>
-    order(x, y) === 0;
+	<A>(order: Order<A>): Eq<A> =>
+	(x, y) =>
+		order(x, y) === 0;
 
 /**
  * Creates an equivalence function for array-like structures based on an
@@ -50,17 +50,17 @@ export const eqFromOrder =
  * ```
  */
 export const createEqArrayLike =
-  <A>(item: Eq<A>): Eq<ArrayLike<A>> =>
-  (x, y) => {
-    if (x === y) return true;
-    if (x.length !== y.length) return false;
+	<A>(item: Eq<A>): Eq<ArrayLike<A>> =>
+	(x, y) => {
+		if (x === y) return true;
+		if (x.length !== y.length) return false;
 
-    for (let i = 0; i < x.length; i++) {
-      if (!item(x[i], y[i])) return false;
-    }
+		for (let i = 0; i < x.length; i++) {
+			if (!item(x[i], y[i])) return false;
+		}
 
-    return true;
-  };
+		return true;
+	};
 
 /**
  * Compares two array-like structures by strict reference equality (`===`).
@@ -104,18 +104,20 @@ export const eqArrayNumber = createEqArrayLike(eqNumber);
  * ```
  */
 export const createEqObject =
-  <A>(eqs: { [K in keyof A]: Eq<A[K]> }): Eq<{
-    readonly [K in keyof A]: A[K];
-  }> =>
-  (x, y) => {
-    if (x === y) return true;
-    for (const key in eqs) {
-      if (!eqs[key](x[key], y[key])) {
-        return false;
-      }
-    }
-    return true;
-  };
+	<A>(
+		eqs: { [K in keyof A]: Eq<A[K]> },
+	): Eq<{
+		readonly [K in keyof A]: A[K];
+	}> =>
+	(x, y) => {
+		if (x === y) return true;
+		for (const key in eqs) {
+			if (!eqs[key](x[key], y[key])) {
+				return false;
+			}
+		}
+		return true;
+	};
 
 /**
  * Deeply compares two {@link JsonValue} values for equality.
@@ -136,75 +138,75 @@ export const createEqObject =
  * ```
  */
 export const eqJsonValue = (a: JsonValue, b: JsonValue): boolean => {
-  const stack: Array<[JsonValue, JsonValue]> = [[a, b]];
+	const stack: Array<[JsonValue, JsonValue]> = [[a, b]];
 
-  const seen = new WeakMap<object, WeakSet<object>>();
+	const seen = new WeakMap<object, WeakSet<object>>();
 
-  while (stack.length > 0) {
-    const [x, y] = stack.pop()!;
+	while (stack.length > 0) {
+		const [x, y] = stack.pop()!;
 
-    if (x === y) continue;
+		if (x === y) continue;
 
-    const typeX = typeof x;
-    const typeY = typeof y;
+		const typeX = typeof x;
+		const typeY = typeof y;
 
-    if (typeX !== typeY || x === null || y === null) return false;
+		if (typeX !== typeY || x === null || y === null) return false;
 
-    if (typeX === "number" && isNaN(x as number) && isNaN(y as number)) {
-      continue;
-    }
+		if (typeX === "number" && isNaN(x as number) && isNaN(y as number)) {
+			continue;
+		}
 
-    if (typeX === "object") {
-      const isArrayX = Array.isArray(x);
-      const isArrayY = Array.isArray(y);
+		if (typeX === "object") {
+			const isArrayX = Array.isArray(x);
+			const isArrayY = Array.isArray(y);
 
-      if (isArrayX !== isArrayY) return false;
+			if (isArrayX !== isArrayY) return false;
 
-      const xObj = x as object;
-      const yObj = y as object;
+			const xObj = x as object;
+			const yObj = y as object;
 
-      if (seen.has(xObj)) {
-        const ySet = seen.get(xObj)!;
-        if (ySet.has(yObj)) {
-          continue;
-        }
-        ySet.add(yObj);
-      } else {
-        const ySet = new WeakSet<object>();
-        ySet.add(yObj);
-        seen.set(xObj, ySet);
-      }
+			if (seen.has(xObj)) {
+				const ySet = seen.get(xObj)!;
+				if (ySet.has(yObj)) {
+					continue;
+				}
+				ySet.add(yObj);
+			} else {
+				const ySet = new WeakSet<object>();
+				ySet.add(yObj);
+				seen.set(xObj, ySet);
+			}
 
-      if (isArrayX && isArrayY) {
-        const xArr = x as JsonArray;
-        const yArr = y as JsonArray;
+			if (isArrayX && isArrayY) {
+				const xArr = x as JsonArray;
+				const yArr = y as JsonArray;
 
-        if (xArr.length !== yArr.length) return false;
-        for (let i = 0; i < xArr.length; i++) {
-          stack.push([xArr[i], yArr[i]]);
-        }
-      } else {
-        const xObjTyped = x as JsonObject;
-        const yObjTyped = y as JsonObject;
+				if (xArr.length !== yArr.length) return false;
+				for (let i = 0; i < xArr.length; i++) {
+					stack.push([xArr[i], yArr[i]]);
+				}
+			} else {
+				const xObjTyped = x as JsonObject;
+				const yObjTyped = y as JsonObject;
 
-        const xKeys = Object.keys(xObjTyped);
-        const yKeys = Object.keys(yObjTyped);
+				const xKeys = Object.keys(xObjTyped);
+				const yKeys = Object.keys(yObjTyped);
 
-        if (xKeys.length !== yKeys.length) return false;
+				if (xKeys.length !== yKeys.length) return false;
 
-        const yKeySet = new Set(yKeys);
+				const yKeySet = new Set(yKeys);
 
-        for (const key of xKeys) {
-          if (!yKeySet.has(key)) return false;
-          stack.push([xObjTyped[key], yObjTyped[key]]);
-        }
-      }
-    } else {
-      return false;
-    }
-  }
+				for (const key of xKeys) {
+					if (!yKeySet.has(key)) return false;
+					stack.push([xObjTyped[key], yObjTyped[key]]);
+				}
+			}
+		} else {
+			return false;
+		}
+	}
 
-  return true;
+	return true;
 };
 
 /**
@@ -226,6 +228,6 @@ export const eqJsonValue = (a: JsonValue, b: JsonValue): boolean => {
  * ```
  */
 export const eqJsonValueInput = (
-  a: JsonValueInput,
-  b: JsonValueInput,
+	a: JsonValueInput,
+	b: JsonValueInput,
 ): boolean => eqJsonValue(a as JsonValue, b as JsonValue);

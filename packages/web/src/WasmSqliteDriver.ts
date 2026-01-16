@@ -1,117 +1,117 @@
 import { bytesToHex, createPreparedStatementsCache } from "@evolu/common";
 import type {
-  CreateSqliteDriver,
-  SqliteDriver,
-  SqliteRow,
+	CreateSqliteDriver,
+	SqliteDriver,
+	SqliteRow,
 } from "@evolu/common";
 import sqlite3InitModule, {
-  Database,
-  PreparedStatement,
+	Database,
+	PreparedStatement,
 } from "@evolu/sqlite-wasm";
 
 // @ts-expect-error Missing types.
 globalThis.sqlite3ApiConfig = {
-  warn: (arg: unknown) => {
-    // Ignore irrelevant warning.
-    // https://github.com/sqlite/sqlite-wasm/issues/62
-    if (
-      typeof arg === "string" &&
-      arg.startsWith("Ignoring inability to install OPFS sqlite3_vfs")
-    )
-      return;
-    // eslint-disable-next-line no-console
-    console.warn(arg);
-  },
+	warn: (arg: unknown) => {
+		// Ignore irrelevant warning.
+		// https://github.com/sqlite/sqlite-wasm/issues/62
+		if (
+			typeof arg === "string" &&
+			arg.startsWith("Ignoring inability to install OPFS sqlite3_vfs")
+		)
+			return;
+		// eslint-disable-next-line no-console
+		console.warn(arg);
+	},
 };
 
 // Init ASAP.
 const sqlite3Promise = sqlite3InitModule();
 
 export const createWasmSqliteDriver: CreateSqliteDriver = async (
-  name,
-  options
+	name,
+	options,
 ) => {
-  const sqlite3 = await sqlite3Promise;
-  // This is used to make OPFS default vfs for multipleciphers
-  // @ts-expect-error Missing types (update @evolu/sqlite-wasm types)
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-  sqlite3.capi.sqlite3mc_vfs_create("opfs", 1);
+	const sqlite3 = await sqlite3Promise;
+	// This is used to make OPFS default vfs for multipleciphers
+	// @ts-expect-error Missing types (update @evolu/sqlite-wasm types)
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+	sqlite3.capi.sqlite3mc_vfs_create("opfs", 1);
 
-  let db: Database;
-  if (options?.memory) {
-    db = new sqlite3.oo1.DB(":memory:");
-  } else if (options?.encryptionKey) {
-    const pool = await sqlite3.installOpfsSAHPoolVfs({ directory: `.${name}` });
-    db = new pool.OpfsSAHPoolDb(
-      "file:evolu1.db?vfs=multipleciphers-opfs-sahpool"
-    );
-    db.exec(`
+	let db: Database;
+	if (options?.memory) {
+		db = new sqlite3.oo1.DB(":memory:");
+	} else if (options?.encryptionKey) {
+		const pool = await sqlite3.installOpfsSAHPoolVfs({ directory: `.${name}` });
+		db = new pool.OpfsSAHPoolDb(
+			"file:evolu1.db?vfs=multipleciphers-opfs-sahpool",
+		);
+		db.exec(`
       PRAGMA cipher = 'sqlcipher';
       PRAGMA legacy = 4;
       PRAGMA key = "x'${bytesToHex(options.encryptionKey)}'";
     `);
-  } else {
-    const pool = await sqlite3.installOpfsSAHPoolVfs({ name });
-    db = new pool.OpfsSAHPoolDb("file:evolu1.db");
-  }
+	} else {
+		const pool = await sqlite3.installOpfsSAHPoolVfs({ name });
+		db = new pool.OpfsSAHPoolDb("file:evolu1.db");
+	}
 
-  let isDisposed = false;
+	let isDisposed = false;
 
-  const cache = createPreparedStatementsCache<PreparedStatement>(
-    (sql) => db.prepare(sql),
-    (statement) => {
-      statement.finalize();
-    }
-  );
+	const cache = createPreparedStatementsCache<PreparedStatement>(
+		(sql) => db.prepare(sql),
+		(statement) => {
+			statement.finalize();
+		},
+	);
 
-  const driver: SqliteDriver = {
-    exec: (query, isMutation) => {
-      const prepared = cache.get(query);
+	const driver: SqliteDriver = {
+		exec: (query, isMutation) => {
+			const prepared = cache.get(query);
 
-      if (prepared) {
-        prepared.bind(query.parameters);
+			if (prepared) {
+				prepared.bind(query.parameters);
 
-        if (isMutation) {
-          prepared.stepReset();
-          return {
-            rows: [] as ReadonlyArray<SqliteRow>,
-            changes: db.changes(),
-          };
-        }
+				if (isMutation) {
+					prepared.stepReset();
+					return {
+						rows: [] as ReadonlyArray<SqliteRow>,
+						changes: db.changes(),
+					};
+				}
 
-        const rows = [];
-        while (prepared.step()) {
-          rows.push(prepared.get({}));
-        }
-        prepared.reset();
+				const rows = [];
+				while (prepared.step()) {
+					rows.push(prepared.get({}));
+				}
+				prepared.reset();
 
-        return {
-          rows: rows as ReadonlyArray<SqliteRow>,
-          changes: 0,
-        };
-      }
+				return {
+					rows: rows as ReadonlyArray<SqliteRow>,
+					changes: 0,
+				};
+			}
 
-      const rows = db.exec(query.sql, {
-        returnValue: "resultRows",
-        rowMode: "object",
-        bind: query.parameters,
-      }) as ReadonlyArray<SqliteRow>;
+			const rows = db.exec(query.sql, {
+				returnValue: "resultRows",
+				rowMode: "object",
+				bind: query.parameters,
+			}) as ReadonlyArray<SqliteRow>;
 
-      const changes = db.changes();
+			const changes = db.changes();
 
-      return { rows, changes };
-    },
+			return { rows, changes };
+		},
 
-    export: () => sqlite3.capi.sqlite3_js_db_export(db),
+		export: () => sqlite3.capi.sqlite3_js_db_export(db),
 
-    [Symbol.dispose]: () => {
-      if (isDisposed) return;
-      isDisposed = true;
-      // poolUtil.unlink?
-      cache[Symbol.dispose]();
-      db.close();
-    },
-  };
+		[Symbol.dispose]: () => {
+			if (isDisposed) return;
+			isDisposed = true;
+			// poolUtil.unlink?
+			cache[Symbol.dispose]();
+			db.close();
+		},
+	};
 
-  return driver;
+	return driver;
 };

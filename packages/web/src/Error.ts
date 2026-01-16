@@ -17,26 +17,26 @@ import { type GlobalErrorScope, handleGlobalError } from "@evolu/common";
  * ```
  */
 export const createGlobalErrorScope = (
-  nativeGlobal: Window
+	nativeGlobal: Window,
 ): GlobalErrorScope => {
-  const scope: GlobalErrorScope = {
-    onError: null,
-    [Symbol.dispose]: () => {
-      nativeGlobal.removeEventListener("error", errorHandler);
-      nativeGlobal.removeEventListener("unhandledrejection", rejectionHandler);
-    },
-  };
+	const scope: GlobalErrorScope = {
+		onError: null,
+		[Symbol.dispose]: () => {
+			nativeGlobal.removeEventListener("error", errorHandler);
+			nativeGlobal.removeEventListener("unhandledrejection", rejectionHandler);
+		},
+	};
 
-  const errorHandler = (event: ErrorEvent) => {
-    handleGlobalError(scope, event.error);
-  };
+	const errorHandler = (event: ErrorEvent) => {
+		handleGlobalError(scope, event.error);
+	};
 
-  const rejectionHandler = (event: PromiseRejectionEvent) => {
-    handleGlobalError(scope, event.reason);
-  };
+	const rejectionHandler = (event: PromiseRejectionEvent) => {
+		handleGlobalError(scope, event.reason);
+	};
 
-  nativeGlobal.addEventListener("error", errorHandler);
-  nativeGlobal.addEventListener("unhandledrejection", rejectionHandler);
+	nativeGlobal.addEventListener("error", errorHandler);
+	nativeGlobal.addEventListener("unhandledrejection", rejectionHandler);
 
-  return scope;
+	return scope;
 };

@@ -49,13 +49,13 @@ import { createId, Id } from "./Type.js";
  *   for no-argument callbacks)
  */
 export interface Callbacks<T = undefined> {
-  /** Registers a callback function and returns a unique ID. */
-  readonly register: (callback: (arg: T) => void) => CallbackId;
+	/** Registers a callback function and returns a unique ID. */
+	readonly register: (callback: (arg: T) => void) => CallbackId;
 
-  /** Executes and removes a callback associated with the given ID. */
-  readonly execute: T extends undefined
-    ? (id: CallbackId) => undefined
-    : (id: CallbackId, arg: T) => undefined;
+	/** Executes and removes a callback associated with the given ID. */
+	readonly execute: T extends undefined
+		? (id: CallbackId) => undefined
+		: (id: CallbackId, arg: T) => undefined;
 }
 
 /** Unique identifier for a callback in {@link Callbacks}. */
@@ -63,27 +63,27 @@ export type CallbackId = Id & Brand<"Callback">;
 
 /** Creates a {@link Callbacks} registry for managing callbacks. */
 export const createCallbacks = <T = undefined>(
-  deps: RandomBytesDep,
+	deps: RandomBytesDep,
 ): Callbacks<T> => {
-  const callbackMap = new Map<CallbackId, (arg: T) => void>();
+	const callbackMap = new Map<CallbackId, (arg: T) => void>();
 
-  return {
-    register: (callback) => {
-      const id = createId<"Callback">(deps);
-      callbackMap.set(id, callback);
-      return id;
-    },
+	return {
+		register: (callback) => {
+			const id = createId<"Callback">(deps);
+			callbackMap.set(id, callback);
+			return id;
+		},
 
-    execute: (id: CallbackId, ...args: T extends undefined ? [] : [T]) => {
-      const callback = callbackMap.get(id);
-      if (!callback) return;
-      callbackMap.delete(id);
-      if (args.length === 0) {
-        // Called without argument (undefined case)
-        (callback as () => void)();
-      } else {
-        callback(args[0]);
-      }
-    },
-  } as Callbacks<T>;
+		execute: (id: CallbackId, ...args: T extends undefined ? [] : [T]) => {
+			const callback = callbackMap.get(id);
+			if (!callback) return;
+			callbackMap.delete(id);
+			if (args.length === 0) {
+				// Called without argument (undefined case)
+				(callback as () => void)();
+			} else {
+				callback(args[0]);
+			}
+		},
+	} as Callbacks<T>;
 };

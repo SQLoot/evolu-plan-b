@@ -6,10 +6,10 @@
 
 import { testCreateRandomBytes, type RandomBytesDep } from "./Crypto.js";
 import {
-  testCreateRandom,
-  testCreateRandomLib,
-  type RandomDep,
-  type RandomLibDep,
+	testCreateRandom,
+	testCreateRandomLib,
+	type RandomDep,
+	type RandomLibDep,
 } from "./Random.js";
 import { createRunner, type Runner, type RunnerConfigDep } from "./Task.js";
 import { testCreateTime, type TimeDep } from "./Time.js";
@@ -36,14 +36,14 @@ export type TestDeps = RandomDep & RandomLibDep & RandomBytesDep & TimeDep;
  * ```
  */
 export const createTestDeps = (options?: {
-  readonly seed?: string;
+	readonly seed?: string;
 }): TestDeps => {
-  const seed = options?.seed ?? "evolu";
-  const random = testCreateRandom(seed);
-  const randomLib = testCreateRandomLib(seed);
-  const randomBytes = testCreateRandomBytes({ randomLib });
-  const time = testCreateTime();
-  return { random, randomLib, randomBytes, time };
+	const seed = options?.seed ?? "evolu";
+	const random = testCreateRandom(seed);
+	const randomLib = testCreateRandomLib(seed);
+	const randomBytes = testCreateRandomBytes({ randomLib });
+	const time = testCreateTime();
+	return { random, randomLib, randomBytes, time };
 };
 
 /**
@@ -75,11 +75,11 @@ export const createTestDeps = (options?: {
  */
 export function createTestRunner(): Runner<TestDeps>;
 export function createTestRunner<D extends TestDeps>(
-  deps: Partial<TestDeps> & Partial<RunnerConfigDep> & Omit<D, keyof TestDeps>,
+	deps: Partial<TestDeps> & Partial<RunnerConfigDep> & Omit<D, keyof TestDeps>,
 ): Runner<D>;
 export function createTestRunner<D extends TestDeps>(
-  deps?: Partial<TestDeps> & Partial<RunnerConfigDep> & Omit<D, keyof TestDeps>,
+	deps?: Partial<TestDeps> & Partial<RunnerConfigDep> & Omit<D, keyof TestDeps>,
 ): Runner<D> {
-  const defaults = createTestDeps();
-  return createRunner<D>({ ...defaults, ...deps } as D);
+	const defaults = createTestDeps();
+	return createRunner<D>({ ...defaults, ...deps } as D);
 }

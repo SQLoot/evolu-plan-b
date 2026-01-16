@@ -78,14 +78,14 @@ export const createRandomBytes = (): RandomBytes => ({
 
 /** Creates seeded random bytes for deterministic tests. */
 export const testCreateRandomBytes = (deps: RandomLibDep): RandomBytes =>
-  ({
-    create: (bytesLength: number) => {
-      const array = Array.from({ length: bytesLength }, () =>
-        deps.randomLib.int(0, 255),
-      );
-      return new globalThis.Uint8Array(array);
-    },
-  }) as RandomBytes;
+	({
+		create: (bytesLength: number) => {
+			const array = Array.from({ length: bytesLength }, () =>
+				deps.randomLib.int(0, 255),
+			);
+			return new globalThis.Uint8Array(array);
+		},
+	}) as RandomBytes;
 
 /**
  * SLIP21.

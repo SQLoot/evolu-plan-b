@@ -16,54 +16,54 @@ import type { TimeDep } from "../Time.js";
 import { Millis, minMillis } from "../Time.js";
 import type { DateIso } from "../Type.js";
 import {
-  brand,
-  length,
-  lessThanOrEqualTo,
-  NonNegativeInt,
-  object,
-  regex,
-  String,
-  Uint8Array,
+	brand,
+	length,
+	lessThanOrEqualTo,
+	NonNegativeInt,
+	object,
+	regex,
+	String,
+	Uint8Array,
 } from "../Type.js";
 
 export interface TimestampConfig {
-  /**
-   * Maximum physical clock drift allowed in ms.
-   *
-   * The default value is 5 * 60 * 1000 (5 minutes).
-   */
-  readonly maxDrift: number;
+	/**
+	 * Maximum physical clock drift allowed in ms.
+	 *
+	 * The default value is 5 * 60 * 1000 (5 minutes).
+	 */
+	readonly maxDrift: number;
 }
 
 /** Default value for {@link TimestampConfig.maxDrift}. */
 export const defaultTimestampMaxDrift = 5 * 60 * 1000;
 
 export interface TimestampConfigDep {
-  readonly timestampConfig: TimestampConfig;
+	readonly timestampConfig: TimestampConfig;
 }
 
 export type TimestampError =
-  | TimestampDriftError
-  | TimestampCounterOverflowError
-  | TimestampTimeOutOfRangeError;
+	| TimestampDriftError
+	| TimestampCounterOverflowError
+	| TimestampTimeOutOfRangeError;
 
 export interface TimestampDriftError {
-  readonly type: "TimestampDriftError";
-  readonly next: Millis;
-  readonly now: Millis;
+	readonly type: "TimestampDriftError";
+	readonly next: Millis;
+	readonly now: Millis;
 }
 
 export interface TimestampCounterOverflowError {
-  readonly type: "TimestampCounterOverflowError";
+	readonly type: "TimestampCounterOverflowError";
 }
 
 export interface TimestampTimeOutOfRangeError {
-  readonly type: "TimestampTimeOutOfRangeError";
+	readonly type: "TimestampTimeOutOfRangeError";
 }
 
 export const Counter = brand(
-  "Counter",
-  lessThanOrEqualTo(65535)(NonNegativeInt),
+	"Counter",
+	lessThanOrEqualTo(65535)(NonNegativeInt),
 );
 export type Counter = typeof Counter.Type;
 
@@ -162,9 +162,9 @@ export const maxNodeId = "ffffffffffffffff" as NodeId;
  * storage and bandwidth usage.
  */
 export const Timestamp = object({
-  millis: Millis,
-  counter: Counter,
-  nodeId: NodeId,
+	millis: Millis,
+	counter: Counter,
+	nodeId: NodeId,
 });
 // TODO: Figure out why typedoc does not use Timestamp JSDoc.
 // export interface Timestamp extends InferType<typeof Timestamp> {}
@@ -174,106 +174,106 @@ export type Timestamp = typeof Timestamp.Type;
 
 /** Equality function for comparing {@link Timestamp}. */
 export const eqTimestamp = createEqObject<Timestamp>({
-  millis: eqNumber,
-  counter: eqNumber,
-  nodeId: eqString,
+	millis: eqNumber,
+	counter: eqNumber,
+	nodeId: eqString,
 });
 
 export const createTimestamp = ({
-  millis = minMillis,
-  counter = minCounter,
-  nodeId = minNodeId,
+	millis = minMillis,
+	counter = minCounter,
+	nodeId = minNodeId,
 }: Partial<Timestamp> = {}): Timestamp => ({ millis, counter, nodeId });
 
 export const createInitialTimestamp = (deps: RandomBytesDep): Timestamp => {
-  const nodeId = bytesToHex(deps.randomBytes.create(8)) as NodeId;
-  return createTimestamp({ nodeId });
+	const nodeId = bytesToHex(deps.randomBytes.create(8)) as NodeId;
+	return createTimestamp({ nodeId });
 };
 
 const getNextMillis =
-  (deps: TimeDep & TimestampConfigDep) =>
-  (
-    millis: ReadonlyArray<Millis>,
-  ): Result<Millis, TimestampTimeOutOfRangeError | TimestampDriftError> => {
-    const now = Millis.from(deps.time.now());
-    if (!now.ok) {
-      return err({ type: "TimestampTimeOutOfRangeError" });
-    }
-    const next = Math.max(now.value, ...millis) as Millis;
-    return next - now.value > deps.timestampConfig.maxDrift
-      ? err<TimestampDriftError>({
-          type: "TimestampDriftError",
-          now: now.value,
-          next,
-        })
-      : ok(next);
-  };
+	(deps: TimeDep & TimestampConfigDep) =>
+	(
+		millis: ReadonlyArray<Millis>,
+	): Result<Millis, TimestampTimeOutOfRangeError | TimestampDriftError> => {
+		const now = Millis.from(deps.time.now());
+		if (!now.ok) {
+			return err({ type: "TimestampTimeOutOfRangeError" });
+		}
+		const next = Math.max(now.value, ...millis) as Millis;
+		return next - now.value > deps.timestampConfig.maxDrift
+			? err<TimestampDriftError>({
+					type: "TimestampDriftError",
+					now: now.value,
+					next,
+				})
+			: ok(next);
+	};
 
 const incrementCounter = (
-  counter: Counter,
+	counter: Counter,
 ): Result<Counter, TimestampCounterOverflowError> => {
-  const next = Counter.from(increment(counter));
-  if (!next.ok) return err({ type: "TimestampCounterOverflowError" });
-  return ok(next.value);
+	const next = Counter.from(increment(counter));
+	if (!next.ok) return err({ type: "TimestampCounterOverflowError" });
+	return ok(next.value);
 };
 
 export const sendTimestamp =
-  (deps: TimeDep & TimestampConfigDep) =>
-  (
-    timestamp: Timestamp,
-  ): Result<
-    Timestamp,
-    | TimestampDriftError
-    | TimestampCounterOverflowError
-    | TimestampTimeOutOfRangeError
-  > => {
-    const millis = getNextMillis(deps)([timestamp.millis]);
-    if (!millis.ok) return millis;
+	(deps: TimeDep & TimestampConfigDep) =>
+	(
+		timestamp: Timestamp,
+	): Result<
+		Timestamp,
+		| TimestampDriftError
+		| TimestampCounterOverflowError
+		| TimestampTimeOutOfRangeError
+	> => {
+		const millis = getNextMillis(deps)([timestamp.millis]);
+		if (!millis.ok) return millis;
 
-    const counter =
-      millis.value === timestamp.millis
-        ? incrementCounter(timestamp.counter)
-        : ok(minCounter);
-    if (!counter.ok) return counter;
+		const counter =
+			millis.value === timestamp.millis
+				? incrementCounter(timestamp.counter)
+				: ok(minCounter);
+		if (!counter.ok) return counter;
 
-    return ok({
-      millis: millis.value,
-      counter: counter.value,
-      nodeId: timestamp.nodeId,
-    });
-  };
+		return ok({
+			millis: millis.value,
+			counter: counter.value,
+			nodeId: timestamp.nodeId,
+		});
+	};
 
 export const receiveTimestamp =
-  (deps: TimeDep & TimestampConfigDep) =>
-  (
-    local: Timestamp,
-    remote: Timestamp,
-  ): Result<
-    Timestamp,
-    | TimestampDriftError
-    | TimestampCounterOverflowError
-    | TimestampTimeOutOfRangeError
-  > => {
-    const millis = getNextMillis(deps)([local.millis, remote.millis]);
-    if (!millis.ok) return millis;
+	(deps: TimeDep & TimestampConfigDep) =>
+	(
+		local: Timestamp,
+		remote: Timestamp,
+	): Result<
+		Timestamp,
+		| TimestampDriftError
+		| TimestampCounterOverflowError
+		| TimestampTimeOutOfRangeError
+	> => {
+		const millis = getNextMillis(deps)([local.millis, remote.millis]);
+		if (!millis.ok) return millis;
 
-    const counter =
-      millis.value === local.millis && millis.value === remote.millis
-        ? incrementCounter(Math.max(local.counter, remote.counter) as Counter)
-        : millis.value === local.millis
-          ? incrementCounter(local.counter)
-          : millis.value === remote.millis
-            ? incrementCounter(remote.counter)
-            : ok(minCounter);
+		const counter =
+			millis.value === local.millis && millis.value === remote.millis
+				? incrementCounter(Math.max(local.counter, remote.counter) as Counter)
+				: millis.value === local.millis
+					? incrementCounter(local.counter)
+					: millis.value === remote.millis
+						? incrementCounter(remote.counter)
+						: ok(minCounter);
 
-    if (!counter.ok) return counter;
+		if (!counter.ok) return counter;
 
-    return ok({
-      millis: millis.value,
-      counter: counter.value,
-      nodeId: local.nodeId,
-    });
-  };
+		return ok({
+			millis: millis.value,
+			counter: counter.value,
+			nodeId: local.nodeId,
+		});
+	};
 
 /** Sortable bytes representation of {@link Timestamp}. */
 export const TimestampBytes = brand("TimestampBytes", length(16)(Uint8Array));
@@ -282,57 +282,57 @@ export type TimestampBytes = typeof TimestampBytes.Type;
 export const timestampBytesLength = NonNegativeInt.orThrow(16);
 
 export const timestampToTimestampBytes = (
-  timestamp: Timestamp,
+	timestamp: Timestamp,
 ): TimestampBytes => {
-  const { millis, counter, nodeId } = timestamp;
+	const { millis, counter, nodeId } = timestamp;
 
-  // 6 bytes for millis, 2 bytes for counter, 8 bytes for nodeId.
-  const value = new globalThis.Uint8Array(16);
+	// 6 bytes for millis, 2 bytes for counter, 8 bytes for nodeId.
+	const value = new globalThis.Uint8Array(16);
 
-  // Encode `millis` into the first 6 bytes.
-  const millisBigInt = BigInt(millis);
-  value[0] = Number((millisBigInt >> 40n) & 0xffn);
-  value[1] = Number((millisBigInt >> 32n) & 0xffn);
-  value[2] = Number((millisBigInt >> 24n) & 0xffn);
-  value[3] = Number((millisBigInt >> 16n) & 0xffn);
-  value[4] = Number((millisBigInt >> 8n) & 0xffn);
-  value[5] = Number(millisBigInt & 0xffn);
+	// Encode `millis` into the first 6 bytes.
+	const millisBigInt = BigInt(millis);
+	value[0] = Number((millisBigInt >> 40n) & 0xffn);
+	value[1] = Number((millisBigInt >> 32n) & 0xffn);
+	value[2] = Number((millisBigInt >> 24n) & 0xffn);
+	value[3] = Number((millisBigInt >> 16n) & 0xffn);
+	value[4] = Number((millisBigInt >> 8n) & 0xffn);
+	value[5] = Number(millisBigInt & 0xffn);
 
-  // Encode `counter` into the next 2 bytes.
-  value[6] = (counter >> 8) & 0xff;
-  value[7] = counter & 0xff;
+	// Encode `counter` into the next 2 bytes.
+	value[6] = (counter >> 8) & 0xff;
+	value[7] = counter & 0xff;
 
-  // Encode `nodeId` (16-character hex string) into the next 8 bytes.
-  for (let i = 0; i < 8; i++) {
-    const byte = parseInt(nodeId.slice(i * 2, i * 2 + 2), 16);
-    value[8 + i] = byte;
-  }
+	// Encode `nodeId` (16-character hex string) into the next 8 bytes.
+	for (let i = 0; i < 8; i++) {
+		const byte = parseInt(nodeId.slice(i * 2, i * 2 + 2), 16);
+		value[8 + i] = byte;
+	}
 
-  return value as TimestampBytes;
+	return value as TimestampBytes;
 };
 
 export const timestampBytesToTimestamp = (
-  timestamp: TimestampBytes,
+	timestamp: TimestampBytes,
 ): Timestamp => {
-  // Decode `millis` from the first 6 bytes.
-  const millis =
-    (BigInt(timestamp[0]) << 40n) |
-    (BigInt(timestamp[1]) << 32n) |
-    (BigInt(timestamp[2]) << 24n) |
-    (BigInt(timestamp[3]) << 16n) |
-    (BigInt(timestamp[4]) << 8n) |
-    BigInt(timestamp[5]);
+	// Decode `millis` from the first 6 bytes.
+	const millis =
+		(BigInt(timestamp[0]) << 40n) |
+		(BigInt(timestamp[1]) << 32n) |
+		(BigInt(timestamp[2]) << 24n) |
+		(BigInt(timestamp[3]) << 16n) |
+		(BigInt(timestamp[4]) << 8n) |
+		BigInt(timestamp[5]);
 
-  // Decode `counter` from the next 2 bytes.
-  const counter = (timestamp[6] << 8) | timestamp[7];
+	// Decode `counter` from the next 2 bytes.
+	const counter = (timestamp[6] << 8) | timestamp[7];
 
-  // Decode `nodeId` from the last 8 bytes.
-  let nodeId = "";
-  for (let i = 8; i < 16; i++) {
-    nodeId += timestamp[i].toString(16).padStart(2, "0");
-  }
+	// Decode `nodeId` from the last 8 bytes.
+	let nodeId = "";
+	for (let i = 8; i < 16; i++) {
+		nodeId += timestamp[i].toString(16).padStart(2, "0");
+	}
 
-  return { millis: Number(millis), counter, nodeId } as Timestamp;
+	return { millis: Number(millis), counter, nodeId } as Timestamp;
 };
 
 /**
@@ -351,5 +351,5 @@ export const orderTimestampBytes: Order<TimestampBytes> = orderUint8Array;
  * `Date.prototype.toISOString()` to produce a `DateIso`.
  */
 export const timestampToDateIso = (timestamp: Timestamp): DateIso =>
-  // `as DateIso` is safe because Timestamp guarantees a valid `millis`
-  new Date(timestamp.millis).toISOString() as DateIso;
+	// `as DateIso` is safe because Timestamp guarantees a valid `millis`
+	new Date(timestamp.millis).toISOString() as DateIso;

@@ -33,13 +33,15 @@
 		"_test": "vitest run",
 		"test:watch": "vitest",
 		"clean": "rimraf .turbo node_modules dist",
-		"format": "prettier --write \"src/*.{ts,tsx,md}\""
+		"format": "biome check . --write",
+		"lint": "biome check ."
 	},
 	"dependencies": {
 		"@evolu/sqlite-wasm": "2.2.4",
 		"idb-keyval": "^6.2.2"
 	},
 	"devDependencies": {
+		"@evolu/biome-config": "workspace:*",
 		"@evolu/common": "workspace:*",
 		"@evolu/tsconfig": "workspace:*",
 		"@types/sharedworker": "^0.0.205",

@@ -1,87 +1,89 @@
 {
-  "name": "@evolu/common",
-  "version": "7.4.1",
-  "description": "TypeScript library and local-first platform",
-  "keywords": [
-    "evolu",
-    "local-first",
-    "sqlite",
-    "crdt",
-    "e2ee"
-  ],
-  "author": "Daniel Steigerwald <daniel@steigerwald.cz>",
-  "license": "MIT",
-  "repository": "evoluhq/evolu",
-  "bugs": {
-    "url": "https://github.com/evoluhq/evolu/issues"
-  },
-  "homepage": "https://evolu.dev",
-  "type": "module",
-  "types": "./dist/src/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/src/index.d.ts",
-      "import": "./dist/src/index.js",
-      "browser": "./dist/src/index.js",
-      "react-native": "./dist/src/index.js"
-    },
-    "./local-first": {
-      "types": "./dist/src/local-first/index.d.ts",
-      "import": "./dist/src/local-first/index.js"
-    }
-  },
-  "typesVersions": {
-    "*": {
-      "local-first": [
-        "./dist/src/local-first/index.d.ts"
-      ]
-    }
-  },
-  "files": [
-    "dist/src/**",
-    "src/**",
-    "README.md"
-  ],
-  "scripts": {
-    "dev": "tsc --watch",
-    "build": "rimraf dist && tsc",
-    "test": "vitest run --disableConsoleIntercept",
-    "test:watch": "vitest --disableConsoleIntercept",
-    "test:coverage": "vitest run --coverage --disableConsoleIntercept",
-    "clean": "rimraf .turbo node_modules dist converage",
-    "format": "prettier --write \"src/*.{ts,tsx,md}\"",
-    "bench": "vitest bench"
-  },
-  "dependencies": {
-    "@noble/ciphers": "^2.1.1",
-    "@noble/hashes": "^2.0.1",
-    "@scure/bip39": "^2.0.1",
-    "kysely": "^0.28.8",
-    "msgpackr": "^1.11.5",
-    "random": "^5.4.1"
-  },
-  "devDependencies": {
-    "@bokuweb/zstd-wasm": "0.0.27",
-    "@evolu/tsconfig": "workspace:*",
-    "@types/better-sqlite3": "^7.6.13",
-    "@types/ws": "^8.18.1",
-    "@vitest/browser": "^4.0.16",
-    "@vitest/browser-playwright": "^4.0.16",
-    "@vitest/coverage-v8": "^4.0.16",
-    "better-sqlite3": "^12.5.0",
-    "fast-check": "^4.4.0",
-    "playwright": "^1.57.0",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.16",
-    "ws": "^8.18.3"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "engines": {
-    "node": ">=24.0.0"
-  },
-  "sideEffects": [
-    "./dist/src/index.js"
-  ]
+	"name": "@evolu/common",
+	"version": "7.4.1",
+	"description": "TypeScript library and local-first platform",
+	"keywords": [
+		"evolu",
+		"local-first",
+		"sqlite",
+		"crdt",
+		"e2ee"
+	],
+	"author": "Daniel Steigerwald <daniel@steigerwald.cz>",
+	"license": "MIT",
+	"repository": "evoluhq/evolu",
+	"bugs": {
+		"url": "https://github.com/evoluhq/evolu/issues"
+	},
+	"homepage": "https://evolu.dev",
+	"type": "module",
+	"types": "./dist/src/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/src/index.d.ts",
+			"import": "./dist/src/index.js",
+			"browser": "./dist/src/index.js",
+			"react-native": "./dist/src/index.js"
+		},
+		"./local-first": {
+			"types": "./dist/src/local-first/index.d.ts",
+			"import": "./dist/src/local-first/index.js"
+		}
+	},
+	"typesVersions": {
+		"*": {
+			"local-first": [
+				"./dist/src/local-first/index.d.ts"
+			]
+		}
+	},
+	"files": [
+		"dist/src/**",
+		"src/**",
+		"README.md"
+	],
+	"scripts": {
+		"dev": "tsc --watch",
+		"build": "rimraf dist && tsc",
+		"test": "vitest run --disableConsoleIntercept",
+		"test:watch": "vitest --disableConsoleIntercept",
+		"test:coverage": "vitest run --coverage --disableConsoleIntercept",
+		"clean": "rimraf .turbo node_modules dist coverage",
+		"format": "biome check . --write",
+		"lint": "biome check .",
+		"bench": "vitest bench"
+	},
+	"dependencies": {
+		"@noble/ciphers": "^2.1.1",
+		"@noble/hashes": "^2.0.1",
+		"@scure/bip39": "^2.0.1",
+		"kysely": "^0.28.8",
+		"msgpackr": "^1.11.5",
+		"random": "^5.4.1"
+	},
+	"devDependencies": {
+		"@bokuweb/zstd-wasm": "0.0.27",
+		"@evolu/biome-config": "workspace:*",
+		"@evolu/tsconfig": "workspace:*",
+		"@types/better-sqlite3": "^7.6.13",
+		"@types/ws": "^8.18.1",
+		"@vitest/browser": "^4.0.16",
+		"@vitest/browser-playwright": "^4.0.16",
+		"@vitest/coverage-v8": "^4.0.16",
+		"better-sqlite3": "^12.5.0",
+		"fast-check": "^4.4.0",
+		"playwright": "^1.57.0",
+		"typescript": "^5.9.3",
+		"vitest": "^4.0.16",
+		"ws": "^8.18.3"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"engines": {
+		"node": ">=24.0.0"
+	},
+	"sideEffects": [
+		"./dist/src/index.js"
+	]
 }
