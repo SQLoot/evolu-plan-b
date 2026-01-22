@@ -7,6 +7,20 @@
 import * as Kysely from "kysely";
 
 /**
+ * A function that receives a value and returns nothing.
+ *
+ * Use for event handlers, observers, and async completion handlers.
+ *
+ * ### Example
+ *
+ * ```ts
+ * const onComplete: Callback<string> = (value) => console.log(value);
+ * const queue = new Set<Callback<Result<Data, Error>>>();
+ * ```
+ */
+export type Callback<T> = (value: T) => void;
+
+/**
  * Checks a condition on a value and returns a boolean.
  *
  * A predicate starts with an 'is' prefix, e.g., `isEven`.
@@ -262,4 +276,25 @@ export type UnionToIntersection<U> = (
 		: never
 ) extends (k: infer I) => void
 	? I
+	: never;
+
+/**
+ * Removes keys from each member of a union.
+ *
+ * Use when {@link Omit} would collapse a discriminated union into a single
+ * shared shape.
+ *
+ * ### Example
+ *
+ * ```ts
+ * type Event =
+ *   | { type: "a"; a: string; shared: number }
+ *   | { type: "b"; b: number; shared: number };
+ *
+ * type Payload = DistributiveOmit<Event, "shared">;
+ * // { type: "a"; a: string } | { type: "b"; b: number }
+ * ```
+ */
+export type DistributiveOmit<T, K extends PropertyKey> = T extends unknown
+	? Omit<T, K>
 	: never;

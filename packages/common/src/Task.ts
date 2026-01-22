@@ -9,7 +9,7 @@ import { assert } from "./Assert.js";
 import type { RandomBytesDep } from "./Crypto.js";
 import { createRandomBytes } from "./Crypto.js";
 import { eqArrayStrict } from "./Eq.js";
-import { constTrue, constVoid } from "./Function.js";
+import { lazyTrue, lazyVoid } from "./Function.js";
 import { decrement, increment } from "./Number.js";
 import type { Random, RandomDep } from "./Random.js";
 import { createRandom } from "./Random.js";
@@ -19,21 +19,21 @@ import { err, ok, tryAsync } from "./Result.js";
 import type { Schedule, ScheduleStep } from "./Schedule.js";
 import { addToSet, deleteFromSet, emptySet } from "./Set.js";
 import type { Duration, Time, TimeDep } from "./Time.js";
-import { createTime, durationToMillis, Millis } from "./Time.js";
+import { Millis, createTime, durationToMillis } from "./Time.js";
 import type { TracerConfigDep, TracerDep } from "./Tracer.js";
 import {
-	brand,
-	createId,
-	Id,
-	type InferType,
-	minPositiveInt,
-	NonNegativeInt,
-	PositiveInt,
-	type Typed,
-	typed,
-	union,
-	Unknown,
-	UnknownResult,
+    Id,
+    NonNegativeInt,
+    PositiveInt,
+    Unknown,
+    UnknownResult,
+    brand,
+    createId,
+    minPositiveInt,
+    typed,
+    union,
+    type InferType,
+    type Typed,
 } from "./Type.js";
 import { type Awaitable, type Mutable, type Predicate } from "./Types.js";
 
@@ -640,7 +640,7 @@ export class Fiber<T = unknown, E = unknown, D = unknown>
 	constructor(
 		run: Runner<D>,
 		promise: Promise<Result<T, E | AbortError>>,
-		abort: (reason?: unknown) => void = constVoid,
+		abort: (reason?: unknown) => void = lazyVoid,
 	) {
 		this.then = promise.then.bind(promise);
 		this.abort = abort;
@@ -847,7 +847,7 @@ export class AsyncDisposableStack<D = unknown> implements AsyncDisposable {
 	}
 
 	#runVoid(task: Task<void, any, D>): PromiseLike<void> {
-		return this.#run(task).then(constVoid);
+		return this.#run(task).then(lazyVoid);
 	}
 
 	/**
@@ -1144,8 +1144,9 @@ const createRunnerInternal =
 				task = () => Promise.resolve(err(abortError));
 			}
 
-			// Promise.try is polyfilled
-			const promise = Promise.try(task, runner, deps)
+			const promise = new Promise<Result<T, E | AbortError>>((resolve) =>
+				resolve(task(runner, deps)),
+			)
 				.then((taskOutcome) => {
 					const childResult = runner.signal.aborted
 						? err(runner.signal.reason)
@@ -1185,7 +1186,7 @@ const createRunnerInternal =
 
 			run.signal = signalController.signal;
 			run.abortMask = abortMask;
-			run.onAbort = (fn) => {
+			run.onAbort = (fn: (reason: unknown) => void) => {
 				signalController.signal.addEventListener(
 					"abort",
 					() => {
@@ -1223,10 +1224,10 @@ const createRunnerInternal =
 			};
 			run.onEvent = undefined;
 
-			run.daemon = (task) => (daemon ?? self)(task);
-			run.defer = (task) => ({
+			run.daemon = <T, E>(task: Task<T, E, D>) => (daemon ?? self)(task);
+			run.defer = <T, E>(task: Task<T, E, D>) => ({
 				[Symbol.asyncDispose]: () =>
-					run.daemon(unabortable(task)).then(constVoid),
+					run.daemon(unabortable(task)).then(lazyVoid),
 			});
 			run.stack = () => new AsyncDisposableStack(self);
 
@@ -1242,7 +1243,7 @@ const createRunnerInternal =
 				requestAbort(runnerClosingError);
 
 				disposing = Promise.allSettled(children)
-					.then(constVoid)
+					.then(lazyVoid)
 					.finally(() => {
 						state = "disposed";
 						emitEvent({ type: "stateChanged", state });
@@ -1254,7 +1255,10 @@ const createRunnerInternal =
 			// Internal properties (hidden from public Runner type)
 			run.requestAbort = requestAbort;
 			run.requestSignal = requestController.signal;
-			run.setResultAndOutcome = (fiberResult, taskOutcome) => {
+			run.setResultAndOutcome = (
+				fiberResult: Result<unknown, unknown>,
+				taskOutcome: Result<unknown, unknown>,
+			) => {
 				result = fiberResult;
 				outcome = taskOutcome;
 				emitEvent({
@@ -1698,7 +1702,7 @@ export const retry =
 		task: Task<T, E, D>,
 		schedule: Schedule<Output, E>,
 		{
-			retryable = constTrue as Predicate<E>,
+			retryable = lazyTrue as Predicate<E>,
 			onRetry,
 		}: RetryOptions<E, Output> = {},
 	): Task<T, E | RetryError<E>, D> =>
@@ -1818,7 +1822,7 @@ export const repeat =
 		task: Task<T, E, D>,
 		schedule: Schedule<Output, T>,
 		{
-			repeatable = constTrue as Predicate<T>,
+			repeatable = lazyTrue as Predicate<T>,
 			onRepeat,
 		}: RepeatOptions<T, Output> = {},
 	): Task<T, E, D> =>
