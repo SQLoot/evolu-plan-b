@@ -22,18 +22,18 @@ import type { Duration, Time, TimeDep } from "./Time.js";
 import { Millis, createTime, durationToMillis } from "./Time.js";
 import type { TracerConfigDep, TracerDep } from "./Tracer.js";
 import {
-	Id,
-	NonNegativeInt,
-	PositiveInt,
-	Unknown,
-	UnknownResult,
-	brand,
-	createId,
-	minPositiveInt,
-	typed,
-	union,
-	type InferType,
-	type Typed,
+    Id,
+    NonNegativeInt,
+    PositiveInt,
+    Unknown,
+    UnknownResult,
+    brand,
+    createId,
+    minPositiveInt,
+    typed,
+    union,
+    type InferType,
+    type Typed,
 } from "./Type.js";
 import { type Awaitable, type Mutable, type Predicate } from "./Types.js";
 
@@ -1186,7 +1186,7 @@ const createRunnerInternal =
 
 			run.signal = signalController.signal;
 			run.abortMask = abortMask;
-			run.onAbort = (fn) => {
+			run.onAbort = (fn: (reason: unknown) => void) => {
 				signalController.signal.addEventListener(
 					"abort",
 					() => {
@@ -1224,8 +1224,8 @@ const createRunnerInternal =
 			};
 			run.onEvent = undefined;
 
-			run.daemon = (task) => (daemon ?? self)(task);
-			run.defer = (task) => ({
+			run.daemon = <T, E>(task: Task<T, E, D>) => (daemon ?? self)(task);
+			run.defer = <T, E>(task: Task<T, E, D>) => ({
 				[Symbol.asyncDispose]: () =>
 					run.daemon(unabortable(task)).then(lazyVoid),
 			});
@@ -1255,7 +1255,10 @@ const createRunnerInternal =
 			// Internal properties (hidden from public Runner type)
 			run.requestAbort = requestAbort;
 			run.requestSignal = requestController.signal;
-			run.setResultAndOutcome = (fiberResult, taskOutcome) => {
+			run.setResultAndOutcome = (
+				fiberResult: Result<unknown, unknown>,
+				taskOutcome: Result<unknown, unknown>,
+			) => {
 				result = fiberResult;
 				outcome = taskOutcome;
 				emitEvent({
