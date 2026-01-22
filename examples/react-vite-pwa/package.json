@@ -25,7 +25,7 @@
 		"@evolu/biome-config": "workspace:*",
 		"@tailwindcss/forms": "^0.5.11",
 		"@tailwindcss/vite": "^4.1.18",
-		"@types/react": "~19.2.8",
+		"@types/react": "~19.2.9",
 		"@types/react-dom": "~19.2.3",
 		"@vite-pwa/assets-generator": "^1.0.0",
 		"@vitejs/plugin-react": "^5.1.2",

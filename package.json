@@ -35,7 +35,7 @@
 		"@changesets/cli": "^2.29.8",
 		"@types/inquirer": "^9.0.9",
 		"rimraf": "^6.1.2",
-		"turbo": "2.7.4",
+		"turbo": "2.7.5",
 		"typedoc": "^0.28.16",
 		"typedoc-plugin-markdown": "^4.9.0",
 		"typescript": "^5.9.3",
@@ -87,7 +87,7 @@
 	},
 	"dependencies": {
 		"@evolu/biome-config": "workspace:*",
-		"@types/react": "^19.2.8",
+		"@types/react": "^19.2.9",
 		"@types/react-dom": "^19.2.3",
 		"react": "^19.2.3",
 		"react-dom": "^19.2.3"
