@@ -22,18 +22,18 @@ import type { Duration, Time, TimeDep } from "./Time.js";
 import { Millis, createTime, durationToMillis } from "./Time.js";
 import type { TracerConfigDep, TracerDep } from "./Tracer.js";
 import {
-    Id,
-    NonNegativeInt,
-    PositiveInt,
-    Unknown,
-    UnknownResult,
-    brand,
-    createId,
-    minPositiveInt,
-    typed,
-    union,
-    type InferType,
-    type Typed,
+	Id,
+	NonNegativeInt,
+	PositiveInt,
+	Unknown,
+	UnknownResult,
+	brand,
+	createId,
+	minPositiveInt,
+	typed,
+	union,
+	type InferType,
+	type Typed,
 } from "./Type.js";
 import { type Awaitable, type Mutable, type Predicate } from "./Types.js";
 
@@ -1144,8 +1144,9 @@ const createRunnerInternal =
 				task = () => Promise.resolve(err(abortError));
 			}
 
-			// Promise.try is polyfilled
-			const promise = Promise.try(task, runner, deps)
+			const promise = new Promise<Result<T, E | AbortError>>((resolve) =>
+				resolve(task(runner, deps)),
+			)
 				.then((taskOutcome) => {
 					const childResult = runner.signal.aborted
 						? err(runner.signal.reason)
