@@ -22,6 +22,35 @@ export const isPlainObject = (
 	Object.prototype.toString.call(value) === "[object Object]";
 
 /**
+ * Checks if a value is a function.
+ *
+ * ### Example
+ *
+ * ```ts
+ * isFunction(() => {}); // true
+ * isFunction(function () {}); // true
+ * isFunction({}); // false
+ * ```
+ */
+export const isFunction = (value: unknown): value is globalThis.Function =>
+	typeof value === "function";
+
+/**
+ * Checks if a value implements {@link Iterable}.
+ *
+ * ### Example
+ *
+ * ```ts
+ * isIterable([1, 2, 3]); // true
+ * isIterable("abc"); // true
+ * isIterable({}); // false
+ * ```
+ */
+export const isIterable = (value: unknown): value is Iterable<unknown> =>
+	value != null &&
+	typeof (value as Iterable<unknown>)[Symbol.iterator] === "function";
+
+/**
  * A read-only `Record<K, V>` with `K extends keyof any` to preserve branded key
  * types (e.g., in {@link mapObject}).
  */
@@ -101,7 +130,7 @@ export const createRecord = <K extends string = string, V = unknown>(): Record<
  *
  * Use as a default or initial value to avoid allocating new empty records.
  *
- * @category Constants
+ * @group Constants
  */
 export const emptyRecord: Readonly<Record<string, never>> = createRecord();
 
@@ -122,8 +151,8 @@ export const emptyRecord: Readonly<Record<string, never>> = createRecord();
  */
 export const getProperty = <K extends string, V>(
 	record: ReadonlyRecord<K, V>,
-	key: string,
-): V | undefined => (key in record ? record[key as K] : undefined);
+	key: K,
+): V | undefined => (key in record ? record[key] : undefined);
 
 /**
  * A disposable wrapper around `URL.createObjectURL` that automatically revokes
