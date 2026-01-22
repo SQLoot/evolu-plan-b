@@ -9,7 +9,7 @@ import { assert } from "./Assert.js";
 import type { RandomBytesDep } from "./Crypto.js";
 import { createRandomBytes } from "./Crypto.js";
 import { eqArrayStrict } from "./Eq.js";
-import { constTrue, constVoid } from "./Function.js";
+import { lazyTrue, lazyVoid } from "./Function.js";
 import { decrement, increment } from "./Number.js";
 import type { Random, RandomDep } from "./Random.js";
 import { createRandom } from "./Random.js";
@@ -19,21 +19,21 @@ import { err, ok, tryAsync } from "./Result.js";
 import type { Schedule, ScheduleStep } from "./Schedule.js";
 import { addToSet, deleteFromSet, emptySet } from "./Set.js";
 import type { Duration, Time, TimeDep } from "./Time.js";
-import { createTime, durationToMillis, Millis } from "./Time.js";
+import { Millis, createTime, durationToMillis } from "./Time.js";
 import type { TracerConfigDep, TracerDep } from "./Tracer.js";
 import {
-	brand,
-	createId,
-	Id,
-	type InferType,
-	minPositiveInt,
-	NonNegativeInt,
-	PositiveInt,
-	type Typed,
-	typed,
-	union,
-	Unknown,
-	UnknownResult,
+    Id,
+    NonNegativeInt,
+    PositiveInt,
+    Unknown,
+    UnknownResult,
+    brand,
+    createId,
+    minPositiveInt,
+    typed,
+    union,
+    type InferType,
+    type Typed,
 } from "./Type.js";
 import { type Awaitable, type Mutable, type Predicate } from "./Types.js";
 
@@ -640,7 +640,7 @@ export class Fiber<T = unknown, E = unknown, D = unknown>
 	constructor(
 		run: Runner<D>,
 		promise: Promise<Result<T, E | AbortError>>,
-		abort: (reason?: unknown) => void = constVoid,
+		abort: (reason?: unknown) => void = lazyVoid,
 	) {
 		this.then = promise.then.bind(promise);
 		this.abort = abort;
@@ -847,7 +847,7 @@ export class AsyncDisposableStack<D = unknown> implements AsyncDisposable {
 	}
 
 	#runVoid(task: Task<void, any, D>): PromiseLike<void> {
-		return this.#run(task).then(constVoid);
+		return this.#run(task).then(lazyVoid);
 	}
 
 	/**
@@ -1226,7 +1226,7 @@ const createRunnerInternal =
 			run.daemon = (task) => (daemon ?? self)(task);
 			run.defer = (task) => ({
 				[Symbol.asyncDispose]: () =>
-					run.daemon(unabortable(task)).then(constVoid),
+					run.daemon(unabortable(task)).then(lazyVoid),
 			});
 			run.stack = () => new AsyncDisposableStack(self);
 
@@ -1242,7 +1242,7 @@ const createRunnerInternal =
 				requestAbort(runnerClosingError);
 
 				disposing = Promise.allSettled(children)
-					.then(constVoid)
+					.then(lazyVoid)
 					.finally(() => {
 						state = "disposed";
 						emitEvent({ type: "stateChanged", state });
@@ -1698,7 +1698,7 @@ export const retry =
 		task: Task<T, E, D>,
 		schedule: Schedule<Output, E>,
 		{
-			retryable = constTrue as Predicate<E>,
+			retryable = lazyTrue as Predicate<E>,
 			onRetry,
 		}: RetryOptions<E, Output> = {},
 	): Task<T, E | RetryError<E>, D> =>
@@ -1818,7 +1818,7 @@ export const repeat =
 		task: Task<T, E, D>,
 		schedule: Schedule<Output, T>,
 		{
-			repeatable = constTrue as Predicate<T>,
+			repeatable = lazyTrue as Predicate<T>,
 			onRepeat,
 		}: RepeatOptions<T, Output> = {},
 	): Task<T, E, D> =>

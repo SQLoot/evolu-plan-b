@@ -6,7 +6,7 @@ test("TODO", () => {
 
 // import { describe, expectTypeOf, test } from "vitest";
 // import { createConsole } from "../../src/Console.js";
-// import { constVoid } from "../../src/Function.js";
+// import { lazyVoid } from "../../src/Function.js";
 // import {
 //   createDbWorkerForPlatform,
 //   DbWorkerInput,
@@ -121,7 +121,7 @@ test("TODO", () => {
 //       },
 //     }),
 //     randomBytes: testRandomBytes,
-//     reloadApp: constVoid,
+//     reloadApp: lazyVoid,
 //     time: testTime,
 //   };
 
@@ -765,7 +765,7 @@ test("TODO", () => {
 // //     const promise1 = evolu.loadQuery(allTodosQuery);
 // //     await promise1;
 
-// //     evolu.subscribeQuery(allTodosQuery)(constVoid);
+// //     evolu.subscribeQuery(allTodosQuery)(lazyVoid);
 
 // //     // Clear previous calls to track only what happens after subscription
 // //     postMessageCalls.length = 0;
@@ -1035,7 +1035,7 @@ test("TODO", () => {
 // //     const { evolu, postMessageCalls, allTodosQuery, getOnMessageCallback } =
 // //       await testCreateEvolu();
 
-// //     const unsubscribe = evolu.subscribeQuery(allTodosQuery)(constVoid);
+// //     const unsubscribe = evolu.subscribeQuery(allTodosQuery)(lazyVoid);
 
 // //     await Promise.resolve();
 
