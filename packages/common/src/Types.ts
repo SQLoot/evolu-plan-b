@@ -255,20 +255,6 @@ export type Digit1To59 =
 	| `4${Digit}` // 40-49
 	| `5${Digit}`; // 50-59
 
-/** Numeric literal 1-99. */
-export type Int1To99 = NumberFromString<Digit1To99>;
-
-/** Numeric literal 1-100. */
-export type Int1To100 = Int1To99 | 100;
-
-/**
- * Parses a numeric literal type from a string literal.
- *
- * Used by {@link Int1To99}.
- */
-export type NumberFromString<T extends string> =
-	T extends `${infer N extends number}` ? N : never;
-
 /** Converts a union to an intersection. */
 export type UnionToIntersection<U> = (
 	U extends unknown
@@ -276,4 +262,25 @@ export type UnionToIntersection<U> = (
 		: never
 ) extends (k: infer I) => void
 	? I
+	: never;
+
+/**
+ * Removes keys from each member of a union.
+ *
+ * Use when {@link Omit} would collapse a discriminated union into a single
+ * shared shape.
+ *
+ * ### Example
+ *
+ * ```ts
+ * type Event =
+ *   | { type: "a"; a: string; shared: number }
+ *   | { type: "b"; b: number; shared: number };
+ *
+ * type Payload = DistributiveOmit<Event, "shared">;
+ * // { type: "a"; a: string } | { type: "b"; b: number }
+ * ```
+ */
+export type DistributiveOmit<T, K extends PropertyKey> = T extends unknown
+	? Omit<T, K>
 	: never;
