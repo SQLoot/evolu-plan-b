@@ -1,9 +1,8 @@
 import {
-	constVoid,
-	createPreparedStatementsCache,
-	type CreateSqliteDriver,
-	type SqliteDriver,
-	type SqliteRow,
+    createPreparedStatementsCache,
+    type CreateSqliteDriver,
+    type SqliteDriver,
+    type SqliteRow,
 } from "@evolu/common";
 import BetterSQLite, { type Statement } from "better-sqlite3";
 
@@ -16,7 +15,7 @@ export const createBetterSqliteDriver: CreateSqliteDriver = (name, options) => {
 		(sql) => db.prepare(sql),
 		// Not needed.
 		// https://github.com/WiseLibs/better-sqlite3/blob/master/docs/api.md#class-statement
-		constVoid,
+		() => {},
 	);
 
 	const driver: SqliteDriver = {
