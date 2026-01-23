@@ -25,7 +25,7 @@ export const createOpSqliteDriver: CreateSqliteDriver = (name, options) => {
 	const cache = createPreparedStatementsCache<PreparedStatement>(
 		(sql) => db.prepareStatement(sql),
 		// op-sqlite doesn't have API for that
-		constVoid,
+		() => {},
 	);
 
 	const driver: SqliteDriver = {
