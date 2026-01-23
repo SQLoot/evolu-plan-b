@@ -30,13 +30,13 @@ export type Option<T> = Some<T> | None;
 
 /** Present value in an {@link Option}. */
 export interface Some<out T> {
-  readonly type: "Some";
-  readonly value: T;
+	readonly type: "Some";
+	readonly value: T;
 }
 
 /** Absent value in an {@link Option}. */
 export interface None {
-  readonly type: "None";
+	readonly type: "None";
 }
 
 /**
@@ -45,12 +45,12 @@ export interface None {
  * @group Utilities
  */
 export type InferOption<O extends Option<any>> =
-  O extends Some<infer T> ? T : never;
+	O extends Some<infer T> ? T : never;
 
 /** Creates a {@link Some}. */
 export const some = <T>(value: T): Option<T> => ({
-  type: "Some",
-  value,
+	type: "Some",
+	value,
 });
 
 /** Shared {@link None} instance. */
@@ -58,11 +58,11 @@ export const none: None = { type: "None" };
 
 /** Type guard for {@link Some}. */
 export const isSome = <T>(option: Option<T>): option is Some<T> =>
-  option.type === "Some";
+	option.type === "Some";
 
 /** Type guard for {@link None}. */
 export const isNone = <T>(option: Option<T>): option is None =>
-  option.type === "None";
+	option.type === "None";
 
 /**
  * Converts a nullable value to an {@link Option}.
@@ -70,5 +70,5 @@ export const isNone = <T>(option: Option<T>): option is None =>
  * `null` and `undefined` become {@link none}.
  */
 export const fromNullable = <T>(
-  value: T | null | undefined,
+	value: T | null | undefined,
 ): Option<NonNullable<T>> => (value == null ? none : some(value));

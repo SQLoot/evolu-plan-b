@@ -5,12 +5,12 @@
  */
 
 import {
-    createArray,
-    emptyArray,
-    ensureArray,
-    isNonEmptyArray,
-    mapArray,
-    type NonEmptyReadonlyArray
+	createArray,
+	emptyArray,
+	ensureArray,
+	isNonEmptyArray,
+	mapArray,
+	type NonEmptyReadonlyArray,
 } from "./Array.js";
 import { assert, assertType } from "./Assert.js";
 import { createConsole, type Console, type ConsoleDep } from "./Console.js";
@@ -20,11 +20,11 @@ import { eqArrayStrict } from "./Eq.js";
 import { lazyTrue, lazyVoid } from "./Function.js";
 import { decrement, increment } from "./Number.js";
 import {
-    emptyRecord,
-    isFunction,
-    isIterable,
-    objectFromEntries,
-    objectToEntries,
+	emptyRecord,
+	isFunction,
+	isIterable,
+	objectFromEntries,
+	objectToEntries,
 } from "./Object.js";
 import type { Random, RandomDep } from "./Random.js";
 import { createRandom } from "./Random.js";
@@ -37,26 +37,26 @@ import type { Duration, Time, TimeDep } from "./Time.js";
 import { createTime, durationToMillis, Millis } from "./Time.js";
 import type { TracerConfigDep, TracerDep } from "./Tracer.js";
 import {
-    brand,
-    createId,
-    Id,
-    maxPositiveInt,
-    minPositiveInt,
-    NonNegativeInt,
-    object,
-    PositiveInt,
-    typed,
-    union,
-    Unknown,
-    UnknownResult,
-    type InferType,
-    type Typed,
+	brand,
+	createId,
+	Id,
+	maxPositiveInt,
+	minPositiveInt,
+	NonNegativeInt,
+	object,
+	PositiveInt,
+	typed,
+	union,
+	Unknown,
+	UnknownResult,
+	type InferType,
+	type Typed,
 } from "./Type.js";
 import {
-    type Awaitable,
-    type Callback,
-    type Mutable,
-    type Predicate
+	type Awaitable,
+	type Callback,
+	type Mutable,
+	type Predicate,
 } from "./Types.js";
 
 const withResolvers = <T>(): {
