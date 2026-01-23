@@ -17,6 +17,10 @@ Evolu is a local-first platform designed for privacy, ease of use, and no vendor
 - [Bun](https://bun.sh) (latest)
 - Node.js >= 22
 
+## Roadmap
+
+See [ROADMAP.md](./ROADMAP.md) for current progress and future plans.
+
 ## Development
 
 Evolu is a monorepo managed by **Turbo** and **Bun**. We use **Biome** for linting and formatting.

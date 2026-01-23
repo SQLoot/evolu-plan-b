@@ -91,6 +91,12 @@ const withResolvers = <T>(): {
 	return { promise, resolve, reject };
 };
 
+type PromiseWithResolvers<T> = {
+	promise: Promise<T>;
+	resolve: (value: T | PromiseLike<T>) => void;
+	reject: (reason?: any) => void;
+};
+
 interface MyError extends Typed<"MyError"> {}
 
 describe("Task", () => {
