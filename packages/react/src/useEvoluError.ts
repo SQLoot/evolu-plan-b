@@ -1,6 +1,8 @@
-import { constNull, type EvoluError } from "@evolu/common";
+import { type EvoluError } from "@evolu/common";
 import { useSyncExternalStore } from "react";
 import { useEvolu } from "./useEvolu.js";
+
+const constNull = () => null;
 
 /** Subscribe to {@link EvoluError} changes. */
 export const useEvoluError = (): EvoluError | null => {

@@ -1,11 +1,10 @@
 import {
-	bytesToHex,
-	constVoid,
-	createPreparedStatementsCache,
-	type CreateSqliteDriver,
-	isSqlMutation,
-	type SqliteDriver,
-	type SqliteRow,
+    bytesToHex,
+    createPreparedStatementsCache,
+    isSqlMutation,
+    type CreateSqliteDriver,
+    type SqliteDriver,
+    type SqliteRow,
 } from "@evolu/common";
 import { open, type PreparedStatement } from "@op-engineering/op-sqlite";
 

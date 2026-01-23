@@ -1,9 +1,9 @@
-import { constVoid } from "@evolu/common";
+const constVoid = () => {};
 import {
-	type Query,
-	type QueryRows,
-	type Row,
-	emptyRows,
+    emptyRows,
+    type Query,
+    type QueryRows,
+    type Row,
 } from "@evolu/common/local-first";
 import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { useEvolu } from "./useEvolu.js";
