@@ -3,76 +3,76 @@ import * as fc from "fast-check";
 import { assert, beforeAll, describe, expect, it, test } from "vitest";
 import { createBuffer } from "../../src/Buffer.js";
 import { lazyFalse, lazyTrue } from "../../src/Function.js";
-import type { NonEmptyReadonlyArray } from "../../src/index.js";
-import { assertNonEmptyArray, EncryptionKey } from "../../src/index.js";
-import type { TimestampsRangeWithTimestampsBuffer } from "../../src/local-first/Protocol.js";
-import {
-	applyProtocolMessageAsClient,
-	applyProtocolMessageAsRelay,
-	createProtocolMessageBuffer,
-	createProtocolMessageForSync,
-	createProtocolMessageFromCrdtMessages,
-	createTimestampsBuffer,
-	decodeFlags,
-	decodeLength,
-	decodeNodeId,
-	decodeNonNegativeInt,
-	decodeNumber,
-	decodeRle,
-	decodeSqliteValue,
-	decodeString,
-	decryptAndDecodeDbChange,
-	defaultProtocolMessageRangesMaxSize,
-	encodeAndEncryptDbChange,
-	encodeFlags,
-	encodeLength,
-	encodeNodeId,
-	encodeNonNegativeInt,
-	encodeNumber,
-	encodeSqliteValue,
-	encodeString,
-	MessageType,
-	ProtocolMessageMaxSize,
-	ProtocolMessageRangesMaxSize,
-	ProtocolValueType,
-	protocolVersion,
-	SubscriptionFlags,
-} from "../../src/local-first/Protocol.js";
-import type {
-	CrdtMessage,
-	EncryptedCrdtMessage,
-	EncryptedDbChange,
-	Storage,
-	StorageDep,
-} from "../../src/local-first/Storage.js";
-import {
-	DbChange,
-	InfiniteUpperBound,
-	RangeType,
-	timestampBytesToFingerprint,
-} from "../../src/local-first/Storage.js";
-import {
-	createInitialTimestamp,
-	timestampBytesToTimestamp,
-	timestampToTimestampBytes,
-} from "../../src/local-first/Timestamp.js";
 import { err, getOrThrow, ok } from "../../src/Result.js";
 import { SqliteValue } from "../../src/Sqlite.js";
 import type { TestDeps } from "../../src/Test.js";
 import { createTestDeps } from "../../src/Test.js";
 import {
-	createId,
-	dateToDateIso,
-	NonNegativeInt,
-	PositiveInt,
+    NonNegativeInt,
+    PositiveInt,
+    createId,
+    dateToDateIso,
 } from "../../src/Type.js";
+import type { NonEmptyReadonlyArray } from "../../src/index.js";
+import { EncryptionKey, assertNonEmptyArray } from "../../src/index.js";
+import type { TimestampsRangeWithTimestampsBuffer } from "../../src/local-first/Protocol.js";
+import {
+    MessageType,
+    ProtocolMessageMaxSize,
+    ProtocolMessageRangesMaxSize,
+    ProtocolValueType,
+    SubscriptionFlags,
+    applyProtocolMessageAsClient,
+    applyProtocolMessageAsRelay,
+    createProtocolMessageBuffer,
+    createProtocolMessageForSync,
+    createProtocolMessageFromCrdtMessages,
+    createTimestampsBuffer,
+    decodeFlags,
+    decodeLength,
+    decodeNodeId,
+    decodeNonNegativeInt,
+    decodeNumber,
+    decodeRle,
+    decodeSqliteValue,
+    decodeString,
+    decryptAndDecodeDbChange,
+    defaultProtocolMessageRangesMaxSize,
+    encodeAndEncryptDbChange,
+    encodeFlags,
+    encodeLength,
+    encodeNodeId,
+    encodeNonNegativeInt,
+    encodeNumber,
+    encodeSqliteValue,
+    encodeString,
+    protocolVersion,
+} from "../../src/local-first/Protocol.js";
+import type {
+    CrdtMessage,
+    EncryptedCrdtMessage,
+    EncryptedDbChange,
+    Storage,
+    StorageDep,
+} from "../../src/local-first/Storage.js";
+import {
+    DbChange,
+    InfiniteUpperBound,
+    RangeType,
+    timestampBytesToFingerprint,
+} from "../../src/local-first/Storage.js";
+import {
+    createInitialTimestamp,
+    timestampBytesToTimestamp,
+    timestampToTimestampBytes,
+} from "../../src/local-first/Timestamp.js";
 import { testCreateRelayStorageAndSqliteDeps } from "../_deps.js";
 import {
-	maxTimestamp,
-	testOwner,
-	testOwnerIdBytes,
-	testTimestampsAsc,
-	testTimestampsRandom,
+    maxTimestamp,
+    testOwner,
+    testOwnerIdBytes,
+    testTimestampsAsc,
+    testTimestampsRandom,
 } from "./_fixtures.js";
 
 beforeAll(async () => {
@@ -1230,8 +1230,8 @@ describe("E2E sync", () => {
 		assertNonEmptyArray(firstHalf);
 		assertNonEmptyArray(secondHalf);
 
-		await clientStorage.writeMessages(testOwnerIdBytes, firstHalf);
-		await relayStorage.writeMessages(testOwnerIdBytes, secondHalf);
+		await clientStorage.writeMessages(testOwnerIdBytes, firstHalf as any);
+		await relayStorage.writeMessages(testOwnerIdBytes, secondHalf as any);
 
 		const syncSteps = await reconcile(clientStorage, relayStorage);
 		expect(syncSteps).toMatchInlineSnapshot(`
@@ -1260,8 +1260,8 @@ describe("E2E sync", () => {
 		assertNonEmptyArray(firstHalf);
 		assertNonEmptyArray(secondHalf);
 
-		await clientStorage.writeMessages(testOwnerIdBytes, firstHalf);
-		await relayStorage.writeMessages(testOwnerIdBytes, secondHalf);
+		await clientStorage.writeMessages(testOwnerIdBytes, firstHalf as any);
+		await relayStorage.writeMessages(testOwnerIdBytes, secondHalf as any);
 
 		const syncSteps = await reconcile(
 			clientStorage,

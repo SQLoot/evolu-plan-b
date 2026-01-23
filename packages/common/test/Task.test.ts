@@ -1,8 +1,8 @@
 import { assert, describe, expect, expectTypeOf, test } from "vitest";
 import {
-	emptyArray,
-	isNonEmptyArray,
-	type NonEmptyReadonlyArray,
+    emptyArray,
+    isNonEmptyArray,
+    type NonEmptyReadonlyArray,
 } from "../src/Array.js";
 import { testCreateConsole } from "../src/Console.js";
 import { exhaustiveCheck, lazyVoid } from "../src/Function.js";
@@ -11,68 +11,84 @@ import { createRef } from "../src/Ref.js";
 import type { Done, Result } from "../src/Result.js";
 import { done, err, ok, tryAsync } from "../src/Result.js";
 import {
-	exponential,
-	fixed,
-	spaced,
-	take,
-	whileScheduleInput,
+    exponential,
+    fixed,
+    spaced,
+    take,
+    whileScheduleInput,
 } from "../src/Schedule.js";
 import type {
-	Fiber,
-	FiberState,
-	InferFiberErr,
-	InferFiberOk,
-	InferTaskDone,
-	InferTaskErr,
-	InferTaskOk,
-	NextTask,
-	RetryError,
-	Runner,
-	RunnerConfigDep,
-	RunnerDeps,
-	Task,
+    Fiber,
+    FiberState,
+    InferFiberErr,
+    InferFiberOk,
+    InferTaskDone,
+    InferTaskErr,
+    InferTaskOk,
+    NextTask,
+    RetryError,
+    Runner,
+    RunnerConfigDep,
+    RunnerDeps,
+    Task,
 } from "../src/Task.js";
 import {
-	AbortError,
-	all,
-	AllAbortError,
-	allSettled,
-	AllSettledAbortError,
-	any,
-	AnyAbortError,
-	AsyncDisposableStack,
-	createDeferred,
-	createGate,
-	createMutex,
-	createRunner,
-	createSemaphore,
-	deferredDisposedError,
-	DeferredDisposedError,
-	forEach,
-	ForEachAbortError,
-	forEachSettled,
-	ForEachSettledAbortError,
-	race,
-	RaceLostError,
-	repeat,
-	retry,
-	runnerClosingError,
-	RunnerEvent,
-	sleep,
-	timeout,
-	TimeoutError,
-	unabortable,
-	unabortableMask,
-	withConcurrency,
-	yieldNow,
+    AbortError,
+    AllAbortError,
+    AllSettledAbortError,
+    AnyAbortError,
+    AsyncDisposableStack,
+    DeferredDisposedError,
+    ForEachAbortError,
+    ForEachSettledAbortError,
+    RaceLostError,
+    RunnerEvent,
+    TimeoutError,
+    all,
+    allSettled,
+    any,
+    createDeferred,
+    createGate,
+    createMutex,
+    createRunner,
+    createSemaphore,
+    deferredDisposedError,
+    forEach,
+    forEachSettled,
+    race,
+    repeat,
+    retry,
+    runnerClosingError,
+    sleep,
+    timeout,
+    unabortable,
+    unabortableMask,
+    withConcurrency,
+    yieldNow,
 } from "../src/Task.js";
 import { createTestDeps, createTestRunner } from "../src/Test.js";
-import { createTime, Millis, msLongTask, testCreateTime } from "../src/Time.js";
+import { Millis, createTime, msLongTask, testCreateTime } from "../src/Time.js";
 import type { Typed } from "../src/Type.js";
-import { Id, minPositiveInt, PositiveInt } from "../src/Type.js";
+import { Id, PositiveInt, minPositiveInt } from "../src/Type.js";
 
 const eventsEnabled: RunnerConfigDep = {
 	runnerConfig: { eventsEnabled: createRef(true) },
+};
+
+const withResolvers = <T>(): {
+	promise: Promise<T>;
+	resolve: (value: T | PromiseLike<T>) => void;
+	reject: (reason?: any) => void;
+} => {
+	let resolve: (value: T | PromiseLike<T>) => void;
+	let reject: (reason?: any) => void;
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	const promise = new Promise<T>((res, rej) => {
+		resolve = res;
+		reject = rej;
+	});
+	// @ts-expect-error assigned in executor
+	return { promise, resolve, reject };
 };
 
 interface MyError extends Typed<"MyError"> {}
@@ -264,7 +280,7 @@ describe("Runner", () => {
 			await using run = createTestRunner({ ...deps, ...eventsEnabled });
 
 			const events: Array<RunnerEvent> = [];
-			const taskComplete = Promise.withResolvers<Result<void>>();
+			const taskComplete = withResolvers<Result<void>>();
 
 			run.onEvent = (event) => {
 				events.push(event);
@@ -288,7 +304,7 @@ describe("Runner", () => {
 			await using run = createTestRunner(eventsEnabled);
 
 			const events: Array<RunnerEvent> = [];
-			const taskComplete = Promise.withResolvers<Result<void>>();
+			const taskComplete = withResolvers<Result<void>>();
 
 			const fiber = run(() => taskComplete.promise);
 
@@ -329,7 +345,7 @@ describe("Runner", () => {
 				events.push({ level: "root", event });
 			};
 
-			const taskComplete = Promise.withResolvers<Result<void>>();
+			const taskComplete = withResolvers<Result<void>>();
 
 			const fiber = run(async (parentRun) => {
 				parentRun.onEvent = (event) => {
@@ -342,7 +358,7 @@ describe("Runner", () => {
 					};
 
 					// Start a grandchild
-					const grandchildComplete = Promise.withResolvers<Result<void>>();
+					const grandchildComplete = withResolvers<Result<void>>();
 					const grandchild = childRun(() => grandchildComplete.promise);
 					grandchildComplete.resolve(ok());
 					await grandchild;
@@ -399,7 +415,7 @@ describe("Runner", () => {
 		test("returns new reference when children change", async () => {
 			await using run = createRunner();
 
-			const taskComplete = Promise.withResolvers<Result<void>>();
+			const taskComplete = withResolvers<Result<void>>();
 
 			const task = () => taskComplete.promise;
 
@@ -423,8 +439,8 @@ describe("Runner", () => {
 		test("preserves child snapshot references when sibling changes", async () => {
 			await using run = createRunner();
 
-			const task1Complete = Promise.withResolvers<Result<void>>();
-			const task2Complete = Promise.withResolvers<Result<void>>();
+			const task1Complete = withResolvers<Result<void>>();
+			const task2Complete = withResolvers<Result<void>>();
 
 			const fiber1 = run(() => task1Complete.promise);
 			const fiber2 = run(() => task2Complete.promise);
@@ -457,7 +473,7 @@ describe("Runner", () => {
 
 			// Start 5 concurrent fibers
 			const fibers = Array.from({ length: 5 }, () => {
-				const taskComplete = Promise.withResolvers<Result<number>>();
+				const taskComplete = withResolvers<Result<number>>();
 				taskCompletes.push(taskComplete);
 				return run(() => taskComplete.promise);
 			});
@@ -522,8 +538,8 @@ describe("Runner", () => {
 			await using run = createRunner();
 
 			const events: Array<string> = [];
-			const taskStarted = Promise.withResolvers<void>();
-			const canComplete = Promise.withResolvers<void>();
+			const taskStarted = withResolvers<void>();
+			const canComplete = withResolvers<void>();
 
 			const cleanup = () => {
 				events.push("cleanup");
@@ -564,7 +580,7 @@ describe("Runner", () => {
 					(id: string): Task<string> =>
 					async ({ signal }) => {
 						const taskComplete =
-							Promise.withResolvers<Result<string, AbortError>>();
+							withResolvers<Result<string, AbortError>>();
 
 						const timeout = setTimeout(() => {
 							results.push(`${id} completed`);
@@ -598,8 +614,8 @@ describe("Runner", () => {
 			expectTypeOf(run.getState()).toEqualTypeOf<FiberState>();
 			expect(run.getState().type).toBe("running");
 
-			const taskStarted = Promise.withResolvers<void>();
-			const taskCanFinish = Promise.withResolvers<void>();
+			const taskStarted = withResolvers<void>();
+			const taskCanFinish = withResolvers<void>();
 
 			let stateInAbortHandler: FiberState | undefined;
 			let stateAfterAwait: FiberState | undefined;
@@ -745,8 +761,8 @@ describe("Runner", () => {
 		test("passes the abort reason directly, not wrapped in AbortError", async () => {
 			await using run = createRunner();
 
-			const receivedReason = Promise.withResolvers<unknown>();
-			const taskStarted = Promise.withResolvers<void>();
+			const receivedReason = withResolvers<unknown>();
+			const taskStarted = withResolvers<void>();
 
 			const fiber = run(async (childRun) => {
 				childRun.onAbort((reason) => {
@@ -770,8 +786,8 @@ describe("Runner", () => {
 		test("receives undefined when aborted without reason", async () => {
 			await using run = createRunner();
 
-			const receivedReason = Promise.withResolvers<unknown>();
-			const taskStarted = Promise.withResolvers<void>();
+			const receivedReason = withResolvers<unknown>();
+			const taskStarted = withResolvers<void>();
 
 			const fiber = run(async (childRun) => {
 				childRun.onAbort((reason) => {
@@ -795,8 +811,8 @@ describe("Runner", () => {
 		test("invokes callback immediately when already aborted", async () => {
 			await using run = createRunner();
 
-			const receivedReason = Promise.withResolvers<unknown>();
-			const allowRegister = Promise.withResolvers<void>();
+			const receivedReason = withResolvers<unknown>();
+			const allowRegister = withResolvers<void>();
 
 			const fiber = run(async (childRun) => {
 				await allowRegister.promise;
@@ -972,7 +988,7 @@ describe("Fiber", () => {
 			let signalAbortedInHandler = false;
 
 			const task: Task<void> = async ({ signal }) => {
-				const taskComplete = Promise.withResolvers<Result<void, AbortError>>();
+				const taskComplete = withResolvers<Result<void, AbortError>>();
 
 				const timeout = setTimeout(() => {
 					taskComplete.resolve(ok());
@@ -1017,7 +1033,7 @@ describe("Fiber", () => {
 				readonly error: unknown;
 			}
 
-			const errorCapture = Promise.withResolvers<unknown>();
+			const errorCapture = withResolvers<unknown>();
 
 			const fetchTask =
 				(url: string): Task<Response, FetchError> =>
@@ -1055,7 +1071,7 @@ describe("Fiber", () => {
 			await using run = createRunner();
 
 			const task: Task<void> = async ({ signal }) => {
-				const taskComplete = Promise.withResolvers<Result<void, AbortError>>();
+				const taskComplete = withResolvers<Result<void, AbortError>>();
 
 				const timeout = setTimeout(() => {
 					taskComplete.resolve(ok());
@@ -1091,7 +1107,7 @@ describe("Fiber", () => {
 	test("getState returns running while running, completed with result after completion", async () => {
 		await using run = createRunner();
 
-		const taskComplete = Promise.withResolvers<Result<number, MyError>>();
+		const taskComplete = withResolvers<Result<number, MyError>>();
 
 		const fiber = run(() => taskComplete.promise);
 
@@ -1109,7 +1125,7 @@ describe("Fiber", () => {
 	test("completed state outcome equals result when not aborted", async () => {
 		await using run = createRunner();
 
-		const taskComplete = Promise.withResolvers<Result<number, MyError>>();
+		const taskComplete = withResolvers<Result<number, MyError>>();
 
 		const fiber = run(() => taskComplete.promise);
 
@@ -1168,7 +1184,7 @@ describe("Fiber", () => {
 		test("snapshot returns running state while running, completed with result after completion", async () => {
 			await using run = createRunner();
 
-			const taskComplete = Promise.withResolvers<Result<number>>();
+			const taskComplete = withResolvers<Result<number>>();
 
 			const fiber = run(() => taskComplete.promise);
 			expect(fiber.run.snapshot().state.type).toBe("running");
@@ -1184,7 +1200,7 @@ describe("Fiber", () => {
 	describe("daemon", () => {
 		test("called directly on root runner", async () => {
 			const events: Array<string> = [];
-			const daemonCanComplete = Promise.withResolvers<void>();
+			const daemonCanComplete = withResolvers<void>();
 
 			await using run = createRunner();
 
@@ -1208,7 +1224,7 @@ describe("Fiber", () => {
 
 		test("outlives parent task", async () => {
 			const events: Array<string> = [];
-			const daemonCanComplete = Promise.withResolvers<void>();
+			const daemonCanComplete = withResolvers<void>();
 			let daemonFiber: Fiber<void>;
 
 			await using run = createRunner();
@@ -1254,7 +1270,7 @@ describe("Fiber", () => {
 
 			const daemonTask: Task<void> = async ({ signal }) => {
 				events.push("daemon started");
-				const taskComplete = Promise.withResolvers<Result<void, AbortError>>();
+				const taskComplete = withResolvers<Result<void, AbortError>>();
 
 				const timeout = setTimeout(() => {
 					events.push("daemon completed");
@@ -1290,7 +1306,7 @@ describe("Fiber", () => {
 
 		test("from nested task runs on root runner", async () => {
 			const events: Array<string> = [];
-			const daemonCanComplete = Promise.withResolvers<void>();
+			const daemonCanComplete = withResolvers<void>();
 			let daemonFiber: Fiber<void>;
 
 			await using run = createRunner();
@@ -1407,7 +1423,7 @@ describe("unabortable", () => {
 	test("with abort during run masks signal and completes", async () => {
 		await using run = createRunner();
 
-		const canComplete = Promise.withResolvers<void>();
+		const canComplete = withResolvers<void>();
 		let signalAbortedAtStart = true;
 		let signalAbortedAfterAbort = true;
 
@@ -1499,8 +1515,8 @@ describe("unabortableMask", () => {
 		await using run = createRunner();
 
 		const events: Array<string> = [];
-		const acquireStarted = Promise.withResolvers<void>();
-		const canContinue = Promise.withResolvers<void>();
+		const acquireStarted = withResolvers<void>();
+		const canContinue = withResolvers<void>();
 		let signalAbortedAtStart = true;
 		let signalAbortedAfterAwait = true;
 		let signalAbortedInMaskedTask = true;
@@ -1550,8 +1566,8 @@ describe("unabortableMask", () => {
 		await using run = createRunner();
 
 		const events: Array<string> = [];
-		const innerStarted = Promise.withResolvers<void>();
-		const canContinue = Promise.withResolvers<void>();
+		const innerStarted = withResolvers<void>();
+		const canContinue = withResolvers<void>();
 
 		const task = unabortableMask((restore1) => async (run) => {
 			// mask = 1
@@ -1730,8 +1746,8 @@ describe("AsyncDisposableStack", () => {
 			await using run = createRunner();
 
 			const events: Array<string> = [];
-			const taskStarted = Promise.withResolvers<void>();
-			const canComplete = Promise.withResolvers<void>();
+			const taskStarted = withResolvers<void>();
+			const canComplete = withResolvers<void>();
 
 			const task: Task<void, AbortError> = async (run) => {
 				await using stack = run.stack();
@@ -1928,7 +1944,7 @@ describe("AsyncDisposableStack", () => {
 			await using run = createRunner();
 
 			const events: Array<string> = [];
-			const canComplete = Promise.withResolvers<void>();
+			const canComplete = withResolvers<void>();
 
 			const slowAcquire: Task<Resource> = async ({ signal }) => {
 				events.push(`acquire started, aborted: ${signal.aborted}`);
@@ -2151,8 +2167,8 @@ describe("AsyncDisposableStack", () => {
 			await using run = createRunner();
 
 			const events: Array<string> = [];
-			const taskStarted = Promise.withResolvers<void>();
-			const canComplete = Promise.withResolvers<void>();
+			const taskStarted = withResolvers<void>();
+			const canComplete = withResolvers<void>();
 
 			const task: Task<void, AbortError> = async (run) => {
 				await using stack = run.stack();
@@ -2270,7 +2286,7 @@ describe("AsyncDisposableStack", () => {
 			await using run = createRunner();
 
 			const events: Array<string> = [];
-			const canContinue = Promise.withResolvers<void>();
+			const canContinue = withResolvers<void>();
 
 			// Abortable factory - if aborted, acquired resources are cleaned up
 			const createBundle: Task<
@@ -2449,8 +2465,8 @@ describe("AsyncDisposableStack", () => {
 			await using run = createRunner();
 
 			const events: Array<string> = [];
-			const workStarted = Promise.withResolvers<void>();
-			const canComplete = Promise.withResolvers<void>();
+			const workStarted = withResolvers<void>();
+			const canComplete = withResolvers<void>();
 
 			const cleanupHelper = () => {
 				events.push("cleanup helper ran");
@@ -2592,7 +2608,7 @@ describe("race", () => {
 	test("returns first task to succeed and aborts others", async () => {
 		await using run = createRunner();
 
-		const slowObservedAbort = Promise.withResolvers<unknown>();
+		const slowObservedAbort = withResolvers<unknown>();
 
 		const fast = () => ok("fast");
 		const slow = async ({ signal }: { signal: AbortSignal }) => {
@@ -2614,7 +2630,7 @@ describe("race", () => {
 	test("returns first task to fail and aborts others", async () => {
 		await using run = createRunner();
 
-		const slowObservedAbort = Promise.withResolvers<unknown>();
+		const slowObservedAbort = withResolvers<unknown>();
 
 		interface FastError extends Typed<"FastError"> {}
 
@@ -2640,7 +2656,7 @@ describe("race", () => {
 	test("aborts others when one throws", async () => {
 		await using run = createRunner();
 
-		const slowObservedAbort = Promise.withResolvers<unknown>();
+		const slowObservedAbort = withResolvers<unknown>();
 
 		const throwing = () => {
 			throw new Error("boom");
@@ -2724,8 +2740,8 @@ describe("race", () => {
 	test("propagates external abort to all raced tasks", async () => {
 		await using run = createRunner();
 
-		const task1ObservedAbort = Promise.withResolvers<unknown>();
-		const task2ObservedAbort = Promise.withResolvers<unknown>();
+		const task1ObservedAbort = withResolvers<unknown>();
+		const task2ObservedAbort = withResolvers<unknown>();
 
 		const task1: Task<string> = async ({ signal }) => {
 			await Promise.resolve();
@@ -2763,7 +2779,7 @@ describe("race", () => {
 	test("uses custom abortReason for losing tasks", async () => {
 		await using run = createRunner();
 
-		const slowObservedAbort = Promise.withResolvers<unknown>();
+		const slowObservedAbort = withResolvers<unknown>();
 
 		const fast = () => ok("fast");
 		const slow = async ({ signal }: { signal: AbortSignal }) => {
@@ -2815,7 +2831,7 @@ describe("timeout", () => {
 		const time = testCreateTime();
 		await using run = createTestRunner({ time });
 
-		const abortReasonCapture = Promise.withResolvers<unknown>();
+		const abortReasonCapture = withResolvers<unknown>();
 
 		const slow: Task<void> = async ({ onAbort }) => {
 			onAbort((reason) => {
@@ -2841,7 +2857,7 @@ describe("timeout", () => {
 		await using run = createTestRunner({ time });
 
 		const customReason = { type: "CustomTimeout" };
-		const abortReasonCapture = Promise.withResolvers<unknown>();
+		const abortReasonCapture = withResolvers<unknown>();
 
 		const slow: Task<void> = async ({ onAbort }) => {
 			onAbort((reason) => {
@@ -2866,7 +2882,7 @@ describe("timeout", () => {
 		await using run = createTestRunner({ time });
 
 		let taskCompleted = false;
-		const completionCapture = Promise.withResolvers<void>();
+		const completionCapture = withResolvers<void>();
 
 		const slow: Task<void, AbortError> = unabortable(async (run) => {
 			const result = await run(sleep("100ms"));
@@ -3043,7 +3059,7 @@ describe("retry", () => {
 	test("propagates abort to running task", async () => {
 		await using run = createRunner();
 
-		const taskStarted = Promise.withResolvers<void>();
+		const taskStarted = withResolvers<void>();
 
 		const task: Task<void, MyError> = async (run) => {
 			taskStarted.resolve();
@@ -3652,7 +3668,7 @@ describe("concurrency", () => {
 			await using run = createRunner();
 
 			const events: Array<string> = [];
-			const canFinish = Promise.withResolvers<void>();
+			const canFinish = withResolvers<void>();
 
 			const createTask =
 				(id: number): Task<number> =>
@@ -3679,7 +3695,7 @@ describe("concurrency", () => {
 			await using run = createRunner();
 
 			const events: Array<string> = [];
-			const canFinish = Promise.withResolvers<void>();
+			const canFinish = withResolvers<void>();
 
 			const createTask =
 				(id: number): Task<number> =>
@@ -3691,7 +3707,7 @@ describe("concurrency", () => {
 				};
 
 			const fiber = run(
-				withConcurrency(2, (run) =>
+				withConcurrency(2 as PositiveInt, (run) =>
 					run(
 						all([createTask(1), createTask(2), createTask(3), createTask(4)]),
 					),
@@ -3712,7 +3728,7 @@ describe("concurrency", () => {
 			await using run = createRunner();
 
 			const events: Array<string> = [];
-			const canFinish = Promise.withResolvers<void>();
+			const canFinish = withResolvers<void>();
 
 			const createTask =
 				(id: number): Task<number> =>
@@ -3724,9 +3740,9 @@ describe("concurrency", () => {
 				};
 
 			const fiber = run(
-				withConcurrency(5, (run) =>
+				withConcurrency(5 as PositiveInt, (run) =>
 					run(
-						withConcurrency(1, (run) =>
+						withConcurrency(1 as PositiveInt, (run) =>
 							run(all([createTask(1), createTask(2), createTask(3)])),
 						),
 					),
@@ -3778,7 +3794,7 @@ describe("concurrency", () => {
 			await using run = createRunner();
 
 			const events: Array<string> = [];
-			const canFinish = Promise.withResolvers<void>();
+			const canFinish = withResolvers<void>();
 
 			const createTask =
 				(id: number): Task<number> =>
@@ -4163,7 +4179,7 @@ describe("concurrency", () => {
 		test("runs a task", async () => {
 			await using run = createRunner();
 
-			const semaphore = createSemaphore(1);
+			const semaphore = createSemaphore(1 as PositiveInt);
 
 			const result = await run(semaphore.withPermit(() => ok("ran")));
 
@@ -4173,12 +4189,12 @@ describe("concurrency", () => {
 		test("limits concurrent tasks to permit count", async () => {
 			await using run = createRunner();
 
-			const semaphore = createSemaphore(2);
+			const semaphore = createSemaphore(2 as PositiveInt);
 			const events: Array<string> = [];
 
-			const task1Started = Promise.withResolvers<void>();
-			const task2Started = Promise.withResolvers<void>();
-			const canFinish = Promise.withResolvers<void>();
+			const task1Started = withResolvers<void>();
+			const task2Started = withResolvers<void>();
+			const canFinish = withResolvers<void>();
 
 			const createTask =
 				(id: number, started: () => void): Task<void> =>
@@ -4202,7 +4218,7 @@ describe("concurrency", () => {
 			await task2Started.promise;
 
 			// Third task should be queued
-			const task3Started = Promise.withResolvers<void>();
+			const task3Started = withResolvers<void>();
 			const fiber3 = run(
 				semaphore.withPermit(createTask(3, task3Started.resolve)),
 			);
@@ -4224,11 +4240,11 @@ describe("concurrency", () => {
 		test("queues tasks when permits exhausted", async () => {
 			await using run = createRunner();
 
-			const semaphore = createSemaphore(1);
+			const semaphore = createSemaphore(1 as PositiveInt);
 			const events: Array<string> = [];
 
-			const task1Started = Promise.withResolvers<void>();
-			const task1CanFinish = Promise.withResolvers<void>();
+			const task1Started = withResolvers<void>();
+			const task1CanFinish = withResolvers<void>();
 
 			const fiber1 = run(
 				semaphore.withPermit(async () => {
@@ -4264,7 +4280,7 @@ describe("concurrency", () => {
 		test("returns task result", async () => {
 			await using run = createRunner();
 
-			const semaphore = createSemaphore(1);
+			const semaphore = createSemaphore(1 as PositiveInt);
 
 			const okResult = await run(semaphore.withPermit(() => ok(42)));
 			const errResult = await run(
@@ -4278,7 +4294,7 @@ describe("concurrency", () => {
 		test("releases permit when task succeeds", async () => {
 			await using run = createRunner();
 
-			const semaphore = createSemaphore(1);
+			const semaphore = createSemaphore(1 as PositiveInt);
 
 			// First task succeeds
 			await run(semaphore.withPermit(() => ok("first")));
@@ -4298,7 +4314,7 @@ describe("concurrency", () => {
 		test("releases permit when task fails", async () => {
 			await using run = createRunner();
 
-			const semaphore = createSemaphore(1);
+			const semaphore = createSemaphore(1 as PositiveInt);
 
 			// First task fails
 			await run(semaphore.withPermit(() => err({ type: "MyError" })));
@@ -4318,11 +4334,11 @@ describe("concurrency", () => {
 		test("abort while waiting removes from queue", async () => {
 			await using run = createRunner();
 
-			const semaphore = createSemaphore(1);
+			const semaphore = createSemaphore(1 as PositiveInt);
 			const events: Array<string> = [];
 
-			const task1Started = Promise.withResolvers<void>();
-			const task1CanFinish = Promise.withResolvers<void>();
+			const task1Started = withResolvers<void>();
+			const task1CanFinish = withResolvers<void>();
 
 			const fiber1 = run(
 				semaphore.withPermit(async () => {
@@ -4368,7 +4384,7 @@ describe("concurrency", () => {
 		test("abort while running aborts task", async () => {
 			await using run = createRunner();
 
-			const semaphore = createSemaphore(1);
+			const semaphore = createSemaphore(1 as PositiveInt);
 			let abortReceived = false;
 
 			const fiber = run(
@@ -4393,10 +4409,10 @@ describe("concurrency", () => {
 		test("dispose aborts running tasks", async () => {
 			await using run = createRunner();
 
-			const semaphore = createSemaphore(1);
+			const semaphore = createSemaphore(1 as PositiveInt);
 			const events: Array<string> = [];
 
-			const taskStarted = Promise.withResolvers<void>();
+			const taskStarted = withResolvers<void>();
 
 			const fiber = run(
 				semaphore.withPermit(({ signal }) => {
@@ -4428,9 +4444,9 @@ describe("concurrency", () => {
 		test("dispose aborts waiting tasks", async () => {
 			await using run = createRunner();
 
-			const semaphore = createSemaphore(1);
+			const semaphore = createSemaphore(1 as PositiveInt);
 
-			const task1Started = Promise.withResolvers<void>();
+			const task1Started = withResolvers<void>();
 
 			// Hold the permit with a task that listens for abort
 			const fiber1 = run(
@@ -4473,7 +4489,7 @@ describe("concurrency", () => {
 		test("acquire after dispose returns SemaphoreDisposedError", async () => {
 			await using run = createRunner();
 
-			const semaphore = createSemaphore(1);
+			const semaphore = createSemaphore(1 as PositiveInt);
 			semaphore[Symbol.dispose]();
 
 			const result = await run(
@@ -4489,7 +4505,7 @@ describe("concurrency", () => {
 		});
 
 		test("dispose is idempotent", () => {
-			const semaphore = createSemaphore(1);
+			const semaphore = createSemaphore(1 as PositiveInt);
 
 			semaphore[Symbol.dispose]();
 			semaphore[Symbol.dispose]();
@@ -4501,11 +4517,11 @@ describe("concurrency", () => {
 		test("preserves FIFO order for queued tasks", async () => {
 			await using run = createRunner();
 
-			const semaphore = createSemaphore(1);
+			const semaphore = createSemaphore(1 as PositiveInt);
 			const events: Array<string> = [];
 
-			const task1Started = Promise.withResolvers<void>();
-			const task1CanFinish = Promise.withResolvers<void>();
+			const task1Started = withResolvers<void>();
+			const task1CanFinish = withResolvers<void>();
 
 			// Hold the permit
 			const fiber1 = run(
@@ -4548,11 +4564,11 @@ describe("concurrency", () => {
 		test("multiple permits allow concurrent execution", async () => {
 			await using run = createRunner();
 
-			const semaphore = createSemaphore(3);
+			const semaphore = createSemaphore(3 as PositiveInt);
 			let concurrent = 0;
 			let maxConcurrent = 0;
 
-			const taskFinished = Promise.withResolvers<void>();
+			const taskFinished = withResolvers<void>();
 			let finishedCount = 0;
 
 			const createTask = (): Task<void> => async () => {
@@ -4585,9 +4601,9 @@ describe("concurrency", () => {
 			const mutex = createMutex();
 			const events: Array<string> = [];
 
-			const firstStarted = Promise.withResolvers<void>();
-			const firstFinish = Promise.withResolvers<void>();
-			const secondStarted = Promise.withResolvers<void>();
+			const firstStarted = withResolvers<void>();
+			const firstFinish = withResolvers<void>();
+			const secondStarted = withResolvers<void>();
 
 			const firstTask: Task<void> = async () => {
 				events.push("start 1");
@@ -4667,7 +4683,7 @@ describe("all", () => {
 		await using run = createRunner();
 
 		const events: Array<string> = [];
-		const canFail = Promise.withResolvers<void>();
+		const canFail = withResolvers<void>();
 
 		const slowTask: Task<string> = async ({ signal }) => {
 			events.push("slow start");
@@ -4709,7 +4725,7 @@ describe("all", () => {
 	test("aborts others when a task throws", async () => {
 		await using run = createRunner();
 
-		const slowObservedAbort = Promise.withResolvers<unknown>();
+		const slowObservedAbort = withResolvers<unknown>();
 
 		const slowTask: Task<void> = async (run) => {
 			await new Promise<void>((resolve) => {
@@ -4750,7 +4766,7 @@ describe("all", () => {
 			err({ type: "AbortError", cause: abortCause });
 
 		const fiber = run(
-			withConcurrency(3, all([waitForAbort, abortingTask, waitForAbort])),
+			withConcurrency(3 as PositiveInt, all([waitForAbort, abortingTask, waitForAbort])),
 		);
 
 		const result = await fiber;
@@ -4763,7 +4779,7 @@ describe("all", () => {
 		await using run = createRunner();
 
 		const events: Array<string> = [];
-		const canFinish = Promise.withResolvers<void>();
+		const canFinish = withResolvers<void>();
 
 		const createTask =
 			(id: number): Task<number> =>
@@ -4776,7 +4792,7 @@ describe("all", () => {
 
 		const fiber = run(
 			withConcurrency(
-				2,
+				2 as PositiveInt,
 				all([createTask(1), createTask(2), createTask(3), createTask(4)]),
 			),
 		);
@@ -4823,7 +4839,7 @@ describe("all", () => {
 		await using run = createRunner();
 
 		const events: Array<string> = [];
-		const canFail = Promise.withResolvers<void>();
+		const canFail = withResolvers<void>();
 
 		const goodTask: Task<string> = async ({ signal }) => {
 			events.push("good start");
@@ -4865,7 +4881,7 @@ describe("all", () => {
 		await using run = createRunner();
 
 		const events: Array<string> = [];
-		const canFinish = Promise.withResolvers<void>();
+		const canFinish = withResolvers<void>();
 
 		const createTask =
 			(id: string): Task<string> =>
@@ -5123,7 +5139,7 @@ describe("allSettled", () => {
 		await using run = createRunner();
 
 		const events: Array<string> = [];
-		const canFinish = Promise.withResolvers<void>();
+		const canFinish = withResolvers<void>();
 
 		const createTask =
 			(id: string): Task<string> =>
@@ -5164,7 +5180,7 @@ describe("allSettled", () => {
 		await using run = createRunner();
 
 		const events: Array<string> = [];
-		const canFinish = Promise.withResolvers<void>();
+		const canFinish = withResolvers<void>();
 
 		const createTask =
 			(id: number): Task<number> =>
@@ -5177,7 +5193,7 @@ describe("allSettled", () => {
 
 		const fiber = run(
 			withConcurrency(
-				2,
+				2 as PositiveInt,
 				allSettled([createTask(1), createTask(2), createTask(3)]),
 			),
 		);
@@ -5216,7 +5232,7 @@ describe("allSettled", () => {
 	test("aborts others when a task throws", async () => {
 		await using run = createRunner();
 
-		const slowObservedAbort = Promise.withResolvers<unknown>();
+		const slowObservedAbort = withResolvers<unknown>();
 
 		const slowTask: Task<void> = async (run) => {
 			await new Promise<void>((resolve) => {
@@ -5289,7 +5305,7 @@ describe("forEach", () => {
 		await using run = createRunner();
 
 		const events: Array<string> = [];
-		const canFinish = Promise.withResolvers<void>();
+		const canFinish = withResolvers<void>();
 
 		const createTask =
 			(id: number): Task<void> =>
@@ -5302,7 +5318,7 @@ describe("forEach", () => {
 
 		const fiber = run(
 			withConcurrency(
-				2,
+				2 as PositiveInt,
 				forEach([createTask(1), createTask(2), createTask(3)]),
 			),
 		);
@@ -5319,7 +5335,7 @@ describe("forEach", () => {
 	test("aborts others when a task fails", async () => {
 		await using run = createRunner();
 
-		const slowObservedAbort = Promise.withResolvers<unknown>();
+		const slowObservedAbort = withResolvers<unknown>();
 
 		const slowTask: Task<void> = async (run) => {
 			await new Promise<void>((resolve) => {
@@ -5343,7 +5359,7 @@ describe("forEach", () => {
 	test("aborts others when a task throws", async () => {
 		await using run = createRunner();
 
-		const slowObservedAbort = Promise.withResolvers<unknown>();
+		const slowObservedAbort = withResolvers<unknown>();
 
 		const slowTask: Task<void> = async (run) => {
 			await new Promise<void>((resolve) => {
@@ -5396,7 +5412,7 @@ describe("forEachSettled", () => {
 	test("aborts others when a task throws", async () => {
 		await using run = createRunner();
 
-		const slowObservedAbort = Promise.withResolvers<unknown>();
+		const slowObservedAbort = withResolvers<unknown>();
 
 		const slowTask: Task<void> = async (run) => {
 			await new Promise<void>((resolve) => {
@@ -5433,7 +5449,7 @@ describe("any", () => {
 		await using run = createRunner();
 
 		const events: Array<string> = [];
-		const canFinish = Promise.withResolvers<void>();
+		const canFinish = withResolvers<void>();
 
 		const slow: Task<string> = async () => {
 			events.push("slow start");
@@ -5511,7 +5527,7 @@ describe("any", () => {
 			readonly id: "slow" | "fast";
 		}
 
-		const canFinish = Promise.withResolvers<void>();
+		const canFinish = withResolvers<void>();
 
 		const slow: Task<never, MyError> = async () => {
 			await canFinish.promise;
@@ -5537,7 +5553,7 @@ describe("any", () => {
 			readonly id: "slow" | "fast";
 		}
 
-		const canFinish = Promise.withResolvers<void>();
+		const canFinish = withResolvers<void>();
 
 		const slow: Task<never, MyError> = async () => {
 			await canFinish.promise;
@@ -5560,7 +5576,7 @@ describe("any", () => {
 	test("aborts others when first succeeds", async () => {
 		await using run = createRunner();
 
-		const slowAbortReason = Promise.withResolvers<unknown>();
+		const slowAbortReason = withResolvers<unknown>();
 
 		const slow: Task<string> = async (run) => {
 			await new Promise<void>((resolve) => {
@@ -5665,6 +5681,7 @@ describe("examples TODO", () => {
 
 			const deps: RunnerDeps & NativeFetchDep = {
 				...createTestDeps(),
+				console: testCreateConsole(),
 				fetch: globalThis.fetch,
 			};
 
@@ -5678,7 +5695,7 @@ describe("examples TODO", () => {
 
 			// At most 2 concurrent requests
 			const _result = await run(
-				withConcurrency(2, all(urls.map(fetchWithRetry))),
+				withConcurrency(2 as PositiveInt, all(urls.map(fetchWithRetry))),
 			);
 		});
 
@@ -5705,7 +5722,7 @@ describe("examples TODO", () => {
 			await using run = createRunner();
 			// run.console.enabled = true;
 
-			const semaphore = createSemaphore(2);
+			const semaphore = createSemaphore(2 as PositiveInt);
 
 			const fetchUser =
 				(id: string): Task<string> =>
@@ -5824,7 +5841,7 @@ describe("examples TODO", () => {
 			await using run = createRunner();
 
 			const events: Array<string> = [];
-			const canComplete = Promise.withResolvers<void>();
+			const canComplete = withResolvers<void>();
 			let signalAbortedInAnalytics = true;
 
 			// Simulate async analytics API (abortable by default)

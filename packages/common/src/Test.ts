@@ -4,18 +4,23 @@
  * @module
  */
 
+import { testCreateConsole, type ConsoleDep } from "./Console.js";
 import { testCreateRandomBytes, type RandomBytesDep } from "./Crypto.js";
 import {
-	testCreateRandom,
-	testCreateRandomLib,
-	type RandomDep,
-	type RandomLibDep,
+    testCreateRandom,
+    testCreateRandomLib,
+    type RandomDep,
+    type RandomLibDep,
 } from "./Random.js";
 import { createRunner, type Runner, type RunnerConfigDep } from "./Task.js";
 import { testCreateTime, type TimeDep } from "./Time.js";
 
 /** Test deps created by {@link createTestDeps}. */
-export type TestDeps = RandomDep & RandomLibDep & RandomBytesDep & TimeDep;
+export type TestDeps = RandomDep &
+	RandomLibDep &
+	RandomBytesDep &
+	TimeDep &
+	ConsoleDep;
 
 /**
  * Creates test deps for proper isolation.
@@ -43,7 +48,8 @@ export const createTestDeps = (options?: {
 	const randomLib = testCreateRandomLib(seed);
 	const randomBytes = testCreateRandomBytes({ randomLib });
 	const time = testCreateTime();
-	return { random, randomLib, randomBytes, time };
+	const console = testCreateConsole();
+	return { random, randomLib, randomBytes, time, console };
 };
 
 /**
@@ -81,5 +87,5 @@ export function createTestRunner<D extends TestDeps>(
 	deps?: Partial<TestDeps> & Partial<RunnerConfigDep> & Omit<D, keyof TestDeps>,
 ): Runner<D> {
 	const defaults = createTestDeps();
-	return createRunner<D>({ ...defaults, ...deps } as D);
+	return createRunner<D>({ ...defaults, ...deps } as any as D);
 }

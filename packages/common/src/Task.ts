@@ -1388,7 +1388,7 @@ export const unabortableMask = <T, E, D = unknown>(
 		fn(abortBehavior(AbortMask.orThrow(decrement(run.abortMask))))(run, deps),
 	);
 
-const defaultConcurrency: Concurrency = 1;
+const defaultConcurrency: Concurrency = 1 as Concurrency;
 
 const concurrencyBehaviorSymbol = Symbol("evolu.Task.concurrencyBehavior");
 
