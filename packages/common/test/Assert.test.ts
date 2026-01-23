@@ -1,9 +1,9 @@
 import { expect, test } from "vitest";
 import {
-	assert,
-	assertNonEmptyArray,
-	assertNonEmptyReadonlyArray,
-	assertType,
+    assert,
+    assertNonEmptyArray,
+    assertNonEmptyReadonlyArray,
+    assertType,
 } from "../src/Assert.js";
 import { AbortError } from "../src/Task.js";
 
@@ -52,7 +52,7 @@ test("assertNonEmptyReadonlyArray", () => {
 });
 
 test("assertType", () => {
-	assertType(AbortError, { type: "AbortError", reason: "timeout" });
+	assertType(AbortError, { type: "AbortError", cause: "timeout" });
 
 	expect(() => {
 		assertType(AbortError, { type: "Other" });
