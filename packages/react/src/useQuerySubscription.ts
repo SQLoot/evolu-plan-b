@@ -1,12 +1,14 @@
-const constVoid = () => {};
+
 import {
     emptyRows,
     type Query,
     type QueryRows,
     type Row,
-} from "@evolu/common/local-first";
+} from "@evolu/common";
 import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { useEvolu } from "./useEvolu.js";
+
+const constVoid = () => {};
 
 /** Subscribe to {@link Query} {@link QueryRows} changes. */
 export const useQuerySubscription = <R extends Row>(
