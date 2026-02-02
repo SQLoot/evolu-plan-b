@@ -1,0 +1,162 @@
+# NEW COMMITS (2026-02-02)
++ acca39d Refactor WebSocket to Task-based API and update tests
++ 7b65d1a Update TreeShaking test size values
++ ecf32ba Add isHermes/isServer flags and tests
++ b0288ea Replace wait() with setTimeout() in Relay tests
++ c04d6b0 Add Promise-based setTimeout to Time module
+- 55b87d7 Update pnpm-lock.yaml  # SKIP: we use bun.lock
++ afa8422 Remove legacy OldTask implementation
++ 2166331 Mark Resources tests as TODO
++ 37fd12b Force disposal tasks to have no domain errors
++ a18a60e Stub WebSocket transport with todo()
++ 118b193 Use Awaitable/isPromiseLike instead of MaybeAsync
++ 0e75984 Update feature copy and adjust test gzip size
++ 4f2f271 Require capitalized discriminant 'type'
++ f13aac5 Add expectTypeOf examples for todo
+
+# PREVIOUS COMMITS
++ 01d1e9983171d8e25984a6ac4ed5a298f784881a Disable web docs test
++ 8cb8edd906136cb044a32330aad6d9b437e5a716 Increase Node.js memory limit for build script
++ cd9d4b4ecbbec587ff015aaea23b20d792d5350e Rename searchUtils.js to searchUtils.mjs and update imports
++ 4ff6fb9f35b1938593d134f7a14cb8c7440ed109 Update build script memory option in package.json
++ bfa58a0632d512e45673bff330dd011f9df46833 Comment out glob import and dynamic MDX loading
++ 91695e12cac0196ca774baae0eefe651eeb48fe2 Enable verbatimModuleSyntax
++ a17ebfa0ea7448344509e3bcc7c59e336f2692d3 Add module-level JSDoc comments to all source files
++ 00a22d62f04c01aef0e09df00a14e746e4d9857e Add test helpers for seeded random generation
++ ca7f45753446ea794167cb5d7a1a187e6c1f874d Refactor test dependencies to use createTestDeps
++ e85390a23a031d32287dd5fd878acbd409b4750e Refactor imports to use 'type' for type-only imports
++ 07005cf4443ac69604d1334f2da839d3cdb372cc Reorder and clean up import statements across modules
++ aa854aad29e855fdb4ce3c6042ae83e025ffe3ea Refactor and flatten schedule module API
++ d669519371da43dde76bdb40f52bfd3e4e18d3e7 Improve formatting and terminology in API reference fixer
++ 10c21286d1f87d170bdf26edbe3b79826337267a Update TypeDoc configuration for improved entry points
++ 7b37a923c301f8d1ec648d5e0cd71f3112f3b3c2 Refactor local-first exports and rename PublicKysely
++ bf6388638d3f1a7897cfb26660f0ecc7ebc28c0a Rename SharedWorker to Worker and update references
++ 2a71c9ba7415874ed6f01ddc30c4324890c9c5f6 Update deps
++ b4cc1f9a6231975e94126c24535bd633a5c88d82 Enhance retry API with typed attempts and onRetry info
++ b3387c5bbe4d30964a89b9a6c4f1f61b47975a28 Rename Semaphore and Mutex interfaces to SemaphoreOld and MutexOld
++ a00d3e398ae2ba9e3ec9a27f8e61e722048a330b Add minPositiveInt constant and refactor usages
++ 4175f2657d89beb48231b6a55d77703fe3e6285d Refactor to use concise arrow function bodies
++ 4f7db540877bd26763b49047b1ab7e58f40522cb Fix typo in clean script for coverage directory
++ 4563c4894e4ef6042dd9bca11c2a4361cfe0270b Improve MDX search error handling and API title formatting
++ 4cd00329a993f412120bd96faaae805b1cf9b44f Add custom TypeDoc plugin for Evolu Type
++ e52efe403982b46bbc9df923c41b1b5506afd30c Refactor 404 pages and remove legacy redirects
++ 50649957460072d25f0b5d16a5051ea218738670 Refactor type assertion tests to use property access
++ 2489f8ae198999ac0bbc5025ffa8231f8cc5b8a7 Promote interface usage for object types and update docs
++ 89833138fc1160bba410b4dc6ad908583c713350 Include 'out' directory in clean script
++ c85732d015ce822622741c11973563f759facdea Add LLM-friendly markdown routes and links for docs, Close #632
++ f16af10273fe6daeefec2271a11b74e916b581cc Add concurrency primitives: Deferred, Gate, Semaphore, Mutex
++ 5c1e129056fe5a42d9faca31de4dff009363484e Generate sections.json and update MDX plugin types
++ e01133a7d3aaf1b92010dec0cc8510acedaa5fb4 Update section heading to 'API overview'
++ 7f7fa4ee3b5ac15959b70417d8f6ffb149aeb8c8 Clarify Array sorting documentation comments
++ 27a50155ae3ab827f2473362c7c62cf8ef6c3062 Update browserslist configuration in package.json
++ d4fcf661595620debda2bd7f07382659b759e0c2 Refactor error and event types to interfaces
++ 63034dcfe0f441bf85e5792407822653e7e0bdf4 Refactor docs and code: clarify composition, update tags
++ f379c4e6849a45d3b81742aebffc3772c13f36e7 Add DistributiveOmit utility type and tests
++ 87780a3ec8a47b99542be71cf895c1359a5c0e51 Rename lazy helpers and update usages to new names
++ fcaf9203cc874a1de4a774ef8eceb33d8d04c55a Add Typedoc link for TypeScript Omit utility type
++ 6fc3bba2b165d82180609bc5c1ee5642ad578f86 Add `todo` development placeholder function
++ 5751fed8784ab5c42f479f65c84b5c7e5bb77f6b Enable browser test configuration in Vitest
++ f155910c04e56e08bd446ce159c2f6a562f69638 Refactor EvoluSchema to use AnyType
++ ce83b24957096fe5a9e7716efd0dddc133d9846a Add assertType helper for type assertions
++ 0e4c79e234fa403c3d5faeeadecfd2d66806b89b Add ConsoleDep to TestDeps and createTestDeps
++ 972bc6114c7c65c3e787366be4a042312b239a27 Refactor AbortError to use 'cause' and improve Semaphore
++ c78657ce2ff49fac0a83758a184d6fc21cce6e2d Update deps
++ f2a2d4233235ec210cc75c46d3b336fd03069d6a Add FAQ and test for generic interface with Type factory
++ b7e3bf147dfa1995b3f0ebeda181d8aa1b1ecb03 Refactor Runner and Fiber state management and events
++ e356918ebb0b80e9040c7b7a72b3b3835f2d5814 Add isIterable utility and tests
++ 2efb0a80d04f1b951ff83e23717b9d91572e9602 Add numeric literal types Int1To99 and Int1To100
++ 34bac2f8223e3e9a9df021ea3145d5d101f8d5ac Add isFunction utility and improve getProperty typing
++ 4025cddca26737ddf6a12bd20592411445aa8aae Cache ok() result to avoid repeated allocations
++ a912d90e07c77029b17d044db79c300e6ce61850 Update Iterable doc and add MDN link in typedoc config
++ c0ed4acf12c4dff6ceaeb0f83a547fa3a7cc4e4f Add tests for isOk and isErr utility functions
++ beb6fd0d0a928ea27abbfca4d3f779d76d023897 Remove IntentionalNever type and update casts to never
++ df47475e2f7450200d1752a7b86d88aa56128d9e Add objectFromEntries utility and expand object tests
++ f6eac2eba8f17464424750e539d5534f6ffcdb80 Reorder imports in vitest.config.ts
++ aa6111fbef23d5132b8a792273e98cd6ed9d1231 Implement all() and withConcurrency for Task composition
++ ba4cbe36d45d99de4cff242ef8fa1332c2b8030f Fix typo in expo-sqlite config key in app.json
++ be80a5c885cc3b8427bb3b227b07901481e86850 Remove object enum style guidelines from instructions
++ e013cfd07d4fae324d734feb916e2b21759942a6 Replace createArray and ensureArray with arrayFrom
++ a4656957a5d7fb73c5a1e9c859300b0a85e5577b Add task composition helpers and improve concurrency
++ 26810a3ea3d75df0c1ac6263361de97f7daf328a Update deps
++ 4c226897fb8df3c96e17ed727ec03e99f89c3e1b Rename TypeDoc plugin files and update config
++ b4dc102b805c8e9802554729338ebf79125ab93a Formatting
++ d93db96ba323845f0890759e29f22e78147c525a Refactor types to use Typed interface
++ 994e538db68b586b54b87cc73333a83b83c843e8 Optimize mapArray with for loop and add benchmarks
++ 5f97e83d22641b9f183958a642be7e09d0ddec4f Add Result composition helpers: allResult, mapResult, anyResult
++ 558bd783781bc80f428ce2b074abb5beaf276a71 Improve documentation for Brand utility interface
++ 4da32d19340b496dfc90809f05c78685887b5e11 Add overload documentation comments to common types
++ f49b184f73df8395d55574d31f7aeb11ff23626f Refactor mapObject to use for-in loop
++ 685fa22c5077d2c0d364cfc767be4f680e97ac9f Update OldTask.ts
++ 967d5598ee5aed4ff1a6ebcdad228ea4071f3433 Update example error interfaces to extend Typed
++ 8aa9ddde076e4ba54468b78611814cf5b5dbb0cd Add JSDoc comment for createTestRunner overload
++ e9cb404a06a978d049d9ed3bc1ec1e50a1b00768 Refactor task composition helpers and add map/mapSettled
++ d67d3afe5c88447aaab1e2bbd97578fbaf7adebc Rename AbortError 'cause' field to 'reason'
++ e94d4a84633e56baa9b5e4481d02b9b0feffc3bf Update deps
++ aa04420b3f8203851a79a519289ce1bb8e0a3c11 Update conventions on imports, exports, and arrow functions
++ 2b773467be66bdc0a096a70593ef7188c324ddbb Add NewKeys utility type to constrain object keys
++ ae68662b649ec89f2e550c59c33896befd48645b Add addDeps to Runner and fix retry typing
++ 53171141f5c4f05ae1c6859e39056655858dc53f Update deps
++ a46e5422621590761595eb9e91eb3b97d54c8ab4 Clarify Cache interface documentation
++ 0ee01f18bd663ca609c1996f7549b634232a45f7 Clarify Instances usage and improve documentation
++ 0bb90dd39ad863537102e639d11569e76e267f27 Update docs to clarify fork/join and map usage in Task
++ 649b80569c09f9ce571b9ff0c8caaa6d76349f46 Clarify upsert timestamp behavior in Schema docs
++ 68d313844c99083fb061d0a859e322b90e319dcc Set sideEffects to false in package.json files
++ b428706e3ea7fdb2c2b9ad075f292b89ec44968f Refactor polyfills to use external packages
++ a1552a8ad1f4eb3e02345c9844674ecaf5af13b6 Improve error serialization and browser test setup
++ 7dd217227c1412a8ec8b90d2edbfb7d5dd0d79f0 Update .gitignore and clean script for screenshots
++ 64a236916940cc78baba941b6a4999b24e33a7cf Fix event type in Feedback form onSubmit handler
++ ec9a7ef53f439c6fb3a6e629d13bb5f96ab9839e Remove es-aggregate-error and its types from dependencies
++ c0579ba3dff86a3dc5384fe56e532c69d80a8c86 Limit browser instances for coverage in Vitest config
++ a94d078763a5671eab1d73d33c5db670faf878ce Update resource management docs with polyfill usage
++ 9bd3e4b696bbf823745661e6417180eace6a98da Add comment clarifying isDelete flag encoding
++ 7f6af1c7d5d0ca76ea83c5d4e79a488b388dfd8d Comment out mapArray vs for loop benchmark test
++ 1702fe22f0f5dcb92418738952de2e18054bf582 Add /*#__PURE__*/ annotations and remove ValidMutationSize
++ 54d2f4f3f2d7fabaf312d29be4173926838e32c8 Move mutation size validation to Schema module
++ 3c1fbd6969daaa2dbb66a26a5fe886180eaf83af Implement Task-based fetch with abort handling
++ c25be5bb286ee86638d6c64fe218e319b688de2c Reorder import of identity in Array.test.ts
++ 5f36805f7ad9d3cbdef66a1d769a73f494ab4f2c Add tree-shaking tests and fixtures for common package
++ 4ffec75bf567dc9bc7f971adc7eba7a21687f61c Update Biome schema version to 2.3.13
++ 1c1afa873ce01c5b7553da873d1e3e1b1834d075 Rename withConcurrency to parallel and concurrent to pool
++ 60430cc4e8abfd23948e61bcc9d02c04024487ba Remove ValidMutationSize mutation size checks
++ 683ca7051a2b2c515a453d30b18d50796fc6c139 Add callback helper for wrapping callback-based APIs
++ e4b674239ceebf0cd18f391dc5c17b24176be819 Mark constructors as pure
++ 642dc1f6f1d41f2ebb9573046760916975a5ade8 Add objectFrom helper and tests
++ 348bd7f51969e7e3d7513932e0b053f9a917cf6a Add Disposable link to typedoc mappings
++ 83bb791f58a4d0a91ce2c7c981533d5c2744fe90 Add time formatting helpers and tests
++ 58a2d7839282d610c0a585b9c8074530e46e9223 Refactor Console to structured logging
++ c24ec2f8455f19170cba485f048d4cc2170bb39f Standard Schema: errors now JSON-serialized
++ 7899cca3d68f878efb2f9843b2d318821be6704d Update tmp paths and tree-shaking snapshot
++ b3e1988a19ef52ec16000a69a67c4fabe06fcc9a Update Features.tsx
++ 099d4cc70a2105ad96d5d36d0d6cfe04f466ff8c Use Turbo watch, improve DX
++ ee7bf625b2716bf03db70368451c418bd30f55eb Use Ref for runner deps and update addDeps
++ 645b680c3df328b03bc90805606fec6d32b9e639 Add /*#__PURE__*/ annotations and lint fix
++ 5dcd295a78dea303cc9ac736f991ca1627621eb9 Refactor createSqlite to Task and add createSqliteOld
++ 6f74ea556d596d57cc6eaf52245caa2c998fd6e9 Add Node runMain utility with tests
++ b7153b1c81991f665966870e5f309360eac48c31 Bump size estimates in features and tests
++ 8e77e2654010097ddcd427912cfb7770b1985396 Document Console independence from Task/Runner
++ 4bca287dbbee79069dc6495598d2c316a6657653 Disable evolu/require-pure-annotation for localAuth
++ a551a38bf64c695e1f6a97bebc7bee4456de87c7 Use task/stack-based lifecycle for relay
++ 4dc2b233d13de32d617a178785d04d4139a1fddf Handle aborted runner; add tests and coverage
++ fa563738e541c78a670e63160e5799f60ca2bbc6 Replace nowIso with millisToDateIso
++ 1f392efd31ebc68a677993b90f2075691d5fa6ac Normalize size text and update tree-shaking test
++ 1c3ee5033c4bf8fe609acd0a49ff785991ed643b Document TaskDisposableStack.defer/use behavior
++ eb1a04d8e1732d965935e5858ab665bfb027fe91 Add createNodeJsRelayBetterSqliteDeps helper
++ 3d2caa044f80d7a47e1c43eae8d22bfb599ec44f Use run.console.child for SQLite logging
++ ae07db83c24c1350549f412c8bdc6b81b9073b49 Delete global-error-scope.md
++ 23cfb76241f1aef1cecc133b49ffd400509ade79 Remove Node.js global error scope implementation
++ 4e0eba138570789ba6da7552fd7c41aa530dfbc6 Add MainTask type and improve runMain error handling
++ ae54a31030b99d805d4c435da468b8103c3a7d88 Document uncaughtException handling in runMain
++ c3aa7662ba1be27a5800c870362c664558c35b8e Refine Console docs and imports
++ cf1560a38f998c5c9f6c175c49707f9f1bed1970 Format code
++ 48da6a6df18448c642942d1e89b21b3fd60277fd Add isPromiseLike reference and example
++ ba84fd0accd6dcf52ea0bc485b8686908ae1cf71 Clarify Skiplist module description
++ 558295c950d9eeca078216cf8bd8f498417aa90d Bump turbo, shiki, playwright, svelte-check
++ fae5d5bd2b4429389c3c4cc10bf50351bd4cf329 Add CallbackWithCleanup type
++ af3e065f0fc15971e09ea3a4fb74e43751e2dce5 Expose runner.deps and remove task deps param
++ 2f91f83a9c2f9c629935f0565e6902fec571fc3e Use destructured fetch in task example; update tests
++ 137ab133c1aa002a729922cc231385ad4e6d92d6 Clarify Test.ts docs and example name
++ 496ebd779517aa2b20b673256b99fcd59ef3bb6c Remove example block and reword InferType note
++ 2ae47267057f1f66c1674fc6c19c3dce16b7d897 Clarify and tidy dependency-injection docs
++ ca0bffe80bcd285fcf197a4be586aa912c59db58 Use child console in relay main
++ 6d29f66d1242359c99af52c6d5131e349b92d538 Rename test helpers to testCreate*
++ 01147fc06baa3d20d9551a7449444baa5e611731 Migrate storage/protocol to Task-based runner
