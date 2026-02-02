@@ -1,7 +1,15 @@
 {
 	"recommendations": [
-		"dbaeumer.vscode-eslint",
+		"biomejs.biome",
+		"unifiedjs.vscode-mdx",
+		"yoavbls.pretty-ts-errors",
+		"vitest.explorer",
+		"bradlc.vscode-tailwindcss",
+		"redhat.vscode-yaml",
+		"davidanson.vscode-markdownlint"
+	],
+	"unwantedRecommendations": [
 		"esbenp.prettier-vscode",
-		"unifiedjs.vscode-mdx"
+		"dbaeumer.vscode-eslint"
 	]
 }
