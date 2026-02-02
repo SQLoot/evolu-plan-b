@@ -3080,7 +3080,7 @@ export function mapSettled<A, T, E, D>(
   items: MapInput<A>,
   task: (a: A) => Task<T, E, D>,
   options?: CollectOptions<boolean>,
-): Task<any, any, any> {
+): Task<unknown, never, D> {
   const mapped = mapInput(items, task);
   return allSettled(
     mapped as Iterable<Task<T, E, D>>,
