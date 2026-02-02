@@ -1,11 +1,11 @@
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-} from "node:fs";
 import { spawnSync } from "node:child_process";
+import {
+    existsSync,
+    mkdirSync,
+    readdirSync,
+    readFileSync,
+    rmSync,
+} from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
@@ -84,7 +84,7 @@ const bundleSize = async (fixturePath: string): Promise<BundleSize> => {
   });
 
   return await new Promise((resolve, reject) => {
-    compiler.run((err, stats: Stats | undefined) => {
+    compiler.run((err: Error | null, stats: Stats | undefined) => {
       compiler.close(() => {
         if (err) {
           reject(err);

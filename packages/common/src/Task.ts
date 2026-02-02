@@ -12,7 +12,7 @@ import {
   type NonEmptyReadonlyArray,
 } from "./Array.js";
 import { assert, assertType } from "./Assert.js";
-import { type Console, type ConsoleDep, createConsole } from "./Console.js";
+import { createConsole, type Console, type ConsoleDep } from "./Console.js";
 import type { RandomBytes, RandomBytesDep } from "./Crypto.js";
 import { createRandomBytes } from "./Crypto.js";
 import { eqArrayStrict } from "./Eq.js";
@@ -29,7 +29,7 @@ import type { Random, RandomDep, RandomNumber } from "./Random.js";
 import { createRandom } from "./Random.js";
 import { createRef, type Ref } from "./Ref.js";
 import type { Done, NextResult, Ok, Result } from "./Result.js";
-import { err, ok, tryAsync } from "./Result.js";
+import { err, isErr, ok, tryAsync } from "./Result.js";
 import type { Schedule, ScheduleStep } from "./Schedule.js";
 import { addToSet, deleteFromSet, emptySet } from "./Set.js";
 import type { testCreateRunner } from "./Test.js";
@@ -40,17 +40,17 @@ import {
   brand,
   createId,
   Id,
-  type InferType,
   maxPositiveInt,
   minPositiveInt,
   NonNegativeInt,
   object,
   PositiveInt,
-  type Typed,
   typed,
   union,
   Unknown,
   UnknownResult,
+  type InferType,
+  type Typed,
 } from "./Type.js";
 import type { isPromiseLike } from "./Types.js";
 import {
@@ -62,6 +62,21 @@ import {
   type NewKeys,
   type Predicate,
 } from "./Types.js";
+
+
+declare global {
+	interface PromiseConstructor {
+		try<T, Args extends any[]>(
+			executor: (...args: Args) => T | PromiseLike<T>,
+			...args: Args
+		): Promise<T>;
+		withResolvers<T>(): {
+			promise: Promise<T>;
+			resolve: (value: T | PromiseLike<T>) => void;
+			reject: (reason?: any) => void;
+		};
+	}
+}
 
 /**
  * JavaScript-native structured concurrency.
@@ -1727,7 +1742,7 @@ const yieldImpl: () => Promise<void> =
   "scheduler" in globalThis && "yield" in globalThis.scheduler
     ? () => globalThis.scheduler.yield()
     : typeof setImmediate !== "undefined"
-      ? () => new Promise<void>(setImmediate)
+      ? () => new Promise<void>((resolve) => setImmediate(resolve))
       : () => new Promise<void>((r) => setTimeout(r, 0)); // Safari
 
 /**
@@ -2077,12 +2092,12 @@ export const retry =
         });
         if (delay > 0) {
           const sleepResult = await run(sleep(delay));
-          if (!sleepResult.ok) return sleepResult;
+          if (isErr(sleepResult)) return sleepResult;
         }
       }
 
       const result = await run(task);
-      if (result.ok) return result;
+      if (!isErr(result)) return result;
 
       if (AbortError.is(result.error)) return err(result.error);
 
@@ -3341,7 +3356,7 @@ function pool<T, E>(
         if (!stopped) {
           stopped = result;
           abortWorkers(
-            !result.ok && AbortError.is(result.error)
+            isErr(result) && AbortError.is(result.error)
               ? result.error.reason
               : abortReason,
           );
