@@ -382,9 +382,10 @@ const EvoluDemo = ({
 
   const AuthActions: FC = () => {
     const appOwner = use(evolu.appOwner);
+    // biome-ignore lint/correctness/useExhaustiveDependencies: Found ownerIds in outer scope
     const otherOwnerIds = useMemo(
       () => ownerIds?.filter(({ ownerId }) => ownerId !== appOwner?.id) ?? [],
-      [appOwner?.id],
+      [appOwner?.id, ownerIds],
     );
 
     // Create a new owner and register it to a passkey.

@@ -20,7 +20,7 @@
       "type": "shell",
       "command": "bun run lint",
       "group": "test",
-      "problemMatcher": ["$eslint-stylish"]
+      "problemMatcher": []
     },
     {
       "label": "Format",

@@ -71,7 +71,7 @@ RUN turbo run build
 # 
 # Let's try to just copy the `dist` and `node_modules` from installer.
 
-RUN mkdir -p /app/deploy && cp -r apps/relay/dist /app/deploy/dist && cp -r node_modules /app/deploy/node_modules && cp apps/relay/package.json /app/deploy/package.json
+RUN mkdir -p /app/deploy && cp -r apps/relay/dist /app/deploy/dist && cp apps/relay/package.json /app/deploy/package.json && cd /app/deploy && bun install --production
 
 # ------------------------------------------------------------
 # Runner stage - minimal runtime image

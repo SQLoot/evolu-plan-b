@@ -45,7 +45,7 @@
         "noStaticElementInteractions": "off"
       },
       "security": {
-        "noDangerouslySetInnerHtml": "off"
+        "noDangerouslySetInnerHtml": "warn"
       },
       "nursery": {
         "noImportCycles": {
