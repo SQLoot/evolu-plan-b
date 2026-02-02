@@ -10,11 +10,11 @@ import type { yieldNow } from "./Task.js";
 import { brand, type DateIso, lessThan, NonNegativeInt } from "./Type.js";
 import type {
   Digit,
+  Digit1To6,
+  Digit1To9,
   Digit1To23,
   Digit1To51,
   Digit1To59,
-  Digit1To6,
-  Digit1To9,
   Digit1To99,
 } from "./Types.js";
 

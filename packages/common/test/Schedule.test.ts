@@ -50,7 +50,7 @@ import {
   windowed,
 } from "../src/Schedule.js";
 import { testCreateDeps } from "../src/Test.js";
-import { maxMillis, Millis, minMillis, testCreateTime } from "../src/Time.js";
+import { Millis, maxMillis, minMillis, testCreateTime } from "../src/Time.js";
 
 // Helper to create scheduleDeps with controllable time
 const createScheduleDeps = (startAt = 0) => {

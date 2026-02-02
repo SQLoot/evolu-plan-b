@@ -864,14 +864,13 @@ export interface InstanceOfError extends TypeError<"InstanceOf"> {
   readonly ctor: string;
 }
 
-export interface InstanceOfType<
-  T extends abstract new (...args: any) => any,
-> extends Type<
-  "InstanceOf",
-  InstanceType<T>,
-  InstanceType<T>,
-  InstanceOfError
-> {
+export interface InstanceOfType<T extends abstract new (...args: any) => any>
+  extends Type<
+    "InstanceOf",
+    InstanceType<T>,
+    InstanceType<T>,
+    InstanceOfError
+  > {
   ctor: T;
 }
 
@@ -1112,13 +1111,13 @@ export interface BrandType<
   Error extends TypeError = never,
   ParentError extends TypeError = never,
 > extends Type<
-  "Brand",
-  InferType<ParentType> & Brand<Name>,
-  InferInput<ParentType>,
-  Error,
-  InferType<ParentType>,
-  ParentError
-> {
+    "Brand",
+    InferType<ParentType> & Brand<Name>,
+    InferInput<ParentType>,
+    Error,
+    InferType<ParentType>,
+    ParentError
+  > {
   readonly brand: Name;
   readonly parentType: ParentType;
 }
@@ -1179,7 +1178,7 @@ export const DateIso = /*#__PURE__*/ brand("DateIso", String, (value) => {
     return err<DateIsoError>({ type: "DateIso", value });
   }
   const parsed = globalThis.Date.parse(value);
-  if (isNaN(parsed)) {
+  if (Number.isNaN(parsed)) {
     return err<DateIsoError>({ type: "DateIso", value });
   }
   // Round-trip test: ensure the string is actually a proper ISO format
@@ -1323,9 +1322,8 @@ export const minLength: <Min extends number>(
       value.length >= min ? ok(value) : err({ type: "MinLength", value, min }),
     );
 
-export interface MinLengthError<
-  Min extends number = number,
-> extends TypeError<"MinLength"> {
+export interface MinLengthError<Min extends number = number>
+  extends TypeError<"MinLength"> {
   readonly min: Min;
 }
 
@@ -1358,9 +1356,8 @@ export const maxLength: <Max extends number>(
       value.length <= max ? ok(value) : err({ type: "MaxLength", value, max }),
     );
 
-export interface MaxLengthError<
-  Max extends number = number,
-> extends TypeError<"MaxLength"> {
+export interface MaxLengthError<Max extends number = number>
+  extends TypeError<"MaxLength"> {
   readonly max: Max;
 }
 
@@ -1395,9 +1392,8 @@ export const length: <Exact extends number>(
         : err({ type: "Length", value, exact }),
     );
 
-export interface LengthError<
-  Exact extends number = number,
-> extends TypeError<"Length"> {
+export interface LengthError<Exact extends number = number>
+  extends TypeError<"Length"> {
   readonly exact: Exact;
 }
 
@@ -1503,9 +1499,8 @@ export const regex: <Name extends TypeName>(
     });
 };
 
-export interface RegexError<
-  Name extends TypeName = TypeName,
-> extends TypeError<"Regex"> {
+export interface RegexError<Name extends TypeName = TypeName>
+  extends TypeError<"Regex"> {
   readonly name: Name;
   readonly pattern: RegExp;
 }
@@ -1881,20 +1876,20 @@ export const id = <Table extends TypeName>(table: Table): TableId<Table> => {
   };
 };
 
-export interface TableId<Table extends TypeName> extends Type<
-  "Id",
-  string & Brand<"Id"> & Brand<Table>,
-  string,
-  TableIdError<Table>,
-  string,
-  StringError
-> {
+export interface TableId<Table extends TypeName>
+  extends Type<
+    "Id",
+    string & Brand<"Id"> & Brand<Table>,
+    string,
+    TableIdError<Table>,
+    string,
+    StringError
+  > {
   table: Table;
 }
 
-export interface TableIdError<
-  Table extends TypeName = TypeName,
-> extends TypeError<"TableId"> {
+export interface TableIdError<Table extends TypeName = TypeName>
+  extends TypeError<"TableId"> {
   readonly table: Table;
 }
 
@@ -2147,9 +2142,8 @@ export const greaterThan: <Min extends number>(
       value > min ? ok(value) : err({ type: "GreaterThan", value, min }),
     );
 
-export interface GreaterThanError<
-  Min extends number = number,
-> extends TypeError<"GreaterThan"> {
+export interface GreaterThanError<Min extends number = number>
+  extends TypeError<"GreaterThan"> {
   readonly min: Min;
 }
 
@@ -2173,9 +2167,8 @@ export const lessThan: <Max extends number>(
       value < max ? ok(value) : err({ type: "LessThan", value, max }),
     );
 
-export interface LessThanError<
-  Max extends number = number,
-> extends TypeError<"LessThan"> {
+export interface LessThanError<Max extends number = number>
+  extends TypeError<"LessThan"> {
   readonly max: Max;
 }
 
@@ -2204,9 +2197,8 @@ export const greaterThanOrEqualTo: <Min extends number>(
       : err({ type: "GreaterThanOrEqualTo", value, min }),
   );
 
-export interface GreaterThanOrEqualToError<
-  Min extends number = number,
-> extends TypeError<"GreaterThanOrEqualTo"> {
+export interface GreaterThanOrEqualToError<Min extends number = number>
+  extends TypeError<"GreaterThanOrEqualTo"> {
   readonly min: Min;
 }
 
@@ -2233,9 +2225,8 @@ export const lessThanOrEqualTo: <Max extends number>(
     value <= max ? ok(value) : err({ type: "LessThanOrEqualTo", value, max }),
   );
 
-export interface LessThanOrEqualToError<
-  Max extends number = number,
-> extends TypeError<"LessThanOrEqualTo"> {
+export interface LessThanOrEqualToError<Max extends number = number>
+  extends TypeError<"LessThanOrEqualTo"> {
   readonly max: Max;
 }
 
@@ -2319,9 +2310,8 @@ export const multipleOf: <Divisor extends number>(
         : err({ type: "MultipleOf", value, divisor }),
     );
 
-export interface MultipleOfError<
-  Divisor extends number = number,
-> extends TypeError<"MultipleOf"> {
+export interface MultipleOfError<Divisor extends number = number>
+  extends TypeError<"MultipleOf"> {
   readonly divisor: Divisor;
 }
 
@@ -2403,18 +2393,13 @@ export const literal = <T extends Literal>(expected: T): LiteralType<T> => {
   } as LiteralType<T>;
 };
 
-export interface LiteralType<T extends Literal> extends Type<
-  "Literal",
-  T,
-  WidenLiteral<T>,
-  LiteralError<T>
-> {
+export interface LiteralType<T extends Literal>
+  extends Type<"Literal", T, WidenLiteral<T>, LiteralError<T>> {
   expected: T;
 }
 
-export interface LiteralError<
-  T extends Literal = Literal,
-> extends TypeError<"Literal"> {
+export interface LiteralError<T extends Literal = Literal>
+  extends TypeError<"Literal"> {
   readonly expected: T;
 }
 
@@ -2510,28 +2495,28 @@ export const array = <ElementType extends AnyType>(
 };
 
 /** ArrayType extends Type with an additional `element` property for reflection. */
-export interface ArrayType<ElementType extends AnyType> extends Type<
-  "Array",
-  ReadonlyArray<InferType<ElementType>>,
-  ReadonlyArray<InferInput<ElementType>>,
-  ArrayError<InferError<ElementType>>,
-  ReadonlyArray<InferParent<ElementType>>,
-  ArrayError<InferParentError<ElementType>>
-> {
+export interface ArrayType<ElementType extends AnyType>
+  extends Type<
+    "Array",
+    ReadonlyArray<InferType<ElementType>>,
+    ReadonlyArray<InferInput<ElementType>>,
+    ArrayError<InferError<ElementType>>,
+    ReadonlyArray<InferParent<ElementType>>,
+    ArrayError<InferParentError<ElementType>>
+  > {
   readonly element: ElementType;
 }
 
-export interface ArrayError<
-  Error extends TypeError = TypeError,
-> extends TypeErrorWithReason<
-  "Array",
-  | { readonly kind: "NotArray" }
-  | {
-      readonly kind: "Element";
-      readonly index: number;
-      readonly error: Error;
-    }
-> {}
+export interface ArrayError<Error extends TypeError = TypeError>
+  extends TypeErrorWithReason<
+    "Array",
+    | { readonly kind: "NotArray" }
+    | {
+        readonly kind: "Element";
+        readonly index: number;
+        readonly error: Error;
+      }
+  > {}
 
 export const formatArrayError = <Error extends TypeError>(
   formatTypeError: TypeErrorFormatter<Error>,
@@ -2628,28 +2613,28 @@ export const set = <ElementType extends AnyType>(
 };
 
 /** SetType extends Type with an additional `element` property for reflection. */
-export interface SetType<ElementType extends AnyType> extends Type<
-  "Set",
-  ReadonlySet<InferType<ElementType>>,
-  ReadonlySet<InferInput<ElementType>>,
-  SetError<InferError<ElementType>>,
-  ReadonlySet<InferParent<ElementType>>,
-  SetError<InferParentError<ElementType>>
-> {
+export interface SetType<ElementType extends AnyType>
+  extends Type<
+    "Set",
+    ReadonlySet<InferType<ElementType>>,
+    ReadonlySet<InferInput<ElementType>>,
+    SetError<InferError<ElementType>>,
+    ReadonlySet<InferParent<ElementType>>,
+    SetError<InferParentError<ElementType>>
+  > {
   readonly element: ElementType;
 }
 
-export interface SetError<
-  Error extends TypeError = TypeError,
-> extends TypeErrorWithReason<
-  "Set",
-  | { readonly kind: "NotSet" }
-  | {
-      readonly kind: "Element";
-      readonly index: number;
-      readonly error: Error;
-    }
-> {}
+export interface SetError<Error extends TypeError = TypeError>
+  extends TypeErrorWithReason<
+    "Set",
+    | { readonly kind: "NotSet" }
+    | {
+        readonly kind: "Element";
+        readonly index: number;
+        readonly error: Error;
+      }
+  > {}
 
 export const formatSetError = <Error extends TypeError>(
   formatTypeError: TypeErrorFormatter<Error>,
@@ -2824,13 +2809,13 @@ export interface RecordType<
   KeyParentError extends TypeError,
   Value extends AnyType = AnyType,
 > extends Type<
-  "Record",
-  Readonly<Record<KeyT, InferType<Value>>>,
-  Readonly<Record<KeyInput, InferInput<Value>>>,
-  RecordError<KeyError, InferError<Value>>,
-  Readonly<Record<KeyParent, InferParent<Value>>>,
-  RecordError<KeyParentError, InferParentError<Value>>
-> {
+    "Record",
+    Readonly<Record<KeyT, InferType<Value>>>,
+    Readonly<Record<KeyInput, InferInput<Value>>>,
+    RecordError<KeyError, InferError<Value>>,
+    Readonly<Record<KeyParent, InferParent<Value>>>,
+    RecordError<KeyParentError, InferParentError<Value>>
+  > {
   readonly key: Type<
     KeyName,
     KeyT,
@@ -2846,19 +2831,19 @@ export interface RecordError<
   KeyError extends TypeError = TypeError,
   ValueError extends TypeError = TypeError,
 > extends TypeErrorWithReason<
-  "Record",
-  | { readonly kind: "NotRecord" }
-  | {
-      readonly kind: "Key";
-      readonly key: unknown;
-      readonly error: KeyError;
-    }
-  | {
-      readonly kind: "Value";
-      readonly key: unknown;
-      readonly error: ValueError;
-    }
-> {}
+    "Record",
+    | { readonly kind: "NotRecord" }
+    | {
+        readonly kind: "Key";
+        readonly key: unknown;
+        readonly error: KeyError;
+      }
+    | {
+        readonly kind: "Value";
+        readonly key: unknown;
+        readonly error: ValueError;
+      }
+  > {}
 
 export const formatRecordError = <Error extends TypeError>(
   formatTypeError: TypeErrorFormatter<Error>,
@@ -3171,14 +3156,15 @@ export function object(
  * ObjectType extends {@link Type} with an additional `props` property for
  * reflection.
  */
-export interface ObjectType<Props extends Record<string, AnyType>> extends Type<
-  "Object",
-  Readonly<ObjectT<Props>>,
-  Readonly<ObjectInput<Props>>,
-  ObjectError<{ [K in keyof Props]: InferError<Props[K]> }>,
-  Readonly<ObjectParent<Props>>,
-  ObjectError<{ [K in keyof Props]: InferParentError<Props[K]> }>
-> {
+export interface ObjectType<Props extends Record<string, AnyType>>
+  extends Type<
+    "Object",
+    Readonly<ObjectT<Props>>,
+    Readonly<ObjectInput<Props>>,
+    ObjectError<{ [K in keyof Props]: InferError<Props[K]> }>,
+    Readonly<ObjectParent<Props>>,
+    ObjectError<{ [K in keyof Props]: InferParentError<Props[K]> }>
+  > {
   readonly props: Props;
 }
 
@@ -3224,14 +3210,14 @@ type OptionalKeys<Props extends Record<string, AnyType>> = {
 export interface ObjectError<
   PropsErrors extends Record<string, TypeError> = Record<string, TypeError>,
 > extends TypeErrorWithReason<
-  "Object",
-  | { readonly kind: "NotObject" }
-  | {
-      readonly kind: "Props";
-      readonly errors: Partial<PropsErrors>;
-    }
-  | { readonly kind: "ExtraKeys"; readonly extraKeys: ReadonlyArray<string> }
-> {}
+    "Object",
+    | { readonly kind: "NotObject" }
+    | {
+        readonly kind: "Props";
+        readonly errors: Partial<PropsErrors>;
+      }
+    | { readonly kind: "ExtraKeys"; readonly extraKeys: ReadonlyArray<string> }
+  > {}
 
 /**
  * Merge Error and ParentError into one ObjectError so tooltips and error
@@ -3277,22 +3263,23 @@ export interface ObjectWithRecordType<
   KeyParentError extends TypeError,
   Value extends AnyType,
 > extends Type<
-  "ObjectWithRecord",
-  Readonly<ObjectT<Props>> & Readonly<Record<KeyT, InferType<Value>>>,
-  Readonly<ObjectInput<Props>> & Readonly<Record<KeyInput, InferInput<Value>>>,
-  ObjectWithRecordError<
-    { [K in keyof Props]: InferError<Props[K]> },
-    KeyError,
-    InferError<Value>
-  >,
-  Readonly<ObjectParent<Props>> &
-    Readonly<Record<KeyParent, InferParent<Value>>>,
-  ObjectWithRecordError<
-    { [K in keyof Props]: InferParentError<Props[K]> },
-    KeyParentError,
-    InferParentError<Value>
-  >
-> {
+    "ObjectWithRecord",
+    Readonly<ObjectT<Props>> & Readonly<Record<KeyT, InferType<Value>>>,
+    Readonly<ObjectInput<Props>> &
+      Readonly<Record<KeyInput, InferInput<Value>>>,
+    ObjectWithRecordError<
+      { [K in keyof Props]: InferError<Props[K]> },
+      KeyError,
+      InferError<Value>
+    >,
+    Readonly<ObjectParent<Props>> &
+      Readonly<Record<KeyParent, InferParent<Value>>>,
+    ObjectWithRecordError<
+      { [K in keyof Props]: InferParentError<Props[K]> },
+      KeyParentError,
+      InferParentError<Value>
+    >
+  > {
   readonly props: Props;
   readonly record: RecordType<
     KeyName,
@@ -3310,20 +3297,20 @@ export interface ObjectWithRecordError<
   KeyError extends TypeError = TypeError,
   ValueError extends TypeError = TypeError,
 > extends TypeErrorWithReason<
-  "ObjectWithRecord",
-  | { readonly kind: "NotObject" }
-  | { readonly kind: "Props"; readonly errors: Partial<PropsErrors> }
-  | {
-      readonly kind: "IndexKey";
-      readonly key: unknown;
-      readonly error: KeyError;
-    }
-  | {
-      readonly kind: "IndexValue";
-      readonly key: string;
-      readonly error: ValueError;
-    }
-> {}
+    "ObjectWithRecord",
+    | { readonly kind: "NotObject" }
+    | { readonly kind: "Props"; readonly errors: Partial<PropsErrors> }
+    | {
+        readonly kind: "IndexKey";
+        readonly key: unknown;
+        readonly error: KeyError;
+      }
+    | {
+        readonly kind: "IndexValue";
+        readonly key: string;
+        readonly error: ValueError;
+      }
+  > {}
 
 export const formatObjectWithRecordError = <Error extends TypeError>(
   formatTypeError: TypeErrorFormatter<Error>,
@@ -3611,22 +3598,20 @@ export function union(...args: ReadonlyArray<any>): any {
  * UnionType extends {@link Type} with an additional `members` property for
  * reflection.
  */
-export interface UnionType<
-  Members extends [AnyType, ...ReadonlyArray<AnyType>],
-> extends Type<
-  "Union",
-  InferType<Members[number]>,
-  InferInput<Members[number]>,
-  UnionError<InferErrors<Members[number]>>,
-  InferInput<Members[number]>,
-  never
-> {
+export interface UnionType<Members extends [AnyType, ...ReadonlyArray<AnyType>]>
+  extends Type<
+    "Union",
+    InferType<Members[number]>,
+    InferInput<Members[number]>,
+    UnionError<InferErrors<Members[number]>>,
+    InferInput<Members[number]>,
+    never
+  > {
   readonly members: Members;
 }
 
-export interface UnionError<
-  E extends TypeError = TypeError,
-> extends TypeError<"Union"> {
+export interface UnionError<E extends TypeError = TypeError>
+  extends TypeError<"Union"> {
   readonly errors: Array<E>;
 }
 
@@ -3820,14 +3805,15 @@ export const recursive = <ParentType extends AnyType>(
   } as RecursiveType<ParentType>;
 };
 
-export interface RecursiveType<ParentType extends AnyType> extends Type<
-  "Recursive",
-  InferType<ParentType>,
-  InferInput<ParentType>,
-  InferError<ParentType>,
-  InferParent<ParentType>,
-  InferParentError<ParentType>
-> {
+export interface RecursiveType<ParentType extends AnyType>
+  extends Type<
+    "Recursive",
+    InferType<ParentType>,
+    InferInput<ParentType>,
+    InferError<ParentType>,
+    InferParent<ParentType>,
+    InferParentError<ParentType>
+  > {
   getParentType(): ParentType;
 }
 
@@ -3944,9 +3930,11 @@ export const tuple = <Elements extends [AnyType, ...ReadonlyArray<AnyType>]>(
     return ok(result);
   };
 
-  const fromParent = (value: {
-    [K in keyof Elements]: InferParent<Elements[K]>;
-  }) => {
+  const fromParent = (
+    value: {
+      [K in keyof Elements]: InferParent<Elements[K]>;
+    },
+  ) => {
     if (!Array.isArray(value) || value.length !== elements.length) {
       return err<TupleError<InferParentError<Elements[number]>>>({
         type: "Tuple",
@@ -3991,27 +3979,26 @@ export const tuple = <Elements extends [AnyType, ...ReadonlyArray<AnyType>]>(
 export interface TupleType<
   Elements extends readonly [AnyType, ...ReadonlyArray<AnyType>],
 > extends Type<
-  "Tuple",
-  readonly [...{ [K in keyof Elements]: InferType<Elements[K]> }],
-  readonly [...{ [K in keyof Elements]: InferInput<Elements[K]> }],
-  TupleError<{ [K in keyof Elements]: InferError<Elements[K]> }[number]>,
-  readonly [...{ [K in keyof Elements]: InferParent<Elements[K]> }],
-  TupleError<{ [K in keyof Elements]: InferParentError<Elements[K]> }[number]>
-> {
+    "Tuple",
+    readonly [...{ [K in keyof Elements]: InferType<Elements[K]> }],
+    readonly [...{ [K in keyof Elements]: InferInput<Elements[K]> }],
+    TupleError<{ [K in keyof Elements]: InferError<Elements[K]> }[number]>,
+    readonly [...{ [K in keyof Elements]: InferParent<Elements[K]> }],
+    TupleError<{ [K in keyof Elements]: InferParentError<Elements[K]> }[number]>
+  > {
   readonly elements: Elements;
 }
 
-export interface TupleError<
-  ElementError extends TypeError = TypeError,
-> extends TypeErrorWithReason<
-  "Tuple",
-  | { readonly kind: "InvalidLength"; readonly expected: number }
-  | {
-      readonly kind: "Element";
-      readonly index: number;
-      readonly error: ElementError;
-    }
-> {}
+export interface TupleError<ElementError extends TypeError = TypeError>
+  extends TypeErrorWithReason<
+    "Tuple",
+    | { readonly kind: "InvalidLength"; readonly expected: number }
+    | {
+        readonly kind: "Element";
+        readonly index: number;
+        readonly error: ElementError;
+      }
+  > {}
 
 export const formatTupleError = <Error extends TypeError>(
   formatTypeError: TypeErrorFormatter<Error>,
@@ -4316,14 +4303,15 @@ export const optional = <T extends AnyType>(type: T): OptionalType<T> => ({
   parent: type,
 });
 
-export interface OptionalType<T extends AnyType> extends Type<
-  "Optional",
-  InferType<T>,
-  InferInput<T>,
-  InferError<T>,
-  InferParent<T>,
-  InferParentError<T>
-> {
+export interface OptionalType<T extends AnyType>
+  extends Type<
+    "Optional",
+    InferType<T>,
+    InferInput<T>,
+    InferError<T>,
+    InferParent<T>,
+    InferParentError<T>
+  > {
   readonly parent: T;
 }
 
@@ -4363,7 +4351,7 @@ export const partial = <Props extends Record<string, AnyType>>(
 ): ObjectType<{ [K in keyof Props]: OptionalType<Props[K]> }> => {
   const optionalProps = {} as { [K in keyof Props]: OptionalType<Props[K]> };
   for (const key in props) {
-    if (Object.prototype.hasOwnProperty.call(props, key)) {
+    if (Object.hasOwn(props, key)) {
       optionalProps[key] = optional(props[key]);
     }
   }

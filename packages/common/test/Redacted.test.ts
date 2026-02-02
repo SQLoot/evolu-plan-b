@@ -2,13 +2,13 @@ import { inspect } from "node:util";
 import { describe, expect, test } from "vitest";
 import type { Brand } from "../src/Brand.js";
 import { eqString } from "../src/Eq.js";
+import type { Redacted } from "../src/Redacted.js";
 import {
   createEqRedacted,
   createRedacted,
   isRedacted,
   revealRedacted,
 } from "../src/Redacted.js";
-import type { Redacted } from "../src/Redacted.js";
 
 describe("createRedacted hides value", () => {
   test("from toString", () => {

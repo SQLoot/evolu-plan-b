@@ -6,7 +6,7 @@ import {
   evoluReactNativeDeps,
   localAuth,
 } from "@evolu/react-native/expo-sqlite";
-import { FC, Suspense, use, useEffect, useMemo, useState } from "react";
+import { type FC, Suspense, use, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -205,7 +205,7 @@ const EvoluDemo = ({
           {
             text: "Save",
             onPress: (newTitle?: string) => {
-              if (newTitle != null && newTitle.trim()) {
+              if (newTitle?.trim()) {
                 const result = update("todo", { id, title: newTitle.trim() });
                 if (!result.ok) {
                   Alert.alert("Error", formatTypeError(result.error));
@@ -384,7 +384,7 @@ const EvoluDemo = ({
     const appOwner = use(evolu.appOwner);
     const otherOwnerIds = useMemo(
       () => ownerIds?.filter(({ ownerId }) => ownerId !== appOwner?.id) ?? [],
-      [appOwner?.id, ownerIds],
+      [appOwner?.id],
     );
 
     // Create a new owner and register it to a passkey.
@@ -400,7 +400,7 @@ const EvoluDemo = ({
               if (username == null) return;
 
               // Determine if this is a guest login or a new owner.
-              const isGuest = !Boolean(authResult?.owner);
+              const isGuest = !authResult?.owner;
 
               // Register the guest owner or create a new one if this is already registered.
               const mnemonic = isGuest ? appOwner?.mnemonic : undefined;

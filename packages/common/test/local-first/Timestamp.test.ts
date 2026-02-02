@@ -29,8 +29,8 @@ import { ok } from "../../src/Result.js";
 import { testCreateDeps } from "../../src/Test.js";
 import type { TimeDep } from "../../src/Time.js";
 import {
-  maxMillis,
   Millis,
+  maxMillis,
   minMillis,
   testCreateTime,
 } from "../../src/Time.js";
@@ -196,8 +196,9 @@ describe("receiveTimestamp", () => {
     makeNode1Timestamp(millis, counter, "0000000000000002");
 
   test("wall clock is later than both the local and remote timestamps", () => {
-    expect(receiveTimestamp(deps1)(makeNode1Timestamp(), makeNode2Timestamp()))
-      .toMatchInlineSnapshot(`
+    expect(
+      receiveTimestamp(deps1)(makeNode1Timestamp(), makeNode2Timestamp()),
+    ).toMatchInlineSnapshot(`
       {
         "ok": true,
         "value": {

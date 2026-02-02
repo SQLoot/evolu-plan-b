@@ -1,10 +1,10 @@
 import { spawnSync } from "node:child_process";
 import {
-    existsSync,
-    mkdirSync,
-    readdirSync,
-    readFileSync,
-    rmSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
 } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -135,8 +135,8 @@ describe("tree-shaking", () => {
           "raw": 1602,
         },
         "task-example": {
-          "gzip": 5672,
-          "raw": 15255,
+          "gzip": 5695,
+          "raw": 15295,
         },
         "type-object": {
           "gzip": 1549,

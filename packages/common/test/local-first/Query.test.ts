@@ -1,11 +1,11 @@
 import { expect, test } from "vitest";
+import type { Query, Row } from "../../src/local-first/Query.js";
 import {
   applyPatches,
   deserializeQuery,
   makePatches,
   serializeQuery,
 } from "../../src/local-first/Query.js";
-import type { Query, Row } from "../../src/local-first/Query.js";
 import type { SafeSql, SqliteQuery } from "../../src/Sqlite.js";
 
 test("Query", () => {
@@ -15,17 +15,17 @@ test("Query", () => {
   // Ensure query1 and query2 are treated as different types
   // @ts-expect-error - query1 should not be assignable to query2
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const shouldError: typeof query2 = query1;
+  const _shouldError: typeof query2 = query1;
 
   // @ts-expect-error - query2 should not be assignable to query1
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const shouldAlsoError: typeof query1 = query2;
+  const _shouldAlsoError: typeof query1 = query2;
 
   // Valid assignments
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const validQuery1: typeof query1 = query1;
+  const _validQuery1: typeof query1 = query1;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const validQuery2: typeof query2 = query2;
+  const _validQuery2: typeof query2 = query2;
 });
 
 test("serializeQuery and deserializeQuery", () => {

@@ -1,10 +1,10 @@
 import {
-  ApplicationConfig,
+  type ApplicationConfig,
   InjectionToken,
   provideBrowserGlobalErrorListeners,
   provideZonelessChangeDetection,
 } from "@angular/core";
-import { createEvolu, Evolu, getOrThrow, SimpleName } from "@evolu/common";
+import { createEvolu, type Evolu, getOrThrow, SimpleName } from "@evolu/common";
 import { evoluWebDeps } from "@evolu/web";
 import { Schema } from "./schema";
 

@@ -13,7 +13,7 @@ import {
   brand,
   lessThanOrEqualTo,
   minPositiveInt,
-  NonNegativeInt,
+  type NonNegativeInt,
   PositiveInt,
 } from "./Type.js";
 import type { Predicate, WidenLiteral } from "./Types.js";

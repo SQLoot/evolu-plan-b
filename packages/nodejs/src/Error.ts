@@ -17,22 +17,22 @@ import { type GlobalErrorScope, handleGlobalError } from "@evolu/common";
  * ```
  */
 export const createGlobalErrorScope = (
-	nativeProcess: NodeJS.Process,
+  nativeProcess: NodeJS.Process,
 ): GlobalErrorScope => {
-	const scope: GlobalErrorScope = {
-		onError: null,
-		[Symbol.dispose]: () => {
-			nativeProcess.off("uncaughtException", handleError);
-			nativeProcess.off("unhandledRejection", handleError);
-		},
-	};
+  const scope: GlobalErrorScope = {
+    onError: null,
+    [Symbol.dispose]: () => {
+      nativeProcess.off("uncaughtException", handleError);
+      nativeProcess.off("unhandledRejection", handleError);
+    },
+  };
 
-	const handleError = (error: unknown): void => {
-		handleGlobalError(scope, error);
-	};
+  const handleError = (error: unknown): void => {
+    handleGlobalError(scope, error);
+  };
 
-	nativeProcess.on("uncaughtException", handleError);
-	nativeProcess.on("unhandledRejection", handleError);
+  nativeProcess.on("uncaughtException", handleError);
+  nativeProcess.on("unhandledRejection", handleError);
 
-	return scope;
+  return scope;
 };

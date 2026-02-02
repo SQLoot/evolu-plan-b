@@ -33,7 +33,7 @@ import {
   encodeSqliteValue,
   encodeString,
   MessageType,
-  ProtocolMessageMaxSize,
+  type ProtocolMessageMaxSize,
   ProtocolMessageRangesMaxSize,
   ProtocolValueType,
   protocolVersion,
@@ -58,7 +58,7 @@ import {
   timestampToTimestampBytes,
 } from "../../src/local-first/Timestamp.js";
 import { err, getOrThrow, ok } from "../../src/Result.js";
-import { SqliteValue } from "../../src/Sqlite.js";
+import type { SqliteValue } from "../../src/Sqlite.js";
 import type { TestDeps } from "../../src/Test.js";
 import { testCreateDeps, testCreateRunner } from "../../src/Test.js";
 import {
@@ -89,7 +89,7 @@ test("encodeNumber/decodeNumber", () => {
     0,
     42,
     -123,
-    3.14159,
+    Math.PI,
     Number.MAX_SAFE_INTEGER,
     Number.MIN_SAFE_INTEGER,
     Infinity,
@@ -300,7 +300,9 @@ test("encodeSqliteValue/decodeSqliteValue property tests", () => {
         // Test all SqliteValue types
         fc.constant(null),
         fc.string(), // Regular strings
-        fc.double().filter((n) => !Number.isNaN(n)), // Numbers (exclude NaN)
+        fc
+          .double()
+          .filter((n) => !Number.isNaN(n)), // Numbers (exclude NaN)
         fc.uint8Array(), // Binary data
 
         // Special number cases
@@ -330,7 +332,9 @@ test("encodeSqliteValue/decodeSqliteValue property tests", () => {
         fc
           .stringMatching(/^[A-Za-z0-9_-]{4,}$/)
           .filter((s) => s.length % 4 === 0), // Valid Base64Url
-        fc.string().filter((s) => /[^A-Za-z0-9_-]/.test(s)), // Invalid Base64Url chars
+        fc
+          .string()
+          .filter((s) => /[^A-Za-z0-9_-]/.test(s)), // Invalid Base64Url chars
 
         // JSON optimization cases
         fc
@@ -343,23 +347,25 @@ test("encodeSqliteValue/decodeSqliteValue property tests", () => {
           .array(fc.oneof(fc.string(), fc.integer(), fc.boolean()))
           .map((arr) => JSON.stringify(arr)),
         fc.constantFrom('{"a":1}', "[]", "null", "true", "false", '"string"'), // Simple JSON
-        fc.string().filter((s) => {
-          try {
-            JSON.parse(s);
-            return false;
-          } catch {
-            return true;
-          }
-        }), // Non-JSON strings
+        fc
+          .string()
+          .filter((s) => {
+            try {
+              JSON.parse(s);
+              return false;
+            } catch {
+              return true;
+            }
+          }), // Non-JSON strings
 
         // Date ISO strings - both valid and invalid
         fc
           .date({ min: new Date("1970-01-01"), max: new Date("2100-01-01") })
-          .filter((d) => !isNaN(d.getTime()))
+          .filter((d) => !Number.isNaN(d.getTime()))
           .map((d) => d.toISOString()),
         fc
           .date({ min: new Date("0000-01-01"), max: new Date("9999-12-31") })
-          .filter((d) => !isNaN(d.getTime()))
+          .filter((d) => !Number.isNaN(d.getTime()))
           .map((d) => d.toISOString()),
         fc.constantFrom(
           "0000-01-01T00:00:00.000Z",

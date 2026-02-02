@@ -35,35 +35,35 @@ import type {
 } from "../src/Task.js";
 import {
   AbortError,
-  all,
   AllAbortError,
-  allSettled,
   AllSettledAbortError,
-  any,
   AnyAbortError,
+  all,
+  allSettled,
+  any,
   callback,
   createDeferred,
   createGate,
   createMutex,
   createRunner,
   createSemaphore,
+  type DeferredDisposedError,
   deferredDisposedError,
-  DeferredDisposedError,
   fetch,
-  map,
   MapAbortError,
+  map,
   mapSettled,
   parallel,
-  race,
   RaceLostError,
+  type RunnerEvent,
+  race,
   repeat,
   retry,
   runnerClosingError,
-  RunnerEvent,
   sleep,
-  TaskDisposableStack,
-  timeout,
+  type TaskDisposableStack,
   TimeoutError,
+  timeout,
   unabortable,
   unabortableMask,
   yieldNow,
@@ -71,7 +71,7 @@ import {
 import { testCreateDeps, testCreateRunner } from "../src/Test.js";
 import { createTime, Millis, msLongTask, testCreateTime } from "../src/Time.js";
 import type { Typed } from "../src/Type.js";
-import { Id, minPositiveInt, PositiveInt } from "../src/Type.js";
+import { type Id, minPositiveInt, PositiveInt } from "../src/Type.js";
 
 const eventsEnabled: RunnerConfigDep = {
   runnerConfig: { eventsEnabled: createRef(true) },
@@ -739,11 +739,11 @@ describe("Runner", () => {
 
       const task: Task<void> = async (run) => {
         run.signal.addEventListener("abort", () => {
-          stateInAbortHandler = run.parent!.getState();
+          stateInAbortHandler = run.parent?.getState();
         });
         taskStarted.resolve();
         await taskCanFinish.promise;
-        stateAfterAwait = run.parent!.getState();
+        stateAfterAwait = run.parent?.getState();
         return ok();
       };
 
@@ -756,8 +756,8 @@ describe("Runner", () => {
       taskCanFinish.resolve();
       await disposePromise;
 
-      expect(stateInAbortHandler!.type).toBe("Completing");
-      expect(stateAfterAwait!.type).toBe("Completing");
+      expect(stateInAbortHandler?.type).toBe("Completing");
+      expect(stateAfterAwait?.type).toBe("Completing");
       expect(run.getState().type).toBe("Completed");
     });
 
@@ -946,111 +946,105 @@ describe("Runner", () => {
       expect(reason).toBe("late-reason");
     });
 
-    test.sequential(
-      "removes listener via signal option for cleanup",
-      async () => {
-        // This test verifies that onAbort uses `signal: requestController.signal`
-        // for listener cleanup. Per spec, when the cleanup signal aborts, the
-        // listener is removed. We capture the cleanup signal and verify it's
-        // aborted after disposal.
+    test.sequential("removes listener via signal option for cleanup", async () => {
+      // This test verifies that onAbort uses `signal: requestController.signal`
+      // for listener cleanup. Per spec, when the cleanup signal aborts, the
+      // listener is removed. We capture the cleanup signal and verify it's
+      // aborted after disposal.
 
-        await using run = createRunner();
+      await using run = createRunner();
 
-        let cleanupSignal: AbortSignal | null = null;
-        // eslint-disable-next-line @typescript-eslint/unbound-method
-        const originalAddEventListener = AbortSignal.prototype.addEventListener;
+      let cleanupSignal: AbortSignal | null = null;
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      const originalAddEventListener = AbortSignal.prototype.addEventListener;
 
-        let childSignal: AbortSignal | null = null;
+      let childSignal: AbortSignal | null = null;
 
-        AbortSignal.prototype.addEventListener = function (
-          ...args: Parameters<typeof originalAddEventListener>
+      AbortSignal.prototype.addEventListener = function (
+        ...args: Parameters<typeof originalAddEventListener>
+      ) {
+        const [type, , options] = args;
+        if (
+          type === "abort" &&
+          this === childSignal &&
+          options &&
+          typeof options === "object" &&
+          options.signal
         ) {
-          const [type, , options] = args;
-          if (
-            type === "abort" &&
-            this === childSignal &&
-            options &&
-            typeof options === "object" &&
-            options.signal
-          ) {
-            cleanupSignal = options.signal;
-          }
-          originalAddEventListener.apply(this, args);
-        };
-
-        try {
-          await run((childRun) => {
-            childSignal = childRun.signal;
-            childRun.onAbort(lazyVoid);
-            return ok();
-          });
-
-          // Cleanup signal should exist and be aborted after disposal
-          expect(cleanupSignal).not.toBeNull();
-          expect(cleanupSignal!.aborted).toBe(true);
-        } finally {
-          AbortSignal.prototype.addEventListener = originalAddEventListener;
+          cleanupSignal = options.signal;
         }
-      },
-    );
+        originalAddEventListener.apply(this, args);
+      };
 
-    test.sequential(
-      "removes parent abort listener via signal option for cleanup",
-      async () => {
-        // This test verifies that child runners use `signal: requestController.signal`
-        // for parent abort listener cleanup. When a child completes, the listener
-        // on parent.requestSignal should be removed automatically.
+      try {
+        await run((childRun) => {
+          childSignal = childRun.signal;
+          childRun.onAbort(lazyVoid);
+          return ok();
+        });
 
-        await using run = createRunner();
+        // Cleanup signal should exist and be aborted after disposal
+        expect(cleanupSignal).not.toBeNull();
+        expect(cleanupSignal?.aborted).toBe(true);
+      } finally {
+        AbortSignal.prototype.addEventListener = originalAddEventListener;
+      }
+    });
 
-        let cleanupSignal: AbortSignal | null = null;
-        // eslint-disable-next-line @typescript-eslint/unbound-method
-        const originalAddEventListener = AbortSignal.prototype.addEventListener;
+    test.sequential("removes parent abort listener via signal option for cleanup", async () => {
+      // This test verifies that child runners use `signal: requestController.signal`
+      // for parent abort listener cleanup. When a child completes, the listener
+      // on parent.requestSignal should be removed automatically.
 
-        // We need to capture the parent's requestSignal to identify the right listener
-        let parentRequestSignal: AbortSignal | null = null;
+      await using run = createRunner();
 
-        AbortSignal.prototype.addEventListener = function (
-          ...args: Parameters<typeof originalAddEventListener>
+      let cleanupSignal: AbortSignal | null = null;
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      const originalAddEventListener = AbortSignal.prototype.addEventListener;
+
+      // We need to capture the parent's requestSignal to identify the right listener
+      let parentRequestSignal: AbortSignal | null = null;
+
+      AbortSignal.prototype.addEventListener = function (
+        ...args: Parameters<typeof originalAddEventListener>
+      ) {
+        const [type, , options] = args;
+        // The parent abort listener is registered on parent.requestSignal
+        if (
+          type === "abort" &&
+          this === parentRequestSignal &&
+          options &&
+          typeof options === "object" &&
+          options.signal
         ) {
-          const [type, , options] = args;
-          // The parent abort listener is registered on parent.requestSignal
-          if (
-            type === "abort" &&
-            this === parentRequestSignal &&
-            options &&
-            typeof options === "object" &&
-            options.signal
-          ) {
-            cleanupSignal = options.signal;
-          }
-          originalAddEventListener.apply(this, args);
-        };
-
-        try {
-          // First, we need to get access to the parent's internal requestSignal
-          // We do this by spawning a child that captures it
-          await run((childRun) => {
-            // The child registers a listener on parent.requestSignal
-            // We can identify it by checking what signal addEventListener is called on
-            // The parent's requestSignal is internal, but we can use a trick:
-            // spawn another child and that child will register on childRun's requestSignal
-            parentRequestSignal = (
-              childRun as never as { requestSignal: AbortSignal }
-            ).requestSignal;
-
-            const childFiber = childRun(() => ok(42));
-            return childFiber;
-          });
-
-          // Cleanup signal should exist and be aborted after child disposal
-          expect(cleanupSignal).not.toBeNull();
-          expect(cleanupSignal!.aborted).toBe(true);
-        } finally {
-          AbortSignal.prototype.addEventListener = originalAddEventListener;
+          cleanupSignal = options.signal;
         }
-      },
-    );
+        originalAddEventListener.apply(this, args);
+      };
+
+      try {
+        // First, we need to get access to the parent's internal requestSignal
+        // We do this by spawning a child that captures it
+        await run((childRun) => {
+          // The child registers a listener on parent.requestSignal
+          // We can identify it by checking what signal addEventListener is called on
+          // The parent's requestSignal is internal, but we can use a trick:
+          // spawn another child and that child will register on childRun's requestSignal
+          parentRequestSignal = (
+            childRun as never as { requestSignal: AbortSignal }
+          ).requestSignal;
+
+          const childFiber = childRun(() => ok(42));
+          return childFiber;
+        });
+
+        // Cleanup signal should exist and be aborted after child disposal
+        expect(cleanupSignal).not.toBeNull();
+        expect(cleanupSignal?.aborted).toBe(true);
+      } finally {
+        AbortSignal.prototype.addEventListener = originalAddEventListener;
+      }
+    });
   });
 });
 
@@ -1256,7 +1250,7 @@ describe("Fiber", () => {
       await parentFiber;
 
       expect(parentFiberId).toBe(parentFiber.run.id);
-      expect(childFiberId).toBe(childFiber!.run.id);
+      expect(childFiberId).toBe(childFiber?.run.id);
       expect(parentFiberId).not.toBe(childFiberId);
     });
 
@@ -1747,7 +1741,7 @@ describe("unabortableMask", () => {
 
     // Using restore2 outside its intended scope would increase abort mask
     // (root mask=0, override=1). This must crash.
-    expect(() => run(restoreFromInner!(() => ok()))).toThrow(
+    expect(() => run(restoreFromInner?.(() => ok()))).toThrow(
       "restore used outside its unabortableMask",
     );
   });
@@ -2218,8 +2212,8 @@ describe("AsyncDisposableStack", () => {
       const result = await run(task);
 
       expect(result).toEqual(ok());
-      expect(stateWhileWorking!.type).toBe("Running");
-      expect(childRunner!.getState().type).toBe("Completed");
+      expect(stateWhileWorking?.type).toBe("Running");
+      expect(childRunner?.getState().type).toBe("Completed");
     });
 
     test("accepts moved native stack", async () => {

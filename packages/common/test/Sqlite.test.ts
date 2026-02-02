@@ -1,11 +1,11 @@
+import { existsSync, unlinkSync } from "node:fs";
 import BetterSQLite from "better-sqlite3";
-import { existsSync, unlinkSync } from "fs";
 import { assert, describe, expect, test } from "vitest";
-import { testCreateConsole, type TestConsole } from "../src/Console.js";
+import { type TestConsole, testCreateConsole } from "../src/Console.js";
 import { lazyVoid } from "../src/Function.js";
 import { err, getOrThrow } from "../src/Result.js";
-import { createSqliteOld, isSqlMutation, sql } from "../src/Sqlite.js";
 import type { SqliteDriver } from "../src/Sqlite.js";
+import { createSqliteOld, isSqlMutation, sql } from "../src/Sqlite.js";
 import { testCreateSqliteDriver, testSimpleName } from "./_deps.js";
 
 const createTestSqlite = async (testConsole?: TestConsole) => {
@@ -47,8 +47,9 @@ test("transaction fails and rolls back on SQL error", async () => {
       },
     }),
   );
-  expect(testConsole.getEntriesSnapshot().map((e) => e.args))
-    .toMatchInlineSnapshot(`
+  expect(
+    testConsole.getEntriesSnapshot().map((e) => e.args),
+  ).toMatchInlineSnapshot(`
     [
       [
         "[sql]",
@@ -99,8 +100,9 @@ test("transaction fails and rolls back on callback error", async () => {
   expect(result).toEqual(
     err({ type: "CallbackError", message: "Something went wrong" }),
   );
-  expect(testConsole.getEntriesSnapshot().map((e) => e.args))
-    .toMatchInlineSnapshot(`
+  expect(
+    testConsole.getEntriesSnapshot().map((e) => e.args),
+  ).toMatchInlineSnapshot(`
     [
       [
         "[sql]",
@@ -437,11 +439,10 @@ describe("isSqlMutation", () => {
   });
 
   test("handles strings with many comment markers without performance issues", () => {
-    const manyComments = "-- ".repeat(1000) + "SELECT * FROM users";
+    const manyComments = `${"-- ".repeat(1000)}SELECT * FROM users`;
     expect(isSqlMutation(manyComments)).toBe(false);
 
-    const manyCommentsWithMutation =
-      "-- ".repeat(1000) + "\nINSERT INTO users VALUES (1)";
+    const manyCommentsWithMutation = `${"-- ".repeat(1000)}\nINSERT INTO users VALUES (1)`;
     expect(isSqlMutation(manyCommentsWithMutation)).toBe(true);
   });
 });

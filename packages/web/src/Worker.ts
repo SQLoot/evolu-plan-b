@@ -1,4 +1,3 @@
-import { assert, handleGlobalError } from "@evolu/common";
 import type {
   CreateMessagePort,
   MessageChannel,
@@ -9,6 +8,7 @@ import type {
   Worker,
   WorkerScope,
 } from "@evolu/common";
+import { assert, handleGlobalError } from "@evolu/common";
 
 /** Creates an Evolu {@link Worker} from a native Worker. */
 export const createWorker = <Input, Output>(

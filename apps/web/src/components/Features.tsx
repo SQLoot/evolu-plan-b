@@ -1,14 +1,6 @@
 "use client";
 
 import {
-  type MotionValue,
-  motion,
-  useMotionTemplate,
-  useMotionValue,
-} from "motion/react";
-
-import { GridPattern } from "@/components/GridPattern";
-import {
   IconBrandJavascript,
   IconBrandOpenSource,
   IconBrandTypescript,
@@ -27,6 +19,13 @@ import {
   IconSubtask,
   IconTrash,
 } from "@tabler/icons-react";
+import {
+  type MotionValue,
+  motion,
+  useMotionTemplate,
+  useMotionValue,
+} from "motion/react";
+import { GridPattern } from "@/components/GridPattern";
 
 interface Feature {
   id: string;

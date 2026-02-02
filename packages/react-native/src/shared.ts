@@ -1,8 +1,8 @@
 import {
+  type CreateSqliteDriverDep,
   createConsole,
   createLocalAuth,
   createRandomBytes,
-  type CreateSqliteDriverDep,
   type LocalAuth,
   type ReloadAppDep,
   type SecureStorage,

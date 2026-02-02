@@ -1,5 +1,5 @@
 import {
-  EvoluSchema,
+  type EvoluSchema,
   id,
   NonEmptyString100,
   nullOr,

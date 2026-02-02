@@ -23,16 +23,22 @@ import { err, ok } from "../Result.js";
 import type { SqliteDep, SqliteError } from "../Sqlite.js";
 import {
   booleanToSqliteBoolean,
-  sql,
   SqliteBoolean,
+  type SqliteValue,
+  sql,
   sqliteBooleanToBoolean,
-  SqliteValue,
 } from "../Sqlite.js";
 import { createMutex } from "../Task.js";
 import type { Millis, TimeDep } from "../Time.js";
 import { millisToDateIso } from "../Time.js";
 import type { Typed } from "../Type.js";
-import { Id, IdBytes, idBytesToId, idToIdBytes, PositiveInt } from "../Type.js";
+import {
+  type Id,
+  type IdBytes,
+  idBytesToId,
+  idToIdBytes,
+  type PositiveInt,
+} from "../Type.js";
 import type { CreateWebSocketDep, WebSocket } from "../WebSocket.js";
 import type {
   AppOwner,
@@ -42,8 +48,8 @@ import type {
   ReadonlyOwner,
 } from "./Owner.js";
 import {
-  OwnerId,
-  OwnerIdBytes,
+  type OwnerId,
+  type OwnerIdBytes,
   ownerIdBytesToOwnerId,
   ownerIdToOwnerIdBytes,
 } from "./Owner.js";

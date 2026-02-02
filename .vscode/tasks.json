@@ -1,50 +1,50 @@
 {
-	"version": "2.0.0",
-	"tasks": [
-		{
-			"label": "Build",
-			"type": "shell",
-			"command": "bun run build",
-			"group": "build",
-			"problemMatcher": ["$tsc"]
-		},
-		{
-			"label": "Test",
-			"type": "shell",
-			"command": "bun run test",
-			"group": "test",
-			"problemMatcher": []
-		},
-		{
-			"label": "Lint",
-			"type": "shell",
-			"command": "bun run lint",
-			"group": "test",
-			"problemMatcher": ["$eslint-stylish"]
-		},
-		{
-			"label": "Format",
-			"type": "shell",
-			"command": "bun run format",
-			"group": "none",
-			"problemMatcher": []
-		},
-		{
-			"label": "Verify",
-			"type": "shell",
-			"command": "bun run verify",
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			},
-			"problemMatcher": ["$tsc"]
-		},
-		{
-			"label": "Dev",
-			"type": "shell",
-			"command": "bun run dev",
-			"isBackground": true,
-			"problemMatcher": []
-		}
-	]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build",
+      "type": "shell",
+      "command": "bun run build",
+      "group": "build",
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "Test",
+      "type": "shell",
+      "command": "bun run test",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Lint",
+      "type": "shell",
+      "command": "bun run lint",
+      "group": "test",
+      "problemMatcher": ["$eslint-stylish"]
+    },
+    {
+      "label": "Format",
+      "type": "shell",
+      "command": "bun run format",
+      "group": "none",
+      "problemMatcher": []
+    },
+    {
+      "label": "Verify",
+      "type": "shell",
+      "command": "bun run verify",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "Dev",
+      "type": "shell",
+      "command": "bun run dev",
+      "isBackground": true,
+      "problemMatcher": []
+    }
+  ]
 }

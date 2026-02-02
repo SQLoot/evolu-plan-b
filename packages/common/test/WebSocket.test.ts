@@ -15,7 +15,7 @@ declare module "vitest/browser" {
 let port: number | undefined;
 const getServerUrl = (path = ""): string => {
   if (port === undefined) throw new Error("Server port not initialized");
-  return `ws://localhost:${port}${path ? "/" + path : ""}`;
+  return `ws://localhost:${port}${path ? `/${path}` : ""}`;
 };
 
 beforeEach(async () => {

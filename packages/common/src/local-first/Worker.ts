@@ -5,6 +5,7 @@
  */
 
 import { exhaustiveCheck } from "../Function.js";
+import type { Typed } from "../Type.js";
 import type {
   SharedWorker as CommonSharedWorker,
   CreateMessagePortDep,
@@ -12,7 +13,6 @@ import type {
   MessagePort,
   NativeMessagePort,
 } from "../Worker.js";
-import type { Typed } from "../Type.js";
 import type { EvoluError } from "./Error.js";
 
 export type EvoluWorker = CommonSharedWorker<EvoluWorkerInput>;

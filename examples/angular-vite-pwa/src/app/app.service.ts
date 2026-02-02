@@ -1,8 +1,8 @@
-import { Injectable, OnDestroy, inject, signal } from "@angular/core";
-import { InferRow, Mnemonic, Query, Row } from "@evolu/common";
+import { Injectable, inject, type OnDestroy, signal } from "@angular/core";
+import { type InferRow, Mnemonic, type Query, type Row } from "@evolu/common";
 import { EVOLU } from "./app.config";
 import { formatTypeError } from "./error-formatter";
-import { TodoId } from "./schema";
+import type { TodoId } from "./schema";
 
 @Injectable({ providedIn: "root" })
 export class AppService implements OnDestroy {

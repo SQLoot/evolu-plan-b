@@ -12,7 +12,7 @@ import {
   type NonEmptyReadonlyArray,
 } from "./Array.js";
 import { assert, assertType } from "./Assert.js";
-import { createConsole, type Console, type ConsoleDep } from "./Console.js";
+import { type Console, type ConsoleDep, createConsole } from "./Console.js";
 import type { RandomBytes, RandomBytesDep } from "./Crypto.js";
 import { createRandomBytes } from "./Crypto.js";
 import { eqArrayStrict } from "./Eq.js";
@@ -40,42 +40,41 @@ import {
   brand,
   createId,
   Id,
+  type InferType,
   maxPositiveInt,
   minPositiveInt,
   NonNegativeInt,
   object,
   PositiveInt,
+  type Typed,
   typed,
-  union,
   Unknown,
   UnknownResult,
-  type InferType,
-  type Typed,
+  union,
 } from "./Type.js";
-import type { isPromiseLike } from "./Types.js";
-import {
-  type Awaitable,
-  type Callback,
-  type CallbackWithCleanup,
-  type Int1To100,
-  type Mutable,
-  type NewKeys,
-  type Predicate,
+import type {
+  Awaitable,
+  Callback,
+  CallbackWithCleanup,
+  Int1To100,
+  isPromiseLike,
+  Mutable,
+  NewKeys,
+  Predicate,
 } from "./Types.js";
 
-
 declare global {
-	interface PromiseConstructor {
-		try<T, Args extends any[]>(
-			executor: (...args: Args) => T | PromiseLike<T>,
-			...args: Args
-		): Promise<T>;
-		withResolvers<T>(): {
-			promise: Promise<T>;
-			resolve: (value: T | PromiseLike<T>) => void;
-			reject: (reason?: any) => void;
-		};
-	}
+  interface PromiseConstructor {
+    try<T, Args extends any[]>(
+      executor: (...args: Args) => T | PromiseLike<T>,
+      ...args: Args
+    ): Promise<T>;
+    withResolvers<T>(): {
+      promise: Promise<T>;
+      resolve: (value: T | PromiseLike<T>) => void;
+      reject: (reason?: any) => void;
+    };
+  }
 }
 
 /**
@@ -445,7 +444,7 @@ export type InferTaskDone<T extends Task<any, any, any>> =
  * @group Core Types
  */
 export type MainTask<D> = Task<
-  Disposable | AsyncDisposable | void,
+  Disposable | AsyncDisposable | undefined,
   never,
   RunnerDeps & D
 >;
@@ -878,10 +877,8 @@ export interface FiberStateRunning extends Typed<"Running"> {}
 
 export interface FiberStateCompleting extends Typed<"Completing"> {}
 
-export interface FiberStateCompleted<
-  T = unknown,
-  E = unknown,
-> extends Typed<"Completed"> {
+export interface FiberStateCompleted<T = unknown, E = unknown>
+  extends Typed<"Completed"> {
   /**
    * The fiber's completion value.
    *
@@ -1503,9 +1500,8 @@ const running: FiberState = { type: "Running" };
  * @group Creating Runners
  */
 export const RunnerClosingError = /*#__PURE__*/ typed("RunnerClosingError");
-export interface RunnerClosingError extends InferType<
-  typeof RunnerClosingError
-> {}
+export interface RunnerClosingError
+  extends InferType<typeof RunnerClosingError> {}
 
 /**
  * The {@link RunnerClosingError} used when a {@link Runner} is disposed.
@@ -1738,12 +1734,22 @@ export const yieldNow: Task<void> = () =>
     (reason): AbortError => createAbortError(reason),
   );
 
+type SchedulerLike = {
+  yield?: () => Promise<void>;
+};
+
+const globalScheduler = (globalThis as { scheduler?: SchedulerLike }).scheduler;
+let schedulerYield: (() => Promise<void>) | undefined;
+
+if (globalScheduler && typeof globalScheduler.yield === "function") {
+  schedulerYield = globalScheduler.yield.bind(globalScheduler);
+}
+
 const yieldImpl: () => Promise<void> =
-  "scheduler" in globalThis && "yield" in globalThis.scheduler
-    ? () => globalThis.scheduler.yield()
-    : typeof setImmediate !== "undefined"
-      ? () => new Promise<void>((resolve) => setImmediate(resolve))
-      : () => new Promise<void>((r) => setTimeout(r, 0)); // Safari
+  schedulerYield ??
+  (typeof setImmediate !== "undefined"
+    ? () => new Promise<void>((resolve) => setImmediate(resolve))
+    : () => new Promise<void>((r) => setTimeout(r, 0))); // Safari
 
 /**
  * Creates a {@link Task} from a callback-based API.
@@ -2311,9 +2317,8 @@ export const createDeferred = <T, E = never>(): Deferred<T, E> => {
 export const DeferredDisposedError = /*#__PURE__*/ typed(
   "DeferredDisposedError",
 );
-export interface DeferredDisposedError extends InferType<
-  typeof DeferredDisposedError
-> {}
+export interface DeferredDisposedError
+  extends InferType<typeof DeferredDisposedError> {}
 
 /**
  * {@link DeferredDisposedError} used as abort reason in {@link createDeferred}.
@@ -2545,9 +2550,8 @@ export const createSemaphore = (permits: Concurrency): Semaphore => {
 export const SemaphoreDisposedError = /*#__PURE__*/ typed(
   "SemaphoreDisposedError",
 );
-export interface SemaphoreDisposedError extends InferType<
-  typeof SemaphoreDisposedError
-> {}
+export interface SemaphoreDisposedError
+  extends InferType<typeof SemaphoreDisposedError> {}
 
 /**
  * {@link SemaphoreDisposedError} used as abort reason in {@link createSemaphore}.
@@ -2881,9 +2885,8 @@ export function allSettled(
  * @group Composition
  */
 export const AllSettledAbortError = /*#__PURE__*/ typed("AllSettledAbortError");
-export interface AllSettledAbortError extends InferType<
-  typeof AllSettledAbortError
-> {}
+export interface AllSettledAbortError
+  extends InferType<typeof AllSettledAbortError> {}
 
 /**
  * {@link AllSettledAbortError} used as abort reason in {@link allSettled}.
@@ -2965,7 +2968,7 @@ export function map<A, T, E, D>(
   items: MapInput<A>,
   fn: (a: A) => Task<T, E, D>,
   { abortReason = mapAbortError, ...options }: CollectOptions<boolean> = {},
-): Task<ReadonlyArray<T> | Record<string, T> | void, E, D> {
+): Task<ReadonlyArray<T> | Record<string, T> | undefined, E, D> {
   const mapped = mapInput(items, fn);
   return all(
     mapped as Iterable<Task<T, E, D>>,
@@ -3077,7 +3080,7 @@ export function mapSettled<A, T, E, D>(
 ): Task<
   | ReadonlyArray<Result<T, E | AbortError>>
   | Record<string, Result<T, E | AbortError>>
-  | void,
+  | undefined,
   never,
   D
 > {
@@ -3315,7 +3318,7 @@ function pool<T, E>(
     abortReason: unknown;
     allFailed?: AnyAllFailed;
   },
-): Task<ReadonlyArray<unknown> | T | void, E> {
+): Task<ReadonlyArray<unknown> | T | undefined, E> {
   const tasks = arrayFrom(tasksIterable);
   const { length } = tasks;
   if (length === 0) return () => ok(emptyArray);

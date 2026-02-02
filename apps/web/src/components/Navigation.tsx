@@ -1,17 +1,16 @@
 "use client";
 
+import { IconArrowUpRight } from "@tabler/icons-react";
 import clsx from "clsx";
 import { AnimatePresence, motion, useIsPresent } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-
 import { useSectionStore } from "@/components/SectionProvider";
 import { Tag } from "@/components/Tag";
 import { useIsInsideMobileNavigation } from "@/hooks/use-nav";
 import { type NavGroup, navigation } from "@/lib/navigation";
 import { remToPx } from "@/lib/remToPx";
-import { IconArrowUpRight } from "@tabler/icons-react";
 
 const useInitialValue = <T,>(value: T, condition = true) => {
   const [initialValue] = useState(value);
@@ -183,7 +182,7 @@ const NavigationGroup = ({
             <ActivePageMarker group={group} pathname={pathname} />
           )}
         </AnimatePresence>
-        <ul role="list" className="border-l border-transparent">
+        <ul className="border-l border-transparent">
           {group.links.map((link) => (
             <motion.li key={link.href} layout="position" className="relative">
               <NavLink href={link.href} active={link.href === pathname}>
@@ -230,7 +229,7 @@ export const Navigation = (
   props: React.ComponentPropsWithoutRef<"nav">,
 ): React.ReactElement => (
   <nav {...props}>
-    <ul role="list">
+    <ul>
       <TopLevelNavItem href="/blog">Blog</TopLevelNavItem>
       <TopLevelNavItem target="_blank" href="https://github.com/evoluhq/evolu">
         GitHub <IconArrowUpRight />

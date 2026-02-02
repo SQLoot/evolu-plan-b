@@ -20,7 +20,7 @@ import {
 } from "react";
 import Highlighter from "react-highlight-words";
 
-import { type Result } from "@/mdx/search.mjs";
+import type { Result } from "@/mdx/search.mjs";
 
 type EmptyObject = Record<string, never>;
 
@@ -302,12 +302,12 @@ const SearchDialog = ({
       setOpen(false);
     },
   });
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const _pathname = usePathname();
+  const _searchParams = useSearchParams();
 
   useEffect(() => {
     setOpen(false);
-  }, [pathname, searchParams, setOpen]);
+  }, [setOpen]);
 
   useEffect(() => {
     if (open) {
@@ -396,16 +396,13 @@ const useSearchProps = () => {
     },
     dialogProps: {
       open,
-      setOpen: useCallback(
-        (open: boolean) => {
-          const { width = 0, height = 0 } =
-            buttonRef.current?.getBoundingClientRect() ?? {};
-          if (!open || (width !== 0 && height !== 0)) {
-            setOpen(open);
-          }
-        },
-        [setOpen],
-      ),
+      setOpen: useCallback((open: boolean) => {
+        const { width = 0, height = 0 } =
+          buttonRef.current?.getBoundingClientRect() ?? {};
+        if (!open || (width !== 0 && height !== 0)) {
+          setOpen(open);
+        }
+      }, []),
     },
   };
 };

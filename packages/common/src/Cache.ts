@@ -4,7 +4,7 @@
  * @module
  */
 
-import { PositiveInt } from "./Type.js";
+import type { PositiveInt } from "./Type.js";
 
 /**
  * Generic cache interface providing basic key-value storage operations.

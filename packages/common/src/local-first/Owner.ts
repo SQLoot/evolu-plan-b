@@ -21,12 +21,12 @@ import {
   IdBytes,
   idBytesToId,
   idToIdBytes,
-  Mnemonic,
+  type Mnemonic,
   NonNegativeInt,
   type Typed,
 } from "../Type.js";
 import type { EncryptedDbChange, Storage } from "./Storage.js";
-import { TimestampBytes } from "./Timestamp.js";
+import type { TimestampBytes } from "./Timestamp.js";
 
 /**
  * {@link Owner} without a {@link OwnerWriteKey}.
@@ -281,7 +281,8 @@ export const createSharedOwner = (secret: OwnerSecret): SharedOwner => ({
  * data without write access.
  */
 export interface SharedReadonlyOwner
-  extends ReadonlyOwner, Typed<"SharedReadonlyOwner"> {}
+  extends ReadonlyOwner,
+    Typed<"SharedReadonlyOwner"> {}
 
 /** Creates a {@link SharedReadonlyOwner} from a {@link SharedOwner}. */
 export const createSharedReadonlyOwner = (

@@ -1,5 +1,5 @@
-import { type ArticleWithSlug, getAllArticles } from "@/lib/blog";
 import RSS from "rss";
+import { type ArticleWithSlug, getAllArticles } from "@/lib/blog";
 
 const getSiteUrl = (request: Request): string => {
   if (process.env.NODE_ENV === "production") {

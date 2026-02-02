@@ -15,17 +15,17 @@ test("Brand", () => {
   // Invalid assignment (string to ProductId)
   // @ts-expect-error - Should not allow a string to be assigned to ProductId
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const invalidProductId: ProductId = "not-a-number";
+  const _invalidProductId: ProductId = "not-a-number";
 
   // Invalid assignment (unbranded string to UserId)
   // @ts-expect-error - Should not allow unbranded string to be assigned to UserId
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const invalidUserId: UserId = "user123";
+  const _invalidUserId: UserId = "user123";
 
   // Invalid assignment (mixing different brands)
   // @ts-expect-error - Should not allow assigning a ProductId to a UserId
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const mismatchedId: UserId = validProductId;
+  const _mismatchedId: UserId = validProductId;
 });
 
 test("Brand - multiple brands", () => {

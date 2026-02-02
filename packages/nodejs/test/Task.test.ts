@@ -1,4 +1,4 @@
-import { ok, testCreateConsole, type MainTask } from "@evolu/common";
+import { type MainTask, ok, testCreateConsole } from "@evolu/common";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { runMain } from "../src/Task.js";
 

@@ -9,6 +9,8 @@ export const NextjsLogo = (
     height="1em"
     fill="none"
     viewBox="0 0 101 100"
+    role="img"
+    aria-label="Next.js logo"
     {...props}
   >
     <g clipPath="url(#a)">

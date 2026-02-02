@@ -1,9 +1,9 @@
 import * as Evolu from "@evolu/common";
 import { createUseEvolu, EvoluProvider, useQuery } from "@evolu/react";
-import { evoluReactWebDeps, EvoluIdenticon, localAuth } from "@evolu/react-web";
+import { EvoluIdenticon, evoluReactWebDeps, localAuth } from "@evolu/react-web";
 import { IconEdit, IconTrash } from "@tabler/icons-react";
 import clsx from "clsx";
-import { FC, Suspense, use, useMemo, useState } from "react";
+import { type FC, Suspense, use, useMemo, useState } from "react";
 
 // Namespace for the current app (scopes databases, passkeys, etc.)
 const service = "pwa-react-151125";
@@ -331,7 +331,7 @@ const AuthActions: FC = () => {
     if (username == null) return;
 
     // Determine if this is a guest login or a new owner.
-    const isGuest = !Boolean(authResult?.owner);
+    const isGuest = !authResult?.owner;
 
     // Register the guest owner or create a new one if this is already registered.
     const result = await localAuth.register(username, {

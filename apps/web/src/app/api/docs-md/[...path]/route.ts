@@ -1,5 +1,5 @@
-import fs from "fs";
-import { NextRequest, NextResponse } from "next/server";
+import fs from "node:fs";
+import { type NextRequest, NextResponse } from "next/server";
 import { cleanMdxContent } from "@/lib/llms";
 
 interface Params {

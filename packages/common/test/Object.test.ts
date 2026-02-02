@@ -26,7 +26,7 @@ test("isFunction", () => {
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   expect(isFunction(() => {})).toBe(true);
   // eslint-disable-next-line @typescript-eslint/no-empty-function
-  expect(isFunction(function () {})).toBe(true);
+  expect(isFunction(() => {})).toBe(true);
   expect(isFunction({})).toBe(false);
   expect(isFunction([])).toBe(false);
   expect(isFunction("fn")).toBe(false);

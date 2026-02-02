@@ -28,7 +28,6 @@ export const ConditionalPlatformAlert = ({
       return <Note>{children}</Note>;
     case "announcement":
       return <Announcement>{children}</Announcement>;
-    case "warning":
     default:
       return <Warn>{children}</Warn>;
   }

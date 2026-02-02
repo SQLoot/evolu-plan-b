@@ -167,7 +167,8 @@ export interface WebSocketConnectError extends Typed<"WebSocketConnectError"> {
  *
  * https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/error_event
  */
-export interface WebSocketConnectionError extends Typed<"WebSocketConnectionError"> {
+export interface WebSocketConnectionError
+  extends Typed<"WebSocketConnectionError"> {
   readonly event: Event;
 }
 
@@ -176,7 +177,8 @@ export type WebSocketRetryError =
   | WebSocketConnectionCloseError;
 
 /** An error that occurs when the connection is closed by the server. */
-export interface WebSocketConnectionCloseError extends Typed<"WebSocketConnectionCloseError"> {
+export interface WebSocketConnectionCloseError
+  extends Typed<"WebSocketConnectionCloseError"> {
   readonly event: CloseEvent;
 }
 

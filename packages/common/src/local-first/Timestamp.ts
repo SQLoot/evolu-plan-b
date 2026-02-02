@@ -52,9 +52,11 @@ export interface TimestampDriftError extends Typed<"TimestampDriftError"> {
   readonly now: Millis;
 }
 
-export interface TimestampCounterOverflowError extends Typed<"TimestampCounterOverflowError"> {}
+export interface TimestampCounterOverflowError
+  extends Typed<"TimestampCounterOverflowError"> {}
 
-export interface TimestampTimeOutOfRangeError extends Typed<"TimestampTimeOutOfRangeError"> {}
+export interface TimestampTimeOutOfRangeError
+  extends Typed<"TimestampTimeOutOfRangeError"> {}
 
 export const Counter = /*#__PURE__*/ brand(
   "Counter",

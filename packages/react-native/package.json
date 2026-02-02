@@ -73,6 +73,8 @@
     "@evolu/common": "workspace:*",
     "@evolu/react": "workspace:*",
     "@evolu/tsconfig": "workspace:*",
+    "@types/react": "^19.0.8",
+    "react": "^19.0.0",
     "@op-engineering/op-sqlite": "^15.2.2",
     "expo": "^54.0.31",
     "expo-secure-store": "~15.0.8",
@@ -87,6 +89,7 @@
   "peerDependencies": {
     "@evolu/common": "^7.4.1",
     "@evolu/react": "^10.4.0",
+    "react": ">=19",
     "@op-engineering/op-sqlite": ">=12",
     "expo": ">=54",
     "expo-secure-store": ">=15",

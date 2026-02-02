@@ -1,13 +1,13 @@
 import { describe, expect, expectTypeOf, test } from "vitest";
 import type { NonEmptyArray, NonEmptyReadonlyArray } from "../src/Array.js";
 import {
+  exhaustiveCheck,
+  identity,
   lazyFalse,
   lazyNull,
   lazyTrue,
-  lazyUndefined,
-  lazyVoid,
-  exhaustiveCheck,
-  identity,
+  type lazyUndefined,
+  type lazyVoid,
   readonly,
   todo,
 } from "../src/Function.js";

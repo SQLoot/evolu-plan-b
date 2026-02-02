@@ -1,13 +1,15 @@
+import { existsSync } from "node:fs";
+import { createServer } from "node:http";
 import {
   allResult,
+  type CreateSqliteDriverDep,
   callback,
   createRandom,
   createRelation,
   createSqlite,
-  type CreateSqliteDriverDep,
   isPromiseLike,
+  type OwnerId,
   ok,
-  OwnerId,
   type RandomDep,
   SimpleName,
   type SqliteError,
@@ -16,8 +18,8 @@ import {
   Uint8Array,
 } from "@evolu/common";
 import {
-  applyProtocolMessageAsRelay,
   type ApplyProtocolMessageAsRelayOptions,
+  applyProtocolMessageAsRelay,
   createBaseSqliteStorageTables,
   createRelaySqliteStorage,
   createRelayStorageTables,
@@ -26,8 +28,6 @@ import {
   type Relay,
   type RelayConfig,
 } from "@evolu/common/local-first";
-import { existsSync } from "fs";
-import { createServer } from "http";
 import { WebSocket, WebSocketServer } from "ws";
 import { createBetterSqliteDriver } from "../BetterSqliteDriver.js";
 import { createTimingSafeEqual } from "../Crypto.js";

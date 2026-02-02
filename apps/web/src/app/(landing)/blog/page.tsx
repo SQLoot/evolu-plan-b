@@ -1,9 +1,9 @@
-import { type Metadata } from "next";
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Card } from "@/components/Card";
-import { SimpleLayout } from "@/components/SimpleLayout";
 import { RssIcon } from "@/components/icons/RssIcon";
+import { SimpleLayout } from "@/components/SimpleLayout";
 import { type ArticleWithSlug, getAllArticles } from "@/lib/blog";
 import { formatDate } from "@/lib/formatDate";
 

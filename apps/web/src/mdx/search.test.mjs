@@ -72,7 +72,7 @@ const buildItems = (pages) => {
       const name = originalName.toLowerCase();
       if (name === "index") continue;
       items.push({
-        url: url + (hash ? "#" + hash : ""),
+        url: url + (hash ? `#${hash}` : ""),
         title,
         name,
         words: splitIntoWords(originalName),

@@ -72,10 +72,7 @@ export const Properties = ({
   children: React.ReactNode;
 }): React.ReactElement => (
   <div className="my-6">
-    <ul
-      role="list"
-      className="m-0 max-w-[calc(var(--container-lg)-(--spacing(8)))] list-none divide-y divide-zinc-900/5 p-0 dark:divide-white/5"
-    >
+    <ul className="m-0 max-w-[calc(var(--container-lg)-(--spacing(8)))] list-none divide-y divide-zinc-900/5 p-0 dark:divide-white/5">
       {children}
     </ul>
   </div>
