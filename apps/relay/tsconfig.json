@@ -2,13 +2,7 @@
   "extends": "../../packages/tsconfig/universal-esm.json",
   "compilerOptions": {
     "outDir": "dist",
-    "baseUrl": ".",
-    "paths": {
-      "@evolu/common": ["../../packages/common/src/index.ts"],
-      "@evolu/common/*": ["../../packages/common/src/*.ts"],
-      "@evolu/nodejs": ["../../packages/nodejs/src/index.ts"],
-      "@evolu/nodejs/*": ["../../packages/nodejs/src/*.ts"]
-    }
+    "module": "Node16"
   },
   "include": ["src"],
   "exclude": ["node_modules"]
