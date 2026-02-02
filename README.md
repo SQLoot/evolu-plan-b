@@ -1,11 +1,11 @@
 # Evolu Plan B (Fork)
 
-> **Plan B**: The "B" stands for **B**un and **B**iome.
+> **Plan B**: The "B" stands for **B**un and **B**iome (fully implemented).
 > 
 > This fork aims to remove as many third-party dependencies as possible, streamlining the monorepo for maximum efficiency.
 > 
 > **Goals:**
-> - ⚡️ **Bun & Biome**: Using modern, fast tools as the foundation.
+> - ⚡️ **Bun & Biome**: Fully migrated to modern, fast tools as the foundation (see [Linting](#linting)).
 > - 🧹 **Clean Monorepo**: Simplifying structure and reducing dependencies.
 > - 🛠️ **Integrations & Tools**: Adding new capabilities and tooling.
 > - ♻️ **Refactoring**: Improving efficiency while maintaining compatibility with Evolu.
