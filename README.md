@@ -1,4 +1,20 @@
-# Evolu
+# Evolu Plan B (Fork)
+
+> **Plan B**: The "B" stands for **B**un and **B**iome.
+> 
+> This fork aims to remove as many third-party dependencies as possible, streamlining the monorepo for maximum efficiency.
+> 
+> **Goals:**
+> - ⚡️ **Bun & Biome**: Using modern, fast tools as the foundation.
+> - 🧹 **Clean Monorepo**: Simplifying structure and reducing dependencies.
+> - 🛠️ **Integrations & Tools**: Adding new capabilities and tooling.
+> - ♻️ **Refactoring**: Improving efficiency while maintaining compatibility with Evolu.
+> 
+> ---
+> 
+> ❤️ **Credits**: Huge thanks to [evoluhq](https://github.com/evoluhq) and [Daniel Steigerwald](https://github.com/steida) for creating Evolu. Their innovative solution is a massive contribution to the local-first ecosystem.
+>
+> ⚖️ **License**: Licensed under [MIT](./LICENSE).
 
 Evolu is a TypeScript library and local-first platform.
 
@@ -16,18 +32,18 @@ To chat with other community members, you can join the [Evolu Discord](https://d
 
 ## Developing
 
-Evolu monorepo uses [pnpm](https://pnpm.io).
+Evolu monorepo uses [Bun](https://bun.sh).
 
 Install dependencies:
 
 ```
-pnpm install
+bun install
 ```
 
 Build scripts
 
-- `pnpm build` - Build packages
-- `pnpm build:web` - Build docs and web
+- `bun run build` - Build packages
+- `bun run build:web` - Build docs and web
 
 Web build notes
 
@@ -38,33 +54,33 @@ Web build notes
 
 Start dev
 
-- `pnpm dev` - Start development mode (builds packages, starts web and relay)
-- `pnpm ios` - Run iOS example (requires `pnpm dev` running)
-- `pnpm android` - Run Android example (requires `pnpm dev` running)
+- `bun run dev` - Start development mode (builds packages, starts web and relay)
+- `bun run ios` - Run iOS example (requires `bun run dev` running)
+- `bun run android` - Run Android example (requires `bun run dev` running)
 
 Examples
 
-> **Note**: To work on examples with local packages, run `pnpm examples:toggle-deps` first.
+> **Note**: To work on examples with local packages, run `bun run examples:toggle-deps` first.
 
-- `pnpm examples:react-nextjs:dev` - Dev server for React Next.js example
-- `pnpm examples:react-vite-pwa:dev` - Dev server for React Vite PWA example
-- `pnpm examples:svelte-vite-pwa:dev` - Dev server for Svelte Vite PWA example
-- `pnpm examples:vue-vite-pwa:dev` - Dev server for Vue Vite PWA example
-- `pnpm examples:build` - Build all examples
+- `bun run examples:react-nextjs:dev` - Dev server for React Next.js example
+- `bun run examples:react-vite-pwa:dev` - Dev server for React Vite PWA example
+- `bun run examples:svelte-vite-pwa:dev` - Dev server for Svelte Vite PWA example
+- `bun run examples:vue-vite-pwa:dev` - Dev server for Vue Vite PWA example
+- `bun run examples:build` - Build all examples
 
 Linting
 
-- `pnpm lint` - Lint code
-- `pnpm lint-monorepo` - Lint monorepo structure
+- `bun run lint` - Lint code
+- `bun run lint-monorepo` - Lint monorepo structure
 
 Testing
 
-- `pnpm test` - Run tests
+- `bun run test` - Run tests
 
 Release
 
-- `pnpm changeset` - Describe changes for release log
+- `bun run changeset` - Describe changes for release log
 
 Verify
 
-- `pnpm verify` - Run all checks (build, lint, test) before commit
+- `bun run verify` - Run all checks (build, lint, test) before commit
