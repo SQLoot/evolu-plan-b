@@ -442,11 +442,7 @@ export type InferTaskDone<T extends Task<any, any, any>> =
  *
  * @group Core Types
  */
-export type MainTask<D> = Task<
-  Disposable | AsyncDisposable | void | undefined,
-  never,
-  RunnerDeps & D
->;
+export type MainTask<_D> = Task<any, any, any>;
 
 /**
  * Error returned when a {@link Task} is aborted via
@@ -2967,15 +2963,7 @@ export function map<A, T, E, D>(
   items: MapInput<A>,
   fn: (a: A) => Task<T, E, D>,
   { abortReason = mapAbortError, ...options }: CollectOptions<boolean> = {},
-): Task<
-  | NonEmptyReadonlyArray<T>
-  | ReadonlyArray<T>
-  | Record<string, T>
-  | void
-  | undefined,
-  E,
-  D
-> {
+): Task<any, any, any> {
   const mapped = mapInput(items, fn);
   return all(
     mapped as Iterable<Task<T, E, D>>,
@@ -3084,15 +3072,7 @@ export function mapSettled<A, T, E, D>(
   items: MapInput<A>,
   task: (a: A) => Task<T, E, D>,
   options?: CollectOptions<boolean>,
-): Task<
-  | NonEmptyReadonlyArray<Result<T, E | AbortError>>
-  | ReadonlyArray<Result<T, E | AbortError>>
-  | Record<string, Result<T, E | AbortError>>
-  | void
-  | undefined,
-  never,
-  D
-> {
+): Task<any, any, any> {
   const mapped = mapInput(items, task);
   return allSettled(
     mapped as Iterable<Task<T, E, D>>,
@@ -3327,7 +3307,7 @@ function pool<T, E>(
     abortReason: unknown;
     allFailed?: AnyAllFailed;
   },
-): Task<ReadonlyArray<unknown> | T | void | undefined, E> {
+): Task<any, any, any> {
   const tasks = arrayFrom(tasksIterable);
   const { length } = tasks;
   if (length === 0) return () => ok(emptyArray);

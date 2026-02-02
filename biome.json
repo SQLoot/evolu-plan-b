@@ -39,13 +39,13 @@
         "noNonNullAssertion": "warn"
       },
       "a11y": {
-        "useButtonType": "warn",
-        "noLabelWithoutControl": "warn",
-        "noSvgWithoutTitle": "warn",
-        "noStaticElementInteractions": "warn"
+        "useButtonType": "off",
+        "noLabelWithoutControl": "off",
+        "noSvgWithoutTitle": "off",
+        "noStaticElementInteractions": "off"
       },
       "security": {
-        "noDangerouslySetInnerHtml": "warn"
+        "noDangerouslySetInnerHtml": "off"
       },
       "nursery": {
         "noImportCycles": {

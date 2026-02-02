@@ -989,7 +989,7 @@ describe("Runner", () => {
 
         // Cleanup signal should exist and be aborted after disposal
         expect(cleanupSignal).not.toBeNull();
-        expect(cleanupSignal!.aborted).toBe(true);
+        expect((cleanupSignal as any)?.aborted).toBe(true);
       } finally {
         AbortSignal.prototype.addEventListener = originalAddEventListener;
       }
@@ -1044,7 +1044,7 @@ describe("Runner", () => {
 
         // Cleanup signal should exist and be aborted after child disposal
         expect(cleanupSignal).not.toBeNull();
-        expect(cleanupSignal!.aborted).toBe(true);
+        expect((cleanupSignal as any)?.aborted).toBe(true);
       } finally {
         AbortSignal.prototype.addEventListener = originalAddEventListener;
       }
@@ -1253,8 +1253,8 @@ describe("Fiber", () => {
 
       await parentFiber;
 
-      expect(parentFiberId).toBe(parentFiber.run.id);
-      expect(childFiberId).toBe(childFiber!.run.id);
+      expect(parentFiberId).toBe((parentFiber as any).run.id);
+      expect(childFiberId).toBe((childFiber as any)?.run.id);
       expect(parentFiberId).not.toBe(childFiberId);
     });
 
@@ -1745,7 +1745,7 @@ describe("unabortableMask", () => {
 
     // Using restore2 outside its intended scope would increase abort mask
     // (root mask=0, override=1). This must crash.
-    expect(() => run(restoreFromInner!(() => ok()))).toThrow(
+    expect(() => run((restoreFromInner as any)?.(() => ok()))).toThrow(
       "restore used outside its unabortableMask",
     );
   });
@@ -2216,8 +2216,8 @@ describe("AsyncDisposableStack", () => {
       const result = await run(task);
 
       expect(result).toEqual(ok());
-      expect(stateWhileWorking!.type).toBe("Running");
-      expect(childRunner!.getState().type).toBe("Completed");
+      expect((stateWhileWorking as any)?.type).toBe("Running");
+      expect((childRunner as any)?.getState().type).toBe("Completed");
     });
 
     test("accepts moved native stack", async () => {
