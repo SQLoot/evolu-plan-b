@@ -443,7 +443,7 @@ export type InferTaskDone<T extends Task<any, any, any>> =
  * @group Core Types
  */
 export type MainTask<D> = Task<
-  Disposable | AsyncDisposable | undefined,
+  Disposable | AsyncDisposable | void,
   never,
   RunnerDeps & D
 >;
