@@ -34,7 +34,7 @@ export type Callback<T> = (value: T) => void;
  * };
  * ```
  */
-export type CallbackWithCleanup<T> = (value: T) => undefined | (() => void);
+export type CallbackWithCleanup<T> = (value: T) => void | (() => void);
 
 /**
  * Checks a condition on a value and returns a boolean.
