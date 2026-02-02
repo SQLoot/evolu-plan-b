@@ -442,7 +442,11 @@ export type InferTaskDone<T extends Task<any, any, any>> =
  *
  * @group Core Types
  */
-export type MainTask<_D> = Task<any, any, any>;
+export type MainTask<D> = Task<
+  Disposable | AsyncDisposable | undefined | undefined,
+  never,
+  RunnerDeps & D
+>;
 
 /**
  * Error returned when a {@link Task} is aborted via
@@ -1378,7 +1382,7 @@ const createRunnerInternal =
       return fiber;
     };
 
-    const self = run as RunnerInternal<D>;
+    const self = run as unknown as RunnerInternal<D>;
 
     {
       const run = self as Mutable<RunnerInternal<D>>;
@@ -1392,7 +1396,7 @@ const createRunnerInternal =
 
       run.signal = signalController.signal;
       run.abortMask = abortMask;
-      run.onAbort = (callback) => {
+      run.onAbort = (callback: Callback<unknown>) => {
         if (abortMask !== isAbortable) return;
         const handleAbort = () => {
           assertType(AbortError, signalController.signal.reason);
@@ -1430,8 +1434,9 @@ const createRunnerInternal =
       };
       run.onEvent = undefined;
 
-      run.daemon = (task) => (daemon ?? self)(task);
-      run.defer = (task) => ({
+      run.daemon = <T, E>(task: Task<T, E, D>): Fiber<T, E, D> =>
+        (daemon ?? (self as Runner<D>))(task);
+      run.defer = (task: Task<void, any, D>) => ({
         [Symbol.asyncDispose]: () =>
           run.daemon(unabortable(task)).then(lazyVoid),
       });
@@ -1478,7 +1483,10 @@ const createRunnerInternal =
       // Internal
       run.requestAbort = requestAbort;
       run.requestSignal = requestController.signal;
-      run.complete = (taskResult, taskOutcome) => {
+      run.complete = (
+        taskResult: UnknownResult,
+        taskOutcome: UnknownResult,
+      ) => {
         result = taskResult;
         outcome = taskOutcome;
       };
@@ -3349,7 +3357,7 @@ function pool<T, E>(
           stopped = result;
           abortWorkers(
             isErr(result) && AbortError.is(result.error)
-              ? result.error.reason
+              ? (result.error as any).reason
               : abortReason,
           );
           stopSignal?.resolve();

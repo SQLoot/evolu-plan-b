@@ -30,7 +30,7 @@ describe("runMain", () => {
     runMain({})(() => {
       called = true;
       executed.resolve();
-      return ok();
+      return ok(undefined);
     });
 
     await executed.promise;
@@ -49,7 +49,7 @@ describe("runMain", () => {
     const main: MainTask<MyDep> = (run) => {
       const { myValue } = run.deps;
       depsValue.resolve(myValue);
-      return ok();
+      return ok(undefined);
     };
 
     runMain(customDep)(main);
@@ -67,7 +67,7 @@ describe("runMain", () => {
       // Dispose the runner, which triggers abort
       await run[Symbol.asyncDispose]();
       taskCompleted.resolve();
-      return ok();
+      return ok(undefined);
     });
 
     await taskCompleted.promise;
@@ -128,7 +128,7 @@ describe("runMain", () => {
     runMain({})(() => {
       called = true;
       taskStarted.resolve();
-      return ok();
+      return ok(undefined);
     });
 
     await taskStarted.promise;

@@ -16,7 +16,8 @@
     "skipLibCheck": true,
     "strict": true,
     "exactOptionalPropertyTypes": true,
-    "noErrorTruncation": false
+    "noErrorTruncation": false,
+    "typeRoots": ["node_modules/@types", "../../node_modules/@types"]
   },
   "exclude": ["node_modules"]
 }

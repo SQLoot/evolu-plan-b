@@ -3,6 +3,7 @@ import {
   createConsole,
   createConsoleEntryFormatter,
   createTime,
+  isErr,
   ok,
 } from "@evolu/common";
 import {
@@ -45,9 +46,9 @@ runMain(deps)(async (run) => {
     }),
   );
 
-  if (!relay.ok) {
+  if (isErr(relay)) {
     console.error(relay.error);
-    return ok();
+    return ok(undefined);
   }
 
   return ok(stack.move());
