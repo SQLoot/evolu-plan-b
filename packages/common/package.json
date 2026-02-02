@@ -65,6 +65,8 @@
     "@bokuweb/zstd-wasm": "0.0.27",
     "@evolu/tsconfig": "workspace:*",
     "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.10.0",
+    "@types/webpack": "^5.28.5",
     "@types/ws": "^8.18.1",
     "@vitest/browser": "^4.0.17",
     "@vitest/browser-playwright": "^4.0.17",
