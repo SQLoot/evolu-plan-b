@@ -25,8 +25,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "clean": "rimraf .turbo node_modules dist coverage",
-    "format": "prettier --write \"src/*.{ts,tsx,md}\""
+    "clean": "rimraf .turbo node_modules dist coverage"
   },
   "dependencies": {
     "better-sqlite3": "^12.6.2",

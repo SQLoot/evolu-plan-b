@@ -32,8 +32,7 @@
     "build": "rimraf dist && tsc",
     "_test": "vitest run",
     "test:watch": "vitest",
-    "clean": "rimraf .turbo node_modules dist",
-    "format": "prettier --write \"src/*.{ts,tsx,md}\""
+    "clean": "rimraf .turbo node_modules dist"
   },
   "dependencies": {
     "@evolu/sqlite-wasm": "2.2.4",
