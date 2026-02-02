@@ -1178,7 +1178,7 @@ export const DateIso = /*#__PURE__*/ brand("DateIso", String, (value) => {
     return err<DateIsoError>({ type: "DateIso", value });
   }
   const parsed = globalThis.Date.parse(value);
-  if (Number.isNaN(parsed)) {
+  if (globalThis.Number.isNaN(parsed)) {
     return err<DateIsoError>({ type: "DateIso", value });
   }
   // Round-trip test: ensure the string is actually a proper ISO format

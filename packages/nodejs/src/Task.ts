@@ -90,6 +90,7 @@ export const runMain =
             process.off("SIGTERM", ok);
             process.off("SIGHUP", ok);
           });
+          return undefined;
         }),
       );
 

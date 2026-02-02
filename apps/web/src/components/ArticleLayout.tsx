@@ -1,4 +1,5 @@
-import { IconPointFilled, type ReactNode } from "@tabler/icons-react";
+import { IconPointFilled } from "@tabler/icons-react";
+import type { ReactNode } from "react";
 import { Prose } from "@/components/Prose";
 import type { ArticleWithSlug } from "@/lib/blog";
 import { formatDate } from "@/lib/formatDate";

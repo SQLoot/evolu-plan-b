@@ -586,7 +586,11 @@ describe("Runner", () => {
     test("structural sharing during rapid concurrent completions", async () => {
       await using run = createRunner();
 
-      const taskCompletes: Array<PromiseWithResolvers<Result<number>>> = [];
+      const taskCompletes: Array<{
+        promise: Promise<Result<number>>;
+        resolve: (value: Result<number>) => void;
+        reject: (reason?: any) => void;
+      }> = [];
 
       // Start 5 concurrent fibers
       const fibers = Array.from({ length: 5 }, () => {
@@ -985,7 +989,7 @@ describe("Runner", () => {
 
         // Cleanup signal should exist and be aborted after disposal
         expect(cleanupSignal).not.toBeNull();
-        expect(cleanupSignal?.aborted).toBe(true);
+        expect(cleanupSignal!.aborted).toBe(true);
       } finally {
         AbortSignal.prototype.addEventListener = originalAddEventListener;
       }
@@ -1040,7 +1044,7 @@ describe("Runner", () => {
 
         // Cleanup signal should exist and be aborted after child disposal
         expect(cleanupSignal).not.toBeNull();
-        expect(cleanupSignal?.aborted).toBe(true);
+        expect(cleanupSignal!.aborted).toBe(true);
       } finally {
         AbortSignal.prototype.addEventListener = originalAddEventListener;
       }
@@ -1250,7 +1254,7 @@ describe("Fiber", () => {
       await parentFiber;
 
       expect(parentFiberId).toBe(parentFiber.run.id);
-      expect(childFiberId).toBe(childFiber?.run.id);
+      expect(childFiberId).toBe(childFiber!.run.id);
       expect(parentFiberId).not.toBe(childFiberId);
     });
 
@@ -1741,7 +1745,7 @@ describe("unabortableMask", () => {
 
     // Using restore2 outside its intended scope would increase abort mask
     // (root mask=0, override=1). This must crash.
-    expect(() => run(restoreFromInner?.(() => ok()))).toThrow(
+    expect(() => run(restoreFromInner!(() => ok()))).toThrow(
       "restore used outside its unabortableMask",
     );
   });
@@ -2212,8 +2216,8 @@ describe("AsyncDisposableStack", () => {
       const result = await run(task);
 
       expect(result).toEqual(ok());
-      expect(stateWhileWorking?.type).toBe("Running");
-      expect(childRunner?.getState().type).toBe("Completed");
+      expect(stateWhileWorking!.type).toBe("Running");
+      expect(childRunner!.getState().type).toBe("Completed");
     });
 
     test("accepts moved native stack", async () => {
@@ -2725,6 +2729,7 @@ describe("callback", () => {
 
     const task = callback<string>(({ ok }) => {
       ok("hello");
+      return undefined;
     });
 
     const result = await run(task);
@@ -2738,6 +2743,7 @@ describe("callback", () => {
 
     const task = callback<string, MyError>(({ err }) => {
       err({ type: "MyError" });
+      return undefined;
     });
 
     const result = await run(task);
@@ -2773,6 +2779,7 @@ describe("callback", () => {
     const task = callback<void>(({ ok, signal }) => {
       signalAbortedDuringTask = signal.aborted;
       ok();
+      return undefined;
     });
 
     await run(task);
@@ -2802,6 +2809,7 @@ describe("callback", () => {
 
     const task = callback<void>(() => {
       // Never resolves
+      return undefined;
     });
 
     const fiber = run(task);

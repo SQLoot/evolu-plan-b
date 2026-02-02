@@ -4,13 +4,13 @@
  */
 
 import type {
-  AppOwner,
-  Evolu,
-  EvoluSchema,
-  InferRow,
-  Query,
-  QueryRows,
-  Row,
+    AppOwner,
+    Evolu,
+    EvoluSchema,
+    InferRow,
+    Query,
+    QueryRows,
+    Row,
 } from "@evolu/common/local-first";
 import { createEvoluDeps } from "@evolu/web";
 
@@ -147,6 +147,7 @@ export const appOwnerState = <Schema extends EvoluSchema>(
       void evolu.appOwner.then((appOwner) => {
         writableState = appOwner;
       });
+      return undefined;
     });
 
     return {

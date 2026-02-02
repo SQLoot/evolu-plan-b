@@ -438,13 +438,12 @@ export type InferTaskDone<T extends Task<any, any, any>> =
  *
  * Returns `Disposable`, `AsyncDisposable`, or `void`. Returning a disposable
  * (typically via `stack.move()`) transfers resource ownership to `runMain`,
- * which disposes after a termination signal. The error type is `never` because
  * main tasks must handle all errors internally.
  *
  * @group Core Types
  */
 export type MainTask<D> = Task<
-  Disposable | AsyncDisposable | undefined,
+  Disposable | AsyncDisposable | void | undefined,
   never,
   RunnerDeps & D
 >;
@@ -2968,7 +2967,15 @@ export function map<A, T, E, D>(
   items: MapInput<A>,
   fn: (a: A) => Task<T, E, D>,
   { abortReason = mapAbortError, ...options }: CollectOptions<boolean> = {},
-): Task<ReadonlyArray<T> | Record<string, T> | undefined, E, D> {
+): Task<
+  | NonEmptyReadonlyArray<T>
+  | ReadonlyArray<T>
+  | Record<string, T>
+  | void
+  | undefined,
+  E,
+  D
+> {
   const mapped = mapInput(items, fn);
   return all(
     mapped as Iterable<Task<T, E, D>>,
@@ -3078,8 +3085,10 @@ export function mapSettled<A, T, E, D>(
   task: (a: A) => Task<T, E, D>,
   options?: CollectOptions<boolean>,
 ): Task<
+  | NonEmptyReadonlyArray<Result<T, E | AbortError>>
   | ReadonlyArray<Result<T, E | AbortError>>
   | Record<string, Result<T, E | AbortError>>
+  | void
   | undefined,
   never,
   D
@@ -3318,7 +3327,7 @@ function pool<T, E>(
     abortReason: unknown;
     allFailed?: AnyAllFailed;
   },
-): Task<ReadonlyArray<unknown> | T | undefined, E> {
+): Task<ReadonlyArray<unknown> | T | void | undefined, E> {
   const tasks = arrayFrom(tasksIterable);
   const { length } = tasks;
   if (length === 0) return () => ok(emptyArray);

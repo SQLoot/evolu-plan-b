@@ -227,6 +227,7 @@ export const createNodeJsRelay =
           console.info("HTTP server closed");
           ok();
         });
+        return undefined;
       }),
     );
 
@@ -238,6 +239,7 @@ export const createNodeJsRelay =
           console.info("WebSocketServer closed");
           ok();
         });
+        return undefined;
       }),
     );
 
@@ -250,6 +252,7 @@ export const createNodeJsRelay =
           }
         }
         ok();
+        return undefined;
       }),
     );
 
