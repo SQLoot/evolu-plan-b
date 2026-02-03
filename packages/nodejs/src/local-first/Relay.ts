@@ -71,20 +71,18 @@ export const startRelay =
     name = SimpleName.orThrow("evolu-relay"),
     isOwnerAllowed,
     isOwnerWithinQuota,
-  }: NodeJsRelayConfig): Task<Relay, never, RelayDeps> =>
+  }: NodeJsRelayConfig): Task<Relay, SqliteError, RelayDeps> =>
   async (_run) => {
     await using stack = _run.stack();
     const console = _run.deps.console.child("relay");
 
     const dbFileExists = existsSync(`${name}.db`);
 
-    const handleError = (error: SqliteError) => {
-      console.error(error);
-      return ok(stack);
-    };
-
     const sqlite = await stack.use(createSqlite(name));
-    if (!sqlite.ok) return handleError(sqlite.error);
+    if (!sqlite.ok) {
+      console.error(sqlite.error);
+      return sqlite;
+    }
     const deps = { ..._run.deps, sqlite: sqlite.value };
 
     if (!dbFileExists) {
@@ -92,7 +90,10 @@ export const startRelay =
         createBaseSqliteStorageTables(deps),
         createRelayStorageTables(deps),
       ]);
-      if (!result.ok) return handleError(result.error);
+      if (!result.ok) {
+        console.error(result.error);
+        return result;
+      }
     }
 
     const storage = createRelaySqliteStorage(deps)({
