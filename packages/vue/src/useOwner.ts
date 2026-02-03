@@ -8,11 +8,9 @@ import { useEvolu } from "./useEvolu.js";
  * defined in Evolu config if the owner has no transports defined.
  */
 export const useOwner = (owner: SyncOwner | null): void => {
-  if (owner == null) return;
-
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional
   const evolu = useEvolu();
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional
+  if (owner == null) return;
+
   evolu.useOwner(owner);
 };
