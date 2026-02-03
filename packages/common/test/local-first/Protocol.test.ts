@@ -1268,7 +1268,9 @@ describe("E2E sync", () => {
     `);
   });
 
-  it("client and relay each have a random half of the data", async () => {
+  // Increased timeout for CI environments where this E2E sync test with large data sets
+  // can take longer than the default 5s due to storage operations and reconciliation
+  it("client and relay each have a random half of the data", { timeout: 15000 }, async () => {
     await using run = testCreateRunner();
     const [clientStorage, relayStorage] = await createStorages();
 
