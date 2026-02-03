@@ -1,8 +1,8 @@
-import { type Metadata } from "next";
+import type { Metadata } from "next";
 
 import { Providers } from "@/app/providers";
 import { Layout } from "@/components/Layout";
-import { type Section } from "@/components/SectionProvider";
+import type { Section } from "@/components/SectionProvider";
 import allSections from "@/data/sections.json";
 
 import "@/styles/tailwind.css";

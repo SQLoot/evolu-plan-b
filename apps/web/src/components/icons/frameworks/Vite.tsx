@@ -1,4 +1,5 @@
 import type { SVGProps } from "react";
+
 const ViteLogo = (props: SVGProps<SVGSVGElement>): React.ReactElement => (
   <svg
     width="1em"
@@ -7,6 +8,8 @@ const ViteLogo = (props: SVGProps<SVGSVGElement>): React.ReactElement => (
     preserveAspectRatio="xMidYMid meet"
     viewBox="0 0 256 257"
     {...props}
+    role="img"
+    aria-label="Vite logo"
   >
     <defs>
       <linearGradient

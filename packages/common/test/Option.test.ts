@@ -4,11 +4,11 @@ import {
   type InferOption,
   isNone,
   isSome,
-  none,
   type None,
+  none,
   type Option,
-  some,
   type Some,
+  some,
 } from "../src/Option.js";
 
 test("some creates Some", () => {

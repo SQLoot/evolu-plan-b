@@ -147,6 +147,7 @@ export const appOwnerState = <Schema extends EvoluSchema>(
       void evolu.appOwner.then((appOwner) => {
         writableState = appOwner;
       });
+      return undefined;
     });
 
     return {

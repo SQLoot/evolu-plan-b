@@ -9,6 +9,8 @@ export const ElectronLogo = (
     height="1em"
     fill="none"
     viewBox="0 0 101 100"
+    role="img"
+    aria-label="Electron logo"
     {...props}
   >
     <g clipPath="url(#a)">

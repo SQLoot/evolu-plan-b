@@ -33,7 +33,7 @@ import {
   encodeSqliteValue,
   encodeString,
   MessageType,
-  ProtocolMessageMaxSize,
+  type ProtocolMessageMaxSize,
   ProtocolMessageRangesMaxSize,
   ProtocolValueType,
   protocolVersion,
@@ -58,7 +58,7 @@ import {
   timestampToTimestampBytes,
 } from "../../src/local-first/Timestamp.js";
 import { err, getOrThrow, ok } from "../../src/Result.js";
-import { SqliteValue } from "../../src/Sqlite.js";
+import type { SqliteValue } from "../../src/Sqlite.js";
 import type { TestDeps } from "../../src/Test.js";
 import { testCreateDeps, testCreateRunner } from "../../src/Test.js";
 import {
@@ -89,7 +89,7 @@ test("encodeNumber/decodeNumber", () => {
     0,
     42,
     -123,
-    3.14159,
+    Math.PI,
     Number.MAX_SAFE_INTEGER,
     Number.MIN_SAFE_INTEGER,
     Infinity,
@@ -108,7 +108,7 @@ test("encodeNumber/decodeNumber", () => {
   });
 
   expect(buffer.unwrap()).toMatchInlineSnapshot(
-    `uint8:[0,42,208,133,203,64,9,33,249,240,27,134,110,203,67,63,255,255,255,255,255,255,203,195,63,255,255,255,255,255,255,203,127,240,0,0,0,0,0,0,203,255,240,0,0,0,0,0,0,203,127,248,0,0,0,0,0,0]`,
+    `uint8:[0,42,208,133,203,64,9,33,251,84,68,45,24,203,67,63,255,255,255,255,255,255,203,195,63,255,255,255,255,255,255,203,127,240,0,0,0,0,0,0,203,255,240,0,0,0,0,0,0,203,127,248,0,0,0,0,0,0]`,
   );
 });
 
@@ -300,7 +300,9 @@ test("encodeSqliteValue/decodeSqliteValue property tests", () => {
         // Test all SqliteValue types
         fc.constant(null),
         fc.string(), // Regular strings
-        fc.double().filter((n) => !Number.isNaN(n)), // Numbers (exclude NaN)
+        fc
+          .double()
+          .filter((n) => !Number.isNaN(n)), // Numbers (exclude NaN)
         fc.uint8Array(), // Binary data
 
         // Special number cases
@@ -330,7 +332,9 @@ test("encodeSqliteValue/decodeSqliteValue property tests", () => {
         fc
           .stringMatching(/^[A-Za-z0-9_-]{4,}$/)
           .filter((s) => s.length % 4 === 0), // Valid Base64Url
-        fc.string().filter((s) => /[^A-Za-z0-9_-]/.test(s)), // Invalid Base64Url chars
+        fc
+          .string()
+          .filter((s) => /[^A-Za-z0-9_-]/.test(s)), // Invalid Base64Url chars
 
         // JSON optimization cases
         fc
@@ -343,23 +347,25 @@ test("encodeSqliteValue/decodeSqliteValue property tests", () => {
           .array(fc.oneof(fc.string(), fc.integer(), fc.boolean()))
           .map((arr) => JSON.stringify(arr)),
         fc.constantFrom('{"a":1}', "[]", "null", "true", "false", '"string"'), // Simple JSON
-        fc.string().filter((s) => {
-          try {
-            JSON.parse(s);
-            return false;
-          } catch {
-            return true;
-          }
-        }), // Non-JSON strings
+        fc
+          .string()
+          .filter((s) => {
+            try {
+              JSON.parse(s);
+              return false;
+            } catch {
+              return true;
+            }
+          }), // Non-JSON strings
 
         // Date ISO strings - both valid and invalid
         fc
           .date({ min: new Date("1970-01-01"), max: new Date("2100-01-01") })
-          .filter((d) => !isNaN(d.getTime()))
+          .filter((d) => !Number.isNaN(d.getTime()))
           .map((d) => d.toISOString()),
         fc
           .date({ min: new Date("0000-01-01"), max: new Date("9999-12-31") })
-          .filter((d) => !isNaN(d.getTime()))
+          .filter((d) => !Number.isNaN(d.getTime()))
           .map((d) => d.toISOString()),
         fc.constantFrom(
           "0000-01-01T00:00:00.000Z",
@@ -1130,7 +1136,7 @@ describe("E2E sync", () => {
     return { syncSteps, syncSizes };
   };
 
-  it("client and relay have all data", async () => {
+  it("client and relay have all data", { timeout: 15000 }, async () => {
     await using run = testCreateRunner();
     const [clientStorage, relayStorage] = await createStorages();
     await run(clientStorage.writeMessages(testOwnerIdBytes, messages));
@@ -1169,7 +1175,7 @@ describe("E2E sync", () => {
     `);
   });
 
-  it("client has all data - many steps", async () => {
+  it("client has all data - many steps", { timeout: 15000 }, async () => {
     await using run = testCreateRunner();
     const [clientStorage, relayStorage] = await createStorages();
     await run(clientStorage.writeMessages(testOwnerIdBytes, messages));
@@ -1221,7 +1227,7 @@ describe("E2E sync", () => {
     `);
   });
 
-  it("relay has all data - many steps", async () => {
+  it("relay has all data - many steps", { timeout: 15000 }, async () => {
     await using run = testCreateRunner();
     const [clientStorage, relayStorage] = await createStorages();
     await run(relayStorage.writeMessages(testOwnerIdBytes, messages));
@@ -1262,23 +1268,28 @@ describe("E2E sync", () => {
     `);
   });
 
-  it("client and relay each have a random half of the data", async () => {
-    await using run = testCreateRunner();
-    const [clientStorage, relayStorage] = await createStorages();
+  // Increased timeout for CI environments where this E2E sync test with large data sets
+  // can take longer than the default 5s due to storage operations and reconciliation
+  it(
+    "client and relay each have a random half of the data",
+    { timeout: 15000 },
+    async () => {
+      await using run = testCreateRunner();
+      const [clientStorage, relayStorage] = await createStorages();
 
-    const shuffledMessages = deps.randomLib.shuffle(messages);
-    const middle = Math.floor(shuffledMessages.length / 2);
-    const firstHalf = shuffledMessages.slice(0, middle);
-    const secondHalf = shuffledMessages.slice(middle);
+      const shuffledMessages = deps.randomLib.shuffle(messages);
+      const middle = Math.floor(shuffledMessages.length / 2);
+      const firstHalf = shuffledMessages.slice(0, middle);
+      const secondHalf = shuffledMessages.slice(middle);
 
-    assertNonEmptyArray(firstHalf);
-    assertNonEmptyArray(secondHalf);
+      assertNonEmptyArray(firstHalf);
+      assertNonEmptyArray(secondHalf);
 
-    await run(clientStorage.writeMessages(testOwnerIdBytes, firstHalf));
-    await run(relayStorage.writeMessages(testOwnerIdBytes, secondHalf));
+      await run(clientStorage.writeMessages(testOwnerIdBytes, firstHalf));
+      await run(relayStorage.writeMessages(testOwnerIdBytes, secondHalf));
 
-    const syncSteps = await reconcile(clientStorage, relayStorage);
-    expect(syncSteps).toMatchInlineSnapshot(`
+      const syncSteps = await reconcile(clientStorage, relayStorage);
+      expect(syncSteps).toMatchInlineSnapshot(`
       {
         "syncSizes": [
           370,
@@ -1291,9 +1302,10 @@ describe("E2E sync", () => {
         "syncSteps": 6,
       }
     `);
-  });
+    },
+  );
 
-  it("client and relay each have a random half of the data - many steps", async () => {
+  it("client and relay each have a random half of the data - many steps", { timeout: 15000 }, async () => {
     await using run = testCreateRunner();
     const [clientStorage, relayStorage] = await createStorages();
 

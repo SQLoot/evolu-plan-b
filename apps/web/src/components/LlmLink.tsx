@@ -1,7 +1,7 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import { IconFileText } from "@tabler/icons-react";
+import { usePathname } from "next/navigation";
 
 export const LlmLink = (): React.ReactElement | null => {
   const pathname = usePathname();

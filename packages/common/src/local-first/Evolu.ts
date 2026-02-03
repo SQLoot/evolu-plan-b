@@ -28,7 +28,7 @@ import {
 import type { ReadonlyStore, Store } from "../Store.js";
 import { createStore } from "../Store.js";
 import type { AnyType, InferErrors, InferInput, ObjectType } from "../Type.js";
-import { createId, Id, SimpleName } from "../Type.js";
+import { createId, type Id, type SimpleName } from "../Type.js";
 import type { CreateMessageChannelDep } from "../Worker.js";
 import type { EvoluError } from "./Error.js";
 import type { AppOwner, OwnerTransport } from "./Owner.js";

@@ -4,10 +4,10 @@
  * @module
  */
 
-import { fibonacciAt, FibonacciIndex, increment } from "./Number.js";
+import { FibonacciIndex, fibonacciAt, increment } from "./Number.js";
 import type { RandomDep } from "./Random.js";
 import { done, err, type NextResult, ok } from "./Result.js";
-import type { repeat, RepeatAttempt, retry, RetryAttempt } from "./Task.js";
+import type { RepeatAttempt, RetryAttempt, repeat, retry } from "./Task.js";
 import {
   type Duration,
   durationToMillis,
@@ -15,7 +15,7 @@ import {
   minMillis,
   type TimeDep,
 } from "./Time.js";
-import { minPositiveInt, PositiveInt } from "./Type.js";
+import { minPositiveInt, type PositiveInt } from "./Type.js";
 import type { Predicate } from "./Types.js";
 
 /**
@@ -242,7 +242,7 @@ export const exponential =
     let attempt = 0;
     return () => {
       attempt++;
-      const rawDelay = baseMs * Math.pow(factor, attempt - 1);
+      const rawDelay = baseMs * factor ** (attempt - 1);
       const delay = Millis.orThrow(Math.max(0, Math.round(rawDelay)));
       return ok([delay, delay]);
     };
@@ -594,8 +594,8 @@ export const take =
 export const maxElapsed = (duration: Duration) => {
   const maxMs = durationToMillis(duration);
   return <Output, Input>(
-      schedule: Schedule<Output, Input>,
-    ): Schedule<Output, Input> =>
+    schedule: Schedule<Output, Input>,
+  ): Schedule<Output, Input> =>
     (deps) => {
       const step = schedule(deps);
       const metrics = createScheduleStepMetrics(deps);
@@ -624,8 +624,8 @@ export const maxElapsed = (duration: Duration) => {
 export const maxDelay = (max: Duration) => {
   const maxMs = durationToMillis(max);
   return <Output, Input>(
-      schedule: Schedule<Output, Input>,
-    ): Schedule<Output, Input> =>
+    schedule: Schedule<Output, Input>,
+  ): Schedule<Output, Input> =>
     (deps) => {
       const step = schedule(deps);
       return (input) => {
@@ -690,8 +690,8 @@ export const jitter =
 export const delayed = (initialDelay: Duration) => {
   const initialMs = durationToMillis(initialDelay);
   return <Output, Input>(
-      schedule: Schedule<Output, Input>,
-    ): Schedule<Output, Input> =>
+    schedule: Schedule<Output, Input>,
+  ): Schedule<Output, Input> =>
     (deps) => {
       const step = schedule(deps);
       let first = true;
@@ -932,8 +932,8 @@ export const untilScheduleOutput =
 export const resetScheduleAfter = (duration: Duration) => {
   const resetMs = durationToMillis(duration);
   return <Output, Input>(
-      schedule: Schedule<Output, Input>,
-    ): Schedule<Output, Input> =>
+    schedule: Schedule<Output, Input>,
+  ): Schedule<Output, Input> =>
     (deps) => {
       let step = schedule(deps);
       const metrics = createScheduleStepMetrics(deps);

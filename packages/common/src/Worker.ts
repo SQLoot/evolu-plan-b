@@ -16,10 +16,8 @@ import type { GlobalErrorScope } from "./Error.js";
  *
  * @see https://developer.mozilla.org/en-US/docs/Web/API/Worker
  */
-export interface Worker<Input, Output = never> extends MessagePort<
-  Input,
-  Output
-> {}
+export interface Worker<Input, Output = never>
+  extends MessagePort<Input, Output> {}
 
 /**
  * Platform-agnostic SharedWorker.
@@ -170,7 +168,8 @@ export interface CreateMessageChannelDep {
  * inside the worker.
  */
 export interface WorkerScope<Input, Output = never>
-  extends MessagePort<Output, Input>, GlobalErrorScope {}
+  extends MessagePort<Output, Input>,
+    GlobalErrorScope {}
 
 /**
  * Typed scope for code running inside a shared worker.
@@ -179,6 +178,7 @@ export interface WorkerScope<Input, Output = never>
  * inside the shared worker, providing typed `onConnect` callbacks.
  */
 export interface SharedWorkerScope<Input, Output = never>
-  extends GlobalErrorScope, Disposable {
+  extends GlobalErrorScope,
+    Disposable {
   onConnect: ((port: MessagePort<Output, Input>) => void) | null;
 }

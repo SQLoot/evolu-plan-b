@@ -1,5 +1,16 @@
 import { describe, expect, expectTypeOf, it, test } from "vitest";
 import type { NonEmptyReadonlyArray } from "../src/Array.js";
+import type {
+  Done,
+  Err,
+  ExcludeDone,
+  InferDone,
+  InferErr,
+  InferOk,
+  NextResult,
+  OnlyDone,
+  Result,
+} from "../src/Result.js";
 import {
   allResult,
   anyResult,
@@ -12,17 +23,6 @@ import {
   ok,
   tryAsync,
   trySync,
-} from "../src/Result.js";
-import type {
-  Done,
-  Err,
-  ExcludeDone,
-  InferDone,
-  InferErr,
-  InferOk,
-  NextResult,
-  OnlyDone,
-  Result,
 } from "../src/Result.js";
 
 describe("ok", () => {
@@ -318,9 +318,9 @@ test.skip("Result wrapping vs unwrapped performance", () => {
 
   const unwrappedStart = performance.now();
   for (let offset = 0, i = 0; i < NUM_ITEMS; i++, offset += AVG_ITEM_SIZE) {
-    const chunk = readUnwrapped(data, offset, AVG_ITEM_SIZE);
+    const _chunk = readUnwrapped(data, offset, AVG_ITEM_SIZE);
     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    chunk;
+    _chunk;
   }
   const unwrappedTime = performance.now() - unwrappedStart;
 
@@ -1102,7 +1102,7 @@ describe("generator-based composition", () => {
 
   const parse = (input: string): Result<number, ParseError> => {
     const n = parseInt(input, 10);
-    return isNaN(n) ? err({ type: "ParseError" }) : ok(n);
+    return Number.isNaN(n) ? err({ type: "ParseError" }) : ok(n);
   };
 
   const validate = (n: number): Result<number, ValidationError> =>
@@ -1226,7 +1226,7 @@ describe("generator-based composition", () => {
 
     const parseEffect = (input: string): EffectResult<number, ParseError> => {
       const n = parseInt(input, 10);
-      return isNaN(n) ? effectErr({ type: "ParseError" }) : effectOk(n);
+      return Number.isNaN(n) ? effectErr({ type: "ParseError" }) : effectOk(n);
     };
 
     // Effect-style generator (no gen() wrapper)
@@ -1415,7 +1415,7 @@ describe("generator-based composition", () => {
     // Operations returning Effect-style Result
     const parse = (input: string): EffectResult<number, ParseError> => {
       const n = parseInt(input, 10);
-      return isNaN(n) ? effectErr({ type: "ParseError" }) : effectOk(n);
+      return Number.isNaN(n) ? effectErr({ type: "ParseError" }) : effectOk(n);
     };
 
     const validate = (n: number): EffectResult<number, ValidationError> =>

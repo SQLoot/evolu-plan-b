@@ -17,10 +17,10 @@ import {
   timestampBytesToFingerprint,
 } from "../../src/local-first/Storage.js";
 import {
-  Counter,
+  type Counter,
   createTimestamp,
   orderTimestampBytes,
-  TimestampBytes,
+  type TimestampBytes,
   timestampToTimestampBytes,
 } from "../../src/local-first/Timestamp.js";
 import { computeBalancedBuckets } from "../../src/Number.js";
@@ -30,7 +30,7 @@ import type { SqliteDep } from "../../src/Sqlite.js";
 import { sql } from "../../src/Sqlite.js";
 import { testCreateDeps } from "../../src/Test.js";
 import type { Millis } from "../../src/Time.js";
-import { createId, NonNegativeInt, PositiveInt } from "../../src/Type.js";
+import { createId, NonNegativeInt, type PositiveInt } from "../../src/Type.js";
 import { testCreateSqlite } from "../_deps.js";
 import {
   testAnotherTimestampsAsc,

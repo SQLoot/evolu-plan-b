@@ -4,7 +4,7 @@
  * @module
  */
 
-import * as Kysely from "kysely";
+import type * as Kysely from "kysely";
 
 /**
  * A function that receives a value and returns nothing.
@@ -34,6 +34,7 @@ export type Callback<T> = (value: T) => void;
  * };
  * ```
  */
+// biome-ignore lint/suspicious/noConfusingVoidType: void is intended here
 export type CallbackWithCleanup<T> = (value: T) => void | (() => void);
 
 /**
@@ -308,7 +309,9 @@ export type NumberFromString<T extends string> =
 
 /** Converts a union to an intersection. */
 export type UnionToIntersection<U> = (
-  U extends unknown ? (k: U) => void : never
+  U extends unknown
+    ? (k: U) => void
+    : never
 ) extends (k: infer I) => void
   ? I
   : never;

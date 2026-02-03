@@ -1,14 +1,14 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as url from "node:url";
 import { slugifyWithCounter } from "@sindresorhus/slugify";
 import glob from "fast-glob";
-import * as fs from "fs";
 import { toString } from "mdast-util-to-string";
-import * as path from "path";
 import { remark } from "remark";
 import remarkMdx from "remark-mdx";
 import { createLoader } from "simple-functional-loader";
 import { filter } from "unist-util-filter";
 import { SKIP, visit } from "unist-util-visit";
-import * as url from "url";
 import { addSyntheticH1 } from "./searchUtils.mjs";
 
 const __filename = url.fileURLToPath(import.meta.url);
@@ -36,8 +36,8 @@ function extractSections() {
 
     visit(tree, (node) => {
       if (node.type === "heading" && node.depth <= 2) {
-        let content = toString(excludeObjectExpressions(node));
-        let hash = node.depth === 1 ? null : slugify(content);
+        const content = toString(excludeObjectExpressions(node));
+        const hash = node.depth === 1 ? null : slugify(content);
         sections.push([content, hash, []]);
         return SKIP;
       }
@@ -47,7 +47,7 @@ function extractSections() {
         node.type === "tableCell" ||
         node.type === "listItem"
       ) {
-        let content = toString(excludeObjectExpressions(node));
+        const content = toString(excludeObjectExpressions(node));
         sections.at(-1)?.[2].push(content);
         return SKIP;
       }
@@ -56,7 +56,7 @@ function extractSections() {
 }
 
 export default function Search(nextConfig = {}) {
-  let cache = new Map();
+  const cache = new Map();
 
   return Object.assign({}, nextConfig, {
     webpack(config, options) {
@@ -64,15 +64,15 @@ export default function Search(nextConfig = {}) {
         test: __filename,
         use: [
           createLoader(function () {
-            let appDir = path.resolve("./src/app");
+            const appDir = path.resolve("./src/app");
             this.addContextDependency(appDir);
 
-            let files = glob.sync("**/*.mdx", { cwd: appDir });
-            let data = files.map((file) => {
-              let url = "/" + file.replace(/(^|\/)page\.mdx$/, "");
+            const files = glob.sync("**/*.mdx", { cwd: appDir });
+            const data = files.map((file) => {
+              let url = `/${file.replace(/(^|\/)page\.mdx$/, "")}`;
               url = url.replace("(docs)/", "");
               url = url.replace("(landing)/", "");
-              let mdx = fs.readFileSync(path.join(appDir, file), "utf8");
+              const mdx = fs.readFileSync(path.join(appDir, file), "utf8");
 
               let sections = [];
 
@@ -80,7 +80,7 @@ export default function Search(nextConfig = {}) {
                 sections = cache.get(file)[1];
               } else {
                 try {
-                  let vfile = { value: mdx, sections };
+                  const vfile = { value: mdx, sections };
                   processor.runSync(processor.parse(vfile), vfile);
 
                   addSyntheticH1(sections, mdx);

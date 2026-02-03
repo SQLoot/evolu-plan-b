@@ -191,11 +191,11 @@ import {
 } from "../Buffer.js";
 import {
   createPadmePadding,
-  decryptWithXChaCha20Poly1305,
   type DecryptWithXChaCha20Poly1305Error,
-  EncryptionKey,
-  encryptWithXChaCha20Poly1305,
+  decryptWithXChaCha20Poly1305,
+  type EncryptionKey,
   Entropy24,
+  encryptWithXChaCha20Poly1305,
   type RandomBytesDep,
   XChaCha20Poly1305Ciphertext,
   xChaCha20Poly1305NonceLength,
@@ -204,7 +204,7 @@ import { eqArrayNumber } from "../Eq.js";
 import { computeBalancedBuckets } from "../Number.js";
 import { createRecord, objectToEntries } from "../Object.js";
 import { err, ok, type Result } from "../Result.js";
-import { SqliteValue } from "../Sqlite.js";
+import type { SqliteValue } from "../Sqlite.js";
 import type { Task } from "../Task.js";
 import { Millis } from "../Time.js";
 import {
@@ -213,11 +213,11 @@ import {
   between,
   DateIso,
   Id,
-  IdBytes,
+  type IdBytes,
+  Int,
   idBytesToId,
   idBytesTypeValueLength,
   idToIdBytes,
-  Int,
   Json,
   jsonToJsonValue,
   NonNegativeInt,
@@ -230,10 +230,10 @@ import type { Predicate } from "../Types.js";
 import {
   type Owner,
   type OwnerError,
-  OwnerId,
-  OwnerIdBytes,
+  type OwnerId,
+  type OwnerIdBytes,
+  type OwnerWriteKey,
   ownerIdToOwnerIdBytes,
-  OwnerWriteKey,
   ownerWriteKeyLength,
 } from "./Owner.js";
 import {
@@ -256,8 +256,8 @@ import {
 import {
   Counter,
   eqTimestamp,
-  NodeId,
-  Timestamp,
+  type NodeId,
+  type Timestamp,
   TimestampBytes,
   timestampBytesLength,
   timestampBytesToTimestamp,
@@ -392,28 +392,32 @@ export type ProtocolError =
  * initiator and non-initiator are using incompatible protocol versions.
  */
 export interface ProtocolVersionError
-  extends OwnerError, Typed<"ProtocolVersionError"> {
+  extends OwnerError,
+    Typed<"ProtocolVersionError"> {
   readonly version: NonNegativeInt;
   /** Indicates which side is obsolete and should update. */
   readonly isInitiator: boolean;
 }
 
 /** Error for invalid or corrupted protocol message data. */
-export interface ProtocolInvalidDataError extends Typed<"ProtocolInvalidDataError"> {
+export interface ProtocolInvalidDataError
+  extends Typed<"ProtocolInvalidDataError"> {
   readonly data: globalThis.Uint8Array;
   readonly error: unknown;
 }
 
 /** Error when a {@link OwnerWriteKey} is invalid, missing, or fails validation. */
 export interface ProtocolWriteKeyError
-  extends OwnerError, Typed<"ProtocolWriteKeyError"> {}
+  extends OwnerError,
+    Typed<"ProtocolWriteKeyError"> {}
 
 /**
  * Error indicating a serious relay-side write failure. Clients should log this
  * error and show a generic sync error to the user.
  */
 export interface ProtocolWriteError
-  extends OwnerError, Typed<"ProtocolWriteError"> {}
+  extends OwnerError,
+    Typed<"ProtocolWriteError"> {}
 
 /**
  * Error when storage or billing quota is exceeded.
@@ -429,21 +433,24 @@ export interface ProtocolWriteError
  * responsibility.
  */
 export interface ProtocolQuotaError
-  extends OwnerError, Typed<"ProtocolQuotaError"> {}
+  extends OwnerError,
+    Typed<"ProtocolQuotaError"> {}
 
 /**
  * Error indicating a serious relay-side synchronization failure. Clients should
  * log this error and show a generic sync error to the user.
  */
 export interface ProtocolSyncError
-  extends OwnerError, Typed<"ProtocolSyncError"> {}
+  extends OwnerError,
+    Typed<"ProtocolSyncError"> {}
 
 /**
  * Error when embedded timestamp doesn't match expected timestamp in
  * EncryptedDbChange. Indicates potential tampering or corruption of CRDT
  * messages.
  */
-export interface ProtocolTimestampMismatchError extends Typed<"ProtocolTimestampMismatchError"> {
+export interface ProtocolTimestampMismatchError
+  extends Typed<"ProtocolTimestampMismatchError"> {
   readonly expected: Timestamp;
   readonly timestamp: Timestamp;
 }
@@ -896,13 +903,16 @@ export interface ApplyProtocolMessageAsClientOptions {
  * Result type for {@link applyProtocolMessageAsClient} that distinguishes
  * between responses to client requests and broadcast messages.
  */
-export interface ApplyProtocolMessageAsClientResponse extends Typed<"Response"> {
+export interface ApplyProtocolMessageAsClientResponse
+  extends Typed<"Response"> {
   readonly message: ProtocolMessage;
 }
 
-export interface ApplyProtocolMessageAsClientNoResponse extends Typed<"NoResponse"> {}
+export interface ApplyProtocolMessageAsClientNoResponse
+  extends Typed<"NoResponse"> {}
 
-export interface ApplyProtocolMessageAsClientBroadcast extends Typed<"Broadcast"> {}
+export interface ApplyProtocolMessageAsClientBroadcast
+  extends Typed<"Broadcast"> {}
 
 export type ApplyProtocolMessageAsClientResult =
   | ApplyProtocolMessageAsClientResponse

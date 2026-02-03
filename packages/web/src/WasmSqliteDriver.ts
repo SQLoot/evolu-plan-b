@@ -1,12 +1,12 @@
-import { bytesToHex, createPreparedStatementsCache } from "@evolu/common";
 import type {
   CreateSqliteDriver,
   SqliteDriver,
   SqliteRow,
 } from "@evolu/common";
+import { bytesToHex, createPreparedStatementsCache } from "@evolu/common";
 import sqlite3InitModule, {
-  Database,
-  PreparedStatement,
+  type Database,
+  type PreparedStatement,
 } from "@evolu/sqlite-wasm";
 
 // @ts-expect-error Missing types.

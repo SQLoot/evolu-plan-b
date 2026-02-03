@@ -12,7 +12,7 @@ import {
   createOwnerSecret,
   mnemonicToOwnerSecret,
   OwnerEncryptionKey,
-  OwnerId,
+  type OwnerId,
   OwnerWriteKey,
 } from "./Owner.js";
 

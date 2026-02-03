@@ -3,15 +3,15 @@ import {
   clamp,
   computeBalancedBuckets,
   decrement,
-  fibonacciAt,
   FibonacciIndex,
+  fibonacciAt,
   increment,
   isBetween,
   max,
   min,
 } from "../src/Number.js";
 import { err, ok } from "../src/Result.js";
-import { NonNegativeInt, PositiveInt } from "../src/Type.js";
+import type { NonNegativeInt, PositiveInt } from "../src/Type.js";
 
 test("increment", () => {
   expect(increment(1)).toEqual(2);

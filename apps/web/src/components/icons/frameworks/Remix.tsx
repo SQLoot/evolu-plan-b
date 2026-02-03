@@ -9,6 +9,8 @@ export const RemixLogo = (
     height="1em"
     fill="none"
     viewBox="0 0 87 100"
+    role="img"
+    aria-label="Remix logo"
     {...props}
   >
     <path

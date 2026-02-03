@@ -46,7 +46,7 @@ export const useQueries = <
   }
   return allQueries.map((query, i) =>
     // Safe until the number of queries is stable.
-    // eslint-disable-next-line react-hooks/rules-of-hooks
+    // biome-ignore lint/correctness/useHookAtTopLevel: intentional
     useQuerySubscription(query, { once: i > queries.length - 1 }),
   ) as never;
 };

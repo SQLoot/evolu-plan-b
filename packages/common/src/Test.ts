@@ -4,16 +4,16 @@
  * @module
  */
 
-import { testCreateConsole, type ConsoleDep } from "./Console.js";
-import { testCreateRandomBytes, type RandomBytesDep } from "./Crypto.js";
+import { type ConsoleDep, testCreateConsole } from "./Console.js";
+import { type RandomBytesDep, testCreateRandomBytes } from "./Crypto.js";
 import {
-  testCreateRandom,
-  testCreateRandomLib,
   type RandomDep,
   type RandomLibDep,
+  testCreateRandom,
+  testCreateRandomLib,
 } from "./Random.js";
 import { createRunner, type Runner, type RunnerConfigDep } from "./Task.js";
-import { testCreateTime, type TimeDep } from "./Time.js";
+import { type TimeDep, testCreateTime } from "./Time.js";
 
 /** Test deps created by {@link testCreateDeps}. */
 export type TestDeps = ConsoleDep &

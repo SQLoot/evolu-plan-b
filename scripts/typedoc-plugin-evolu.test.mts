@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 /**
  * Tests for typedoc-plugin-evolu-type output.
  *
- * These tests verify the generated documentation. Run `pnpm build:docs` before
+ * These tests verify the generated documentation. Run `bun run build:docs` before
  * running these tests.
  */
 

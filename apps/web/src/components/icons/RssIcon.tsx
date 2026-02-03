@@ -6,6 +6,8 @@ export const RssIcon = (
     width="32"
     height="32"
     viewBox="0 0 24 24"
+    role="img"
+    aria-label="RSS feed icon"
     {...props}
   >
     <path

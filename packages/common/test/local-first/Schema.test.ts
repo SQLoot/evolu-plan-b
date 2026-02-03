@@ -1,10 +1,10 @@
 import { describe, expect, test } from "vitest";
-import { ok } from "../../src/Result.js";
 import {
-  DbSchema,
+  type DbSchema,
   ensureDbSchema,
   getDbSchema,
 } from "../../src/local-first/Schema.js";
+import { ok } from "../../src/Result.js";
 import { testCreateSqlite } from "../_deps.js";
 
 describe("ensureDbSchema", () => {

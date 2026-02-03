@@ -24,8 +24,8 @@ import {
 } from "kysely";
 import { kyselyJsonIdentifier } from "./Query.js";
 
-export { sql } from "kysely";
 export type { NotNull } from "kysely";
+export { sql } from "kysely";
 
 /**
  * A SQLite helper for aggregating a subquery into a JSON array.
@@ -77,12 +77,12 @@ export type { NotNull } from "kysely";
 // Kysely expects strict AST.
 // prettier-ignore
 export function jsonArrayFrom<O>(
-    expr: SelectQueryBuilderExpression<O>,
-  ): RawBuilder<Array<Simplify<O>>> {
-    return sql`(select ${sql.lit(kyselyJsonIdentifier)} || coalesce(json_group_array(json_object(${sql.join(
-      getSqliteJsonObjectArgs(expr.toOperationNode(), 'agg'),
-    )})), '[]') from ${expr} as agg)`
-  }
+  expr: SelectQueryBuilderExpression<O>,
+): RawBuilder<Array<Simplify<O>>> {
+  return sql`(select ${sql.lit(kyselyJsonIdentifier)} || coalesce(json_group_array(json_object(${sql.join(
+    getSqliteJsonObjectArgs(expr.toOperationNode(), "agg"),
+  )})), '[]') from ${expr} as agg)`;
+}
 
 /**
  * A SQLite helper for turning a subquery into a JSON object.
@@ -134,12 +134,12 @@ export function jsonArrayFrom<O>(
 // Kysely expects strict AST.
 // prettier-ignore
 export function jsonObjectFrom<O>(
-    expr: SelectQueryBuilderExpression<O>,
-  ): RawBuilder<Simplify<O> | null> {
-    return sql`(select ${sql.lit(kyselyJsonIdentifier)} || json_object(${sql.join(
-      getSqliteJsonObjectArgs(expr.toOperationNode(), 'obj'),
-    )}) from ${expr} as obj)`
-  }
+  expr: SelectQueryBuilderExpression<O>,
+): RawBuilder<Simplify<O> | null> {
+  return sql`(select ${sql.lit(kyselyJsonIdentifier)} || json_object(${sql.join(
+    getSqliteJsonObjectArgs(expr.toOperationNode(), "obj"),
+  )}) from ${expr} as obj)`;
+}
 
 /**
  * The SQLite `json_object` function.
@@ -184,16 +184,16 @@ export function jsonObjectFrom<O>(
 // Kysely expects strict AST.
 // prettier-ignore
 export function jsonBuildObject<O extends Record<string, Expression<unknown>>>(
-    obj: O,
-  ): RawBuilder<
-    Simplify<{
-      [K in keyof O]: O[K] extends Expression<infer V> ? V : never
-    }>
-  > {
-    return sql`${sql.lit(kyselyJsonIdentifier)} || json_object(${sql.join(
-      Object.keys(obj).flatMap((k) => [sql.lit(k), obj[k]]),
-    )})`
-  }
+  obj: O,
+): RawBuilder<
+  Simplify<{
+    [K in keyof O]: O[K] extends Expression<infer V> ? V : never;
+  }>
+> {
+  return sql`${sql.lit(kyselyJsonIdentifier)} || json_object(${sql.join(
+    Object.keys(obj).flatMap((k) => [sql.lit(k), obj[k]]),
+  )})`;
+}
 
 interface SelectQueryBuilderExpression<O> extends AliasableExpression<O> {
   get isSelectQueryBuilder(): true;
