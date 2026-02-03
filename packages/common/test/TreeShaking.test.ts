@@ -118,6 +118,19 @@ const getFixtures = (): ReadonlyArray<string> => {
     .sort();
 };
 
+/**
+ * Normalizes bundle sizes to handle environmental fluctuation.
+ *
+ * Webpack bundle size varies ±5 bytes across Node versions and environments due
+ * to minifier differences. Normalize to midpoint for snapshot stability.
+ */
+const normalizeBundleSize = (size: BundleSize): BundleSize => {
+  let { gzip, raw } = size;
+  if (gzip >= 5640 && gzip <= 5650) gzip = 5650;
+  if (raw >= 15125 && raw <= 15135) raw = 15130;
+  return { gzip, raw };
+};
+
 describe("tree-shaking", () => {
   test("bundle sizes", async () => {
     const fixtures = getFixtures();
@@ -129,18 +142,7 @@ describe("tree-shaking", () => {
     }
 
     // Normalize task-example sizes due to environmental fluctuation
-    if (
-      results["task-example"].gzip >= 5640 &&
-      results["task-example"].gzip <= 5650
-    ) {
-      (results["task-example"] as any).gzip = 5650;
-    }
-    if (
-      results["task-example"].raw >= 15125 &&
-      results["task-example"].raw <= 15135
-    ) {
-      (results["task-example"] as any).raw = 15130;
-    }
+    results["task-example"] = normalizeBundleSize(results["task-example"]);
 
     expect(results).toMatchInlineSnapshot(`
       {
