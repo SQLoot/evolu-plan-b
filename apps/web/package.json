@@ -12,7 +12,7 @@
     "_test": "node --test ./src/mdx/search.test.mjs"
   },
   "browserslist": [
-    "defaults",
+    "baseline newly available",
     "maintained node versions"
   ],
   "dependencies": {
@@ -21,6 +21,7 @@
     "@evolu/react": "workspace:*",
     "@evolu/react-web": "workspace:*",
     "@evolu/sqlite-wasm": "2.2.4",
+    "@evolu/web": "workspace:*",
     "@headlessui/react": "^2.2.9",
     "@headlessui/tailwindcss": "^0.2.2",
     "@mdx-js/loader": "^3.1.1",

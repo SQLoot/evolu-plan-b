@@ -1,8 +1,8 @@
 import { assert, describe, expect, expectTypeOf, test } from "vitest";
 import {
-  emptyArray,
-  isNonEmptyArray,
-  type NonEmptyReadonlyArray,
+    emptyArray,
+    isNonEmptyArray,
+    type NonEmptyReadonlyArray,
 } from "../src/Array.js";
 import { testCreateConsole } from "../src/Console.js";
 import { exhaustiveCheck, lazyVoid } from "../src/Function.js";
@@ -12,66 +12,66 @@ import { createRef } from "../src/Ref.js";
 import type { Done, Result } from "../src/Result.js";
 import { done, err, ok } from "../src/Result.js";
 import {
-  exponential,
-  fixed,
-  spaced,
-  take,
-  whileScheduleInput,
+    exponential,
+    fixed,
+    spaced,
+    take,
+    whileScheduleInput,
 } from "../src/Schedule.js";
 import type {
-  Fiber,
-  FiberState,
-  InferFiberErr,
-  InferFiberOk,
-  InferTaskDone,
-  InferTaskErr,
-  InferTaskOk,
-  NextTask,
-  RetryError,
-  Runner,
-  RunnerConfigDep,
-  RunnerDeps,
-  Task,
+    Fiber,
+    FiberState,
+    InferFiberErr,
+    InferFiberOk,
+    InferTaskDone,
+    InferTaskErr,
+    InferTaskOk,
+    NextTask,
+    RetryError,
+    Runner,
+    RunnerConfigDep,
+    RunnerDeps,
+    Task,
 } from "../src/Task.js";
 import {
-  AbortError,
-  AllAbortError,
-  AllSettledAbortError,
-  AnyAbortError,
-  all,
-  allSettled,
-  any,
-  callback,
-  createDeferred,
-  createGate,
-  createMutex,
-  createRunner,
-  createSemaphore,
-  type DeferredDisposedError,
-  deferredDisposedError,
-  fetch,
-  MapAbortError,
-  map,
-  mapSettled,
-  parallel,
-  RaceLostError,
-  type RunnerEvent,
-  race,
-  repeat,
-  retry,
-  runnerClosingError,
-  sleep,
-  type TaskDisposableStack,
-  TimeoutError,
-  timeout,
-  unabortable,
-  unabortableMask,
-  yieldNow,
+    AbortError,
+    AllAbortError,
+    AllSettledAbortError,
+    AnyAbortError,
+    AsyncDisposableStack,
+    MapAbortError,
+    RaceLostError,
+    TimeoutError,
+    all,
+    allSettled,
+    any,
+    callback,
+    createDeferred,
+    createGate,
+    createMutex,
+    createRunner,
+    createSemaphore,
+    deferredDisposedError,
+    fetch,
+    map,
+    mapSettled,
+    parallel,
+    race,
+    repeat,
+    retry,
+    runnerClosingError,
+    sleep,
+    timeout,
+    unabortable,
+    unabortableMask,
+    yieldNow,
+    type DeferredDisposedError,
+    type RunnerEvent
 } from "../src/Task.js";
 import { testCreateDeps, testCreateRunner } from "../src/Test.js";
-import { createTime, Millis, msLongTask, testCreateTime } from "../src/Time.js";
+import { Millis, createTime, msLongTask, testCreateTime } from "../src/Time.js";
 import type { Typed } from "../src/Type.js";
-import { type Id, minPositiveInt, PositiveInt } from "../src/Type.js";
+import { PositiveInt, minPositiveInt, type Id } from "../src/Type.js";
 
 const eventsEnabled: RunnerConfigDep = {
   runnerConfig: { eventsEnabled: createRef(true) },
@@ -1787,7 +1787,7 @@ describe("AsyncDisposableStack", () => {
       const task: Task<void> = async (run) => {
         await using stack = run.stack();
 
-        expectTypeOf(stack).toEqualTypeOf<TaskDisposableStack>();
+        expectTypeOf(stack).toEqualTypeOf<AsyncDisposableStack>();
 
         stack.defer(() => {
           events.push("cleanup");
