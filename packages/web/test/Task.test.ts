@@ -116,6 +116,8 @@ describe("createRunner", () => {
       const suppress = (e: Event) => e.preventDefault();
       globalThis.addEventListener("error", suppress);
 
+      const beforeCount = console.getEntriesSnapshot().length;
+
       globalThis.dispatchEvent(
         new ErrorEvent("error", {
           error: new Error("after dispose"),
@@ -125,7 +127,7 @@ describe("createRunner", () => {
 
       globalThis.removeEventListener("error", suppress);
 
-      expect(console.getEntriesSnapshot()).toHaveLength(0);
+      expect(console.getEntriesSnapshot()).toHaveLength(beforeCount);
     });
   });
 });

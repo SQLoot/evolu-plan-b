@@ -5,9 +5,9 @@
  */
 
 import {
+  type CreateRunner,
   createRunner as createCommonRunner,
   createUnknownError,
-  type CreateRunner,
   type Runner,
   type RunnerDeps,
 } from "@evolu/common";

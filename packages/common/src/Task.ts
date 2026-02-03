@@ -12,7 +12,7 @@ import {
   type NonEmptyReadonlyArray,
 } from "./Array.js";
 import { assert } from "./Assert.js";
-import { createConsole, type Console, type ConsoleDep } from "./Console.js";
+import { type Console, type ConsoleDep, createConsole } from "./Console.js";
 import type { RandomBytes, RandomBytesDep } from "./Crypto.js";
 import { createRandomBytes } from "./Crypto.js";
 import { eqArrayStrict } from "./Eq.js";
@@ -40,17 +40,17 @@ import {
   brand,
   createId,
   Id,
+  type InferType,
   maxPositiveInt,
   minPositiveInt,
   NonNegativeInt,
   object,
   PositiveInt,
+  type Typed,
   typed,
-  union,
   Unknown,
   UnknownResult,
-  type InferType,
-  type Typed,
+  union,
 } from "./Type.js";
 import type {
   Awaitable,

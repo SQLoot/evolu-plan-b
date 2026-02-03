@@ -32,7 +32,7 @@ As of `upstream/common-v8`, runners are platform-aware:
 ## Usage Pattern
 
 ### Creating a Runner
-**DO NOT** Use generic `createRunner` directly for app entry points. Use the platform-specific library.
+**DO NOT** use generic `createRunner` directly for app entry points. Use the platform-specific library.
 
 ```typescript
 // Web

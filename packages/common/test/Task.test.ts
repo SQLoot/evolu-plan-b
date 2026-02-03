@@ -38,10 +38,7 @@ import {
   AllAbortError,
   AllSettledAbortError,
   AnyAbortError,
-  AsyncDisposableStack,
-  MapAbortError,
-  RaceLostError,
-  TimeoutError,
+  type AsyncDisposableStack,
   all,
   allSettled,
   any,
@@ -51,27 +48,30 @@ import {
   createMutex,
   createRunner,
   createSemaphore,
+  type DeferredDisposedError,
   deferredDisposedError,
   fetch,
+  MapAbortError,
   map,
   mapSettled,
   parallel,
+  RaceLostError,
+  type RunnerEvent,
   race,
   repeat,
   retry,
   runnerClosingError,
   sleep,
+  TimeoutError,
   timeout,
   unabortable,
   unabortableMask,
   yieldNow,
-  type DeferredDisposedError,
-  type RunnerEvent,
 } from "../src/Task.js";
 import { testCreateDeps, testCreateRunner } from "../src/Test.js";
-import { Millis, createTime, msLongTask, testCreateTime } from "../src/Time.js";
+import { createTime, Millis, msLongTask, testCreateTime } from "../src/Time.js";
 import type { Typed } from "../src/Type.js";
-import { PositiveInt, minPositiveInt, type Id } from "../src/Type.js";
+import { type Id, minPositiveInt, PositiveInt } from "../src/Type.js";
 
 const eventsEnabled: RunnerConfigDep = {
   runnerConfig: { eventsEnabled: createRef(true) },

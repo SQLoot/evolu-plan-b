@@ -70,7 +70,7 @@
     "@types/ws": "^8.18.1",
     "@vitest/browser": "^4.0.17",
     "@vitest/browser-playwright": "^4.0.17",
-    "@vitest/coverage-v8": "^4.0.17",
+    "@vitest/coverage-v8": "^4.0.18",
     "better-sqlite3": "^12.6.2",
     "fast-check": "^4.5.3",
     "playwright": "^1.58.1",

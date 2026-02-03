@@ -5,9 +5,9 @@
  */
 
 import {
+  type CreateRunner,
   createRunner as createCommonRunner,
   createUnknownError,
-  type CreateRunner,
   type Runner,
   type RunnerDeps,
 } from "@evolu/common";
@@ -33,7 +33,7 @@ export interface ShutdownDep {
  * - Global error handlers (`uncaughtException`, `unhandledRejection`) that log
  *   errors and initiate graceful shutdown
  * - A `shutdown` promise in deps that resolves on termination signals (`SIGINT`,
- *   `SIGTERM`, `SIGHUP`)
+ *   `SIGTERM`, `SIGHUP`, `SIGBREAK`)
  *
  * ### Example
  *

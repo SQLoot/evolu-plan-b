@@ -46,6 +46,7 @@
     "@types/web-locks-api": "^0.0.5",
     "@vitest/browser": "^4.0.17",
     "@vitest/browser-playwright": "^4.0.17",
+    "@vitest/coverage-v8": "^4.0.18",
     "typescript": "^5.9.3",
     "user-agent-data-types": "^0.4.2",
     "vitest": "^4.0.17"
