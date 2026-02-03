@@ -12,5 +12,6 @@ export const useOwner = (owner: SyncOwner | null): void => {
 
   if (owner == null) return;
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional
   evolu.useOwner(owner);
 };
