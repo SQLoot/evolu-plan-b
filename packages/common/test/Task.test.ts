@@ -1331,6 +1331,7 @@ describe("Fiber", () => {
 
       // Let daemon complete and wait for it
       daemonCanComplete.resolve();
+      // biome-ignore lint/style/noNonNullAssertion: Test utility
       await daemonFiber!;
 
       expect(events).toEqual([
@@ -1422,6 +1423,7 @@ describe("Fiber", () => {
       ]);
 
       daemonCanComplete.resolve();
+      // biome-ignore lint/style/noNonNullAssertion: Test utility
       await daemonFiber!;
 
       expect(events).toEqual([
@@ -3914,6 +3916,7 @@ describe("DI", () => {
         () => {
           attempts++;
           if (attempts < 3) return err<NetworkError>({ type: "NetworkError" });
+          // biome-ignore lint/style/noNonNullAssertion: Test utility
           return ok(url.split("/").pop()!);
         },
     };

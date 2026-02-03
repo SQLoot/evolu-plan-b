@@ -1540,6 +1540,7 @@ const fingerprintRanges =
     const fingerprintRanges = result.value.rows.map(
       (row, i, arr): FingerprintRange => ({
         type: RangeType.Fingerprint,
+        // biome-ignore lint/style/noNonNullAssertion: Guaranteed by logic
         upperBound: i === arr.length - 1 ? upperBound : row.b!,
         fingerprint: sqliteFingerprintToFingerprint([
           row.h1,

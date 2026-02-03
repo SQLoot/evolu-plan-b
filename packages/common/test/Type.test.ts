@@ -365,6 +365,7 @@ test("TrimmedString", () => {
   }
 
   const TrimmedAString = trimmed(AString);
+  // biome-ignore lint/correctness/noUnusedVariables: Test utility
   type TrimmedAString = typeof TrimmedAString.Type;
 
   expect(TrimmedAString.from("a")).toEqual(ok("a"));
@@ -2401,6 +2402,7 @@ test("optional", () => {
     age: PositiveNumber,
   });
 
+  // biome-ignore lint/correctness/noUnusedVariables: Test utility
   type User = typeof User.Type;
 
   expect(User.from({ name: "Alice", age: 30 })).toEqual(
@@ -2691,6 +2693,7 @@ test("custom formatTypeError written from scratch", () => {
         if (error.reason.kind === "NotObject") return "Must be an object";
         if (error.reason.kind === "ExtraKeys")
           return "Contains unexpected fields";
+        // biome-ignore lint/style/noNonNullAssertion: Guaranteed by logic
         const firstError = Object.values(error.reason.errors).find(
           (e) => e !== undefined,
         )!;
@@ -3352,6 +3355,7 @@ describe("typed", () => {
     });
 
     const Payment = union(Credit, Debit, Cash, Crypto);
+    // biome-ignore lint/correctness/noUnusedVariables: Test utility
     type Payment = typeof Payment.Type;
 
     // Each variant is distinguishable by type
@@ -3414,6 +3418,7 @@ describe("typed", () => {
       age: optional(PositiveInt),
     });
 
+    // biome-ignore lint/correctness/noUnusedVariables: Test utility
     type User = typeof User.Type;
 
     const validUser = User.from({

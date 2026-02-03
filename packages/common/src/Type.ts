@@ -3242,6 +3242,7 @@ export const formatObjectError = <Error extends TypeError>(
       case "Props": {
         const formattedErrors = Object.entries(error.reason.errors)
           .filter(([, error]) => error !== undefined)
+          // biome-ignore lint/style/noNonNullAssertion: Filtered above
           .map(([key, error]) => `- ${key}: ${formatTypeError(error!)}`)
           .join("\n");
         return `Invalid object properties:\n${formattedErrors}`;
