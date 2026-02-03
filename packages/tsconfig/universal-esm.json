@@ -7,6 +7,6 @@
     "lib": ["dom", "esnext"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "target": "esnext"
+    "target": "es2022"
   }
 }
