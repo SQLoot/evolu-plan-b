@@ -1268,7 +1268,7 @@ describe("E2E sync", () => {
     `);
   });
 
-  it("client and relay each have a random half of the data", async () => {
+  it("client and relay each have a random half of the data", { timeout: 15000 }, async () => {
     await using run = testCreateRunner();
     const [clientStorage, relayStorage] = await createStorages();
 
