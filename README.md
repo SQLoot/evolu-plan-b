@@ -9,12 +9,6 @@
 > - 🧹 **Clean Monorepo**: Simplifying structure and reducing dependencies.
 > - 🛠️ **Integrations & Tools**: Adding new capabilities and tooling.
 > - ♻️ **Refactoring**: Improving efficiency while maintaining compatibility with Evolu.
-> 
-> ---
-> 
-> ❤️ **Credits**: Huge thanks to [evoluhq](https://github.com/evoluhq) and [Daniel Steigerwald](https://github.com/steida) for creating Evolu. Their innovative solution is a massive contribution to the local-first ecosystem.
->
-> ⚖️ **License**: Licensed under [MIT](./LICENSE).
 
 Evolu is a TypeScript library and local-first platform.
 
@@ -84,3 +78,18 @@ Release
 Verify
 
 - `bun run verify` - Run all checks (build, lint, test) before commit
+
+## Credit
+
+Huge thanks to [evoluhq](https://github.com/evoluhq) and [@steida](https://github.com/steida) for creating Evolu. Their innovative solution is a massive contribution to the local-first ecosystem.
+
+## Licence
+
+Licensed under [MIT](./LICENSE).
+
+---
+
+<div align="center">
+  <a href="https://github.com/enterprises/ownCTRL"><img src="https://img.shields.io/badge/©️_2026-ownCTRL™-333?style=flat&labelColor=ddd" alt="© 2026 ownCTRL™"/></a>
+  <a href="https://github.com/miccy"><img src="https://img.shields.io/badge/⚙️_Maintained_with_🩶_by-%40miccy-333?style=flat&labelColor=ddd" alt="Maintained by @miccy"/></a>
+</div>
