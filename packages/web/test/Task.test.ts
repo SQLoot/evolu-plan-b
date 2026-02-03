@@ -62,8 +62,9 @@ describe("createRunner", () => {
       const console = testCreateConsole();
       await using _run = createRunner({ console });
 
-      const handler = addedListeners.get("error")!;
-      handler(new ErrorEvent("error", { error: new Error("test error") }));
+      const handler = addedListeners.get("error");
+      expect(handler).toBeDefined();
+      handler?.(new ErrorEvent("error", { error: new Error("test error") }));
 
       const entries = console.getEntriesSnapshot();
       expect(entries).toHaveLength(1);
@@ -79,8 +80,9 @@ describe("createRunner", () => {
       const console = testCreateConsole();
       await using _run = createRunner({ console });
 
-      const handler = addedListeners.get("unhandledrejection")!;
-      handler(
+      const handler = addedListeners.get("unhandledrejection");
+      expect(handler).toBeDefined();
+      handler?.(
         new PromiseRejectionEvent("unhandledrejection", {
           promise: Promise.resolve(),
           reason: new Error("test rejection"),
