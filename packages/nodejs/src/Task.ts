@@ -5,7 +5,11 @@
  */
 
 import {
-    type Runner
+  createRunner as createCommonRunner,
+  createUnknownError,
+  type CreateRunner,
+  type Runner,
+  type RunnerDeps,
 } from "@evolu/common";
 
 /**
@@ -52,34 +56,6 @@ export interface ShutdownDep {
  *
  * @group Node.js Runner
  */
-<<<<<<< HEAD
-
-              // unregister sooner (cli shows gracefull shutdown was terminated.)
-              run.onAbort(() => {
-                process.off("SIGINT", ok);
-                process.off("SIGTERM", ok);
-                process.off("SIGHUP", ok);
-              });
-              return undefined;
-            }),
-          );
-        } finally {
-          if (stack) {
-            if (Symbol.asyncDispose in stack) {
-              await stack[Symbol.asyncDispose]();
-            } else {
-              stack[Symbol.dispose]();
-            }
-          }
-        }
-
-        process.off("uncaughtException", handleError);
-        process.off("unhandledRejection", handleError);
-      } finally {
-        await run[Symbol.asyncDispose]();
-      }
-    })();
-=======
 export const createRunner: CreateRunner<RunnerDeps & ShutdownDep> = <D>(
   deps?: D,
 ): Runner<RunnerDeps & ShutdownDep & D> => {
@@ -97,7 +73,6 @@ export const createRunner: CreateRunner<RunnerDeps & ShutdownDep> = <D>(
     // Resolve shutdown so `await run.deps.shutdown` unblocks
     // and allows the stack to be disposed.
     resolveShutdown();
->>>>>>> upstream/common-v8
   };
 
   const handleUncaughtException = handleError("uncaughtException");

@@ -5,11 +5,11 @@
  */
 
 import {
-    arrayFrom,
-    emptyArray,
-    isNonEmptyArray,
-    mapArray,
-    type NonEmptyReadonlyArray,
+  arrayFrom,
+  emptyArray,
+  isNonEmptyArray,
+  mapArray,
+  type NonEmptyReadonlyArray,
 } from "./Array.js";
 import { assert } from "./Assert.js";
 import { createConsole, type Console, type ConsoleDep } from "./Console.js";
@@ -19,11 +19,11 @@ import { eqArrayStrict } from "./Eq.js";
 import { lazyTrue, lazyVoid } from "./Function.js";
 import { decrement, increment } from "./Number.js";
 import {
-    createRecord,
-    emptyRecord,
-    isFunction,
-    isIterable,
-    mapObject,
+  createRecord,
+  emptyRecord,
+  isFunction,
+  isIterable,
+  mapObject,
 } from "./Object.js";
 import type { Random, RandomDep, RandomNumber } from "./Random.js";
 import { createRandom } from "./Random.js";
@@ -37,30 +37,30 @@ import type { Duration, Time, TimeDep } from "./Time.js";
 import { createTime, durationToMillis, Millis } from "./Time.js";
 import type { TracerConfigDep, TracerDep } from "./Tracer.js";
 import {
-    brand,
-    createId,
-    Id,
-    maxPositiveInt,
-    minPositiveInt,
-    NonNegativeInt,
-    object,
-    PositiveInt,
-    typed,
-    union,
-    Unknown,
-    UnknownResult,
-    type InferType,
-    type Typed,
+  brand,
+  createId,
+  Id,
+  maxPositiveInt,
+  minPositiveInt,
+  NonNegativeInt,
+  object,
+  PositiveInt,
+  typed,
+  union,
+  Unknown,
+  UnknownResult,
+  type InferType,
+  type Typed,
 } from "./Type.js";
 import type {
-    Awaitable,
-    Callback,
-    CallbackWithCleanup,
-    Int1To100,
-    isPromiseLike,
-    Mutable,
-    NewKeys,
-    Predicate,
+  Awaitable,
+  Callback,
+  CallbackWithCleanup,
+  Int1To100,
+  isPromiseLike,
+  Mutable,
+  NewKeys,
+  Predicate,
 } from "./Types.js";
 
 declare global {

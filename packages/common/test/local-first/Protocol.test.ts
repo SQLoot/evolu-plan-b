@@ -1270,23 +1270,26 @@ describe("E2E sync", () => {
 
   // Increased timeout for CI environments where this E2E sync test with large data sets
   // can take longer than the default 5s due to storage operations and reconciliation
-  it("client and relay each have a random half of the data", { timeout: 15000 }, async () => {
-    await using run = testCreateRunner();
-    const [clientStorage, relayStorage] = await createStorages();
+  it(
+    "client and relay each have a random half of the data",
+    { timeout: 15000 },
+    async () => {
+      await using run = testCreateRunner();
+      const [clientStorage, relayStorage] = await createStorages();
 
-    const shuffledMessages = deps.randomLib.shuffle(messages);
-    const middle = Math.floor(shuffledMessages.length / 2);
-    const firstHalf = shuffledMessages.slice(0, middle);
-    const secondHalf = shuffledMessages.slice(middle);
+      const shuffledMessages = deps.randomLib.shuffle(messages);
+      const middle = Math.floor(shuffledMessages.length / 2);
+      const firstHalf = shuffledMessages.slice(0, middle);
+      const secondHalf = shuffledMessages.slice(middle);
 
-    assertNonEmptyArray(firstHalf);
-    assertNonEmptyArray(secondHalf);
+      assertNonEmptyArray(firstHalf);
+      assertNonEmptyArray(secondHalf);
 
-    await run(clientStorage.writeMessages(testOwnerIdBytes, firstHalf));
-    await run(relayStorage.writeMessages(testOwnerIdBytes, secondHalf));
+      await run(clientStorage.writeMessages(testOwnerIdBytes, firstHalf));
+      await run(relayStorage.writeMessages(testOwnerIdBytes, secondHalf));
 
-    const syncSteps = await reconcile(clientStorage, relayStorage);
-    expect(syncSteps).toMatchInlineSnapshot(`
+      const syncSteps = await reconcile(clientStorage, relayStorage);
+      expect(syncSteps).toMatchInlineSnapshot(`
       {
         "syncSizes": [
           370,
@@ -1299,7 +1302,8 @@ describe("E2E sync", () => {
         "syncSteps": 6,
       }
     `);
-  });
+    },
+  );
 
   it("client and relay each have a random half of the data - many steps", async () => {
     await using run = testCreateRunner();
