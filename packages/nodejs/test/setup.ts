@@ -1,11 +1,5 @@
-// Polyfill WebSocket for Node.js tests
-// The @evolu/common package accesses globalThis.WebSocket at import time
-import { WebSocket } from "ws";
-
-if (!globalThis.WebSocket) {
-  // @ts-expect-error - ws WebSocket is compatible enough for our needs
-  globalThis.WebSocket = WebSocket;
-}
+// Polyfills for Node.js test environment
+// The @evolu/common package uses ES2024+ features
 
 // Polyfill Promise.try for Node.js/Bun versions that don't support it (ES2024)
 // The @evolu/common package uses Promise.try in Task.ts
@@ -18,3 +12,13 @@ if (!Promise.try) {
     return Promise.resolve().then(() => callback(...args));
   };
 }
+
+// Polyfill WebSocket for Node.js tests
+// IMPORTANT: Import WebSocket AFTER other polyfills to avoid circular dependency issues
+import { WebSocket } from "ws";
+
+if (!globalThis.WebSocket) {
+  // @ts-expect-error - ws WebSocket is compatible enough for our needs
+  globalThis.WebSocket = WebSocket;
+}
+

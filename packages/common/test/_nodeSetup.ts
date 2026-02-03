@@ -1,8 +1,12 @@
 // Polyfills for Node.js test environment
-// The @evolu/common package uses ES2024 features and WebSocket that aren't available in Node.js
+// The @evolu/common package uses ES2024+ features that aren't available in Node.js
 
-// Polyfill WebSocket for Node.js tests
-// Import WebSocket from 'ws' package
+// IMPORTANT: Install polyfills FIRST before any other imports
+// This provides AsyncDisposableStack, DisposableStack, Symbol.dispose, etc.
+import { installPolyfills } from "../src/Polyfills.js";
+installPolyfills();
+
+// Polyfill WebSocket for Node.js tests (after polyfills are installed)
 import { WebSocket } from "ws";
 
 if (!globalThis.WebSocket) {
@@ -38,3 +42,16 @@ if (!Promise.withResolvers) {
     return { promise, resolve, reject };
   };
 }
+
+// Polyfill Set.prototype.difference for Node.js/Bun (ES2025)
+if (!Set.prototype.difference) {
+  // @ts-ignore - Adding ES2025 Set.prototype.difference polyfill
+  Set.prototype.difference = function <T>(this: Set<T>, other: Set<T>): Set<T> {
+    const result = new Set(this);
+    for (const elem of other) {
+      result.delete(elem);
+    }
+    return result;
+  };
+}
+
