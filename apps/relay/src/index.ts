@@ -1,6 +1,6 @@
+import { mkdirSync } from "node:fs";
 import { createConsole, createConsoleEntryFormatter } from "@evolu/common";
 import { createRelayDeps, createRunner, startRelay } from "@evolu/nodejs";
-import { mkdirSync } from "fs";
 
 // Ensure the database is created in a predictable location for Docker.
 mkdirSync("data", { recursive: true });
