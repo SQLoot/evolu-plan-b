@@ -2,6 +2,24 @@ import { type MainTask, ok, testCreateConsole } from "@evolu/common";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { runMain } from "../src/Task.js";
 
+/**
+ * Helper function to create a deferred promise (similar to Promise.withResolvers).
+ * This is needed for compatibility with environments that don't support Promise.withResolvers.
+ */
+const withResolvers = <T>(): {
+  promise: Promise<T>;
+  resolve: (value: T | PromiseLike<T>) => void;
+  reject: (reason?: unknown) => void;
+} => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+};
+
 describe("runMain", () => {
   beforeEach(() => {
     // Clean up any signal listeners from previous tests
@@ -25,7 +43,7 @@ describe("runMain", () => {
 
   test("executes main task", async () => {
     let called = false;
-    const executed = Promise.withResolvers<void>();
+    const executed = withResolvers<void>();
 
     runMain({})(() => {
       called = true;
@@ -39,7 +57,7 @@ describe("runMain", () => {
   });
 
   test("passes custom deps", async () => {
-    const depsValue = Promise.withResolvers<number>();
+    const depsValue = withResolvers<number>();
     const customDep = { myValue: 42 };
 
     interface MyDep {
@@ -60,7 +78,7 @@ describe("runMain", () => {
 
   test("handles aborted runner", async () => {
     let taskRan = false;
-    const taskCompleted = Promise.withResolvers<void>();
+    const taskCompleted = withResolvers<void>();
 
     runMain({})(async (run) => {
       taskRan = true;
@@ -78,8 +96,8 @@ describe("runMain", () => {
 
   test("disposes returned Disposable after signal", async () => {
     let disposed = false;
-    const taskStarted = Promise.withResolvers<void>();
-    const disposeCalled = Promise.withResolvers<void>();
+    const taskStarted = withResolvers<void>();
+    const disposeCalled = withResolvers<void>();
 
     runMain({})(() => {
       taskStarted.resolve();
@@ -100,8 +118,8 @@ describe("runMain", () => {
 
   test("disposes returned AsyncDisposable after signal", async () => {
     let disposed = false;
-    const taskStarted = Promise.withResolvers<void>();
-    const disposeCalled = Promise.withResolvers<void>();
+    const taskStarted = withResolvers<void>();
+    const disposeCalled = withResolvers<void>();
 
     runMain({})(() => {
       taskStarted.resolve();
@@ -123,7 +141,7 @@ describe("runMain", () => {
 
   test("handles void return without disposal", async () => {
     let called = false;
-    const taskStarted = Promise.withResolvers<void>();
+    const taskStarted = withResolvers<void>();
 
     runMain({})(() => {
       called = true;
@@ -139,8 +157,8 @@ describe("runMain", () => {
 
   test("responds to SIGTERM", async () => {
     let disposed = false;
-    const taskStarted = Promise.withResolvers<void>();
-    const disposeCalled = Promise.withResolvers<void>();
+    const taskStarted = withResolvers<void>();
+    const disposeCalled = withResolvers<void>();
 
     runMain({})(() => {
       taskStarted.resolve();
@@ -161,8 +179,8 @@ describe("runMain", () => {
 
   test("responds to SIGHUP", async () => {
     let disposed = false;
-    const taskStarted = Promise.withResolvers<void>();
-    const disposeCalled = Promise.withResolvers<void>();
+    const taskStarted = withResolvers<void>();
+    const disposeCalled = withResolvers<void>();
 
     runMain({})(() => {
       taskStarted.resolve();
@@ -182,7 +200,7 @@ describe("runMain", () => {
   });
 
   test("cleans up signal listeners after signal", async () => {
-    const taskCompleted = Promise.withResolvers<void>();
+    const taskCompleted = withResolvers<void>();
     const initialSigintCount = process.listenerCount("SIGINT");
 
     runMain({})(() =>
@@ -207,8 +225,8 @@ describe("runMain", () => {
   });
 
   test("sets exitCode to 1 on uncaughtException", async () => {
-    const disposed = Promise.withResolvers<void>();
-    const taskStarted = Promise.withResolvers<void>();
+    const disposed = withResolvers<void>();
+    const taskStarted = withResolvers<void>();
     const console = testCreateConsole();
 
     runMain({ console })(() => {
@@ -238,8 +256,8 @@ describe("runMain", () => {
   });
 
   test("sets exitCode to 1 on unhandledRejection", async () => {
-    const disposed = Promise.withResolvers<void>();
-    const taskStarted = Promise.withResolvers<void>();
+    const disposed = withResolvers<void>();
+    const taskStarted = withResolvers<void>();
     const console = testCreateConsole();
 
     runMain({ console })(() => {
