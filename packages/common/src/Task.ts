@@ -11,7 +11,7 @@ import {
   mapArray,
   type NonEmptyReadonlyArray,
 } from "./Array.js";
-import { assert, assertType } from "./Assert.js";
+import { assert } from "./Assert.js";
 import { type Console, type ConsoleDep, createConsole } from "./Console.js";
 import type { RandomBytes, RandomBytesDep } from "./Crypto.js";
 import { createRandomBytes } from "./Crypto.js";
@@ -96,7 +96,7 @@ declare global {
  * - **{@link Runner}** — runs tasks, creates {@link Fiber}s, monitors and aborts
  *   them
  * - **{@link Fiber}** — awaitable, abortable/disposable handle to a running task
- * - **{@link TaskDisposableStack}** — task-aware resource management that
+ * - **{@link AsyncDisposableStack}** — task-aware resource management that
  *   completes even when aborted
  *
  * Evolu's structured concurrency core is minimal — one function with a few
@@ -282,7 +282,7 @@ declare global {
  * ```ts
  * const deps = {
  *   console: createConsole({
- *     formatEntry: createConsoleEntryFormatter({ time: createTime() })({
+ *     formatEntry: createConsoleEntryFormatter()({
  *       timestampFormat: "absolute",
  *     }),
  *   }),
@@ -304,7 +304,7 @@ declare global {
  * Evolu uses standard JavaScript
  * {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Resource_management | resource management}.
  *
- * For task-based disposal, Evolu provides {@link TaskDisposableStack} — a
+ * For task-based disposal, Evolu provides {@link AsyncDisposableStack} — a
  * wrapper around the native
  * {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/AsyncDisposableStack | AsyncDisposableStack}
  * where methods accept {@link Task} for acquisition. All operations run
@@ -387,7 +387,7 @@ export type AnyTask = Task<any, any, any>;
  *
  * @group Type Utilities
  */
-export type InferTaskOk<R extends Task<any, any, any>> =
+export type InferTaskOk<R extends AnyTask> =
   R extends Task<infer T, any, any> ? T : never;
 
 /**
@@ -395,7 +395,7 @@ export type InferTaskOk<R extends Task<any, any, any>> =
  *
  * @group Type Utilities
  */
-export type InferTaskErr<R extends Task<any, any, any>> =
+export type InferTaskErr<R extends AnyTask> =
   R extends Task<any, infer E, any> ? E : never;
 
 /**
@@ -403,7 +403,7 @@ export type InferTaskErr<R extends Task<any, any, any>> =
  *
  * @group Type Utilities
  */
-export type InferTaskDeps<R extends Task<any, any, any>> =
+export type InferTaskDeps<R extends AnyTask> =
   R extends Task<any, any, infer D> ? D : never;
 
 /**
@@ -426,7 +426,7 @@ export type NextTask<T, E = never, D = void> = Task<T, E | Done<D>>;
  *
  * @group Type Utilities
  */
-export type InferTaskDone<T extends Task<any, any, any>> =
+export type InferTaskDone<T extends AnyTask> =
   InferTaskErr<T> extends infer Errors
     ? Errors extends Done<infer D>
       ? D
@@ -434,22 +434,7 @@ export type InferTaskDone<T extends Task<any, any, any>> =
     : never;
 
 /**
- * A {@link Task} suitable for use with platform-specific `runMain` functions.
- *
- * Returns `Disposable`, `AsyncDisposable`, `void`, or `undefined`. Returning a disposable
- * (typically via `stack.move()`) transfers resource ownership to `runMain`,
- * main tasks must handle all errors internally.
- *
- * @group Core Types
- */
-export type MainTask<D> = Task<
-  // biome-ignore lint/suspicious/noConfusingVoidType: void | undefined allows both ok() and ok(undefined)
-  Disposable | AsyncDisposable | void | undefined,
-  never,
-  RunnerDeps & D
->;
 
-/**
  * Error returned when a {@link Task} is aborted via
  * {@link https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal | AbortSignal}.
  *
@@ -607,7 +592,7 @@ export interface Runner<D = unknown> extends AsyncDisposable {
   readonly defer: (onDisposeAsync: Task<void, never, D>) => AsyncDisposable;
 
   /**
-   * Creates an {@link TaskDisposableStack} bound to the root runner.
+   * Creates an {@link AsyncDisposableStack} bound to the root runner.
    *
    * ### Example
    *
@@ -617,7 +602,7 @@ export interface Runner<D = unknown> extends AsyncDisposable {
    * const conn = await stack.use(openConnection);
    * ```
    */
-  readonly stack: () => TaskDisposableStack<D>;
+  readonly stack: () => AsyncDisposableStack<D>;
 
   /** Returns the dependencies passed to {@link createRunner}. */
   readonly deps: RunnerDeps & D;
@@ -995,7 +980,7 @@ export interface RunnerEvent extends InferType<typeof RunnerEvent> {}
  *
  * @group Resource Management
  */
-export class TaskDisposableStack<D = unknown> implements AsyncDisposable {
+export class AsyncDisposableStack<D = unknown> implements AsyncDisposable {
   readonly #stack = new globalThis.AsyncDisposableStack();
   readonly #daemon: Runner<D>["daemon"];
 
@@ -1203,6 +1188,19 @@ const defaultDeps: RunnerDeps = {
 };
 
 /**
+ * Factory type for creating root {@link Runner} instances.
+ *
+ * @group Creating Runners
+ */
+export interface CreateRunner<BaseDeps> {
+  /** With default dependencies only. */
+  (): Runner<BaseDeps>;
+
+  /** With custom dependencies merged into base deps. */
+  <D>(deps: D): Runner<BaseDeps & D>;
+}
+
+/**
  * Creates a root {@link Runner}.
  *
  * Call once per entry point (main thread, worker, etc.) and dispose on
@@ -1265,15 +1263,12 @@ const defaultDeps: RunnerDeps = {
  *
  * @group Creating Runners
  */
-export function createRunner(): Runner<RunnerDeps>;
-
-/** With custom dependencies merged into {@link RunnerDeps}. */
-export function createRunner<D>(deps: D): Runner<RunnerDeps & D>;
-
-export function createRunner<D>(deps?: D): Runner<RunnerDeps & D> {
+export const createRunner: CreateRunner<RunnerDeps> = <D>(
+  deps?: D,
+): Runner<RunnerDeps & D> => {
   const mergedDeps = { ...defaultDeps, ...deps } as RunnerDeps & D;
   return createRunnerInternal(createRef(mergedDeps))();
-}
+};
 
 /** Internal Runner properties, hidden from public API via TypeScript types. */
 interface RunnerInternal<D extends RunnerDeps = RunnerDeps> extends Runner<D> {
@@ -1317,20 +1312,17 @@ const createRunnerInternal =
     let children: ReadonlySet<Fiber<any, any, D>> = emptySet;
 
     const requestAbort = (reason: unknown) => {
-      assertType(AbortError, reason);
-      if (abortMask === isAbortable) signalController.abort(reason);
-      requestController.abort(reason);
+      const abortError = reason as AbortError;
+      if (abortMask === isAbortable) signalController.abort(abortError);
+      requestController.abort(abortError);
     };
 
     if (parent) {
-      const handleAbort = () => requestAbort(parent.requestSignal.reason);
-      if (parent.requestSignal.aborted) {
-        handleAbort();
-      } else {
-        parent.requestSignal.addEventListener("abort", handleAbort, {
-          signal: requestController.signal,
-        });
-      }
+      subscribeToAbort(
+        parent.requestSignal,
+        () => requestAbort(parent.requestSignal.reason),
+        { signal: requestController.signal },
+      );
     }
 
     const emitEvent = (data: RunnerEventData) => {
@@ -1399,18 +1391,11 @@ const createRunnerInternal =
       run.abortMask = abortMask;
       run.onAbort = (callback: Callback<unknown>) => {
         if (abortMask !== isAbortable) return;
-        const handleAbort = () => {
-          assertType(AbortError, signalController.signal.reason);
-          callback(signalController.signal.reason.reason);
-        };
-        if (signalController.signal.aborted) {
-          handleAbort();
-          return;
-        }
-        signalController.signal.addEventListener("abort", handleAbort, {
-          once: true,
-          signal: requestController.signal,
-        });
+        subscribeToAbort(
+          signalController.signal,
+          () => callback((signalController.signal.reason as AbortError).reason),
+          { once: true, signal: requestController.signal },
+        );
       };
 
       run.getState = () => state;
@@ -1433,7 +1418,6 @@ const createRunnerInternal =
         }
         return snapshot;
       };
-      run.onEvent = undefined;
 
       run.daemon = <T, E>(task: Task<T, E, D>): Fiber<T, E, D> =>
         (daemon ?? (self as Runner<D>))(task);
@@ -1441,7 +1425,7 @@ const createRunnerInternal =
         [Symbol.asyncDispose]: () =>
           run.daemon(unabortable(task)).then(lazyVoid),
       });
-      run.stack = () => new TaskDisposableStack(self);
+      run.stack = () => new AsyncDisposableStack(self);
 
       Object.defineProperty(run, "deps", { get: depsRef.get });
 
@@ -1524,6 +1508,15 @@ const createAbortError = (reason: unknown): AbortError => ({
   reason,
 });
 
+const subscribeToAbort = (
+  signal: AbortSignal,
+  handler: () => void,
+  options: AddEventListenerOptions,
+): void => {
+  if (signal.aborted) handler();
+  else signal.addEventListener("abort", handler, options);
+};
+
 const runnerClosingAbortError: AbortError =
   createAbortError(runnerClosingError);
 
@@ -1531,9 +1524,8 @@ const isAbortable = AbortMask.orThrow(0);
 type AbortBehavior = "unabortable" | AbortMask;
 const abortBehaviorSymbol = Symbol("evolu.Task.abortBehavior");
 
-const getAbortBehavior = (
-  task: Task<any, any, any>,
-): AbortBehavior | undefined => (task as never)[abortBehaviorSymbol];
+const getAbortBehavior = (task: AnyTask): AbortBehavior | undefined =>
+  (task as never)[abortBehaviorSymbol];
 
 const abortBehavior =
   (behavior: AbortBehavior) =>
@@ -1614,9 +1606,8 @@ const defaultConcurrency: Concurrency = 1;
 
 const concurrencyBehaviorSymbol = Symbol("evolu.Task.concurrencyBehavior");
 
-const getConcurrencyBehavior = (
-  task: Task<any, any, any>,
-): Concurrency | undefined => (task as never)[concurrencyBehaviorSymbol];
+const getConcurrencyBehavior = (task: AnyTask): Concurrency | undefined =>
+  (task as never)[concurrencyBehaviorSymbol];
 
 /**
  * Runs tasks in parallel instead of sequentially.
@@ -1875,12 +1866,7 @@ export const sleep = (duration: Duration): Task<void> =>
  *
  * @group Composition
  */
-export const race = <
-  T extends readonly [
-    Task<any, any, any>,
-    ...ReadonlyArray<Task<any, any, any>>,
-  ],
->(
+export const race = <T extends readonly [AnyTask, ...ReadonlyArray<AnyTask>]>(
   tasks: T,
   {
     abortReason = raceLostError,
@@ -3395,8 +3381,7 @@ function pool<T, E>(
     await Promise.race(waitFor);
 
     if (run.signal.aborted) {
-      assertType(AbortError, run.signal.reason);
-      return err(run.signal.reason);
+      return err(run.signal.reason as AbortError);
     }
 
     if (!stopOn) return results ? ok(results) : ok();

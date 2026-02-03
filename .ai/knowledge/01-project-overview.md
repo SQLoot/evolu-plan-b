@@ -19,11 +19,13 @@ Local-first database with sync capabilities for React, React Native, Svelte, and
 - Functional effect system for async operations
 - Replaces raw Promise patterns
 - Supports dependency injection via `runner.deps`
+- Uses `AsyncDisposableStack` for resource management
 
 ### Fiber/Runner
 - Execution context for Tasks
 - Manages abort signals and cleanup
 - Structured concurrency
+- Platform-specific implementations (`createRunner` for Node/Web)
 
 ### Console (Structured Logging)
 - JSON-structured log output

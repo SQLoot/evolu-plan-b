@@ -18,9 +18,9 @@
   },
   "dependencies": {
     "@blazejkustra/react-native-alert": "^1.0.0",
-    "@evolu/common": "latest",
-    "@evolu/react": "latest",
-    "@evolu/react-native": "latest",
+    "@evolu/common": "workspace:*",
+    "@evolu/react": "workspace:*",
+    "@evolu/react-native": "workspace:*",
     "@expo/metro-runtime": "^6.1.2",
     "@expo/vector-icons": "^15.0.3",
     "abort-signal-polyfill": "^1.0.0",

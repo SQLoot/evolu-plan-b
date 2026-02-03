@@ -38,6 +38,7 @@ import {
   AllAbortError,
   AllSettledAbortError,
   AnyAbortError,
+  type AsyncDisposableStack,
   all,
   allSettled,
   any,
@@ -61,7 +62,6 @@ import {
   retry,
   runnerClosingError,
   sleep,
-  type TaskDisposableStack,
   TimeoutError,
   timeout,
   unabortable,
@@ -1787,7 +1787,7 @@ describe("AsyncDisposableStack", () => {
       const task: Task<void> = async (run) => {
         await using stack = run.stack();
 
-        expectTypeOf(stack).toEqualTypeOf<TaskDisposableStack>();
+        expectTypeOf(stack).toEqualTypeOf<AsyncDisposableStack>();
 
         stack.defer(() => {
           events.push("cleanup");
