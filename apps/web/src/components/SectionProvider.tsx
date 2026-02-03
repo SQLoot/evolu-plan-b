@@ -128,6 +128,8 @@ const useVisibleSections = (sectionStore: StoreApi<SectionState>) => {
 
 const SectionStoreContext = createContext<StoreApi<SectionState> | null>(null);
 
+const emptyStore = createSectionStore([]);
+
 const useIsomorphicLayoutEffect =
   typeof window === "undefined" ? useEffect : useLayoutEffect;
 
@@ -157,9 +159,5 @@ export const useSectionStore = <T,>(
   selector: (state: SectionState) => T,
 ): T => {
   const store = useContext(SectionStoreContext);
-  if (!store) {
-    return {} as T;
-  }
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional
-  return useStore(store, selector);
+  return useStore(store ?? emptyStore, selector);
 };

@@ -436,14 +436,15 @@ export type InferTaskDone<T extends Task<any, any, any>> =
 /**
  * A {@link Task} suitable for use with platform-specific `runMain` functions.
  *
- * Returns `Disposable`, `AsyncDisposable`, or `undefined`. Returning a disposable
+ * Returns `Disposable`, `AsyncDisposable`, `void`, or `undefined`. Returning a disposable
  * (typically via `stack.move()`) transfers resource ownership to `runMain`,
  * main tasks must handle all errors internally.
  *
  * @group Core Types
  */
 export type MainTask<D> = Task<
-  Disposable | AsyncDisposable | undefined,
+  // biome-ignore lint/suspicious/noConfusingVoidType: void | undefined allows both ok() and ok(undefined)
+  Disposable | AsyncDisposable | void | undefined,
   never,
   RunnerDeps & D
 >;
@@ -3358,7 +3359,7 @@ function pool<T, E>(
           stopped = result;
           abortWorkers(
             isErr(result) && AbortError.is(result.error)
-              ? (result.error as any).reason
+              ? result.error.reason
               : abortReason,
           );
           stopSignal?.resolve();
