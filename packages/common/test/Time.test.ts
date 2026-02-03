@@ -13,11 +13,13 @@ import {
 describe("Time", () => {
   describe("createTime", () => {
     test("now returns current time", () => {
+      const before = Date.now();
       const time = createTime();
-      const now = Date.now();
-      // Allow small difference due to execution time
-      expect(time.now()).toBeGreaterThanOrEqual(now - 10);
-      expect(time.now()).toBeLessThanOrEqual(now + 10);
+      const after = Date.now();
+      const timeNow = time.now();
+      // time.now() should be between before and after with small tolerance
+      expect(timeNow).toBeGreaterThanOrEqual(before - 10);
+      expect(timeNow).toBeLessThanOrEqual(after + 10);
     });
 
     test("millisToDateIso returns current time as ISO string", () => {
