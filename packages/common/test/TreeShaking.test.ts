@@ -135,8 +135,8 @@ describe("tree-shaking", () => {
           "raw": 1602,
         },
         "task-example": {
-          "gzip": 5255,
-          "raw": 13885,
+          "gzip": 5695,
+          "raw": 15295,
         },
         "type-object": {
           "gzip": 1549,
