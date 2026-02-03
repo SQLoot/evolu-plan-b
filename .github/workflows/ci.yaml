@@ -30,7 +30,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@ff41c74480e92d179c27462a68d60e4e4ccb5e06 # v2.0.1
+        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.1
 
       - name: Install dependencies
         run: bun install
