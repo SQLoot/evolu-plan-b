@@ -702,18 +702,25 @@ describe("Runner", () => {
           async ({ signal }) => {
             const taskComplete =
               Promise.withResolvers<Result<string, AbortError>>();
+            let settled = false;
 
             const timeout = setTimeout(() => {
-              results.push(`${id} completed`);
-              taskComplete.resolve(ok(id));
+              if (!settled) {
+                settled = true;
+                results.push(`${id} completed`);
+                taskComplete.resolve(ok(id));
+              }
             }, 1000);
 
             signal.addEventListener(
               "abort",
               () => {
-                clearTimeout(timeout);
-                results.push(`${id} aborted`);
-                taskComplete.resolve(err(signal.reason));
+                if (!settled) {
+                  settled = true;
+                  clearTimeout(timeout);
+                  results.push(`${id} aborted`);
+                  taskComplete.resolve(err(signal.reason));
+                }
               },
               { once: true },
             );
@@ -3964,6 +3971,7 @@ describe("concurrency", () => {
         parallel(all([createTask(1), createTask(2), createTask(3)])),
       );
 
+      await Promise.resolve();
       expect(events).toEqual(["start 1", "start 2", "start 3"]);
 
       canFinish.resolve();
@@ -4998,6 +5006,7 @@ describe("all", () => {
 
     const fiber = run(parallel(all([slowTask, failingTask])));
 
+    await Promise.resolve();
     expect(events).toEqual(["slow start", "fail start"]);
 
     // Let failing task fail
@@ -5086,6 +5095,7 @@ describe("all", () => {
     );
 
     // Only 2 tasks should start
+    await Promise.resolve();
     expect(events).toEqual(["start 1", "start 2"]);
 
     canFinish.resolve();
@@ -5149,6 +5159,7 @@ describe("all", () => {
 
     const fiber = run(parallel(all({ good: goodTask, bad: badTask })));
 
+    await Promise.resolve();
     expect(events).toEqual(["good start", "bad start"]);
 
     canFail.resolve();
@@ -5188,6 +5199,7 @@ describe("all", () => {
     );
 
     // Sequential: only one at a time
+    await Promise.resolve();
     expect(events).toEqual(["start a"]);
 
     canFinish.resolve();
@@ -5503,6 +5515,7 @@ describe("allSettled", () => {
     );
 
     // Sequential: only one at a time
+    await Promise.resolve();
     expect(events).toEqual(["start a"]);
 
     canFinish.resolve();
@@ -5537,6 +5550,7 @@ describe("allSettled", () => {
     );
 
     // Only 2 tasks should start
+    await Promise.resolve();
     expect(events).toEqual(["start 1", "start 2"]);
 
     canFinish.resolve();
