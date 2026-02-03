@@ -34,6 +34,7 @@ export type Callback<T> = (value: T) => void;
  * };
  * ```
  */
+// biome-ignore lint/suspicious/noConfusingVoidType: void is intended here
 export type CallbackWithCleanup<T> = (value: T) => void | (() => void);
 
 /**
