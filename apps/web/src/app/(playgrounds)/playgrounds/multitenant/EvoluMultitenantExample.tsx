@@ -8,6 +8,7 @@ import clsx from "clsx";
 import { type FC, Suspense, use, useState } from "react";
 
 const TodoId = Evolu.id("Todo");
+// biome-ignore lint/correctness/noUnusedVariables: Context
 type TodoId = typeof TodoId.Type;
 
 const Schema = {

@@ -472,6 +472,7 @@ export const Code = ({
         "`Code` children must be a string when nested inside a `CodeGroup`.",
       );
     }
+    // biome-ignore lint/security/noDangerouslySetInnerHtml: Context
     return <code {...props} dangerouslySetInnerHTML={{ __html: children }} />;
   }
 

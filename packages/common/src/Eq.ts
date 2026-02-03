@@ -143,6 +143,7 @@ export const eqJsonValue = (a: JsonValue, b: JsonValue): boolean => {
   const seen = new WeakMap<object, WeakSet<object>>();
 
   while (stack.length > 0) {
+    // biome-ignore lint/style/noNonNullAssertion: Context
     const [x, y] = stack.pop()!;
 
     if (x === y) continue;
@@ -170,6 +171,7 @@ export const eqJsonValue = (a: JsonValue, b: JsonValue): boolean => {
       const yObj = y as object;
 
       if (seen.has(xObj)) {
+        // biome-ignore lint/style/noNonNullAssertion: Context
         const ySet = seen.get(xObj)!;
         if (ySet.has(yObj)) {
           continue;

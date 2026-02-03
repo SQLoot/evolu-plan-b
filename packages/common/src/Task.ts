@@ -443,7 +443,7 @@ export type InferTaskDone<T extends Task<any, any, any>> =
  * @group Core Types
  */
 export type MainTask<D> = Task<
-  Disposable | AsyncDisposable | void,
+  Disposable | AsyncDisposable | undefined,
   never,
   RunnerDeps & D
 >;
@@ -1668,6 +1668,7 @@ export function parallel<T, E, D = unknown>(
   taskOrFallback?: Task<T, E, D>,
 ): Task<T, E, D> {
   const isTask = isFunction(concurrencyOrTask);
+  // biome-ignore lint/style/noNonNullAssertion: Context
   const task = isTask ? concurrencyOrTask : taskOrFallback!;
   return Object.assign((run: Runner<D>) => run(task), {
     [concurrencyBehaviorSymbol]: isTask ? maxPositiveInt : concurrencyOrTask,
@@ -3403,6 +3404,7 @@ function pool<T, E>(
     // For all/allSettled/map/mapSettled with collect: false (no allFailed handler)
     if (!allFailed) return ok();
 
+    // biome-ignore lint/style/noNonNullAssertion: Context
     return allFailed === "completion" ? lastResult! : lastIndexResult!;
   };
 }

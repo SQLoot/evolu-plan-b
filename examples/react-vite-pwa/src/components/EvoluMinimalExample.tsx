@@ -11,6 +11,7 @@ const service = "pwa-react-151125";
 // Primary keys are branded types, preventing accidental use of IDs across
 // different tables (e.g., a TodoId can't be used where a UserId is expected).
 const TodoId = Evolu.id("Todo");
+// biome-ignore lint/correctness/noUnusedVariables: Context
 type TodoId = typeof TodoId.Type;
 
 // Schema defines database structure with runtime validation.

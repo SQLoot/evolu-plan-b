@@ -4,7 +4,12 @@
  * @module
  */
 
-import { callback, createRunner, createUnknownError, type MainTask } from '@evolu/common'
+import {
+  callback,
+  createRunner,
+  createUnknownError,
+  type MainTask,
+} from "@evolu/common";
 
 /**
  * Runs a main task with proper Node.js signal handling.
@@ -44,9 +49,9 @@ export const runMain =
   <D>(deps: D) =>
   (main: MainTask<D>): void => {
     void (async () => {
-      const run = createRunner(deps)
+      const run = createRunner(deps);
       try {
-        const console = run.deps.console.child('process')
+        const console = run.deps.console.child("process");
 
         /**
          * "The correct use of 'uncaughtException' is to perform synchronous
@@ -59,51 +64,51 @@ export const runMain =
          * We log and initiate graceful shutdown.
          */
         const handleError = (error: unknown): void => {
-          console.error(createUnknownError(error))
+          console.error(createUnknownError(error));
           // https://nodejs.org/api/process.html#processexitcode
-          process.exitCode = 1
-          void run[Symbol.asyncDispose]()
-        }
+          process.exitCode = 1;
+          void run[Symbol.asyncDispose]();
+        };
 
-        process.on('uncaughtException', handleError)
-        process.on('unhandledRejection', handleError)
+        process.on("uncaughtException", handleError);
+        process.on("unhandledRejection", handleError);
 
-        const result = await run(main)
+        const result = await run(main);
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        const stack = result.ok ? (result.value ?? undefined) : undefined
+        const stack = result.ok ? (result.value ?? undefined) : undefined;
 
         try {
           await run(
             callback(({ ok }) => {
               // https://nodejs.org/api/process.html#signal-events
-              process.on('SIGINT', ok) // Ctrl-C (all platforms)
-              process.on('SIGTERM', ok) // OS/k8s/Docker termination (Unix)
-              process.on('SIGHUP', ok) // Console close (Windows), terminal disconnect (Unix)
+              process.on("SIGINT", ok); // Ctrl-C (all platforms)
+              process.on("SIGTERM", ok); // OS/k8s/Docker termination (Unix)
+              process.on("SIGHUP", ok); // Console close (Windows), terminal disconnect (Unix)
 
               // TODO: Explain why it's important to use run.onAbort and not
               // unregister sooner (cli shows gracefull shutdown was terminated.)
               run.onAbort(() => {
-                process.off('SIGINT', ok)
-                process.off('SIGTERM', ok)
-                process.off('SIGHUP', ok)
-              })
-              return undefined
+                process.off("SIGINT", ok);
+                process.off("SIGTERM", ok);
+                process.off("SIGHUP", ok);
+              });
+              return undefined;
             }),
-          )
+          );
         } finally {
           if (stack) {
             if (Symbol.asyncDispose in stack) {
-              await stack[Symbol.asyncDispose]()
+              await stack[Symbol.asyncDispose]();
             } else {
-              stack[Symbol.dispose]()
+              stack[Symbol.dispose]();
             }
           }
         }
 
-        process.off('uncaughtException', handleError)
-        process.off('unhandledRejection', handleError)
+        process.off("uncaughtException", handleError);
+        process.off("unhandledRejection", handleError);
       } finally {
-        await run[Symbol.asyncDispose]()
+        await run[Symbol.asyncDispose]();
       }
-    })()
-  }
+    })();
+  };

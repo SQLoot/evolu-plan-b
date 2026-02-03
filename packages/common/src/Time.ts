@@ -282,6 +282,7 @@ export const durationToMillis = (duration: Duration): Millis => {
   if (typeof duration === "number") return duration;
 
   const num = parseFloat(duration);
+  // biome-ignore lint/style/noNonNullAssertion: Context
   const unit = duration.endsWith("ms") ? "ms" : duration.at(-1)!;
 
   assert(unit in durationUnits, `Unknown duration unit: ${unit}`);
