@@ -7,7 +7,7 @@
 import type { Brand } from "./Brand.js";
 import type { RandomBytesDep } from "./Crypto.js";
 import type { Result } from "./Result.js";
-import { createId, Id } from "./Type.js";
+import { createId, type Id } from "./Type.js";
 import type { Callback } from "./Types.js";
 
 /**

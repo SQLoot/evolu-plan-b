@@ -1,13 +1,15 @@
+import { existsSync } from "node:fs";
+import { createServer } from "node:http";
 import {
   allResult,
+  type CreateSqliteDriverDep,
   callback,
   createRandom,
   createRelation,
   createSqlite,
-  type CreateSqliteDriverDep,
   isPromiseLike,
+  type OwnerId,
   ok,
-  OwnerId,
   type RandomDep,
   SimpleName,
   type SqliteError,
@@ -16,8 +18,8 @@ import {
   Uint8Array,
 } from "@evolu/common";
 import {
-  applyProtocolMessageAsRelay,
   type ApplyProtocolMessageAsRelayOptions,
+  applyProtocolMessageAsRelay,
   createBaseSqliteStorageTables,
   createRelaySqliteStorage,
   createRelayStorageTables,
@@ -26,8 +28,6 @@ import {
   type Relay,
   type RelayConfig,
 } from "@evolu/common/local-first";
-import { existsSync } from "fs";
-import { createServer } from "http";
 import { WebSocket, WebSocketServer } from "ws";
 import { createBetterSqliteDriver } from "../BetterSqliteDriver.js";
 import { createTimingSafeEqual } from "../Crypto.js";
@@ -37,53 +37,41 @@ export interface NodeJsRelayConfig extends RelayConfig {
   readonly port?: number;
 }
 
-/** Dependencies for {@link createNodeJsRelay} using better-sqlite3. */
-export const createNodeJsRelayBetterSqliteDeps = (): CreateSqliteDriverDep &
-  RandomDep &
-  TimingSafeEqualDep => ({
+export type RelayDeps = CreateSqliteDriverDep & RandomDep & TimingSafeEqualDep;
+
+/** Dependencies for {@link startRelay} using better-sqlite3. */
+export const createRelayDeps = (): RelayDeps => ({
   createSqliteDriver: createBetterSqliteDriver,
   random: createRandom(),
   timingSafeEqual: createTimingSafeEqual(),
 });
 
 /**
- * Creates an Evolu relay server using Node.js.
+ * Starts an Evolu relay server using Node.js.
  *
- * Use {@link createNodeJsRelayBetterSqliteDeps} to create dependencies for
- * better-sqlite3, or provide a custom SQLite driver implementation.
+ * Use {@link createRelayDeps} to create dependencies for better-sqlite3, or
+ * provide a custom SQLite driver implementation.
  *
  * ### Example
  *
  * ```ts
- * const deps = {
- *   console: createConsole(),
- *   ...createNodeJsRelayBetterSqliteDeps(),
- * };
+ * const deps = { ...createRelayDeps(), console };
  *
- * runMain(deps)(async (run) => {
- *   await using stack = run.stack();
+ * await using run = createRunner(deps);
+ * await using stack = run.stack();
  *
- *   const relay = await stack.use(createNodeJsRelay({ port: 4000 }));
- *   if (!relay.ok) {
- *     run.deps.console.error(relay.error);
- *     return ok();
- *   }
+ * await stack.use(startRelay({ port: 4000 }));
  *
- *   return ok(stack.move());
- * });
+ * await run.deps.shutdown;
  * ```
  */
-export const createNodeJsRelay =
+export const startRelay =
   ({
     port = 443,
     name = SimpleName.orThrow("evolu-relay"),
     isOwnerAllowed,
     isOwnerWithinQuota,
-  }: NodeJsRelayConfig): Task<
-    Relay,
-    SqliteError,
-    CreateSqliteDriverDep & RandomDep & TimingSafeEqualDep
-  > =>
+  }: NodeJsRelayConfig): Task<Relay, SqliteError, RelayDeps> =>
   async (_run) => {
     await using stack = _run.stack();
     const console = _run.deps.console.child("relay");
@@ -91,7 +79,10 @@ export const createNodeJsRelay =
     const dbFileExists = existsSync(`${name}.db`);
 
     const sqlite = await stack.use(createSqlite(name));
-    if (!sqlite.ok) return sqlite;
+    if (!sqlite.ok) {
+      console.error(sqlite.error);
+      return sqlite;
+    }
     const deps = { ..._run.deps, sqlite: sqlite.value };
 
     if (!dbFileExists) {
@@ -99,7 +90,10 @@ export const createNodeJsRelay =
         createBaseSqliteStorageTables(deps),
         createRelayStorageTables(deps),
       ]);
-      if (!result.ok) return result;
+      if (!result.ok) {
+        console.error(result.error);
+        return result;
+      }
     }
 
     const storage = createRelaySqliteStorage(deps)({
@@ -227,6 +221,7 @@ export const createNodeJsRelay =
           console.info("HTTP server closed");
           ok();
         });
+        return undefined;
       }),
     );
 
@@ -238,6 +233,7 @@ export const createNodeJsRelay =
           console.info("WebSocketServer closed");
           ok();
         });
+        return undefined;
       }),
     );
 
@@ -250,6 +246,7 @@ export const createNodeJsRelay =
           }
         }
         ok();
+        return undefined;
       }),
     );
 

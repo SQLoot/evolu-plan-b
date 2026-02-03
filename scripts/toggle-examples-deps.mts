@@ -1,7 +1,7 @@
 import { execSync } from "node:child_process";
-import readline from "node:readline";
 import fs from "node:fs";
 import path from "node:path";
+import readline from "node:readline";
 
 const examplesDir = path.resolve(import.meta.dirname, "../examples");
 
@@ -86,8 +86,8 @@ const toggleAllExamples = (targetMode: Mode): void => {
     toggleMode(examplePath, targetMode);
   });
 
-  execSync("pnpm clean", { stdio: "inherit" });
-  execSync("pnpm i", { stdio: "inherit" });
+  execSync("bun run clean", { stdio: "inherit" });
+  execSync("bun install", { stdio: "inherit" });
   // eslint-disable-next-line no-console
   console.log(`All examples switched to ${targetMode} mode.`);
 };

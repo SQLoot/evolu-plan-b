@@ -1,15 +1,6 @@
-import {
-  createConsole,
-  createConsoleEntryFormatter,
-  createTime,
-  ok,
-} from "@evolu/common";
-import {
-  createNodeJsRelay,
-  createNodeJsRelayBetterSqliteDeps,
-  runMain,
-} from "@evolu/nodejs";
-import { mkdirSync } from "fs";
+import { mkdirSync } from "node:fs";
+import { createConsole, createConsoleEntryFormatter } from "@evolu/common";
+import { createRelayDeps, createRunner, startRelay } from "@evolu/nodejs";
 
 // Ensure the database is created in a predictable location for Docker.
 mkdirSync("data", { recursive: true });
@@ -17,38 +8,28 @@ process.chdir("data");
 
 const console = createConsole({
   // level: "debug",
-  formatEntry: createConsoleEntryFormatter({ time: createTime() })({
+  formatEntry: createConsoleEntryFormatter()({
     timestampFormat: "relative",
   }),
 });
 
-const deps = {
-  ...createNodeJsRelayBetterSqliteDeps(),
-  console,
-};
+const deps = { ...createRelayDeps(), console };
 
-runMain(deps)(async (run) => {
-  const console = run.deps.console.child("main");
-  await using stack = run.stack();
+await using run = createRunner(deps);
+await using stack = run.stack();
 
-  const relay = await stack.use(
-    createNodeJsRelay({
-      port: 4000,
+await stack.use(
+  startRelay({
+    port: 4000,
 
-      // Note: Relay requires URL in format ws://host:port/<ownerId>
-      // isOwnerAllowed: (_ownerId) => true,
+    // Note: Relay requires URL in format ws://host:port/<ownerId>
+    // isOwnerAllowed: (_ownerId) => true,
 
-      isOwnerWithinQuota: (_ownerId, requiredBytes) => {
-        const maxBytes = 1024 * 1024; // 1MB
-        return requiredBytes <= maxBytes;
-      },
-    }),
-  );
+    isOwnerWithinQuota: (_ownerId, requiredBytes) => {
+      const maxBytes = 1024 * 1024; // 1MB
+      return requiredBytes <= maxBytes;
+    },
+  }),
+);
 
-  if (!relay.ok) {
-    console.error(relay.error);
-    return ok();
-  }
-
-  return ok(stack.move());
-});
+await run.deps.shutdown;

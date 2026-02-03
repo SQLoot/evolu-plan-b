@@ -15,7 +15,7 @@ import type { RandomDep } from "../Random.js";
 import type { Result } from "../Result.js";
 import { err, ok } from "../Result.js";
 import type { SqliteDep, SqliteError } from "../Sqlite.js";
-import { sql, SqliteValue } from "../Sqlite.js";
+import { SqliteValue, sql } from "../Sqlite.js";
 import type { Task } from "../Task.js";
 import type { InferType, Int64String, Typed, TypeError } from "../Type.js";
 import {
@@ -30,10 +30,19 @@ import {
   String,
 } from "../Type.js";
 import type { Awaitable } from "../Types.js";
-import type { Owner, OwnerError, OwnerIdBytes } from "./Owner.js";
-import { OwnerId, OwnerWriteKey } from "./Owner.js";
+import type {
+  Owner,
+  OwnerError,
+  OwnerId,
+  OwnerIdBytes,
+  OwnerWriteKey,
+} from "./Owner.js";
 import { systemColumnsWithId } from "./Schema.js";
-import { orderTimestampBytes, Timestamp, TimestampBytes } from "./Timestamp.js";
+import {
+  orderTimestampBytes,
+  type Timestamp,
+  type TimestampBytes,
+} from "./Timestamp.js";
 
 export interface StorageConfig {
   /**
@@ -171,11 +180,13 @@ export interface StorageDep {
 
 /** Error indicating a serious write failure. */
 export interface StorageWriteError
-  extends OwnerError, Typed<"StorageWriteError"> {}
+  extends OwnerError,
+    Typed<"StorageWriteError"> {}
 
 /** Error when storage or billing quota is exceeded. */
 export interface StorageQuotaError
-  extends OwnerError, Typed<"StorageQuotaError"> {}
+  extends OwnerError,
+    Typed<"StorageQuotaError"> {}
 
 /**
  * A cryptographic hash used for efficiently comparing collections of
@@ -271,7 +282,8 @@ export const ValidDbChangeValues = /*#__PURE__*/ brand(
 );
 export type ValidDbChangeValues = typeof ValidDbChangeValues.Type;
 
-export interface ValidDbChangeValuesError extends TypeError<"ValidDbChangeValues"> {
+export interface ValidDbChangeValuesError
+  extends TypeError<"ValidDbChangeValues"> {
   readonly invalidColumns: ReadonlyArray<string>;
 }
 
@@ -321,15 +333,16 @@ export interface DbChange extends InferType<typeof DbChange> {}
  * users, and when it goes down, nothing happens, because it will be
  * synchronized later.
  */
-export interface BaseSqliteStorage extends Pick<
-  Storage,
-  | "getSize"
-  | "fingerprint"
-  | "fingerprintRanges"
-  | "findLowerBound"
-  | "iterate"
-  | "deleteOwner"
-> {
+export interface BaseSqliteStorage
+  extends Pick<
+    Storage,
+    | "getSize"
+    | "fingerprint"
+    | "fingerprintRanges"
+    | "findLowerBound"
+    | "iterate"
+    | "deleteOwner"
+  > {
   /** Inserts a timestamp for an owner into the skiplist-based storage. */
   readonly insertTimestamp: (
     ownerId: OwnerIdBytes,
@@ -1527,6 +1540,7 @@ const fingerprintRanges =
     const fingerprintRanges = result.value.rows.map(
       (row, i, arr): FingerprintRange => ({
         type: RangeType.Fingerprint,
+        // biome-ignore lint/style/noNonNullAssertion: Guaranteed by logic
         upperBound: i === arr.length - 1 ? upperBound : row.b!,
         fingerprint: sqliteFingerprintToFingerprint([
           row.h1,

@@ -23,10 +23,10 @@ import type {
 import {
   eqSqliteValue,
   explainSqliteQueryPlan,
-  SqliteValue,
+  type SqliteValue,
 } from "../Sqlite.js";
 import type { Store } from "../Store.js";
-import { createId, Id, String } from "../Type.js";
+import { createId, type Id, String } from "../Type.js";
 import type { Simplify } from "../Types.js";
 
 /**

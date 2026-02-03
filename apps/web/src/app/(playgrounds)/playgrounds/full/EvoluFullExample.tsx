@@ -10,8 +10,10 @@ import {
   idToIdBytes,
   json,
   kysely,
-  maxLength,
+  type MaxLengthError,
+  type MinLengthError,
   Mnemonic,
+  maxLength,
   NonEmptyString,
   NonEmptyTrimmedString100,
   nullOr,
@@ -21,8 +23,6 @@ import {
   sqliteFalse,
   sqliteTrue,
   timestampBytesToTimestamp,
-  type MaxLengthError,
-  type MinLengthError,
 } from "@evolu/common";
 import { timestampToDateIso } from "@evolu/common/local-first";
 import {
@@ -42,12 +42,12 @@ import {
 } from "@tabler/icons-react";
 import clsx from "clsx";
 import {
-  startTransition,
-  Suspense,
-  use,
-  useState,
   type FC,
   type KeyboardEvent,
+  Suspense,
+  startTransition,
+  use,
+  useState,
 } from "react";
 
 // TODO: Epochs and sharing.
@@ -56,11 +56,13 @@ const ProjectId = id("Project");
 type ProjectId = typeof ProjectId.Type;
 
 const TodoId = id("Todo");
+// biome-ignore lint/correctness/noUnusedVariables: Context
 type TodoId = typeof TodoId.Type;
 
 // A custom branded Type.
 const NonEmptyString50 = maxLength(50)(NonEmptyString);
 // string & Brand<"MinLength1"> & Brand<"MaxLength50">
+// biome-ignore lint/correctness/noUnusedVariables: Context
 type NonEmptyString50 = typeof NonEmptyString50.Type;
 
 // SQLite supports JSON values.
@@ -73,12 +75,14 @@ const Foo = object({
   // To prevent this, use FiniteNumber.
   bar: FiniteNumber,
 });
+// biome-ignore lint/correctness/noUnusedVariables: Context
 type Foo = typeof Foo.Type;
 
 // SQLite stores JSON values as strings. Evolu provides a convenient `json`
 // Type Factory for type-safe JSON serialization and parsing.
 const [FooJson, fooToFooJson, fooJsonToFoo] = json(Foo, "FooJson");
 // string & Brand<"FooJson">
+// biome-ignore lint/correctness/noUnusedVariables: Context
 type FooJson = typeof FooJson.Type;
 
 const Schema = {

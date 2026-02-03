@@ -29,8 +29,8 @@ function rehypeShiki() {
 
     visit(tree, "element", (node) => {
       if (node.tagName === "pre" && node.children[0]?.tagName === "code") {
-        let codeNode = node.children[0];
-        let textNode = codeNode.children[0];
+        const codeNode = node.children[0];
+        const textNode = codeNode.children[0];
 
         node.properties.code = textNode.value;
 
@@ -48,7 +48,7 @@ function rehypeShiki() {
 
 function rehypeSlugify() {
   return (tree) => {
-    let slugify = slugifyWithCounter();
+    const slugify = slugifyWithCounter();
     visit(tree, "element", (node) => {
       if (node.tagName === "h2" && !node.properties.id) {
         node.properties.id = slugify(toString(node));
@@ -59,10 +59,10 @@ function rehypeSlugify() {
 
 function rehypeAddMDXExports(getExports) {
   return (tree) => {
-    let exports = Object.entries(getExports(tree));
+    const exports = Object.entries(getExports(tree));
 
-    for (let [name, value] of exports) {
-      for (let node of tree.children) {
+    for (const [name, value] of exports) {
+      for (const node of tree.children) {
         if (
           node.type === "mdxjsEsm" &&
           new RegExp(`export\\s+const\\s+${name}\\s*=`).test(node.value)
@@ -71,7 +71,7 @@ function rehypeAddMDXExports(getExports) {
         }
       }
 
-      let exportStr = `export const ${name} = ${value}`;
+      const exportStr = `export const ${name} = ${value}`;
 
       tree.children.push({
         type: "mdxjsEsm",
@@ -88,9 +88,9 @@ function rehypeAddMDXExports(getExports) {
 }
 
 function getSections(node) {
-  let sections = [];
+  const sections = [];
 
-  for (let child of node.children ?? []) {
+  for (const child of node.children ?? []) {
     if (child.type === "element" && child.tagName === "h2") {
       sections.push(`{
         title: ${JSON.stringify(toString(child))},

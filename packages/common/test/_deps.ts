@@ -83,7 +83,7 @@ export const testCreateSqlite = async (): Promise<Sqlite> => {
 
 // Node.js specific: crypto.timingSafeEqual (dynamic import)
 export const testCreateTimingSafeEqual = async (): Promise<TimingSafeEqual> => {
-  const crypto = await import("crypto");
+  const crypto = await import("node:crypto");
   return crypto.timingSafeEqual;
 };
 

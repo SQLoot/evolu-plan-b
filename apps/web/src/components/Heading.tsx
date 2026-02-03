@@ -104,7 +104,7 @@ export const Heading = <Level extends 2 | 3>({
         // do nothing
       }
     }
-  }, [level, props.id, ref, registerHeading, tag, label]);
+  }, [level, props.id, registerHeading, tag, label]);
 
   const { tw, ...restProps } = props;
   return (

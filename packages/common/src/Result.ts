@@ -743,5 +743,6 @@ export function anyResult(
     if (result.ok) return result;
     lastError = result;
   }
+  // biome-ignore lint/style/noNonNullAssertion: Context
   return lastError!;
 }

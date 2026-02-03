@@ -31,7 +31,7 @@
   "typeDeclarationFormat": "table",
   "excludeScopesInPaths": true,
   "router": "member",
-  "formatWithPrettier": true,
+  "formatWithPrettier": false,
   "useHTMLAnchors": true,
   "cleanOutputDir": true,
   "headings": {

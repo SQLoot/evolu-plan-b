@@ -7,7 +7,7 @@ import {
   useLayoutEffect,
   useState,
 } from "react";
-import { type StoreApi, createStore, useStore } from "zustand";
+import { createStore, type StoreApi, useStore } from "zustand";
 
 import { remToPx } from "@/lib/remToPx";
 
@@ -128,6 +128,8 @@ const useVisibleSections = (sectionStore: StoreApi<SectionState>) => {
 
 const SectionStoreContext = createContext<StoreApi<SectionState> | null>(null);
 
+const emptyStore = createSectionStore([]);
+
 const useIsomorphicLayoutEffect =
   typeof window === "undefined" ? useEffect : useLayoutEffect;
 
@@ -157,9 +159,5 @@ export const useSectionStore = <T,>(
   selector: (state: SectionState) => T,
 ): T => {
   const store = useContext(SectionStoreContext);
-  if (!store) {
-    return {} as T;
-  }
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  return useStore(store, selector);
+  return useStore(store ?? emptyStore, selector);
 };

@@ -104,7 +104,9 @@ export const eqArrayNumber = /*#__PURE__*/ createEqArrayLike(eqNumber);
  * ```
  */
 export const createEqObject =
-  <A>(eqs: { [K in keyof A]: Eq<A[K]> }): Eq<{
+  <A>(
+    eqs: { [K in keyof A]: Eq<A[K]> },
+  ): Eq<{
     readonly [K in keyof A]: A[K];
   }> =>
   (x, y) => {
@@ -141,6 +143,7 @@ export const eqJsonValue = (a: JsonValue, b: JsonValue): boolean => {
   const seen = new WeakMap<object, WeakSet<object>>();
 
   while (stack.length > 0) {
+    // biome-ignore lint/style/noNonNullAssertion: Context
     const [x, y] = stack.pop()!;
 
     if (x === y) continue;
@@ -150,7 +153,11 @@ export const eqJsonValue = (a: JsonValue, b: JsonValue): boolean => {
 
     if (typeX !== typeY || x === null || y === null) return false;
 
-    if (typeX === "number" && isNaN(x as number) && isNaN(y as number)) {
+    if (
+      typeX === "number" &&
+      Number.isNaN(x as number) &&
+      Number.isNaN(y as number)
+    ) {
       continue;
     }
 
@@ -164,6 +171,7 @@ export const eqJsonValue = (a: JsonValue, b: JsonValue): boolean => {
       const yObj = y as object;
 
       if (seen.has(xObj)) {
+        // biome-ignore lint/style/noNonNullAssertion: Context
         const ySet = seen.get(xObj)!;
         if (ySet.has(yObj)) {
           continue;

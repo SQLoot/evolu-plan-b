@@ -1,12 +1,13 @@
 name: DockerHub
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - apps/relay/package.json
-      - .github/workflows/docker.yaml
+  workflow_dispatch:
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - apps/relay/package.json
+  #     - .github/workflows/docker.yaml
 
 env:
   REGISTRY: docker.io
@@ -46,15 +47,15 @@ jobs:
 
       - name: Set up QEMU
         if: ${{ steps.version.outputs.changed == 'true' }}
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@49b3bc8e6bdd4a60e6116a5414239cba5943d3cf # v3.2.0
 
       - name: Set up Docker Buildx
         if: ${{ steps.version.outputs.changed == 'true' }}
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@988b5a0280414f521da3d829df8432753fbd92d2 # v3.6.1
 
       - name: Log in to Docker Hub
         if: ${{ github.repository == 'evoluhq/evolu' && steps.version.outputs.changed == 'true' }}
-        uses: docker/login-action@v3
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
@@ -62,7 +63,7 @@ jobs:
       - name: Extract metadata (tags, labels) for Docker
         if: ${{ steps.version.outputs.changed == 'true' }}
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81 # v5.5.1
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           flavor: |
@@ -76,7 +77,7 @@ jobs:
       - name: Build and push Docker image
         if: ${{ github.repository == 'evoluhq/evolu' && steps.version.outputs.changed == 'true' }}
         id: push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@32945a339266b759abcbdc89316bb68de327d74b # v6.7.0
         with:
           platforms: linux/amd64,linux/arm64
           context: .
@@ -93,7 +94,7 @@ jobs:
 
       - name: Generate artifact attestation
         if: ${{ github.repository == 'evoluhq/evolu' && steps.version.outputs.changed == 'true' }}
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@897ed5eab10ec6095258600c7e5e2195f007b46d # v1.4.1
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.push.outputs.digest }}

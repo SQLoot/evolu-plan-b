@@ -6,7 +6,7 @@ import {
   evoluReactNativeDeps,
   localAuth,
 } from "@evolu/react-native/expo-sqlite";
-import { FC, Suspense, use, useEffect, useMemo, useState } from "react";
+import { type FC, Suspense, use, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -24,6 +24,7 @@ const service = "rn-expo";
 // Primary keys are branded types, preventing accidental use of IDs across
 // different tables (e.g., a TodoId can't be used where a UserId is expected).
 const TodoId = Evolu.id("Todo");
+// biome-ignore lint/correctness/noUnusedVariables: Context
 type TodoId = typeof TodoId.Type;
 
 // Schema defines database structure with runtime validation.
@@ -205,7 +206,7 @@ const EvoluDemo = ({
           {
             text: "Save",
             onPress: (newTitle?: string) => {
-              if (newTitle != null && newTitle.trim()) {
+              if (newTitle?.trim()) {
                 const result = update("todo", { id, title: newTitle.trim() });
                 if (!result.ok) {
                   Alert.alert("Error", formatTypeError(result.error));
@@ -382,6 +383,7 @@ const EvoluDemo = ({
 
   const AuthActions: FC = () => {
     const appOwner = use(evolu.appOwner);
+    // biome-ignore lint/correctness/useExhaustiveDependencies: Found ownerIds in outer scope
     const otherOwnerIds = useMemo(
       () => ownerIds?.filter(({ ownerId }) => ownerId !== appOwner?.id) ?? [],
       [appOwner?.id, ownerIds],
@@ -400,7 +402,7 @@ const EvoluDemo = ({
               if (username == null) return;
 
               // Determine if this is a guest login or a new owner.
-              const isGuest = !Boolean(authResult?.owner);
+              const isGuest = !authResult?.owner;
 
               // Register the guest owner or create a new one if this is already registered.
               const mnemonic = isGuest ? appOwner?.mnemonic : undefined;

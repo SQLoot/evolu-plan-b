@@ -1,5 +1,5 @@
-import { Component, OnDestroy, signal } from "@angular/core";
 import { registerSW } from "virtual:pwa-register";
+import { Component, type OnDestroy, signal } from "@angular/core";
 
 @Component({
   selector: "app-pwa-badge",

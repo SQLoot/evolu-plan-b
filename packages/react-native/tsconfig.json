@@ -1,11 +1,11 @@
 {
-  "extends": "@evolu/tsconfig/universal-esm.json",
+  "extends": "../tsconfig/universal-esm.json",
   "compilerOptions": {
     "outDir": "dist",
     "allowJs": true,
     "module": "esnext",
     "moduleResolution": "bundler"
   },
-  "include": ["src", "test"],
+  "include": ["src", "test", "vitest.config.ts"],
   "exclude": ["dist", "node_modules"]
 }

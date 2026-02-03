@@ -32,8 +32,7 @@
   "scripts": {
     "dev": "tsc",
     "build": "rimraf dist && tsc",
-    "clean": "rimraf .turbo node_modules dist",
-    "format": "prettier --write \"src/*.{ts,tsx,md}\""
+    "clean": "rimraf .turbo node_modules dist"
   },
   "devDependencies": {
     "@evolu/common": "workspace:*",

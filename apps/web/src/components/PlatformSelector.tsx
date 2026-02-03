@@ -1,13 +1,13 @@
 "use client";
 
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect } from "react";
 import { usePreferredLanguageStore } from "@/components/Code";
 import { ExpoLogo } from "@/components/icons/frameworks/Expo";
 import { JavaScriptLogo } from "@/components/icons/frameworks/JavaScript";
 import { ReactLogo } from "@/components/icons/frameworks/React";
 import { SvelteLogo } from "@/components/icons/frameworks/Svelte";
 import { VueLogo } from "@/components/icons/frameworks/Vue";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect } from "react";
 
 const platforms = [
   {

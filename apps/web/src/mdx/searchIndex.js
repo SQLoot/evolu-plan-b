@@ -51,12 +51,12 @@ for (const { url, sections } of data) {
         : pageTitle;
     // For sections, include page title to distinguish (e.g., "Type › Array" vs "Array")
     const displayTitle = pageTitle
-      ? prefix + pageLabel + " › " + normalizedTitle
+      ? `${prefix + pageLabel} › ${normalizedTitle}`
       : prefix +
         normalizedTitle +
         (apiReferenceKind ? ` › ${apiReferenceKind}` : "");
     items.push({
-      url: url + (hash ? "#" + hash : ""),
+      url: url + (hash ? `#${hash}` : ""),
       title: displayTitle,
       name,
       words,

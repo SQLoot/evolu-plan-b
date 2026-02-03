@@ -11,6 +11,8 @@ import {
   isNonEmptyArray,
   lastInArray,
   mapArray,
+  type NonEmptyArray,
+  type NonEmptyReadonlyArray,
   partitionArray,
   popFromArray,
   prependToArray,
@@ -18,8 +20,6 @@ import {
   shiftFromArray,
   sortArray,
   spliceArray,
-  type NonEmptyArray,
-  type NonEmptyReadonlyArray,
 } from "../src/Array.js";
 import { identity } from "../src/Function.js";
 import { err, ok } from "../src/Result.js";

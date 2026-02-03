@@ -20,7 +20,7 @@ import {
 } from "react";
 import Highlighter from "react-highlight-words";
 
-import { type Result } from "@/mdx/search.mjs";
+import type { Result } from "@/mdx/search.mjs";
 
 type EmptyObject = Record<string, never>;
 
@@ -305,6 +305,7 @@ const SearchDialog = ({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Effect should trigger on navigation changes to close dialog
   useEffect(() => {
     setOpen(false);
   }, [pathname, searchParams, setOpen]);
@@ -396,16 +397,13 @@ const useSearchProps = () => {
     },
     dialogProps: {
       open,
-      setOpen: useCallback(
-        (open: boolean) => {
-          const { width = 0, height = 0 } =
-            buttonRef.current?.getBoundingClientRect() ?? {};
-          if (!open || (width !== 0 && height !== 0)) {
-            setOpen(open);
-          }
-        },
-        [setOpen],
-      ),
+      setOpen: useCallback((open: boolean) => {
+        const { width = 0, height = 0 } =
+          buttonRef.current?.getBoundingClientRect() ?? {};
+        if (!open || (width !== 0 && height !== 0)) {
+          setOpen(open);
+        }
+      }, []),
     },
   };
 };

@@ -8,6 +8,8 @@ export const ReactLogo = (
     width="1em"
     height="1em"
     viewBox="0 0 24 24"
+    role="img"
+    aria-label="React logo"
     {...props}
   >
     {/* Icon from Simple Icons by Simple Icons Collaborators - https://github.com/simple-icons/simple-icons/blob/develop/LICENSE.md */}

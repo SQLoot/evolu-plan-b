@@ -1,7 +1,7 @@
 import {
   createFormatTypeError,
-  MaxLengthError,
-  MinLengthError,
+  type MaxLengthError,
+  type MinLengthError,
 } from "@evolu/common";
 
 /**

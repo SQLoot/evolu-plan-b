@@ -1,31 +1,27 @@
 "use client";
 
-import clsx from "clsx";
-import {
-  motion,
-  type MotionStyle,
-  useScroll,
-  useTransform,
-} from "motion/react";
-import Link from "next/link";
-import { forwardRef, Suspense, useEffect, useRef } from "react";
-
-import { DiscordIcon, GitHubIcon, SocialLink } from "@/components/Footer";
-import { Logo } from "@/components/Logo";
-
-import { MobileSearch, Search } from "@/components/Search";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import { IconArrowUpRight } from "@tabler/icons-react";
-
 import {
   Dialog,
   DialogBackdrop,
   DialogPanel,
   TransitionChild,
 } from "@headlessui/react";
+import { IconArrowUpRight } from "@tabler/icons-react";
+import clsx from "clsx";
+import {
+  type MotionStyle,
+  motion,
+  useScroll,
+  useTransform,
+} from "motion/react";
+import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-
+import { forwardRef, Suspense, useEffect, useRef } from "react";
+import { DiscordIcon, GitHubIcon, SocialLink } from "@/components/Footer";
+import { Logo } from "@/components/Logo";
 import { Navigation } from "@/components/Navigation";
+import { MobileSearch, Search } from "@/components/Search";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   IsInsideMobileNavigationContext,
   useIsInsideMobileNavigation,
@@ -101,7 +97,7 @@ const MobileNavigationDialog = ({
     ) {
       close();
     }
-  }, [pathname, searchParams, close, initialPathname, initialSearchParams]);
+  }, [pathname, searchParams, close]);
 
   const onClickDialog = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!(event.target instanceof HTMLElement)) {
@@ -228,7 +224,7 @@ export const Header = /*#__PURE__*/ forwardRef<
       </div>
       <div className="flex items-center gap-5">
         <nav className="hidden md:block">
-          <ul role="list" className="flex items-center gap-8">
+          <ul className="flex items-center gap-8">
             {pathname.startsWith("/blog") && (
               <TopLevelNavItem href="/">Home</TopLevelNavItem>
             )}
