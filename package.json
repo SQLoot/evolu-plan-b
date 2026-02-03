@@ -23,7 +23,7 @@
     "lint-monorepo": "bunx sherif@latest",
     "format": "biome format --write .",
     "verify": "bun run format && bun run build && bun run test && bun run test:coverage && bun run lint && bun run lint-monorepo && bun vitest run scripts/typedoc-plugin-evolu.test.mts",
-    "clean": "turbo clean && rm -rf node_modules bun.lock .turbo out",
+    "clean": "turbo clean && rimraf node_modules bun.lock .turbo out",
     "version": "changeset version",
     "release": "bun run build && changeset publish",
     "ios": "cd examples/react-expo && bun ios",

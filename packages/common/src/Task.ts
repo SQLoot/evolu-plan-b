@@ -436,7 +436,7 @@ export type InferTaskDone<T extends Task<any, any, any>> =
 /**
  * A {@link Task} suitable for use with platform-specific `runMain` functions.
  *
- * Returns `Disposable`, `AsyncDisposable`, or `void`. Returning a disposable
+ * Returns `Disposable`, `AsyncDisposable`, or `undefined`. Returning a disposable
  * (typically via `stack.move()`) transfers resource ownership to `runMain`,
  * main tasks must handle all errors internally.
  *

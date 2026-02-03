@@ -160,6 +160,6 @@ export const useSectionStore = <T,>(
   if (!store) {
     return {} as T;
   }
-  // eslint-disable-next-line react-hooks/rules-of-hooks
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional
   return useStore(store, selector);
 };

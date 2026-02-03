@@ -10,7 +10,9 @@ import { useEvolu } from "./useEvolu.js";
 export const useOwner = (owner: SyncOwner | null): void => {
   if (owner == null) return;
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional
   const evolu = useEvolu();
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional
   evolu.useOwner(owner);
 };

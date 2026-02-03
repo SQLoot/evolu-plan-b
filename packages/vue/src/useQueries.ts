@@ -35,6 +35,7 @@ export const useQueries = <
     const promise = options.promises?.[index];
     const queryOptions = { once: index > queries.length - 1 };
 
+    // biome-ignore lint/correctness/useHookAtTopLevel: intentional
     return useQuery(
       query,
       promise ? { ...queryOptions, promise } : queryOptions,

@@ -13,6 +13,7 @@ export const useOwner = (owner: SyncOwner | null): void => {
 
   useEffect(() => {
     if (owner == null) return;
+    // biome-ignore lint/correctness/useHookAtTopLevel: intentional
     return evolu.useOwner(owner);
   }, [evolu, owner]);
 };

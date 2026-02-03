@@ -38,7 +38,7 @@
         "noUnusedFunctionParameters": "off",
         "noUnusedImports": "error",
         "noUnusedVariables": "warn",
-        "useHookAtTopLevel": "off",
+        "useHookAtTopLevel": "error",
         "useYield": "off"
       },
       "style": {

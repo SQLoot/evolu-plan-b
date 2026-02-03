@@ -26,6 +26,7 @@ export const useQuerySubscription = <R extends Row>(
 
   if (once) {
     /* eslint-disable react-hooks/rules-of-hooks */
+    // biome-ignore lint/correctness/useHookAtTopLevel: intentional
     useEffect(
       // No useSyncExternalStore, no unnecessary updates.
       () => evolu.subscribeQuery(query)(lazyVoid),
@@ -34,8 +35,11 @@ export const useQuerySubscription = <R extends Row>(
     return evolu.getQueryRows(query);
   }
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional
   return useSyncExternalStore(
+    // biome-ignore lint/correctness/useHookAtTopLevel: intentional
     useMemo(() => evolu.subscribeQuery(query), [evolu, query]),
+    // biome-ignore lint/correctness/useHookAtTopLevel: intentional
     useMemo(() => () => evolu.getQueryRows(query), [evolu, query]),
     () => emptyRows as QueryRows<R>,
     /* eslint-enable react-hooks/rules-of-hooks */
