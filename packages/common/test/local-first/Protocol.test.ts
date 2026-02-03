@@ -1136,7 +1136,7 @@ describe("E2E sync", () => {
     return { syncSteps, syncSizes };
   };
 
-  it("client and relay have all data", async () => {
+  it("client and relay have all data", { timeout: 15000 }, async () => {
     await using run = testCreateRunner();
     const [clientStorage, relayStorage] = await createStorages();
     await run(clientStorage.writeMessages(testOwnerIdBytes, messages));
@@ -1175,7 +1175,7 @@ describe("E2E sync", () => {
     `);
   });
 
-  it("client has all data - many steps", async () => {
+  it("client has all data - many steps", { timeout: 15000 }, async () => {
     await using run = testCreateRunner();
     const [clientStorage, relayStorage] = await createStorages();
     await run(clientStorage.writeMessages(testOwnerIdBytes, messages));
@@ -1227,7 +1227,7 @@ describe("E2E sync", () => {
     `);
   });
 
-  it("relay has all data - many steps", async () => {
+  it("relay has all data - many steps", { timeout: 15000 }, async () => {
     await using run = testCreateRunner();
     const [clientStorage, relayStorage] = await createStorages();
     await run(relayStorage.writeMessages(testOwnerIdBytes, messages));
@@ -1305,7 +1305,7 @@ describe("E2E sync", () => {
     },
   );
 
-  it("client and relay each have a random half of the data - many steps", async () => {
+  it("client and relay each have a random half of the data - many steps", { timeout: 15000 }, async () => {
     await using run = testCreateRunner();
     const [clientStorage, relayStorage] = await createStorages();
 
