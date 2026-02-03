@@ -6,3 +6,18 @@ if (!globalThis.WebSocket) {
   // @ts-expect-error - ws WebSocket is compatible enough for our needs
   globalThis.WebSocket = WebSocket;
 }
+
+// Polyfill Promise.try for Node.js/Bun versions that don't support it (ES2024)
+// The @evolu/common package uses Promise.try in Task.ts
+if (!Promise.try) {
+  // @ts-expect-error - Adding ES2024 Promise.try polyfill
+  Promise.try = function <T>(
+    callback: () => T | PromiseLike<T>,
+    ...args: unknown[]
+  ): Promise<T> {
+    return new Promise((resolve) => {
+      resolve(callback(...args));
+    });
+  };
+}
+
