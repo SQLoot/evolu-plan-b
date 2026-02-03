@@ -11,13 +11,12 @@ if (!globalThis.WebSocket) {
 // The @evolu/common package uses Promise.try in Task.ts
 if (!Promise.try) {
   // @ts-expect-error - Adding ES2024 Promise.try polyfill
-  Promise.try = function <T>(
-    callback: () => T | PromiseLike<T>,
-    ...args: unknown[]
+  Promise.try = function <T, Args extends readonly unknown[]>(
+    callback: (...args: Args) => T | PromiseLike<T>,
+    ...args: Args
   ): Promise<T> {
-    return new Promise((resolve) => {
-      resolve(callback(...args));
-    });
+    return Promise.resolve().then(() => callback(...args));
   };
 }
+
 
