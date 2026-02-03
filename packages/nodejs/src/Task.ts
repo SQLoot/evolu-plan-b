@@ -44,58 +44,66 @@ export const runMain =
   <D>(deps: D) =>
   (main: MainTask<D>): void => {
     void (async () => {
-      await using run = createRunner(deps)
-      const console = run.deps.console.child('process')
-
-      /**
-       * "The correct use of 'uncaughtException' is to perform synchronous
-       * cleanup of allocated resources (e.g. file descriptors, handles, etc)
-       * before shutting down the process."
-       *
-       * https://nodejs.org/api/process.html#event-uncaughtexception
-       * https://nodejs.org/api/process.html#event-unhandledrejection
-       *
-       * We log and initiate graceful shutdown.
-       */
-      const handleError = (error: unknown): void => {
-        console.error(createUnknownError(error))
-        // https://nodejs.org/api/process.html#processexitcode
-        process.exitCode = 1
-        void run[Symbol.asyncDispose]()
-      }
-
-      process.on('uncaughtException', handleError)
-      process.on('unhandledRejection', handleError)
-
-      const result = await run(main)
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      const stack = result.ok ? (result.value ?? undefined) : undefined
-
+      const run = createRunner(deps)
       try {
-        await run(
-          callback(({ ok }) => {
-            // https://nodejs.org/api/process.html#signal-events
-            process.on('SIGINT', ok) // Ctrl-C (all platforms)
-            process.on('SIGTERM', ok) // OS/k8s/Docker termination (Unix)
-            process.on('SIGHUP', ok) // Console close (Windows), terminal disconnect (Unix)
+        const console = run.deps.console.child('process')
 
-            // TODO: Explain why it's important to use run.onAbort and not
-            // unregister sooner (cli shows gracefull shutdown was terminated.)
-            run.onAbort(() => {
-              process.off('SIGINT', ok)
-              process.off('SIGTERM', ok)
-              process.off('SIGHUP', ok)
-            })
-            return undefined
-          }),
-        )
-      } finally {
-        if (stack) {
-          await stack[Symbol.asyncDispose]()
+        /**
+         * "The correct use of 'uncaughtException' is to perform synchronous
+         * cleanup of allocated resources (e.g. file descriptors, handles, etc)
+         * before shutting down the process."
+         *
+         * https://nodejs.org/api/process.html#event-uncaughtexception
+         * https://nodejs.org/api/process.html#event-unhandledrejection
+         *
+         * We log and initiate graceful shutdown.
+         */
+        const handleError = (error: unknown): void => {
+          console.error(createUnknownError(error))
+          // https://nodejs.org/api/process.html#processexitcode
+          process.exitCode = 1
+          void run[Symbol.asyncDispose]()
         }
-      }
 
-      process.off('uncaughtException', handleError)
-      process.off('unhandledRejection', handleError)
+        process.on('uncaughtException', handleError)
+        process.on('unhandledRejection', handleError)
+
+        const result = await run(main)
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        const stack = result.ok ? (result.value ?? undefined) : undefined
+
+        try {
+          await run(
+            callback(({ ok }) => {
+              // https://nodejs.org/api/process.html#signal-events
+              process.on('SIGINT', ok) // Ctrl-C (all platforms)
+              process.on('SIGTERM', ok) // OS/k8s/Docker termination (Unix)
+              process.on('SIGHUP', ok) // Console close (Windows), terminal disconnect (Unix)
+
+              // TODO: Explain why it's important to use run.onAbort and not
+              // unregister sooner (cli shows gracefull shutdown was terminated.)
+              run.onAbort(() => {
+                process.off('SIGINT', ok)
+                process.off('SIGTERM', ok)
+                process.off('SIGHUP', ok)
+              })
+              return undefined
+            }),
+          )
+        } finally {
+          if (stack) {
+            if (Symbol.asyncDispose in stack) {
+              await stack[Symbol.asyncDispose]()
+            } else {
+              stack[Symbol.dispose]()
+            }
+          }
+        }
+
+        process.off('uncaughtException', handleError)
+        process.off('unhandledRejection', handleError)
+      } finally {
+        await run[Symbol.asyncDispose]()
+      }
     })()
   }
