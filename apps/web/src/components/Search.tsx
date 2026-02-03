@@ -302,12 +302,13 @@ const SearchDialog = ({
       setOpen(false);
     },
   });
-  const _pathname = usePathname();
-  const _searchParams = useSearchParams();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Effect should trigger on navigation changes to close dialog
   useEffect(() => {
     setOpen(false);
-  }, [setOpen]);
+  }, [pathname, searchParams, setOpen]);
 
   useEffect(() => {
     if (open) {

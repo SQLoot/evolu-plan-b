@@ -4,20 +4,15 @@ ENV PATH="$BUN_HOME:$PATH"
 
 FROM base AS builder
 WORKDIR /app
-RUN bun install -g turbo
 COPY . .
 
 # Generate a partial monorepo with a pruned lockfile for the relay workspace
-RUN turbo prune @evolu/relay --docker
+RUN bunx turbo@2.8.2 prune @evolu/relay --docker
 
 # ------------------------------------------------------------
 # Installer stage - build the pruned workspace
 FROM base AS installer
 WORKDIR /app
-
-# Install pnpm and turbo (Wait, we want bun)
-# RUN corepack enable pnpm # Removed
-RUN bun install -g turbo
 
 # Install dependencies from pruned lockfile
 COPY --from=builder /app/out/json/ .
@@ -27,7 +22,7 @@ RUN bun install --frozen-lockfile
 COPY --from=builder /app/out/full/ .
 # Ensure README.md is available at the root for the build process
 COPY --from=builder /app/README.md ./README.md
-RUN turbo run build
+RUN bunx turbo@2.8.2 run build
 
 # Prune dev dependencies to create a production-ready environment
 RUN bun install --production
