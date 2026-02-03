@@ -8,6 +8,9 @@
         "@biomejs/biome": "2.3.13",
         "@changesets/cli": "^2.29.8",
         "@types/webpack": "^5.28.5",
+        "@vitest/browser": "^4.0.17",
+        "@vitest/browser-playwright": "^4.0.17",
+        "@vitest/coverage-v8": "^4.0.17",
         "rimraf": "^6.1.2",
         "turbo": "^2.8.2",
         "typedoc": "^0.28.16",
@@ -93,8 +96,8 @@
       "dependencies": {
         "@angular/core": "^21.1.0",
         "@angular/platform-browser": "^21.1.0",
-        "@evolu/common": "latest",
-        "@evolu/web": "latest",
+        "@evolu/common": "workspace:*",
+        "@evolu/web": "workspace:*",
       },
       "devDependencies": {
         "@analogjs/vite-plugin-angular": "^2.2.2",
@@ -112,9 +115,9 @@
       "name": "@example/react-electron",
       "version": "0.0.0",
       "dependencies": {
-        "@evolu/common": "latest",
-        "@evolu/react": "latest",
-        "@evolu/react-web": "latest",
+        "@evolu/common": "workspace:*",
+        "@evolu/react": "workspace:*",
+        "@evolu/react-web": "workspace:*",
         "react": "19.2.4",
         "react-dom": "19.2.4",
       },
@@ -135,9 +138,9 @@
       "version": "1.0.0",
       "dependencies": {
         "@blazejkustra/react-native-alert": "^1.0.0",
-        "@evolu/common": "latest",
-        "@evolu/react": "latest",
-        "@evolu/react-native": "latest",
+        "@evolu/common": "workspace:*",
+        "@evolu/react": "workspace:*",
+        "@evolu/react-native": "workspace:*",
         "@expo/metro-runtime": "^6.1.2",
         "@expo/vector-icons": "^15.0.3",
         "abort-signal-polyfill": "^1.0.0",
@@ -176,9 +179,9 @@
       "name": "@example/react-nextjs",
       "version": "0.1.0",
       "dependencies": {
-        "@evolu/common": "latest",
-        "@evolu/react": "latest",
-        "@evolu/react-web": "latest",
+        "@evolu/common": "workspace:*",
+        "@evolu/react": "workspace:*",
+        "@evolu/react-web": "workspace:*",
         "@tabler/icons-react": "^3.36.1",
         "clsx": "^2.1.1",
         "next": "^16.1.3",
@@ -200,9 +203,9 @@
       "name": "@example/react-vite-pwa",
       "version": "0.0.0",
       "dependencies": {
-        "@evolu/common": "latest",
-        "@evolu/react": "latest",
-        "@evolu/react-web": "latest",
+        "@evolu/common": "workspace:*",
+        "@evolu/react": "workspace:*",
+        "@evolu/react-web": "workspace:*",
         "@tabler/icons-react": "^3.36.1",
         "clsx": "^2.1.1",
         "react": "19.2.4",
@@ -244,9 +247,9 @@
       "name": "@example/vue-vite-pwa",
       "version": "0.0.0",
       "dependencies": {
-        "@evolu/common": "latest",
-        "@evolu/vue": "latest",
-        "@evolu/web": "latest",
+        "@evolu/common": "workspace:*",
+        "@evolu/vue": "workspace:*",
+        "@evolu/web": "workspace:*",
         "vue": "^3.5.26",
         "workbox-window": "^7.4.0",
       },
@@ -279,14 +282,10 @@
         "@types/node": "^24.10.9",
         "@types/webpack": "^5.28.5",
         "@types/ws": "^8.18.1",
-        "@vitest/browser": "^4.0.17",
-        "@vitest/browser-playwright": "^4.0.17",
-        "@vitest/coverage-v8": "^4.0.18",
         "better-sqlite3": "^12.6.2",
         "fast-check": "^4.5.3",
         "playwright": "^1.58.1",
         "typescript": "^5.9.3",
-        "vitest": "^4.0.17",
         "webpack": "^5.104.1",
         "ws": "^8.19.0",
       },
@@ -304,9 +303,7 @@
         "@types/better-sqlite3": "^7.6.13",
         "@types/node": "^24.10.9",
         "@types/ws": "^8.18.1",
-        "@vitest/coverage-v8": "^4.0.18",
         "typescript": "^5.9.3",
-        "vitest": "^4.0.17",
       },
       "peerDependencies": {
         "@evolu/common": "^7.4.1",
@@ -322,7 +319,6 @@
         "@types/react-dom": "~19.2.3",
         "react": "19.2.4",
         "typescript": "^5.9.3",
-        "vitest": "^4.0.17",
       },
       "peerDependencies": {
         "@evolu/common": "^7.4.1",
@@ -338,7 +334,6 @@
         "@evolu/tsconfig": "workspace:*",
         "@op-engineering/op-sqlite": "^15.2.2",
         "@types/react": "~19.2.10",
-        "@vitest/coverage-v8": "^4.0.18",
         "expo": "^54.0.31",
         "expo-secure-store": "~15.0.8",
         "expo-sqlite": "~16.0.10",
@@ -348,7 +343,6 @@
         "react-native-sensitive-info": "6.0.0-rc.11",
         "react-native-svg": "^15.15.1",
         "typescript": "^5.9.3",
-        "vitest": "^4.0.17",
       },
       "peerDependencies": {
         "@evolu/common": "^7.4.1",
@@ -386,7 +380,6 @@
         "react-dom": "19.2.4",
         "typescript": "^5.9.3",
         "user-agent-data-types": "^0.4.2",
-        "vitest": "^4.0.17",
       },
       "peerDependencies": {
         "@evolu/common": "^7.4.1",
@@ -425,7 +418,6 @@
         "@evolu/common": "workspace:*",
         "@evolu/tsconfig": "workspace:*",
         "typescript": "^5.9.3",
-        "vitest": "^4.0.17",
       },
       "peerDependencies": {
         "@evolu/common": "^7.4.1",
@@ -444,12 +436,8 @@
         "@evolu/tsconfig": "workspace:*",
         "@types/sharedworker": "^0.0.211",
         "@types/web-locks-api": "^0.0.5",
-        "@vitest/browser": "^4.0.17",
-        "@vitest/browser-playwright": "^4.0.17",
-        "@vitest/coverage-v8": "^4.0.18",
         "typescript": "^5.9.3",
         "user-agent-data-types": "^0.4.2",
-        "vitest": "^4.0.17",
       },
       "peerDependencies": {
         "@evolu/common": "^7.4.1",
@@ -3869,40 +3857,6 @@
     "@electron/universal/fs-extra": ["fs-extra@11.3.3", "", { "dependencies": { "graceful-fs": "^4.2.0", "jsonfile": "^6.0.1", "universalify": "^2.0.0" } }, "sha512-VWSRii4t0AFm6ixFFmLLx1t7wS1gh+ckoa84aOeapGum0h+EZd1EhEumSB+ZdDLnEPuucsVB9oB7cxJHap6Afg=="],
 
     "@electron/windows-sign/fs-extra": ["fs-extra@11.3.3", "", { "dependencies": { "graceful-fs": "^4.2.0", "jsonfile": "^6.0.1", "universalify": "^2.0.0" } }, "sha512-VWSRii4t0AFm6ixFFmLLx1t7wS1gh+ckoa84aOeapGum0h+EZd1EhEumSB+ZdDLnEPuucsVB9oB7cxJHap6Afg=="],
-
-    "@example/angular-vite-pwa/@evolu/common": ["@evolu/common@7.4.1", "", { "dependencies": { "@noble/ciphers": "^2.0.0", "@noble/hashes": "^2.0.0", "@scure/bip39": "^2.0.0", "kysely": "^0.28.4", "msgpackr": "^1.11.5", "random": "^5.4.1" } }, "sha512-aTSJN9GXvoN5FXo8DRiYdbMVFvBUG6N7Ygu7n5viyauPKBwylyAazZuDcBlQg5MxVv6YrF5c6w2LRG/OR2UIHA=="],
-
-    "@example/angular-vite-pwa/@evolu/web": ["@evolu/web@2.4.0", "", { "dependencies": { "@evolu/sqlite-wasm": "2.2.4", "idb-keyval": "^6.2.2" }, "peerDependencies": { "@evolu/common": "^7.4.0" } }, "sha512-yba/zpcsf5qu4NEup/rx8j+M/7DmF53/EZXKe8NRJefPJxrCxjzteOgUqUMkHQwYDRdH3u81KMoPlhvdBgSFuQ=="],
-
-    "@example/react-electron/@evolu/common": ["@evolu/common@7.4.1", "", { "dependencies": { "@noble/ciphers": "^2.0.0", "@noble/hashes": "^2.0.0", "@scure/bip39": "^2.0.0", "kysely": "^0.28.4", "msgpackr": "^1.11.5", "random": "^5.4.1" } }, "sha512-aTSJN9GXvoN5FXo8DRiYdbMVFvBUG6N7Ygu7n5viyauPKBwylyAazZuDcBlQg5MxVv6YrF5c6w2LRG/OR2UIHA=="],
-
-    "@example/react-electron/@evolu/react": ["@evolu/react@10.4.0", "", { "peerDependencies": { "@evolu/common": "^7.4.0", "react": ">=19" } }, "sha512-BLXlLT+/dKSei/JrkLc9Z3fRb48vcXQmaExe0VMdxMzv2h8CyO5l4G635eQtH8F7I40VsnXLCURxNyzKF9DEQw=="],
-
-    "@example/react-electron/@evolu/react-web": ["@evolu/react-web@2.4.0", "", { "peerDependencies": { "@evolu/common": "^7.4.0", "@evolu/web": "^2.4.0", "react": ">=19", "react-dom": ">=19" } }, "sha512-8zf/qQM+JZWykh0eGIAhE3CRFptGB0FwyQa4jp5Ce7yyOkekRMRs5WMZQA9QbRoY/OBRyOcwIP4aUk/tj49VwQ=="],
-
-    "@example/react-expo/@evolu/common": ["@evolu/common@7.4.1", "", { "dependencies": { "@noble/ciphers": "^2.0.0", "@noble/hashes": "^2.0.0", "@scure/bip39": "^2.0.0", "kysely": "^0.28.4", "msgpackr": "^1.11.5", "random": "^5.4.1" } }, "sha512-aTSJN9GXvoN5FXo8DRiYdbMVFvBUG6N7Ygu7n5viyauPKBwylyAazZuDcBlQg5MxVv6YrF5c6w2LRG/OR2UIHA=="],
-
-    "@example/react-expo/@evolu/react": ["@evolu/react@10.4.0", "", { "peerDependencies": { "@evolu/common": "^7.4.0", "react": ">=19" } }, "sha512-BLXlLT+/dKSei/JrkLc9Z3fRb48vcXQmaExe0VMdxMzv2h8CyO5l4G635eQtH8F7I40VsnXLCURxNyzKF9DEQw=="],
-
-    "@example/react-expo/@evolu/react-native": ["@evolu/react-native@14.3.0", "", { "peerDependencies": { "@evolu/common": "^7.4.0", "@evolu/react": "^10.4.0", "@op-engineering/op-sqlite": ">=12", "expo": ">=54", "expo-secure-store": ">=15", "expo-sqlite": ">=16", "react-native": ">=0.81", "react-native-nitro-modules": ">=0.31", "react-native-sensitive-info": ">=6", "react-native-svg": ">=15" }, "optionalPeers": ["@op-engineering/op-sqlite", "expo", "expo-secure-store", "expo-sqlite", "react-native-nitro-modules", "react-native-sensitive-info", "react-native-svg"] }, "sha512-/HfypD6F1WrJw2DNcipbDjfFPmy5ebezNNI//GOvy6wCejk/QxPUCNCPksR9akA+UIdqvE1fE9Xct65bBK1e9w=="],
-
-    "@example/react-nextjs/@evolu/common": ["@evolu/common@7.4.1", "", { "dependencies": { "@noble/ciphers": "^2.0.0", "@noble/hashes": "^2.0.0", "@scure/bip39": "^2.0.0", "kysely": "^0.28.4", "msgpackr": "^1.11.5", "random": "^5.4.1" } }, "sha512-aTSJN9GXvoN5FXo8DRiYdbMVFvBUG6N7Ygu7n5viyauPKBwylyAazZuDcBlQg5MxVv6YrF5c6w2LRG/OR2UIHA=="],
-
-    "@example/react-nextjs/@evolu/react": ["@evolu/react@10.4.0", "", { "peerDependencies": { "@evolu/common": "^7.4.0", "react": ">=19" } }, "sha512-BLXlLT+/dKSei/JrkLc9Z3fRb48vcXQmaExe0VMdxMzv2h8CyO5l4G635eQtH8F7I40VsnXLCURxNyzKF9DEQw=="],
-
-    "@example/react-nextjs/@evolu/react-web": ["@evolu/react-web@2.4.0", "", { "peerDependencies": { "@evolu/common": "^7.4.0", "@evolu/web": "^2.4.0", "react": ">=19", "react-dom": ">=19" } }, "sha512-8zf/qQM+JZWykh0eGIAhE3CRFptGB0FwyQa4jp5Ce7yyOkekRMRs5WMZQA9QbRoY/OBRyOcwIP4aUk/tj49VwQ=="],
-
-    "@example/react-vite-pwa/@evolu/common": ["@evolu/common@7.4.1", "", { "dependencies": { "@noble/ciphers": "^2.0.0", "@noble/hashes": "^2.0.0", "@scure/bip39": "^2.0.0", "kysely": "^0.28.4", "msgpackr": "^1.11.5", "random": "^5.4.1" } }, "sha512-aTSJN9GXvoN5FXo8DRiYdbMVFvBUG6N7Ygu7n5viyauPKBwylyAazZuDcBlQg5MxVv6YrF5c6w2LRG/OR2UIHA=="],
-
-    "@example/react-vite-pwa/@evolu/react": ["@evolu/react@10.4.0", "", { "peerDependencies": { "@evolu/common": "^7.4.0", "react": ">=19" } }, "sha512-BLXlLT+/dKSei/JrkLc9Z3fRb48vcXQmaExe0VMdxMzv2h8CyO5l4G635eQtH8F7I40VsnXLCURxNyzKF9DEQw=="],
-
-    "@example/react-vite-pwa/@evolu/react-web": ["@evolu/react-web@2.4.0", "", { "peerDependencies": { "@evolu/common": "^7.4.0", "@evolu/web": "^2.4.0", "react": ">=19", "react-dom": ">=19" } }, "sha512-8zf/qQM+JZWykh0eGIAhE3CRFptGB0FwyQa4jp5Ce7yyOkekRMRs5WMZQA9QbRoY/OBRyOcwIP4aUk/tj49VwQ=="],
-
-    "@example/vue-vite-pwa/@evolu/common": ["@evolu/common@7.4.1", "", { "dependencies": { "@noble/ciphers": "^2.0.0", "@noble/hashes": "^2.0.0", "@scure/bip39": "^2.0.0", "kysely": "^0.28.4", "msgpackr": "^1.11.5", "random": "^5.4.1" } }, "sha512-aTSJN9GXvoN5FXo8DRiYdbMVFvBUG6N7Ygu7n5viyauPKBwylyAazZuDcBlQg5MxVv6YrF5c6w2LRG/OR2UIHA=="],
-
-    "@example/vue-vite-pwa/@evolu/vue": ["@evolu/vue@1.4.0", "", { "peerDependencies": { "@evolu/common": "^7.4.0", "vue": ">=3.5.24" } }, "sha512-ydT8VxDOIXqfC6n6NQxXPsDX+Jvqg/CP+2Tj8hzZgqFO6PZpIBqOX8pS6ceqVCv+9FI4pC+LGyz4X9idrdX87g=="],
-
-    "@example/vue-vite-pwa/@evolu/web": ["@evolu/web@2.4.0", "", { "dependencies": { "@evolu/sqlite-wasm": "2.2.4", "idb-keyval": "^6.2.2" }, "peerDependencies": { "@evolu/common": "^7.4.0" } }, "sha512-yba/zpcsf5qu4NEup/rx8j+M/7DmF53/EZXKe8NRJefPJxrCxjzteOgUqUMkHQwYDRdH3u81KMoPlhvdBgSFuQ=="],
 
     "@expo/cli/picomatch": ["picomatch@3.0.1", "", {}, "sha512-I3EurrIQMlRc9IaAZnqRR044Phh2DXY+55o7uJ0V+hYZAcQYSuFWsc9q5PvyDHUSCe1Qxn/iBz+78s86zWnGag=="],
 
