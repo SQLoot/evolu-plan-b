@@ -22,7 +22,7 @@ bunx <package>       # Execute packages
 
 ### Development
 - **Turbo** 2.8.1 - Monorepo build orchestration
-- **Biome** 2.3.13 - Linting and formatting
+- **Biome** 2.3.14 - Linting and formatting
 - **Vitest** ^4.0.18 - Testing framework
 - **TypeDoc** ^0.28.16 - API documentation
 
