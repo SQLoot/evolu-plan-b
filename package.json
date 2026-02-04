@@ -37,19 +37,19 @@
     "examples:vue-vite-pwa:dev": "turbo --filter @example/vue-vite-pwa dev"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.3.13",
+    "@biomejs/biome": "2.3.14",
     "@changesets/cli": "^2.29.8",
     "@types/webpack": "^5.28.5",
     "@vitest/browser": "^4.0.17",
     "@vitest/browser-playwright": "^4.0.17",
     "@vitest/coverage-v8": "^4.0.17",
     "rimraf": "^6.1.2",
-    "turbo": "^2.8.2",
+    "turbo": "^2.8.3",
     "typedoc": "^0.28.16",
     "typedoc-plugin-markdown": "^4.9.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.17",
-    "webpack": "^5.104.1"
+    "webpack": "^5.105.0"
   },
   "engines": {
     "node": ">=24.0.0"

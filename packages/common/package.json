@@ -50,22 +50,6 @@
   },
   "dependencies": {
     "@noble/ciphers": "^2.1.1",
-    "@noble/hashes": "^2.0.1",
-    "@scure/bip39": "^2.0.1",
-    "disposablestack": "^1.1.7",
-    "kysely": "^0.28.10",
-    "msgpackr": "^1.11.8",
-    "random": "^5.4.1"
-  },
-  "devDependencies": {
-    "@bokuweb/zstd-wasm": "0.0.27",
-    "@evolu/tsconfig": "workspace:*",
-    "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^24.10.9",
-    "@types/webpack": "^5.28.5",
-    "@types/ws": "^8.18.1",
-    "better-sqlite3": "^12.6.2",
-    "fast-check": "^4.5.3",
     "playwright": "^1.58.1",
     "typescript": "^5.9.3",
     "webpack": "^5.104.1",
