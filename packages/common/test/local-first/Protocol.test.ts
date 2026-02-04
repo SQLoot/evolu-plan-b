@@ -1305,27 +1305,30 @@ describe("E2E sync", () => {
     },
   );
 
-  it("client and relay each have a random half of the data - many steps", { timeout: 15000 }, async () => {
-    await using run = testCreateRunner();
-    const [clientStorage, relayStorage] = await createStorages();
+  it(
+    "client and relay each have a random half of the data - many steps",
+    { timeout: 15000 },
+    async () => {
+      await using run = testCreateRunner();
+      const [clientStorage, relayStorage] = await createStorages();
 
-    const shuffledMessages = deps.randomLib.shuffle(messages);
-    const middle = Math.floor(shuffledMessages.length / 2);
-    const firstHalf = shuffledMessages.slice(0, middle);
-    const secondHalf = shuffledMessages.slice(middle);
+      const shuffledMessages = deps.randomLib.shuffle(messages);
+      const middle = Math.floor(shuffledMessages.length / 2);
+      const firstHalf = shuffledMessages.slice(0, middle);
+      const secondHalf = shuffledMessages.slice(middle);
 
-    assertNonEmptyArray(firstHalf);
-    assertNonEmptyArray(secondHalf);
+      assertNonEmptyArray(firstHalf);
+      assertNonEmptyArray(secondHalf);
 
-    await run(clientStorage.writeMessages(testOwnerIdBytes, firstHalf));
-    await run(relayStorage.writeMessages(testOwnerIdBytes, secondHalf));
+      await run(clientStorage.writeMessages(testOwnerIdBytes, firstHalf));
+      await run(relayStorage.writeMessages(testOwnerIdBytes, secondHalf));
 
-    const syncSteps = await reconcile(
-      clientStorage,
-      relayStorage,
-      ProtocolMessageRangesMaxSize.orThrow(3000),
-    );
-    expect(syncSteps).toMatchInlineSnapshot(`
+      const syncSteps = await reconcile(
+        clientStorage,
+        relayStorage,
+        ProtocolMessageRangesMaxSize.orThrow(3000),
+      );
+      expect(syncSteps).toMatchInlineSnapshot(`
       {
         "syncSizes": [
           392,
@@ -1370,7 +1373,8 @@ describe("E2E sync", () => {
         "syncSteps": 38,
       }
     `);
-  });
+    },
+  );
 
   it("starts sync from createProtocolMessageFromCrdtMessages", async () => {
     const owner = testOwner;

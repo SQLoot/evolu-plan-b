@@ -6,14 +6,6 @@
     "allowJs": true,
     "resolveJsonModule": true
   },
-  "include": [
-    "src",
-    "test",
-    "vitest.*.config.ts"
-  ],
-  "exclude": [
-    "dist",
-    "node_modules",
-    "test/tmp"
-  ]
+  "include": ["src", "test", "vitest.*.config.ts"],
+  "exclude": ["dist", "node_modules", "test/tmp"]
 }
