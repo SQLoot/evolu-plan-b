@@ -48,7 +48,7 @@ import type {
   MutationOptions,
   ValidateSchema,
 } from "./Schema.js";
-import { insertable, SystemColumns, updateable, upsertable } from "./Schema.js";
+import { insertable, updateable, upsertable } from "./Schema.js";
 import { DbChange } from "./Storage.js";
 import type { SyncOwner } from "./Sync.js";
 import type { EvoluWorkerDep } from "./Worker.js";
