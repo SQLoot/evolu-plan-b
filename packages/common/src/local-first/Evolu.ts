@@ -636,7 +636,7 @@ export const createEvolu =
     schema: ValidateSchema<S> extends never ? S : ValidateSchema<S>,
     {
       name,
-      // TODO:
+      // transports defines how Evolu connects to owners; default uses the public WebSocket service.
       transports: _transports = [
         { type: "WebSocket", url: "wss://free.evoluhq.com" },
       ],
