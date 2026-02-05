@@ -22,7 +22,7 @@
     "lint": "biome check",
     "lint-monorepo": "bunx sherif@latest",
     "format": "biome format --write .",
-    "verify": "bun run format && bun run build && bun run test && bun run test:coverage && bun run lint && bun run lint-monorepo && bunx vitest run scripts/typedoc-plugin-evolu.test.mts",
+    "verify": "bun run format && bun run build && bun run test && bun run test:coverage && bun run lint && bun run lint-monorepo && bun run build:docs && bunx vitest run scripts/typedoc-plugin-evolu.test.mts",
     "clean": "turbo clean && rimraf node_modules bun.lock .turbo out",
     "version": "changeset version",
     "release": "bun run build && changeset publish",
