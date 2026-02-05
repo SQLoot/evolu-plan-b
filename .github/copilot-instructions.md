@@ -648,11 +648,6 @@ bun run test --filter @evolu/common -- Task
 # Run a single test by name (-t flag)
 bun run test --filter @evolu/common -- -t "yields and returns ok"
 ```
-
-## Monorepo TypeScript issues
-
-**TypeScript "Unsafe..." errors after changes** - In a monorepo, you may see "Unsafe call", "Unsafe member access", or "Unsafe assignment" errors after modifying packages that other packages depend on. These are TypeScript language server errors, not Biome linting errors. They should be investigated but may be false positives. Solution: use VS Code's "Developer: Reload Window" command (Cmd+Shift+P) to refresh the TypeScript language server.
-
 ## Git commit messages
 
 - **Write as sentences** - use proper sentence case without trailing period
