@@ -27,7 +27,7 @@ import { createId, type Id, type SimpleName } from "../Type.js";
 import type { CreateMessageChannelDep } from "../Worker.js";
 import type { EvoluError } from "./Error.js";
 import type { AppOwner, OwnerTransport } from "./Owner.js";
-import { createOwnerWebSocketTransport, OwnerId } from "./Owner.js";
+import { OwnerId, createOwnerWebSocketTransport } from "./Owner.js";
 import type {
   Queries,
   QueriesToQueryRowsPromises,
@@ -501,7 +501,7 @@ export interface Evolu<S extends EvoluSchema = EvoluSchema> extends Disposable {
    * In the future, it will be possible to import a database and export/import
    * history for 1:1 migrations across owners.
    */
-  readonly exportDatabase: () => Promise<Uint8Array<ArrayBuffer>>;
+  readonly exportDatabase: () => Promise<Uint8Array>;
 
   /**
    * Use a {@link SyncOwner}. Returns a {@link UnuseOwner}.
@@ -636,7 +636,7 @@ export const createEvolu =
     schema: ValidateSchema<S> extends never ? S : ValidateSchema<S>,
     {
       name,
-      // transports defines how Evolu connects to owners; default uses the public WebSocket service.
+      // transports define how Evolu connects to owners; default uses the public WebSocket service.
       transports: _transports = [
         { type: "WebSocket", url: "wss://free.evoluhq.com" },
       ],
@@ -654,7 +654,7 @@ export const createEvolu =
     const subscribedQueries = createSubscribedQueries(rowsStore);
     const loadingPromises = createLoadingPromises(subscribedQueries);
     const onCompleteCallbacks = createCallbacks(deps);
-    const exportCallbacks = createCallbacks<Uint8Array<ArrayBuffer>>(deps);
+    const exportCallbacks = createCallbacks<Uint8Array>(deps);
 
     const loadQueryMicrotaskQueue: Array<Query> = [];
     const useOwnerMicrotaskQueue: Array<[SyncOwner, boolean, Uint8Array]> = [];
@@ -997,7 +997,7 @@ export const createEvolu =
 
       exportDatabase: () => {
         const { promise, resolve } =
-          Promise.withResolvers<Uint8Array<ArrayBuffer>>();
+          Promise.withResolvers<Uint8Array>();
         const _onCompleteId = exportCallbacks.register(resolve);
         // dbWorker.postMessage({ type: "export", onCompleteId });
         return promise;
