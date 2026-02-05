@@ -14,6 +14,7 @@ import {
 } from "../Object.js";
 import { ok, type Result } from "../Result.js";
 import {
+  isSqlMutation,
   type SafeSql,
   SqliteBoolean,
   type SqliteDep,
@@ -51,8 +52,9 @@ import type { Simplify } from "../Types.js";
 import type { AppOwner } from "./Owner.js";
 import { OwnerId } from "./Owner.js";
 import type { Query, Row } from "./Query.js";
+import { serializeQuery } from "./Query.js";
 import type { CrdtMessage, DbChange } from "./Storage.js";
-import type { TimestampBytes } from "./Timestamp.js";
+import type { Timestamp, TimestampBytes } from "./Timestamp.js";
 
 /**
  * Defines the schema of an Evolu database.
@@ -559,13 +561,16 @@ export const ensureDbSchema =
       if (!dbSchema.ok) return dbSchema;
       currentSchema = dbSchema.value;
     }
+    const _currentSchema = currentSchema;
 
     for (const [tableName, newColumns] of Object.entries(newSchema.tables)) {
-      const currentColumns = getProperty(currentSchema.tables, tableName);
+      const currentColumns = getProperty(_currentSchema.tables, tableName);
       if (!currentColumns) {
         queries.push(createAppTable(tableName, newColumns));
       } else {
-        for (const newColumn of newColumns.difference(currentColumns)) {
+        for (const newColumn of [...newColumns].filter(
+          (c) => !currentColumns.has(c),
+        )) {
           queries.push(sql`
             alter table ${sql.identifier(tableName)}
             add column ${sql.identifier(newColumn)} any;
@@ -575,7 +580,7 @@ export const ensureDbSchema =
     }
 
     // Remove current indexes that are not in the newSchema.
-    currentSchema.indexes
+    _currentSchema.indexes
       .filter(
         (currentIndex) =>
           !newSchema.indexes.some((newIndex) =>
@@ -590,7 +595,7 @@ export const ensureDbSchema =
     newSchema.indexes
       .filter(
         (newIndex) =>
-          !currentSchema.indexes.some((currentIndex) =>
+          !_currentSchema.indexes.some((currentIndex) =>
             indexesAreEqual(newIndex, currentIndex),
           ),
       )
@@ -636,6 +641,48 @@ export const kysely = new Kysely.Kysely({
 });
 
 const createIndex = kysely.schema.createIndex.bind(kysely.schema);
+
+/**
+ * Creates a query builder from a {@link EvoluSchema}.
+ *
+ * ### Example
+ *
+ * ```ts
+ * const Schema = {
+ *   todo: {
+ *     id: id("Todo"),
+ *     title: NonEmptyString100,
+ *     isCompleted: nullOr(SqliteBoolean),
+ *   },
+ * };
+ *
+ * // Create a typed query builder (once per schema)
+ * const createQuery = createQueryBuilder(Schema);
+ *
+ * // Use it for all queries
+ * const todosQuery = createQuery((db) =>
+ *   db.selectFrom("todo").select(["id", "title", "isCompleted"]),
+ * );
+ * ```
+ */
+export const createQueryBuilder =
+  <S extends EvoluSchema>(_schema: S): CreateQuery<S> =>
+  (queryCallback, options) => {
+    const compiledQuery = queryCallback(kysely as never).compile();
+
+    if (isSqlMutation(compiledQuery.sql))
+      throw new Error(
+        "SQL mutation (INSERT, UPDATE, DELETE, etc.) isn't allowed in createQuery. Kysely suggests it because there is no read-only Kysely yet, and removing such an API is not possible. For mutations, use Evolu Mutation API.",
+      );
+
+    return serializeQuery({
+      sql: compiledQuery.sql as SafeSql,
+      parameters: compiledQuery.parameters as NonNullable<
+        SqliteQuery["parameters"]
+      >,
+      ...(options && { options }),
+    });
+  };
 
 // export const maxMutationSize = 655360;
 

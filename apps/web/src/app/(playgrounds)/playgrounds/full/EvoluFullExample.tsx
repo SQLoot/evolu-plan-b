@@ -5,6 +5,7 @@ import {
   createEvolu,
   createFormatTypeError,
   createObjectURL,
+  createQueryBuilder,
   FiniteNumber,
   id,
   idToIdBytes,
@@ -98,6 +99,8 @@ const Schema = {
     projectId: nullOr(ProjectId),
   },
 };
+
+const createQuery = createQueryBuilder(Schema);
 
 const deps = createEvoluDeps();
 
@@ -212,7 +215,7 @@ const App: FC = () => {
   );
 };
 
-const projectsWithTodosQuery = evolu.createQuery(
+const projectsWithTodosQuery = createQuery(
   (db) =>
     db
       .selectFrom("project")
@@ -409,7 +412,7 @@ const HomeTabProjectSectionTodoItem: FC<{
 
   // Demonstrate history tracking. Evolu automatically tracks all changes
   // in the evolu_history table, making it easy to build audit logs or undo features.
-  const titleHistoryQuery = evolu.createQuery((db) =>
+  const titleHistoryQuery = createQuery((db) =>
     db
       .selectFrom("evolu_history")
       .select(["value", "timestamp"])
@@ -503,7 +506,7 @@ const HomeTabProjectSectionTodoItem: FC<{
   );
 };
 
-const projectsQuery = evolu.createQuery((db) =>
+const projectsQuery = createQuery((db) =>
   db
     .selectFrom("project")
     .select(["id", "name", "fooJson"])
@@ -716,7 +719,7 @@ const AccountTab: FC = () => {
   );
 };
 
-const deletedProjectsQuery = evolu.createQuery((db) =>
+const deletedProjectsQuery = createQuery((db) =>
   db
     .selectFrom("project")
     .select(["id", "name", "updatedAt"])
@@ -728,7 +731,7 @@ const deletedProjectsQuery = evolu.createQuery((db) =>
 
 type DeletedProjectsRow = typeof deletedProjectsQuery.Row;
 
-const deletedTodosQuery = evolu.createQuery((db) =>
+const deletedTodosQuery = createQuery((db) =>
   db
     .selectFrom("todo")
     .select(["id", "title", "isCompleted", "projectId", "updatedAt"])

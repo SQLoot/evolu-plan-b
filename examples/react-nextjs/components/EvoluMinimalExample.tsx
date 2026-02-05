@@ -76,8 +76,11 @@ export const EvoluMinimalExample: FC = () => {
   );
 };
 
+// Create a query builder (once per schema).
+const createQuery = Evolu.createQueryBuilder(Schema);
+
 // Evolu uses Kysely for type-safe SQL (https://kysely.dev/).
-const todosQuery = evolu.createQuery((db) =>
+const todosQuery = createQuery((db) =>
   db
     // Type-safe SQL: try autocomplete for table and column names.
     .selectFrom("todo")

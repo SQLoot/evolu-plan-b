@@ -1,4 +1,5 @@
 import {
+  createQueryBuilder,
   type EvoluSchema,
   id,
   NonEmptyString100,
@@ -19,3 +20,6 @@ const TodoSchema = {
 export const Schema = {
   todo: TodoSchema,
 } satisfies EvoluSchema;
+
+// Create a query builder (once per schema).
+export const createQuery = createQueryBuilder(Schema);

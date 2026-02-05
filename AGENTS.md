@@ -12,13 +12,13 @@
 
 ## 📊 Quick Context
 
-| Aspect | Value |
-|--------|-------|
-| Package Manager | Bun 1.3.8 |
-| Node.js | >=24.0.0 |
-| Linter/Formatter | Biome 2.3.13 |
-| Test Framework | Vitest |
-| Upstream | evoluhq/evolu |
+| Aspect           | Value         |
+| ---------------- | ------------- |
+| Package Manager  | Bun 1.3.8     |
+| Node.js          | >=24.0.0      |
+| Linter/Formatter | Biome 2.3.14  |
+| Test Framework   | Vitest        |
+| Upstream         | evoluhq/evolu |
 
 ## 🗂️ Repository Structure
 
@@ -92,13 +92,13 @@ bun run verify
 
 ## 📍 Related Resources
 
-| Resource | Location |
-|----------|----------|
-| Issues | `../knowledge/05-Issues/` |
-| Roadmap | `../knowledge/05-Issues/roadmap.md` |
-| Architecture | `../knowledge/02-Architecture/` |
-| Bench Suite | `../bench-suite/` (sibling repo) |
-| Upstream | https://github.com/evoluhq/evolu |
+| Resource     | Location                            |
+| ------------ | ----------------------------------- |
+| Issues       | `../knowledge/05-Issues/`           |
+| Roadmap      | `../knowledge/05-Issues/roadmap.md` |
+| Architecture | `../knowledge/02-Architecture/`     |
+| Bench Suite  | `../bench-suite/` (sibling repo)    |
+| Upstream     | https://github.com/evoluhq/evolu    |
 
 ## 🤖 For AI Agents
 
