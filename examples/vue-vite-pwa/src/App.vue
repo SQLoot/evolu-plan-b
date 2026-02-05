@@ -7,6 +7,7 @@ import {
   sqliteTrue,
   createEvolu,
   createFormatTypeError,
+  createQueryBuilder,
   id,
   kysely,
   maxLength,
@@ -60,7 +61,10 @@ const evolu = createEvolu(evoluWebDeps)(DatabaseSchema, {
 
 provideEvolu(evolu);
 
-const todosWithCategories = evolu.createQuery((db) =>
+// Create a query builder (once per schema).
+const createQuery = createQueryBuilder(DatabaseSchema);
+
+const todosWithCategories = createQuery((db) =>
   db
     .selectFrom("todo")
     .select(["id", "title", "isCompleted", "categoryId", "priority"])
@@ -70,7 +74,7 @@ const todosWithCategories = evolu.createQuery((db) =>
     .orderBy("createdAt"),
 );
 
-const todoCategories = evolu.createQuery((db) =>
+const todoCategories = createQuery((db) =>
   db
     .selectFrom("todoCategory")
     .select(["id", "name"])

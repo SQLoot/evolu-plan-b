@@ -300,9 +300,7 @@ test("encodeSqliteValue/decodeSqliteValue property tests", () => {
         // Test all SqliteValue types
         fc.constant(null),
         fc.string(), // Regular strings
-        fc
-          .double()
-          .filter((n) => !Number.isNaN(n)), // Numbers (exclude NaN)
+        fc.double().filter((n) => !Number.isNaN(n)), // Numbers (exclude NaN)
         fc.uint8Array(), // Binary data
 
         // Special number cases
@@ -332,9 +330,7 @@ test("encodeSqliteValue/decodeSqliteValue property tests", () => {
         fc
           .stringMatching(/^[A-Za-z0-9_-]{4,}$/)
           .filter((s) => s.length % 4 === 0), // Valid Base64Url
-        fc
-          .string()
-          .filter((s) => /[^A-Za-z0-9_-]/.test(s)), // Invalid Base64Url chars
+        fc.string().filter((s) => /[^A-Za-z0-9_-]/.test(s)), // Invalid Base64Url chars
 
         // JSON optimization cases
         fc
@@ -347,16 +343,14 @@ test("encodeSqliteValue/decodeSqliteValue property tests", () => {
           .array(fc.oneof(fc.string(), fc.integer(), fc.boolean()))
           .map((arr) => JSON.stringify(arr)),
         fc.constantFrom('{"a":1}', "[]", "null", "true", "false", '"string"'), // Simple JSON
-        fc
-          .string()
-          .filter((s) => {
-            try {
-              JSON.parse(s);
-              return false;
-            } catch {
-              return true;
-            }
-          }), // Non-JSON strings
+        fc.string().filter((s) => {
+          try {
+            JSON.parse(s);
+            return false;
+          } catch {
+            return true;
+          }
+        }), // Non-JSON strings
 
         // Date ISO strings - both valid and invalid
         fc
@@ -1305,27 +1299,30 @@ describe("E2E sync", () => {
     },
   );
 
-  it("client and relay each have a random half of the data - many steps", { timeout: 15000 }, async () => {
-    await using run = testCreateRunner();
-    const [clientStorage, relayStorage] = await createStorages();
+  it(
+    "client and relay each have a random half of the data - many steps",
+    { timeout: 15000 },
+    async () => {
+      await using run = testCreateRunner();
+      const [clientStorage, relayStorage] = await createStorages();
 
-    const shuffledMessages = deps.randomLib.shuffle(messages);
-    const middle = Math.floor(shuffledMessages.length / 2);
-    const firstHalf = shuffledMessages.slice(0, middle);
-    const secondHalf = shuffledMessages.slice(middle);
+      const shuffledMessages = deps.randomLib.shuffle(messages);
+      const middle = Math.floor(shuffledMessages.length / 2);
+      const firstHalf = shuffledMessages.slice(0, middle);
+      const secondHalf = shuffledMessages.slice(middle);
 
-    assertNonEmptyArray(firstHalf);
-    assertNonEmptyArray(secondHalf);
+      assertNonEmptyArray(firstHalf);
+      assertNonEmptyArray(secondHalf);
 
-    await run(clientStorage.writeMessages(testOwnerIdBytes, firstHalf));
-    await run(relayStorage.writeMessages(testOwnerIdBytes, secondHalf));
+      await run(clientStorage.writeMessages(testOwnerIdBytes, firstHalf));
+      await run(relayStorage.writeMessages(testOwnerIdBytes, secondHalf));
 
-    const syncSteps = await reconcile(
-      clientStorage,
-      relayStorage,
-      ProtocolMessageRangesMaxSize.orThrow(3000),
-    );
-    expect(syncSteps).toMatchInlineSnapshot(`
+      const syncSteps = await reconcile(
+        clientStorage,
+        relayStorage,
+        ProtocolMessageRangesMaxSize.orThrow(3000),
+      );
+      expect(syncSteps).toMatchInlineSnapshot(`
       {
         "syncSizes": [
           392,
@@ -1370,7 +1367,8 @@ describe("E2E sync", () => {
         "syncSteps": 38,
       }
     `);
-  });
+    },
+  );
 
   it("starts sync from createProtocolMessageFromCrdtMessages", async () => {
     const owner = testOwner;

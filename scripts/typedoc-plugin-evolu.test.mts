@@ -7,6 +7,10 @@ import { describe, expect, it } from "vitest";
  *
  * These tests verify the generated documentation. Run `bun run build:docs` before
  * running these tests.
+ *
+ * NOTE: This test is excluded from the regular test run in vitest.config.mts
+ * because it requires generated docs. It runs explicitly in the verify script
+ * after `bun run build:docs`.
  */
 
 const docsPath = join(

@@ -73,6 +73,7 @@ Linting
 Testing
 
 - `bun run test` - Run tests
+- [Vitest VS Code extension](https://github.com/vitest-dev/vscode)
 
 Release
 

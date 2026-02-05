@@ -2,14 +2,14 @@ import { Injectable, inject, type OnDestroy, signal } from "@angular/core";
 import { type InferRow, Mnemonic, type Query, type Row } from "@evolu/common";
 import { EVOLU } from "./app.config";
 import { formatTypeError } from "./error-formatter";
-import type { TodoId } from "./schema";
+import { createQuery, type TodoId } from "./schema";
 
 @Injectable({ providedIn: "root" })
 export class AppService implements OnDestroy {
   private readonly evolu = inject(EVOLU);
   private readonly unsubscribes: Array<() => void> = [];
 
-  private readonly todosQuery = this.evolu.createQuery((db) =>
+  private readonly todosQuery = createQuery((db) =>
     db
       .selectFrom("todo")
       .select(["id", "title", "isCompleted"])

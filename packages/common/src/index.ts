@@ -31,8 +31,14 @@ export { createEvolu } from "./local-first/Evolu.js";
 export * as kysely from "./local-first/Kysely.js";
 export * from "./local-first/LocalAuth.js";
 export * from "./local-first/Owner.js";
-export type { InferRow, Query, QueryRows, Row } from "./local-first/Query.js";
+export type {
+  InferRow,
+  Query,
+  QueryRows,
+  Row,
+} from "./local-first/Query.js";
 export type { EvoluSchema } from "./local-first/Schema.js";
+export { createQueryBuilder } from "./local-first/Schema.js";
 export type {
   NetworkError,
   PaymentRequiredError,
