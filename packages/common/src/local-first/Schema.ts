@@ -54,7 +54,7 @@ import { OwnerId } from "./Owner.js";
 import type { Query, Row } from "./Query.js";
 import { serializeQuery } from "./Query.js";
 import type { CrdtMessage, DbChange } from "./Storage.js";
-import type { TimestampBytes } from "./Timestamp.js";
+import type { Timestamp, TimestampBytes } from "./Timestamp.js";
 
 /**
  * Defines the schema of an Evolu database.

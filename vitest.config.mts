@@ -14,7 +14,9 @@ export default defineConfig({
           include: ["scripts/**/*.test.mts"],
           // Exclude typedoc test because it requires generated docs.
           // It runs explicitly after build:docs in the verify script.
-          exclude: ["scripts/typedoc-plugin-evolu.test.mts"],
+          exclude: process.env.INCLUDE_DOCS_TESTS
+            ? []
+            : ["scripts/typedoc-plugin-evolu.test.mts"],
         },
       },
     ],

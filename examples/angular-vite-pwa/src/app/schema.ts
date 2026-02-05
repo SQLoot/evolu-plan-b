@@ -1,10 +1,10 @@
 import {
+  createQueryBuilder,
   type EvoluSchema,
   id,
   NonEmptyString100,
   nullOr,
   SqliteBoolean,
-  createQueryBuilder,
 } from "@evolu/common";
 
 // Define the typed IDs

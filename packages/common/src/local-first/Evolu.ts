@@ -27,7 +27,7 @@ import { createId, type Id, type SimpleName } from "../Type.js";
 import type { CreateMessageChannelDep } from "../Worker.js";
 import type { EvoluError } from "./Error.js";
 import type { AppOwner, OwnerTransport } from "./Owner.js";
-import { OwnerId, createOwnerWebSocketTransport } from "./Owner.js";
+import { createOwnerWebSocketTransport, OwnerId } from "./Owner.js";
 import type {
   Queries,
   QueriesToQueryRowsPromises,
@@ -46,6 +46,7 @@ import type {
   MutationKind,
   MutationMapping,
   MutationOptions,
+  SystemColumns,
   ValidateSchema,
 } from "./Schema.js";
 import { insertable, updateable, upsertable } from "./Schema.js";
@@ -996,8 +997,7 @@ export const createEvolu =
       // },
 
       exportDatabase: () => {
-        const { promise, resolve } =
-          Promise.withResolvers<Uint8Array>();
+        const { promise, resolve } = Promise.withResolvers<Uint8Array>();
         const _onCompleteId = exportCallbacks.register(resolve);
         // dbWorker.postMessage({ type: "export", onCompleteId });
         return promise;
