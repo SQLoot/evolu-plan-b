@@ -28,10 +28,10 @@
     "!dist/**/*.spec.*"
   ],
   "scripts": {
-    "build": "rimraf dist && tsc && bun run package",
+    "build": "rimraf dist && tsc --build && bun run package",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "clean": "rimraf .turbo .svelte-kit node_modules dist",
-    "dev": "tsc",
+    "dev": "tsc --build",
     "package": "svelte-package",
     "prepublishOnly": "bun run package",
     "preview": "vite preview"

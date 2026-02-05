@@ -2,8 +2,10 @@
   "extends": "../tsconfig/universal-esm.json",
   "compilerOptions": {
     "outDir": "dist",
+    "rootDir": ".",
     "allowJs": true
   },
   "include": ["src", "test", "vitest.config.ts"],
-  "exclude": ["dist", "node_modules", "test/tmp"]
+  "exclude": ["dist", "node_modules", "test/tmp"],
+  "references": [{ "path": "../common" }]
 }
