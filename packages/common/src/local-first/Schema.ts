@@ -561,13 +561,16 @@ export const ensureDbSchema =
       if (!dbSchema.ok) return dbSchema;
       currentSchema = dbSchema.value;
     }
+    const _currentSchema = currentSchema;
 
     for (const [tableName, newColumns] of Object.entries(newSchema.tables)) {
-      const currentColumns = getProperty(currentSchema.tables, tableName);
+      const currentColumns = getProperty(_currentSchema.tables, tableName);
       if (!currentColumns) {
         queries.push(createAppTable(tableName, newColumns));
       } else {
-        for (const newColumn of newColumns.difference(currentColumns)) {
+        for (const newColumn of [...newColumns].filter(
+          (c) => !currentColumns.has(c),
+        )) {
           queries.push(sql`
             alter table ${sql.identifier(tableName)}
             add column ${sql.identifier(newColumn)} any;
@@ -577,7 +580,7 @@ export const ensureDbSchema =
     }
 
     // Remove current indexes that are not in the newSchema.
-    currentSchema.indexes
+    _currentSchema.indexes
       .filter(
         (currentIndex) =>
           !newSchema.indexes.some((newIndex) =>
@@ -592,7 +595,7 @@ export const ensureDbSchema =
     newSchema.indexes
       .filter(
         (newIndex) =>
-          !currentSchema.indexes.some((currentIndex) =>
+          !_currentSchema.indexes.some((currentIndex) =>
             indexesAreEqual(newIndex, currentIndex),
           ),
       )
