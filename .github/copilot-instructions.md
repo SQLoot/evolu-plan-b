@@ -2,7 +2,72 @@
 applyTo: "**/*.{ts,tsx}"
 ---
 
-# Evolu project guidelines
+# Evolu Plan B - Copilot Instructions
+
+## Project Overview
+
+Evolu Plan B is a TypeScript-based local-first platform forked from [evoluhq/evolu](https://github.com/evoluhq/evolu). This monorepo uses **Bun** as the package manager and runtime, and **Biome** for linting and formatting.
+
+**Key characteristics:**
+- Local-first architecture with CRDT-based synchronization
+- TypeScript strict mode throughout
+- Functional programming patterns with explicit dependency injection
+- Multi-platform support (Web, React Native, Node.js, Svelte, Vue)
+
+**Tech Stack:**
+- Package Manager: Bun 1.3.8
+- Linter/Formatter: Biome 2.3.13
+- Test Framework: Vitest
+- Build System: Turbo (monorepo)
+- Target: Node.js >=24.0.0
+
+**Directory Structure:**
+```
+packages/
+  ├── common/         # Core logic, CRDTs, sync engine
+  ├── web/            # Browser adapter (wa-sqlite)
+  ├── react/          # React bindings
+  ├── react-native/   # React Native adapter
+  ├── nodejs/         # Node.js adapter
+  ├── svelte/         # Svelte bindings
+  └── vue/            # Vue bindings
+apps/
+  ├── relay/          # Sync relay server
+  └── web/            # Documentation site (deprecated)
+```
+
+## Repository-Specific Guidelines
+
+### Package Management
+- **MUST** use Bun commands: `bun install`, `bun run`, etc.
+- **MUST NOT** use npm, pnpm, or yarn
+- **MUST** run `bun run verify` before submitting changes (includes format, build, test, lint)
+
+### Linting and Formatting
+- **MUST** use Biome for all linting and formatting
+- **MUST NOT** add ESLint or Prettier configurations
+- **MUST** follow the rules defined in `biome.json`
+- Use `bun run lint` to check, `bun run format` to auto-fix
+
+### Testing
+- **MUST** write tests using Vitest
+- **MUST** create isolated test dependencies using `testCreateDeps()` from `@evolu/common`
+- **SHOULD** run targeted tests during development: `bun run test:watch`
+
+### Security Requirements
+- **MUST NOT** commit secrets, tokens, or credentials
+- **MUST** validate all external inputs using the Evolu Type system
+- **MUST** handle errors explicitly with `Result<T, E>` pattern
+- **MUST** use `trySync`/`tryAsync` for unsafe operations
+- **SHOULD** use CodeQL scanning for vulnerability detection
+- **MUST** document security implications in code reviews
+
+### Upstream Sync
+- This is a fork; upstream commits are cherry-picked
+- **MUST** reference upstream issues as `upstream#XXX`
+- **SHOULD** maintain compatibility with upstream API surface
+
+## Evolu Project Guidelines
 
 Follow these specific conventions and patterns:
 
@@ -533,9 +598,22 @@ export const testCreateTime = (options?: {
 }): TestTime => { ... };
 ```
 
+### Vitest filtering (https://vitest.dev/guide/filtering)
+
+```bash
+# Run all tests in a package
+bun run test --filter @evolu/common
+
+# Run a single file
+bun run test --filter @evolu/common -- Task
+
+# Run a single test by name (-t flag)
+bun run test --filter @evolu/common -- -t "yields and returns ok"
+```
+
 ## Monorepo TypeScript issues
 
-**ESLint "Unsafe..." errors after changes** - In a monorepo, ESLint may show "Unsafe call", "Unsafe member access", or "Unsafe assignment" errors after modifying packages that other packages depend on. These errors are caused by stale TypeScript type cache. Solution: run "ESLint: Restart ESLint Server" command (Cmd+Shift+P)
+**TypeScript "Unsafe..." errors after changes** - In a monorepo, you may see "Unsafe call", "Unsafe member access", or "Unsafe assignment" errors after modifying packages that other packages depend on. These are TypeScript language server errors, not Biome linting errors. They should be investigated but may be false positives. Solution: use VS Code's "Developer: Reload Window" command (Cmd+Shift+P) to refresh the TypeScript language server.
 
 ## Git commit messages
 
@@ -556,5 +634,61 @@ Added support for custom error formatters
 
 Add support for custom error formatters
 ```
+
+## Workflow Commands
+
+### Development
+```bash
+bun install              # Install dependencies
+bun run dev              # Start dev mode (packages + web + relay)
+bun run build            # Build all packages
+```
+
+### Quality Checks
+```bash
+bun run lint             # Lint with Biome
+bun run format           # Format with Biome
+bun run test             # Run tests
+bun run test:coverage    # Tests with coverage
+bun run verify           # Full verification (format + build + test + lint)
+```
+
+### Release
+```bash
+bun run changeset        # Add changeset for release
+bun run version          # Bump versions
+bun run release          # Publish packages
+```
+
+## Deprecated Patterns
+
+**DO NOT use these patterns:**
+- ❌ Default exports (use named exports only)
+- ❌ Namespace imports (`import * as Foo`)
+- ❌ `function` keyword (except for overloads)
+- ❌ Class components in React (use functional components)
+- ❌ `any` type (use proper typing or `unknown`)
+- ❌ Global static instances (use dependency injection)
+- ❌ pnpm, npm, or yarn commands (use Bun)
+- ❌ ESLint or Prettier (use Biome)
+- ❌ Throwing errors directly (use Result pattern)
+
+## Quick Reference
+
+**When adding new code:**
+1. Write a failing test first (TDD)
+2. Use named exports only
+3. Use arrow functions (except overloads)
+4. Apply dependency injection pattern
+5. Handle errors with Result<T, E>
+6. Document with JSDoc (avoid @param/@return)
+7. Run `bun run verify` before committing
+
+**When editing existing code:**
+1. Maintain existing patterns and style
+2. Update tests to match changes
+3. Keep changes minimal and focused
+4. Preserve immutability (`readonly`, `ReadonlyArray`)
+5. Short-circuit on error (`if (!result.ok) return result`)
 
 When suggesting code changes, ensure they follow these patterns and conventions.
