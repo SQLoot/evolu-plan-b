@@ -4,6 +4,7 @@ import {
   NonEmptyString100,
   nullOr,
   SqliteBoolean,
+  createQueryBuilder,
 } from "@evolu/common";
 
 // Define the typed IDs
@@ -19,3 +20,6 @@ const TodoSchema = {
 export const Schema = {
   todo: TodoSchema,
 } satisfies EvoluSchema;
+
+// Create a query builder (once per schema).
+export const createQuery = createQueryBuilder(Schema);
