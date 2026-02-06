@@ -10,7 +10,6 @@
     "forceConsistentCasingInFileNames": true,
     "inlineSources": false,
     "verbatimModuleSyntax": true,
-    "moduleResolution": "node",
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "preserveWatchOutput": true,
@@ -18,7 +17,7 @@
     "strict": true,
     "exactOptionalPropertyTypes": true,
     "noErrorTruncation": false,
+    "erasableSyntaxOnly": true,
     "typeRoots": ["node_modules/@types", "../../node_modules/@types"]
-  },
-  "exclude": ["node_modules"]
+  }
 }
