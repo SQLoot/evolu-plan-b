@@ -1193,15 +1193,12 @@ const defaultDeps: RunnerDeps = {
  * @group Creating Runners
  */
 export interface CreateRunner<BaseDeps> {
-  /** With default dependencies only. */
   (): Runner<BaseDeps>;
-
-  /** With custom dependencies merged into base deps. */
   <D>(deps: D): Runner<BaseDeps & D>;
 }
 
 /**
- * Creates a root {@link Runner}.
+ * Creates root {@link Runner}.
  *
  * Call once per entry point (main thread, worker, etc.) and dispose on
  * shutdown. All tasks run as descendants of this root runner.

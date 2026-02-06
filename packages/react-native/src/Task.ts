@@ -13,7 +13,7 @@ import {
 } from "@evolu/common";
 
 /**
- * Creates a React Native {@link Runner} with global error handling.
+ * Creates {@link Runner} for React Native with global error handling.
  *
  * Registers `ErrorUtils.setGlobalHandler` for uncaught JavaScript errors. The
  * handler is restored to the previous one when the runner is disposed.
