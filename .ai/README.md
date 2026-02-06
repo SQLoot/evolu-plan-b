@@ -75,7 +75,7 @@ Scope: common, web, react, relay, etc.
 ## 🔗 Related
 
 - **Organization KB**: `../../knowledge/`
-- **Global AI rules**: `../../dot-ai/`
+- **Global AI rules**: `../../.ai/`
 - **Bench Suite**: `../../bench-suite/`
 
 ---
