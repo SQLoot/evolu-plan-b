@@ -21,8 +21,8 @@ import { testCreateRunnerWithRelayStorage } from "../_deps.js";
 import {
   testAppOwner,
   testAppOwner2,
-  testAppOwnerIdBytes,
   testAppOwner2IdBytes,
+  testAppOwnerIdBytes,
   testTimestampsAsc,
 } from "./_fixtures.js";
 
