@@ -5,10 +5,11 @@
  */
 
 import type { Listener, Unsubscribe } from "../Listeners.js";
+import type { FlushSyncDep, ReloadAppDep } from "../Platform.js";
 import { ok } from "../Result.js";
 import type { Task } from "../Task.js";
-import type { FlushSyncDep, ReloadAppDep } from "../Platform.js";
-import { SimpleName } from "../Type.js";
+import type { SimpleName } from "../Type.js";
+import type { EvoluError } from "./Error.js";
 import type { AppOwner, OwnerTransport } from "./Owner.js";
 import {
   createAppOwner,
@@ -78,7 +79,7 @@ export interface EvoluConfig {
    *   // Default transports for sync
    * });
    * ```
-  */
+   */
   readonly appOwner?: AppOwner;
 
   /**
@@ -188,13 +189,24 @@ export interface EvoluConfig {
 /** Local-first SQL database with typed queries, mutations, and sync. */
 export interface Evolu<
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  S extends EvoluSchema = EvoluSchema,
+  _S extends EvoluSchema = EvoluSchema,
 > extends AsyncDisposable {
   /** The name of the Evolu instance from {@link EvoluConfig}. */
   readonly name: SimpleName;
 
   /** {@link AppOwner}. */
   readonly appOwner: AppOwner;
+
+  /**
+   * Transitional compatibility API. Will be removed once downstream packages
+   * migrate to Task-native error handling.
+   */
+  readonly subscribeError: (listener: Listener) => Unsubscribe;
+
+  /**
+   * Transitional compatibility API. Returns `null` in Task-based stub mode.
+   */
+  readonly getError: () => EvoluError | null;
 
   /**
    * Load {@link Query} and return a promise with {@link QueryRows}.
@@ -494,7 +506,7 @@ export type EvoluPlatformDeps = ReloadAppDep & Partial<FlushSyncDep>;
 
 /** Creates Evolu dependencies from platform-specific dependencies. */
 // eslint-disable-next-line arrow-body-style
-export const createEvoluDeps = (deps: EvoluPlatformDeps): EvoluDeps => {
+export const createEvoluDeps = <D extends EvoluPlatformDeps>(deps: D): D => {
   return deps;
   // const disposableStack = new DisposableStack();
   // const evoluError = createErrorStore({ ...deps, disposableStack });
@@ -523,7 +535,11 @@ export const createEvolu =
       config.externalAppOwner ??
       createAppOwner(createOwnerSecret(run.deps));
 
-    return ok({ appOwner } as Evolu<S>);
+    return ok({
+      appOwner,
+      getError: () => null,
+      subscribeError: () => () => undefined,
+    } as unknown as Evolu<S>);
   };
 
 // CreateMessageChannelDep &
