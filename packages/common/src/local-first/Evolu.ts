@@ -11,12 +11,7 @@ import type { Task } from "../Task.js";
 import type { SimpleName } from "../Type.js";
 import type { EvoluError } from "./Error.js";
 import type { AppOwner, OwnerTransport } from "./Owner.js";
-import {
-  createAppOwner,
-  createOwnerSecret,
-  createOwnerWebSocketTransport,
-  OwnerId,
-} from "./Owner.js";
+import { createAppOwner, createOwnerSecret } from "./Owner.js";
 import type {
   Queries,
   QueriesToQueryRowsPromises,

@@ -1,3 +1,5 @@
+export * from "./createUseEvolu.js";
+export * from "./EvoluProvider.js";
 export * from "./local-first/EvoluContext.js";
 export * from "./local-first/useIsSsr.js";
 export * from "./local-first/useOwner.js";

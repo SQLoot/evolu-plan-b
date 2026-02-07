@@ -39,12 +39,16 @@ export const createEvoluContext = <S extends EvoluSchema>(
 ): readonly [
   React.Context<Evolu<S>>,
   React.FC<{ readonly children?: ReactNode }>,
-] => [
-  EvoluContext as React.Context<Evolu<S>>,
-  ({ children }) => {
-    const result = use(fiber);
-    assert(result.ok, "createEvolu failed");
+] => {
+  const Context = /*#__PURE__*/ createContext<Evolu<S>>(null as never);
 
-    return <EvoluContext value={result.value}>{children}</EvoluContext>;
-  },
-];
+  return [
+    Context,
+    ({ children }) => {
+      const result = use(fiber);
+      assert(result.ok, "createEvolu failed");
+
+      return <Context.Provider value={result.value}>{children}</Context.Provider>;
+    },
+  ];
+};
