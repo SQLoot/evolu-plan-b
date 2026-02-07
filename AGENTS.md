@@ -95,7 +95,7 @@ bun run verify
 | Resource     | Location                            |
 | ------------ | ----------------------------------- |
 | Issues       | `../knowledge/05-Issues/`           |
-| Roadmap      | `../knowledge/05-Issues/roadmap.md` |
+| Roadmap      | `../knowledge/01-Vision/ROADMAP.md` |
 | Architecture | `../knowledge/02-Architecture/`     |
 | Bench Suite  | `../bench-suite/` (sibling repo)    |
 | Upstream     | https://github.com/evoluhq/evolu    |
@@ -118,7 +118,7 @@ bun run verify
 1. This file
 2. `.ai/README.md`
 3. `.ai/tasks/active/*.md`
-4. `../knowledge/05-Issues/roadmap.md`
+4. `../knowledge/01-Vision/ROADMAP.md`
 
 ---
 
