@@ -677,6 +677,9 @@ export interface Runner<D = unknown> extends AsyncDisposable {
   readonly addDeps: <E extends NewKeys<E, D>>(extraDeps: E) => Runner<D & E>;
 }
 
+/** Backward-compatible alias for upstream naming. */
+export type Run<D = unknown> = Runner<D>;
+
 /**
  * Abort mask depth for a {@link Runner} or {@link Fiber}.
  *

@@ -2,7 +2,7 @@
 
 import { assert, type Result } from "@evolu/common";
 import type { Evolu, EvoluSchema } from "@evolu/common/local-first";
-import { createContext, use, type ReactNode } from "react";
+import { createContext, type ReactNode, use } from "react";
 
 export const EvoluContext = /*#__PURE__*/ createContext<Evolu>(null as never);
 

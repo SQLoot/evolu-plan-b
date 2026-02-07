@@ -5,10 +5,10 @@ import type {
   Row,
 } from "@evolu/common/local-first";
 import { use, useRef } from "react";
+import { EvoluContext } from "./EvoluContext.js";
 import { useIsSsr } from "./useIsSsr.js";
 import type { useQuery } from "./useQuery.js";
 import { useQuerySubscription } from "./useQuerySubscription.js";
-import { EvoluContext } from "./EvoluContext.js";
 
 /**
  * The same as {@link useQuery}, but for many queries.
