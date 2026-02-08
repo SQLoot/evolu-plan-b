@@ -42,15 +42,8 @@ export const createEvoluContext = <S extends EvoluSchema>(
 ] => {
   const Context = /*#__PURE__*/ createContext<Evolu<S>>(null as never);
 
-  return [
-    Context,
-    ({ children }) => {
-      const result = use(fiber);
-      assert(result.ok, "createEvolu failed");
-
-      return (
-        <Context.Provider value={result.value}>{children}</Context.Provider>
-      );
-    },
-  ];
-};
+    return (
+      <EvoluContext value={result.value as Evolu}>{children}</EvoluContext>
+    );
+  },
+];
