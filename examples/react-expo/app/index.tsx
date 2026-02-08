@@ -6,7 +6,7 @@ import {
   evoluReactNativeDeps,
   localAuth,
 } from "@evolu/react-native/expo-sqlite";
-import { Suspense, useEffect, useMemo, useState, type FC } from "react";
+import { type FC, Suspense, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
