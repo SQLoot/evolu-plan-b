@@ -30,7 +30,7 @@ import type { SqliteDep } from "../../src/Sqlite.js";
 import { sql } from "../../src/Sqlite.js";
 import { testCreateDeps } from "../../src/Test.js";
 import type { Millis } from "../../src/Time.js";
-import { createId, NonNegativeInt, PositiveInt } from "../../src/Type.js";
+import { createId, NonNegativeInt, type PositiveInt } from "../../src/Type.js";
 import { testCreateRunWithSqlite } from "../_deps.nodejs.js";
 import {
   testAnotherTimestampsAsc,

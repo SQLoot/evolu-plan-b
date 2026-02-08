@@ -8,18 +8,18 @@
  * @module
  */
 
-import type {
-    DbWorkerInput,
-    DbWorkerMutateResponseMessage,
-    DbWorkerOutput,
-    DbWorkerQueryResponseMessage,
-    Row,
-} from "@evolu/common/local-first";
 import {
-  Database,
   type Database as BunDatabase,
+  Database,
   type SQLQueryBindings,
 } from "bun:sqlite";
+import type {
+  DbWorkerInput,
+  DbWorkerMutateResponseMessage,
+  DbWorkerOutput,
+  DbWorkerQueryResponseMessage,
+  Row,
+} from "@evolu/common/local-first";
 
 /**
  * Database Worker scope for Bun.

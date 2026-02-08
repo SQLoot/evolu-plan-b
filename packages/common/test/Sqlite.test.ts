@@ -3,17 +3,17 @@ import { lazyVoid } from "../src/Function.js";
 import { err, ok } from "../src/Result.js";
 import {
   booleanToSqliteBoolean,
+  type CreateSqliteDriver,
   createPreparedStatementsCache,
   createSqlite,
   eqSqliteValue,
+  type SafeSql,
+  type SqliteDriver,
+  type SqliteValue,
   sql,
   sqliteBooleanToBoolean,
   sqliteFalse,
   sqliteTrue,
-  type CreateSqliteDriver,
-  type SafeSql,
-  type SqliteDriver,
-  type SqliteValue,
 } from "../src/Sqlite.js";
 import { sleep } from "../src/Task.js";
 import { testCreateRun } from "../src/Test.js";
@@ -413,7 +413,7 @@ describe("logExplainQueryPlan", () => {
     );
     expect(planEntry).toBeDefined();
     // Nested rows produce leading spaces
-    const planOutput = planEntry!.args.find(
+    const planOutput = planEntry?.args.find(
       (arg) => typeof arg === "string" && arg.includes("SCAN"),
     ) as string;
     expect(planOutput).toMatch(/^ {2}/m);
