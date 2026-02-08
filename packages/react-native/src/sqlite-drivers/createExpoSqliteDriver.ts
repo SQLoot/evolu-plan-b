@@ -1,8 +1,8 @@
 import {
   bytesToHex,
+  type CreateSqliteDriver,
   createPreparedStatementsCache,
   ok,
-  type CreateSqliteDriver,
   type SqliteRow,
 } from "@evolu/common";
 import { openDatabaseSync, type SQLiteStatement } from "expo-sqlite";

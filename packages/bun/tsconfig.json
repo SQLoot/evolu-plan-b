@@ -1,24 +1,16 @@
 {
-    "extends": "../tsconfig/universal-esm.json",
-    "compilerOptions": {
-        "outDir": "dist",
-        "rootDir": ".",
-        "typeRoots": [
-            "./node_modules",
-            "./node_modules/@types",
-            "../../node_modules/@types"
-        ],
-        "types": [
-            "bun-types"
-        ],
-        "tsBuildInfoFile": "dist/.tsBuildInfo"
-    },
-    "include": [
-        "src",
-        "test"
+  "extends": "../tsconfig/universal-esm.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": ".",
+    "typeRoots": [
+      "./node_modules",
+      "./node_modules/@types",
+      "../../node_modules/@types"
     ],
-    "exclude": [
-        "dist",
-        "node_modules"
-    ]
+    "types": ["bun-types"],
+    "tsBuildInfoFile": "dist/.tsBuildInfo"
+  },
+  "include": ["src", "test"],
+  "exclude": ["dist", "node_modules"]
 }

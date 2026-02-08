@@ -11,4 +11,3 @@ export * from "./Storage.js";
 export * from "./Sync.js";
 export * from "./Timestamp.js";
 export * from "./Worker.js";
-

@@ -19,10 +19,10 @@ import { SqliteBoolean } from "../../src/Sqlite.js";
 import {
   Boolean,
   Id,
+  type InferType,
   id,
   NonEmptyString100,
   nullOr,
-  type InferType,
 } from "../../src/Type.js";
 import { testCreateRunWithSqlite } from "../_deps.nodejs.js";
 

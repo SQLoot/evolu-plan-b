@@ -17,15 +17,9 @@ import { eqArrayNumber } from "../Eq.js";
 import type { Listener, Unsubscribe } from "../Listeners.js";
 import type { FlushSyncDep, ReloadAppDep } from "../Platform.js";
 import { createDisposableDep, type DisposableStackDep } from "../Resources.js";
-import { ok } from "../Result.js";
 import { SqliteBoolean, sqliteBooleanToBoolean } from "../Sqlite.js";
 import { createStore, type ReadonlyStore, type Store } from "../Store.js";
-import {
-  createId,
-  type Id,
-  type Mnemonic,
-  type SimpleName,
-} from "../Type.js";
+import { createId, type Id, type Mnemonic, type SimpleName } from "../Type.js";
 import type { CreateMessageChannelDep } from "../Worker.js";
 import type { EvoluError } from "./Error.js";
 import type { AppOwner, OwnerId, OwnerTransport } from "./Owner.js";
@@ -788,7 +782,11 @@ export const createEvolu =
         values: MutationValues<S[TableName], Kind>,
         options?: MutationOptions,
       ) => {
-        const { id: _, isDeleted, ...dbValues } = values as {
+        const {
+          id: _,
+          isDeleted,
+          ...dbValues
+        } = values as {
           readonly id?: Id;
           readonly isDeleted?: unknown;
           readonly [key: string]: unknown;
