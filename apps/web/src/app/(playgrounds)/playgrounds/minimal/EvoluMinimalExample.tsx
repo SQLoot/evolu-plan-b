@@ -160,10 +160,14 @@ const TodoItem: FC<{
   const { update } = useEvolu();
 
   const handleToggleCompletedClick = () => {
-    update("todo", {
+    const result = update("todo", {
       id,
       isCompleted: Evolu.booleanToSqliteBoolean(!isCompleted),
     });
+
+    if (!result.ok) {
+      alert(formatTypeError(result.error));
+    }
   };
 
   const handleRenameClick = () => {
@@ -177,11 +181,15 @@ const TodoItem: FC<{
   };
 
   const handleDeleteClick = () => {
-    update("todo", {
+    const result = update("todo", {
       id,
       // Soft delete with isDeleted flag (CRDT-friendly, preserves sync history).
       isDeleted: Evolu.sqliteTrue,
     });
+
+    if (!result.ok) {
+      alert(formatTypeError(result.error));
+    }
   };
 
   return (
