@@ -29,8 +29,8 @@ import {
   type RelayConfig,
 } from "@evolu/common/local-first";
 import { WebSocket, WebSocketServer } from "ws";
-import { createBetterSqliteDriver } from "../Sqlite.js";
 import { createTimingSafeEqual } from "../Crypto.js";
+import { createBetterSqliteDriver } from "../Sqlite.js";
 
 export interface NodeJsRelayConfig extends RelayConfig {
   /** The port number for the HTTP server. */

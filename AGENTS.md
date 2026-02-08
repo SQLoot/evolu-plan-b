@@ -14,7 +14,7 @@
 
 | Aspect           | Value         |
 | ---------------- | ------------- |
-| Package Manager  | Bun 1.3.8     |
+| Package Manager  | Bun 1.3.9     |
 | Node.js          | >=24.0.0      |
 | Linter/Formatter | Biome 2.3.14  |
 | Test Framework   | Vitest        |

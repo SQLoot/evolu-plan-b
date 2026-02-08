@@ -121,13 +121,13 @@ const getFixtures = (): ReadonlyArray<string> => {
 /**
  * Normalizes bundle sizes to handle environmental fluctuation.
  *
- * Webpack bundle size varies ±5 bytes across Node versions and environments due
- * to minifier differences. Normalize to midpoint for snapshot stability.
+ * Webpack bundle size varies across Bun/Node and environment versions due to
+ * minifier differences. Normalize to midpoint for snapshot stability.
  */
 const normalizeBundleSize = (size: BundleSize): BundleSize => {
   let { gzip, raw } = size;
-  if (gzip >= 5640 && gzip <= 5650) gzip = 5650;
-  if (raw >= 15125 && raw <= 15135) raw = 15130;
+  if (gzip >= 5634 && gzip <= 5644) gzip = 5639;
+  if (raw >= 15116 && raw <= 15126) raw = 15121;
   return { gzip, raw };
 };
 
@@ -151,8 +151,8 @@ describe("tree-shaking", () => {
           "raw": 1602,
         },
         "task-example": {
-          "gzip": 5617,
-          "raw": 15075,
+          "gzip": 5639,
+          "raw": 15121,
         },
         "type-object": {
           "gzip": 1549,

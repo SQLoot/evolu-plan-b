@@ -3,17 +3,17 @@ import { lazyVoid } from "../src/Function.js";
 import { err, ok } from "../src/Result.js";
 import {
   booleanToSqliteBoolean,
+  type CreateSqliteDriver,
   createPreparedStatementsCache,
   createSqlite,
   eqSqliteValue,
+  type SafeSql,
+  type SqliteDriver,
+  type SqliteValue,
   sql,
   sqliteBooleanToBoolean,
   sqliteFalse,
   sqliteTrue,
-  type CreateSqliteDriver,
-  type SafeSql,
-  type SqliteDriver,
-  type SqliteValue,
 } from "../src/Sqlite.js";
 import { sleep } from "../src/Task.js";
 import { testCreateRun } from "../src/Test.js";
@@ -411,11 +411,16 @@ describe("logExplainQueryPlan", () => {
         e.method === "log" &&
         e.args.some((arg) => typeof arg === "string" && arg.includes("SCAN")),
     );
-    expect(planEntry).toBeDefined();
+    if (!planEntry) {
+      throw new Error("Expected query plan log entry containing SCAN");
+    }
     // Nested rows produce leading spaces
-    const planOutput = planEntry!.args.find(
-      (arg) => typeof arg === "string" && arg.includes("SCAN"),
-    ) as string;
+    const planOutput = planEntry.args.find(
+      (arg): arg is string => typeof arg === "string" && arg.includes("SCAN"),
+    );
+    if (!planOutput) {
+      throw new Error("Expected SCAN row in query plan output");
+    }
     expect(planOutput).toMatch(/^ {2}/m);
   });
 });

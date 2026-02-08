@@ -1,9 +1,9 @@
 import {
+  type CreateSqliteDriverDep,
   createSqlite,
   SimpleName,
   sql,
   testCreateRun,
-  type CreateSqliteDriverDep,
 } from "@evolu/common";
 import { assert, describe, expect, test } from "vitest";
 import { createWasmSqliteDriver } from "../src/Sqlite.js";

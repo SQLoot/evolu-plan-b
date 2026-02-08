@@ -6,7 +6,7 @@
  * 2. Worker initializes SQLite database
  * 3. Bidirectional message passing for queries/mutations
  *
- * Run with: bun test packages/common/test/poc/BunWorker.poc.test.ts
+ * Run with: bun test packages/bun/test/BunWorker.poc.test.ts
  *
  * @module
  */
