@@ -9,8 +9,7 @@
 import type { ReloadApp } from "@evolu/common";
 import { DevSettings } from "react-native";
 import { SensitiveInfo } from "react-native-sensitive-info";
-import { createSharedEvoluDeps, createSharedLocalAuth } from "../shared.js";
-import { createOpSqliteDriver } from "../sqlite-drivers/createOpSqliteDriver.js";
+import { createEvoluDeps, createSharedLocalAuth } from "../shared.js";
 
 const reloadApp: ReloadApp = () => {
   if (process.env.NODE_ENV === "development") {
@@ -21,10 +20,7 @@ const reloadApp: ReloadApp = () => {
 };
 
 // eslint-disable-next-line evolu/require-pure-annotation
-export const evoluReactNativeDeps = createSharedEvoluDeps({
-  createSqliteDriver: createOpSqliteDriver,
-  reloadApp,
-});
+export const evoluReactNativeDeps = createEvoluDeps({ reloadApp });
 
 // eslint-disable-next-line evolu/require-pure-annotation
 export const localAuth = createSharedLocalAuth(SensitiveInfo);

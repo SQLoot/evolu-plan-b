@@ -44,5 +44,11 @@
     "**/coverage": true,
     "**/out": true
   },
-  "vitest.disableWorkspaceWarning": true
+  "vitest.disableWorkspaceWarning": true,
+  "json.schemas": [
+    {
+      "fileMatch": ["turbo.json"],
+      "url": "https://turborepo.dev/schema.json"
+    }
+  ]
 }

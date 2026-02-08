@@ -1,11 +1,11 @@
 {
-  "extends": "expo/tsconfig.base",
+  "extends": "../../packages/tsconfig/expo.json",
   "compilerOptions": {
     "strict": true,
     "paths": {
       "@/*": ["./*"]
     },
-    "module": "esnext"
+    "typeRoots": ["node_modules/@types", "../../node_modules/@types"]
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
 }

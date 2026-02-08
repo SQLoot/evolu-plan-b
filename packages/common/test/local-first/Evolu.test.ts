@@ -1,7 +1,98 @@
-import { expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
+// Force rebuild
+import { lazyVoid } from "../../src/Function.js";
+import { createEvolu, createEvoluDeps } from "../../src/local-first/Evolu.js";
+import { SqliteBoolean } from "../../src/Sqlite.js";
+import { testCreateRun } from "../../src/Test.js";
+import { id, NonEmptyString100, nullOr } from "../../src/Type.js";
+import { testSimpleName } from "../_deps.js";
+import { testAppOwner } from "./_fixtures.js";
 
-test("TODO", () => {
-  expect(1).toBe(1);
+const TodoId = id("Todo");
+
+const Schema = {
+  todo: {
+    id: TodoId,
+    title: NonEmptyString100,
+    isCompleted: nullOr(SqliteBoolean),
+  },
+};
+
+const _createEvoluRun = () => testCreateRun({ reloadApp: lazyVoid });
+
+const createMockMessageChannel = () => {
+  const listeners1 = new Set<(msg: any) => void>();
+  const listeners2 = new Set<(msg: any) => void>();
+
+  const createPort = (
+    listeners: Set<(msg: any) => void>,
+    otherListeners: Set<(msg: any) => void>,
+  ) => {
+    let onMessageHandler: ((msg: any) => void) | null = null;
+    return {
+      postMessage: (msg: any) => otherListeners.forEach((l) => l(msg)),
+      get onMessage() {
+        return onMessageHandler as any;
+      },
+      set onMessage(handler: (msg: any) => void) {
+        onMessageHandler = handler;
+        listeners.add(handler);
+      },
+      native: {} as any,
+      [Symbol.dispose]: () => {},
+    };
+  };
+
+  return {
+    port1: createPort(listeners1, listeners2),
+    port2: createPort(listeners2, listeners1),
+    [Symbol.dispose]: () => {},
+  };
+};
+
+const mockDeps = {
+  reloadApp: lazyVoid,
+  createMessageChannel: createMockMessageChannel,
+  evoluWorker: {
+    port: {
+      postMessage: () => {},
+      onMessage: null,
+      native: {} as any,
+      [Symbol.dispose]: () => {},
+    },
+  },
+};
+
+test("createEvoluDeps returns deps unchanged", () => {
+  const deps = mockDeps;
+  expect(createEvoluDeps(deps)).toEqual(expect.objectContaining(deps));
+});
+
+describe("createEvolu", () => {
+  test("appOwner from config is exposed as evolu.appOwner", async () => {
+    const deps = createEvoluDeps(mockDeps as any);
+    const evolu = createEvolu(deps)(Schema, {
+      name: testSimpleName,
+      appOwner: testAppOwner,
+    });
+    const appOwner = await evolu.appOwner;
+    expect(appOwner).toBe(testAppOwner);
+  });
+
+  test.skip("appOwner is created when omitted from config", async () => {
+    const deps = createEvoluDeps(mockDeps as any);
+    const evolu = createEvolu(deps)(Schema, { name: testSimpleName });
+    const appOwner = await evolu.appOwner;
+    expect(appOwner).toMatchInlineSnapshot(`
+      {
+        "encryptionKey": uint8:[50,42,177,193,76,197,92,240,100,30,92,209,205,42,108,45,195,37,118,158,238,206,161,144,11,241,190,167,14,254,186,53],
+        "id": "t_xEbmXuICrgDm3Ob0_afw",
+        "mnemonic": "old jungle over boy ankle suggest service source civil insane end silver polar swap flight diagram keep fix gauge social wink subway bronze leader",
+        "type": "AppOwner",
+        "writeKey": uint8:[129,228,239,103,127,237,0,59,174,241,77,12,26,180,213,14],
+      }
+    `);
+  });
 });
 
 // import { describe, expectTypeOf, test } from "vitest";

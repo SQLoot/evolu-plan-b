@@ -88,3 +88,10 @@ export function testCreateRunner<D>(deps?: D): Runner<TestDeps & D> {
   const defaults = testCreateDeps();
   return createRunner<TestDeps & D>({ ...defaults, ...deps } as TestDeps & D);
 }
+
+/**
+ * Backward-compatible alias for upstream naming.
+ *
+ * Prefer {@link testCreateRunner} in SQLoot code.
+ */
+export const testCreateRun: typeof testCreateRunner = testCreateRunner;

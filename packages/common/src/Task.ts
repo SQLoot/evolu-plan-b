@@ -677,6 +677,9 @@ export interface Runner<D = unknown> extends AsyncDisposable {
   readonly addDeps: <E extends NewKeys<E, D>>(extraDeps: E) => Runner<D & E>;
 }
 
+/** Backward-compatible alias for upstream naming. */
+export type Run<D = unknown> = Runner<D>;
+
 /**
  * Abort mask depth for a {@link Runner} or {@link Fiber}.
  *
@@ -1193,15 +1196,12 @@ const defaultDeps: RunnerDeps = {
  * @group Creating Runners
  */
 export interface CreateRunner<BaseDeps> {
-  /** With default dependencies only. */
   (): Runner<BaseDeps>;
-
-  /** With custom dependencies merged into base deps. */
   <D>(deps: D): Runner<BaseDeps & D>;
 }
 
 /**
- * Creates a root {@link Runner}.
+ * Creates root {@link Runner}.
  *
  * Call once per entry point (main thread, worker, etc.) and dispose on
  * shutdown. All tasks run as descendants of this root runner.

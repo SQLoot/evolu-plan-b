@@ -43,8 +43,7 @@
     "README.md"
   ],
   "scripts": {
-    "dev": "tsc",
-    "build": "rimraf dist && tsc",
+    "build": "rimraf dist && tsc --build",
     "clean": "rimraf .turbo node_modules dist coverage test/tmp test/__screenshots__",
     "bench": "vitest bench"
   },
@@ -55,7 +54,7 @@
     "disposablestack": "^1.1.7",
     "kysely": "^0.28.11",
     "msgpackr": "^1.11.8",
-    "playwright": "^1.58.1",
+    "playwright": "^1.58.2",
     "random": "^5.4.1",
     "typescript": "^5.9.3",
     "webpack": "^5.105.0",
