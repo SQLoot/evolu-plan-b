@@ -30,8 +30,8 @@ import type { SqliteDep } from "../../src/Sqlite.js";
 import { sql } from "../../src/Sqlite.js";
 import { testCreateDeps } from "../../src/Test.js";
 import type { Millis } from "../../src/Time.js";
-import { createId, NonNegativeInt, type PositiveInt } from "../../src/Type.js";
-import { testCreateSqlite } from "../_deps.js";
+import { createId, NonNegativeInt, PositiveInt } from "../../src/Type.js";
+import { testCreateRunWithSqlite } from "../_deps.nodejs.js";
 import {
   testAnotherTimestampsAsc,
   testAppOwner2,
@@ -42,7 +42,9 @@ import {
 } from "./_fixtures.js";
 
 const createDeps = async (): Promise<SqliteDep & BaseSqliteStorageDep> => {
-  const sqlite = await testCreateSqlite();
+  await using run = await testCreateRunWithSqlite();
+  const { sqlite } = run.deps;
+
   // For reliable performance, we have to use Math.random!
   // Pseudo-random does not scale (randomness is limited).
   const random = createRandom();
