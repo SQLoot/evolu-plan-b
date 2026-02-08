@@ -11,6 +11,8 @@ applyTo: "**/*.{ts,tsx}"
 - Use **Biome** for linting and formatting (no ESLint/Prettier configs)
 - Keep upstream Evolu API and behavior compatibility unless there is a clear performance or maintainability reason
 
+This is a TypeScript project. All code, including helper scripts, must be written in TypeScript.
+
 ## Build and test
 
 ```bash
@@ -23,6 +25,8 @@ bun run lint         # Biome lint checks
 bun run format       # Biome formatting
 bun run verify       # Full verification (format + build + test + lint)
 ```
+
+Run standalone TypeScript scripts with `node --experimental-strip-types script.ts`.
 
 ## Monorepo TypeScript issues
 
@@ -224,8 +228,10 @@ const result = await run(fetchUser("123"));
 
 - Write a test before implementing a new feature or fixing a bug
 - Test files are in `packages/*/test/*.test.ts`
-- Use `testNames` parameter to run specific tests by name
-- Run related tests after making code changes to verify correctness
+- Use `testNames` parameter to run specific tests — uses **substring matching**, so unique names avoid running unrelated tests
+- Run only changed/affected tests, not entire describe blocks
+- **Always check workspace errors** after edits using `get_errors` tool — don't assume code is correct just because tests pass. Never run `tsc` in the terminal; `get_errors` uses the same TypeScript diagnostics without extra compilation
+- **100% test coverage required** — use `runTests` with `mode="coverage"` and `coverageFiles` pointing to the source file under test. All statements, branches, and declarations must be covered. If coverage is below 100%, add missing tests before finishing
 
 ### Test structure
 
