@@ -7,7 +7,7 @@
 import { dedupeArray, isNonEmptyArray } from "../Array.js";
 import { assertNonEmptyReadonlyArray } from "../Assert.js";
 import { createCallbacks } from "../Callbacks.js";
-import { createConsole, type ConsoleDep } from "../Console.js";
+import { type ConsoleDep, createConsole } from "../Console.js";
 import {
   createRandomBytes,
   type EncryptionKey,
@@ -21,8 +21,8 @@ import { err, ok, type Result } from "../Result.js";
 import { SqliteBoolean, sqliteBooleanToBoolean } from "../Sqlite.js";
 import { createStore, type ReadonlyStore, type Store } from "../Store.js";
 import {
-  createId,
   type AnyType,
+  createId,
   type Id,
   type InferErrors,
   type InferInput,
@@ -32,7 +32,7 @@ import {
 } from "../Type.js";
 import type { CreateMessageChannelDep } from "../Worker.js";
 import type { EvoluError } from "./Error.js";
-import { type AppOwner, type OwnerId, type OwnerTransport } from "./Owner.js";
+import type { AppOwner, OwnerId, OwnerTransport } from "./Owner.js";
 import { pack } from "./Protocol.js";
 import {
   createSubscribedQueries,
@@ -46,17 +46,17 @@ import {
   type SubscribedQueries,
 } from "./Query.js";
 import {
-  SystemColumns,
-  insertable,
-  updateable,
-  upsertable,
   type EvoluSchema,
   type IndexesConfig,
+  insertable,
   type Mutation,
   type MutationChange,
   type MutationKind,
   type MutationMapping,
   type MutationOptions,
+  SystemColumns,
+  updateable,
+  upsertable,
   type ValidateSchema,
 } from "./Schema.js";
 import type { DbChange, ValidDbChangeValues } from "./Storage.js";
@@ -1011,7 +1011,7 @@ export const createEvolu =
 
       exportDatabase: () =>
         new Promise<Uint8Array>((resolve) => {
-          const id = exportCallbacks.register(resolve);
+          const _id = exportCallbacks.register(resolve);
           // dbWorker.postMessage({ type: "export", id });
         }),
 

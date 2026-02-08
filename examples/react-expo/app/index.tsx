@@ -6,7 +6,7 @@ import {
   evoluReactNativeDeps,
   localAuth,
 } from "@evolu/react-native/expo-sqlite";
-import { type FC, Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState, type FC } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -440,7 +440,6 @@ const AuthActions: FC<{
   authResult: Evolu.AuthResult | null;
   ownerIds: Array<Evolu.AuthList> | null;
 }> = ({ evolu, appOwner, authResult, ownerIds }) => {
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Found ownerIds in outer scope
   const otherOwnerIds = useMemo(
     () => ownerIds?.filter(({ ownerId }) => ownerId !== appOwner?.id) ?? [],
     [appOwner?.id, ownerIds],

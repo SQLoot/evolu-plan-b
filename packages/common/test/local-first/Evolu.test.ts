@@ -18,7 +18,7 @@ const Schema = {
   },
 };
 
-const createEvoluRun = () => testCreateRun({ reloadApp: lazyVoid });
+const _createEvoluRun = () => testCreateRun({ reloadApp: lazyVoid });
 
 const createMockMessageChannel = () => {
   const listeners1 = new Set<(msg: any) => void>();
