@@ -12,7 +12,10 @@
   "type": "module",
   "types": "./dist/src/index.d.ts",
   "exports": {
-    ".": "./dist/src/index.js"
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    }
   },
   "files": [
     "dist/src/**",
@@ -20,8 +23,7 @@
     "README.md"
   ],
   "scripts": {
-    "dev": "tsc",
-    "build": "rimraf dist && tsc",
+    "build": "rimraf dist && tsc --build",
     "clean": "rimraf .turbo node_modules dist coverage"
   },
   "dependencies": {
@@ -32,7 +34,7 @@
     "@evolu/common": "workspace:*",
     "@evolu/tsconfig": "workspace:*",
     "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^24.10.9",
+    "@types/node": "^24.10.12",
     "@types/ws": "^8.18.1",
     "typescript": "^5.9.3"
   },

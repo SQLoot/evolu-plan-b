@@ -2,7 +2,7 @@
 
 import type { Evolu } from "@evolu/common/local-first";
 import type { ReactNode } from "react";
-import { EvoluContext } from "./EvoluContext.js";
+import { EvoluContext } from "./local-first/EvoluContext.js";
 
 export const EvoluProvider = ({
   children,
@@ -10,4 +10,6 @@ export const EvoluProvider = ({
 }: {
   readonly children?: ReactNode | undefined;
   readonly value: Evolu<any>;
-}): React.ReactElement => <EvoluContext value={value}>{children}</EvoluContext>;
+}): React.ReactElement => (
+  <EvoluContext.Provider value={value}>{children}</EvoluContext.Provider>
+);

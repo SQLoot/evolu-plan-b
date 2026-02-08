@@ -272,6 +272,8 @@ import {
  */
 const packr = new Packr({ variableMapSize: true, useRecords: false });
 
+export const pack = (value: unknown): Uint8Array => packr.pack(value);
+
 const minProtocolMessageMaxSize = 1_000_000;
 const maxProtocolMessageMaxSize = 100_000_000;
 

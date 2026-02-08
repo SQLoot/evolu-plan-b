@@ -11,7 +11,8 @@
     "examples/*"
   ],
   "scripts": {
-    "dev": "turbo watch dev --filter @evolu/* --filter web --concurrency=11",
+    "dev": "turbo --filter @evolu/relay --filter web dev",
+    "relay": "turbo --filter @evolu/relay dev",
     "build": "turbo --filter @evolu/* build",
     "build:web": "bun run build:docs && turbo --filter web build",
     "build:docs": "typedoc && bun --filter=web run fix:docs",

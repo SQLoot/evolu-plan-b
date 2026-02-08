@@ -30,15 +30,15 @@
     "README.md"
   ],
   "scripts": {
-    "build": "rimraf dist && tsc",
+    "build": "rimraf dist && tsc --build",
     "clean": "rimraf .turbo node_modules dist",
-    "dev": "tsc"
+    "dev": "tsc --build"
   },
   "devDependencies": {
     "@evolu/common": "workspace:*",
     "@evolu/tsconfig": "workspace:*",
     "@evolu/web": "workspace:*",
-    "@types/react": "~19.2.11",
+    "@types/react": "~19.2.13",
     "@types/react-dom": "~19.2.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
