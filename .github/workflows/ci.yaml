@@ -40,3 +40,23 @@ jobs:
 
       - name: Verify
         run: bun run verify
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          {
+            echo "## Coverage Summary"
+            echo
+
+            if [ -f coverage/coverage-summary.json ]; then
+              node -e 'const fs=require("node:fs"); const total=JSON.parse(fs.readFileSync("coverage/coverage-summary.json","utf8")).total; console.log("- Vitest (v8): lines "+total.lines.pct+"% | statements "+total.statements.pct+"% | branches "+total.branches.pct+"% | functions "+total.functions.pct+"%");'
+            else
+              echo "- Vitest (v8): not available"
+            fi
+
+            if [ -f coverage/bun/lcov.info ]; then
+              node -e 'const fs=require("node:fs"); const txt=fs.readFileSync("coverage/bun/lcov.info","utf8"); let LF=0,LH=0,BRF=0,BRH=0,FNF=0,FNH=0; for (const line of txt.split(/\r?\n/)) { if (line.startsWith("LF:")) LF += Number(line.slice(3)); else if (line.startsWith("LH:")) LH += Number(line.slice(3)); else if (line.startsWith("BRF:")) BRF += Number(line.slice(4)); else if (line.startsWith("BRH:")) BRH += Number(line.slice(4)); else if (line.startsWith("FNF:")) FNF += Number(line.slice(4)); else if (line.startsWith("FNH:")) FNH += Number(line.slice(4)); } const pct=(h,f)=>f===0?"0.00":((h/f)*100).toFixed(2); console.log("- Bun test: lines "+pct(LH,LF)+"% ("+LH+"/"+LF+") | branches "+pct(BRH,BRF)+"% ("+BRH+"/"+BRF+") | functions "+pct(FNH,FNF)+"% ("+FNH+"/"+FNF+")");'
+            else
+              echo "- Bun test: not available"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

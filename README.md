@@ -29,7 +29,7 @@ To chat with other community members, you can join the [Evolu Discord](https://d
 Evolu monorepo uses [Bun](https://bun.sh).
 
 > [!NOTE]
-> The Evolu monorepo is verified to run under **Bun 1.3.8** in combination with **Node.js >=24.0.0**. This compatibility is explicitly tested in CI.
+> The Evolu monorepo is verified to run under **Bun 1.3.9** in combination with **Node.js >=24.0.0**. This compatibility is explicitly tested in CI.
 
 Install dependencies:
 
