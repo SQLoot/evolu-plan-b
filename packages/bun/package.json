@@ -20,6 +20,7 @@
   "scripts": {
     "build": "rimraf dist && tsc --build",
     "test": "bun test ./test",
+    "test:coverage": "bun test ./test --coverage",
     "clean": "rimraf .turbo node_modules dist"
   },
   "devDependencies": {
