@@ -154,14 +154,17 @@ const Todos: FC = () => {
   );
 };
 
-// /**
-//  * Subscribe to Evolu errors (database, network, sync issues). These should not
-//  * happen in normal operation, so log them for debugging. Show users a friendly
-//  * error message instead of technical details.
-//  */
-// evolu.subscribeError(() => {
-//   const error = evolu.getError();
-//   if (!error) return;
+const TodoItem: FC<{
+  row: TodosRow;
+}> = ({ row: { id, title, isCompleted } }) => {
+  const { update } = useEvolu();
+
+  const handleToggleCompletedClick = () => {
+    update("todo", {
+      id,
+      isCompleted: Evolu.booleanToSqliteBoolean(!isCompleted),
+    });
+  };
 
   const handleRenameClick = () => {
     const newTitle = window.prompt("Edit todo", title);
