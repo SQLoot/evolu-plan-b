@@ -1,4 +1,5 @@
 export * from "./Db.js";
+export * from "./DbWorkerProtocol.js";
 export * from "./Error.js";
 export * from "./Evolu.js";
 export * from "./Owner.js";
@@ -10,3 +11,4 @@ export * from "./Storage.js";
 export * from "./Sync.js";
 export * from "./Timestamp.js";
 export * from "./Worker.js";
+

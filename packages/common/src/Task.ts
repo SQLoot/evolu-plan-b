@@ -1175,6 +1175,12 @@ export interface RunnerConfigDep {
   readonly runnerConfig: RunnerConfig;
 }
 
+/** Backward-compatible alias. */
+export type RunConfig = RunnerConfig;
+
+/** Backward-compatible alias. */
+export type RunConfigDep = RunnerConfigDep;
+
 export type RunnerDeps = ConsoleDep &
   RandomBytesDep &
   RandomDep &
@@ -1182,6 +1188,9 @@ export type RunnerDeps = ConsoleDep &
   Partial<RunnerConfigDep> &
   Partial<TracerConfigDep> & // TODO:
   Partial<TracerDep>; // TODO:
+
+/** Backward-compatible alias. */
+export type RunDeps = RunnerDeps;
 
 const defaultDeps: RunnerDeps = {
   console: createConsole(),
@@ -1269,6 +1278,9 @@ export const createRunner: CreateRunner<RunnerDeps> = <D>(
   const mergedDeps = { ...defaultDeps, ...deps } as RunnerDeps & D;
   return createRunnerInternal(createRef(mergedDeps))();
 };
+
+/** Backward-compatible alias. */
+export const createRun: typeof createRunner = createRunner;
 
 /** Internal Runner properties, hidden from public API via TypeScript types. */
 interface RunnerInternal<D extends RunnerDeps = RunnerDeps> extends Runner<D> {
