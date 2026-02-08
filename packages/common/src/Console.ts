@@ -581,5 +581,85 @@ export const createConsoleArrayOutput = (
   },
 });
 
-// TODO: multiOutput - routes entries to different outputs by method
-// TODO: asyncOutput - buffers entries for better performance
+/**
+ * Creates a {@link ConsoleOutput} that routes entries to multiple outputs.
+ *
+ * Useful for logging to both console and file simultaneously.
+ *
+ * ### Example
+ *
+ * ```ts
+ * const output = createConsoleMultiOutput([
+ *   createNativeConsoleOutput(),
+ *   createConsoleArrayOutput(entries),
+ * ]);
+ * ```
+ */
+export const createConsoleMultiOutput = (
+  outputs: ReadonlyArray<ConsoleOutput>,
+): ConsoleOutput => ({
+  write: (entry, formatEntry) => {
+    for (const output of outputs) output.write(entry, formatEntry);
+  },
+  flush: async () => {
+    await Promise.all(outputs.map((o) => o.flush?.()));
+  },
+});
+
+/**
+ * Creates a {@link ConsoleOutput} that buffers entries for async writing.
+ *
+ * Useful for high-throughput scenarios where synchronous logging would be a
+ * bottleneck. Call `flush()` to ensure all buffered entries are written.
+ *
+ * ### Example
+ *
+ * ```ts
+ * const entries: Array<ConsoleEntry> = [];
+ * const output = createConsoleAsyncOutput({
+ *   write: async (entry) => {
+ *     entries.push(entry);
+ *   },
+ * });
+ *
+ * // Usage with Bun file writer:
+ * // const writer = Bun.file("app.log").writer();
+ * // const output = createConsoleAsyncOutput({
+ * //   write: async (entry) => {
+ * //     writer.write(JSON.stringify(entry) + "\\n");
+ * //   },
+ * //   flush: () => writer.flush(),
+ * // });
+ * ```
+ */
+export const createConsoleAsyncOutput = (config: {
+  readonly write: (entry: ConsoleEntry) => void | Promise<void>;
+  readonly flush?: () => void | Promise<void>;
+}): ConsoleOutput => {
+  const buffer: Array<ConsoleEntry> = [];
+  let flushPromise: Promise<void> | null = null;
+
+  const processBuffer = async (): Promise<void> => {
+    while (buffer.length > 0) {
+      const entry = buffer.shift();
+      if (entry) await config.write(entry);
+    }
+    await config.flush?.();
+  };
+
+  return {
+    write: (entry) => {
+      buffer.push(entry);
+      // Auto-flush when buffer grows (debounced)
+      if (!flushPromise && buffer.length >= 10) {
+        flushPromise = processBuffer().finally(() => {
+          flushPromise = null;
+        });
+      }
+    },
+    flush: async () => {
+      if (flushPromise) await flushPromise;
+      await processBuffer();
+    },
+  };
+};
