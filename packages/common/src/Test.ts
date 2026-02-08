@@ -4,23 +4,24 @@
  * @module
  */
 
-import { type ConsoleDep, testCreateConsole } from "./Console.js";
-import { type RandomBytesDep, testCreateRandomBytes } from "./Crypto.js";
+import { testCreateConsole, type TestConsoleDep } from "./Console.js";
+import { testCreateRandomBytes } from "./Crypto.js";
 import {
-  type RandomDep,
+  testCreateRandom,
+  testCreateRandomLib,
   type RandomLibDep,
   testCreateRandom,
   testCreateRandomLib,
 } from "./Random.js";
-import { createRunner, type Runner, type RunnerConfigDep } from "./Task.js";
-import { type TimeDep, testCreateTime } from "./Time.js";
+import {
+  createRun,
+  type Run,
+  type RunConfigDep,
+  type RunDeps,
+} from "./Task.js";
+import { testCreateTime } from "./Time.js";
 
-/** Test deps created by {@link testCreateDeps}. */
-export type TestDeps = ConsoleDep &
-  RandomBytesDep &
-  RandomDep &
-  RandomLibDep &
-  TimeDep;
+export type TestDeps = RunDeps & TestConsoleDep & RandomLibDep;
 
 /**
  * Creates test dependencies for proper isolation.
