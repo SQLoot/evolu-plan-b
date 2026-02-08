@@ -42,14 +42,14 @@
     "@evolu/web": "workspace:*",
     "@sveltejs/package": "^2.5.7",
     "@tsconfig/svelte": "^5.0.7",
-    "svelte": "^5.49.2",
+    "svelte": "^5.50.0",
     "svelte-check": "^4.3.6",
     "typescript": "^5.9.3"
   },
   "peerDependencies": {
     "@evolu/common": "^7.4.1",
     "@evolu/web": "^2.4.0",
-    "svelte": ">=5.49.2"
+    "svelte": ">=5.50.0"
   },
   "publishConfig": {
     "access": "public"
