@@ -2,7 +2,7 @@
 
 import { assert, type Result } from "@evolu/common";
 import type { Evolu, EvoluSchema } from "@evolu/common/local-first";
-import { createContext, type ReactNode, use } from "react";
+import { createContext, use, type ReactNode } from "react";
 
 export const EvoluContext = /*#__PURE__*/ createContext<Evolu>(null as never);
 
@@ -39,8 +39,11 @@ export const createEvoluContext = <S extends EvoluSchema>(
 ): readonly [
   React.Context<Evolu<S>>,
   React.FC<{ readonly children?: ReactNode }>,
-] => {
-  const Context = /*#__PURE__*/ createContext<Evolu<S>>(null as never);
+] => [
+  EvoluContext as React.Context<Evolu<S>>,
+  ({ children }) => {
+    const result = use(fiber);
+    assert(result.ok, "createEvolu failed");
 
     return (
       <EvoluContext value={result.value as Evolu}>{children}</EvoluContext>

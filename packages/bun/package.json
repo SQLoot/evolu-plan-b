@@ -1,0 +1,34 @@
+{
+  "name": "@evolu/bun",
+  "version": "0.1.0",
+  "description": "Evolu Bun-specific utilities",
+  "author": "SQLoot",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    }
+  },
+  "files": [
+    "dist/src/**",
+    "src/**"
+  ],
+  "scripts": {
+    "build": "rimraf dist && tsc --build",
+    "test": "bun test",
+    "clean": "rimraf .turbo node_modules dist"
+  },
+  "devDependencies": {
+    "@evolu/common": "workspace:*",
+    "@evolu/tsconfig": "workspace:*",
+    "bun-types": "^1.3.8",
+    "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "@evolu/common": "^7.4.1"
+  }
+}

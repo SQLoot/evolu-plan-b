@@ -15,13 +15,13 @@ import {
 import { ok, type Result } from "../Result.js";
 import {
   type SafeSql,
+  sql,
   SqliteBoolean,
   type SqliteDep,
   type SqliteError,
   type SqliteQuery,
   type SqliteQueryOptions,
-  type SqliteValue,
-  sql,
+  SqliteValue,
 } from "../Sqlite.js";
 import type { InferType } from "../Type.js";
 import {
@@ -446,11 +446,10 @@ export const createQueryBuilder =
 /** Get the current database schema by reading SQLite metadata. */
 export const getDbSchema =
   (deps: SqliteDep) =>
-  ({
-    allIndexes = false,
-  }: {
-    allIndexes?: boolean;
-  } = {}): Result<DbSchema, SqliteError> => {
+  ({ allIndexes = false }: { allIndexes?: boolean } = {}): Result<
+    DbSchema,
+    SqliteError
+  > => {
     const tables = createRecord<string, Set<string>>();
 
     const tableAndColumnInfoRows = deps.sqlite.exec(sql`
@@ -521,16 +520,13 @@ export const ensureDbSchema =
       if (!dbSchema.ok) return dbSchema;
       currentSchema = dbSchema.value;
     }
-    const _currentSchema = currentSchema;
 
     for (const [tableName, newColumns] of Object.entries(newSchema.tables)) {
-      const currentColumns = getProperty(_currentSchema.tables, tableName);
+      const currentColumns = getProperty(currentSchema.tables, tableName);
       if (!currentColumns) {
         queries.push(createAppTable(tableName, newColumns));
       } else {
-        for (const newColumn of [...newColumns].filter(
-          (c) => !currentColumns.has(c),
-        )) {
+        for (const newColumn of newColumns.difference(currentColumns)) {
           queries.push(sql`
             alter table ${sql.identifier(tableName)}
             add column ${sql.identifier(newColumn)} any;
@@ -540,7 +536,7 @@ export const ensureDbSchema =
     }
 
     // Remove current indexes that are not in the newSchema.
-    _currentSchema.indexes
+    currentSchema.indexes
       .filter(
         (currentIndex) =>
           !newSchema.indexes.some((newIndex) =>
@@ -555,7 +551,7 @@ export const ensureDbSchema =
     newSchema.indexes
       .filter(
         (newIndex) =>
-          !_currentSchema.indexes.some((currentIndex) =>
+          !currentSchema.indexes.some((currentIndex) =>
             indexesAreEqual(newIndex, currentIndex),
           ),
       )
