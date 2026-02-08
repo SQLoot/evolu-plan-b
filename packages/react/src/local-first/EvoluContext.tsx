@@ -48,7 +48,9 @@ export const createEvoluContext = <S extends EvoluSchema>(
       const result = use(fiber);
       assert(result.ok, "createEvolu failed");
 
-      return <Context.Provider value={result.value}>{children}</Context.Provider>;
+      return (
+        <Context.Provider value={result.value}>{children}</Context.Provider>
+      );
     },
   ];
 };
