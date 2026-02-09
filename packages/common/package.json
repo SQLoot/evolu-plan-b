@@ -45,7 +45,7 @@
   "scripts": {
     "build": "rimraf dist && tsc --build",
     "clean": "rimraf .turbo node_modules dist coverage test/tmp test/__screenshots__",
-    "bench": "vitest bench"
+    "bench": "vitest bench --config ../../vitest.config.mts --passWithNoTests"
   },
   "dependencies": {
     "@noble/ciphers": "^2.1.1",
