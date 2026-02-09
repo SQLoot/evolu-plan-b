@@ -1,6 +1,11 @@
 import { defineConfig } from "vitest/config";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const rootDir = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  root: rootDir,
   test: {
     projects: [
       "packages/common/vitest.unit.config.ts",

@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "pnpx vite",
-    "_build": "tsc && pnpx vite build && pnpx electron-builder",
+    "dev": "bunx vite",
+    "_build": "tsc && bunx vite build && bunx electron-builder",
     "clean": "rimraf node_modules .turbo dist-electron",
     "preview": "vite preview"
   },
