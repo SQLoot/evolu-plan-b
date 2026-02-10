@@ -1,70 +1,88 @@
 import { testCreateConsole } from "@evolu/common";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { createRunner } from "../src/Task.js";
+import { createRun } from "../src/Task.js";
 
-describe("createRunner", () => {
+describe("createRun", () => {
   test("merges custom deps", async () => {
     interface CustomDep {
       readonly customValue: number;
     }
 
-    await using run = createRunner<CustomDep>({ customValue: 42 });
+    await using run = createRun<CustomDep>({ customValue: 42 });
 
     expect(run.deps.customValue).toBe(42);
   });
 
   describe("event listeners", () => {
     const originalAddEventListener = globalThis.addEventListener;
-    const originalRemoveEventListener = globalThis.removeEventListener;
 
-    let addedListeners: Map<string, EventListener>;
-    let removedListeners: Map<string, EventListener>;
+    let addedListeners: Map<
+      string,
+      { listener: EventListener; signal?: AbortSignal | undefined }
+    >;
 
     beforeEach(() => {
       addedListeners = new Map();
-      removedListeners = new Map();
 
-      globalThis.addEventListener = vi.fn((type: string, listener: unknown) => {
-        addedListeners.set(type, listener as EventListener);
-      }) as typeof globalThis.addEventListener;
-
-      globalThis.removeEventListener = vi.fn(
-        (type: string, listener: unknown) => {
-          removedListeners.set(type, listener as EventListener);
+      globalThis.addEventListener = vi.fn(
+        (type: string, listener: unknown, options?: unknown) => {
+          const signal = (options as { signal?: AbortSignal } | undefined)
+            ?.signal;
+          addedListeners.set(type, {
+            listener: listener as EventListener,
+            signal,
+          });
         },
-      ) as typeof globalThis.removeEventListener;
+      ) as typeof globalThis.addEventListener;
     });
 
     afterEach(() => {
       globalThis.addEventListener = originalAddEventListener;
-      globalThis.removeEventListener = originalRemoveEventListener;
     });
 
     test("registers error and unhandledrejection listeners", async () => {
-      await using _run = createRunner();
+      await using _run = createRun();
 
       expect(addedListeners.has("error")).toBe(true);
       expect(addedListeners.has("unhandledrejection")).toBe(true);
     });
 
-    test("removes same listener instances on dispose", async () => {
+    test("passes abort signal to addEventListener", async () => {
+      await using _run = createRun();
+
+      const errorListener = addedListeners.get("error");
+      const rejectionListener = addedListeners.get("unhandledrejection");
+
+      expect(errorListener).toBeDefined();
+      expect(rejectionListener).toBeDefined();
+
+      expect(errorListener?.signal).toBeInstanceOf(AbortSignal);
+      expect(rejectionListener?.signal).toBeInstanceOf(AbortSignal);
+    });
+
+    test("abort signal is aborted on dispose", async () => {
+      let signal: AbortSignal;
       {
-        await using _run = createRunner();
+        await using _run = createRun();
+        const errorListener = addedListeners.get("error");
+        expect(errorListener?.signal).toBeDefined();
+        if (!errorListener?.signal) throw new Error("Missing abort signal");
+        signal = errorListener.signal;
+        expect(signal.aborted).toBe(false);
       }
 
-      expect(removedListeners.get("error")).toBe(addedListeners.get("error"));
-      expect(removedListeners.get("unhandledrejection")).toBe(
-        addedListeners.get("unhandledrejection"),
-      );
+      expect(signal.aborted).toBe(true);
     });
 
     test("error handler logs ErrorEvent", async () => {
       const console = testCreateConsole();
-      await using _run = createRunner({ console });
+      await using _run = createRun({ console });
 
-      const handler = addedListeners.get("error");
-      expect(handler).toBeDefined();
-      handler?.(new ErrorEvent("error", { error: new Error("test error") }));
+      const errorListener = addedListeners.get("error");
+      expect(errorListener).toBeDefined();
+      if (!errorListener) throw new Error("Missing error listener");
+      const handler = errorListener.listener;
+      handler(new ErrorEvent("error", { error: new Error("test error") }));
 
       const entries = console.getEntriesSnapshot();
       expect(entries).toHaveLength(1);
@@ -78,11 +96,13 @@ describe("createRunner", () => {
 
     test("error handler logs PromiseRejectionEvent", async () => {
       const console = testCreateConsole();
-      await using _run = createRunner({ console });
+      await using _run = createRun({ console });
 
-      const handler = addedListeners.get("unhandledrejection");
-      expect(handler).toBeDefined();
-      handler?.(
+      const rejectionListener = addedListeners.get("unhandledrejection");
+      expect(rejectionListener).toBeDefined();
+      if (!rejectionListener) throw new Error("Missing rejection listener");
+      const handler = rejectionListener.listener;
+      handler(
         new PromiseRejectionEvent("unhandledrejection", {
           promise: Promise.resolve(),
           reason: new Error("test rejection"),

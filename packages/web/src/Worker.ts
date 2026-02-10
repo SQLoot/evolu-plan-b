@@ -1,62 +1,157 @@
 import type {
+  ConsoleStoreOutputEntryDep,
   CreateMessagePort,
+  CreateMessagePortDep,
   MessageChannel,
   MessagePort,
   NativeMessagePort,
+  Run,
+  RunDeps,
   SharedWorker,
   SharedWorkerScope,
+  SharedWorkerSelf,
+  Transferable,
   Worker,
   WorkerScope,
+  WorkerSelf,
 } from "@evolu/common";
-import { assert, handleGlobalError } from "@evolu/common";
+import {
+  assert,
+  createConsole,
+  createConsoleStoreOutput,
+  createMultiOutput,
+  createNativeConsoleOutput,
+  handleGlobalError,
+} from "@evolu/common";
+import { createRun } from "./Task.js";
 
-/** Creates an Evolu {@link Worker} from a native Worker. */
+/** Creates a {@link Worker} from a Web Worker. */
 export const createWorker = <Input, Output>(
   nativeWorker: globalThis.Worker,
-): Worker<Input, Output> =>
-  wrapMessagePortLike(nativeWorker, () => {
-    nativeWorker.terminate();
-  });
+): Worker<Input, Output> => wrap(nativeWorker);
 
-/** Creates an Evolu {@link SharedWorker} from a native SharedWorker. */
+/** Creates an Evolu {@link SharedWorker} from a Web SharedWorker. */
 export const createSharedWorker = <Input, Output = never>(
   nativeSharedWorker: globalThis.SharedWorker,
 ): SharedWorker<Input, Output> => {
-  const port = wrapNativeMessagePort<Input, Output>(nativeSharedWorker.port);
+  const port = wrap<Input, Output>(nativeSharedWorker.port);
   return {
     port,
     [Symbol.dispose]: port[Symbol.dispose],
   };
 };
 
-/** Wraps a native MessagePort into an Evolu {@link MessagePort}. */
-const wrapNativeMessagePort = <Input, Output>(
-  nativePort: globalThis.MessagePort,
-): MessagePort<Input, Output> =>
-  wrapMessagePortLike(nativePort, () => {
-    nativePort.close();
-  });
+/**
+ * Creates a {@link MessageChannel} from a Web MessageChannel.
+ *
+ * ### Example
+ *
+ * ```ts
+ * const channel = createMessageChannel<Request, Response>();
+ * channel.port1.onMessage = (response) => console.log(response);
+ * channel.port1.postMessage({ type: "ping" });
+ * ```
+ */
+export const createMessageChannel = <Input, Output = never>(): MessageChannel<
+  Input,
+  Output
+> => {
+  const channel = new globalThis.MessageChannel();
+  const stack = new DisposableStack();
+
+  return {
+    port1: stack.use(wrap<Input, Output>(channel.port1)),
+    port2: stack.use(wrap<Output, Input>(channel.port2)),
+    [Symbol.dispose]: () => {
+      stack.dispose();
+    },
+  };
+};
 
 /**
- * Wraps any object with a `postMessage`/`onmessage` interface into an Evolu
- * {@link MessagePort}.
+ * Creates an Evolu {@link MessagePort} from a Web MessagePort.
+ *
+ * Use this for ports received via postMessage transfer.
  */
-const wrapMessagePortLike = <Input, Output>(
+export const createMessagePort: CreateMessagePort = (nativePort) =>
+  wrap(nativePort as unknown as globalThis.MessagePort);
+
+/**
+ * Creates an Evolu {@link WorkerSelf} from a Web `DedicatedWorkerGlobalScope`
+ * (`self` inside a dedicated worker).
+ */
+export const createWorkerSelf = <Input, Output = never>(
+  nativeSelf: globalThis.DedicatedWorkerGlobalScope,
+): WorkerSelf<Input, Output> => wrap<Output, Input>(nativeSelf);
+
+/**
+ * Creates an Evolu {@link SharedWorkerSelf} from a Web `SharedWorkerGlobalScope`
+ * (`self` inside a shared worker).
+ */
+export const createSharedWorkerSelf = <Input, Output = never>(
+  nativeSelf: globalThis.SharedWorkerGlobalScope,
+): SharedWorkerSelf<Input, Output> => {
+  const self: SharedWorkerSelf<Input, Output> = {
+    onConnect: null,
+    [Symbol.dispose]: () => {
+      nativeSelf.onconnect = null;
+      nativeSelf.close();
+    },
+  };
+
+  nativeSelf.onconnect = (event) => {
+    assert(
+      self.onConnect != null,
+      "onConnect must be set before receiving connections",
+    );
+    self.onConnect(wrap<Output, Input>(event.ports[0]));
+  };
+
+  return self;
+};
+
+/**
+ * Creates {@link Run} for a Web Worker or SharedWorker.
+ *
+ * Includes a console store output for forwarding worker logs and native output
+ * for local debugging.
+ */
+export const createWorkerRun = (): Run<
+  RunDeps & ConsoleStoreOutputEntryDep & CreateMessagePortDep
+> => {
+  const consoleStoreOutput = createConsoleStoreOutput();
+
+  const console = createConsole({
+    output: createMultiOutput([
+      createNativeConsoleOutput(),
+      consoleStoreOutput,
+    ]),
+  });
+
+  return createRun({
+    console,
+    consoleStoreOutputEntry: consoleStoreOutput.entry,
+    createMessagePort,
+  });
+};
+
+const wrap = <Input, Output>(
   native:
-    | DedicatedWorkerGlobalScope
+    | globalThis.DedicatedWorkerGlobalScope
     | globalThis.MessagePort
     | globalThis.Worker,
-  dispose: () => void,
 ): MessagePort<Input, Output> => {
   const port: MessagePort<Input, Output> = {
-    postMessage: (message: Input, transfer?: ReadonlyArray<unknown>) => {
-      native.postMessage(message, transfer as Array<Transferable>);
+    postMessage: (message: Input, transfer?: ReadonlyArray<Transferable>) => {
+      if (transfer == null) native.postMessage(message);
+      else native.postMessage(message, [...transfer]);
     },
     onMessage: null,
     native: native as unknown as NativeMessagePort,
     [Symbol.dispose]: () => {
       native.onmessage = null;
-      dispose();
+      if (native instanceof globalThis.Worker) native.terminate();
+      else native.close();
     },
   };
 
@@ -72,66 +167,17 @@ const wrapMessagePortLike = <Input, Output>(
 };
 
 /**
- * Creates a {@link MessageChannel} from the native browser MessageChannel.
- *
- * ### Example
- *
- * ```ts
- * const channel = createMessageChannel<Request, Response>();
- * channel.port1.onMessage = (response) => console.log(response);
- * channel.port1.postMessage({ type: "ping" });
- * ```
- */
-export const createMessageChannel = <Input, Output = never>(): MessageChannel<
-  Input,
-  Output
-> => {
-  const nativeChannel = new globalThis.MessageChannel();
-  const stack = new DisposableStack();
-
-  const port1 = stack.use(
-    wrapNativeMessagePort<Input, Output>(nativeChannel.port1),
-  );
-  const port2 = stack.use(
-    wrapNativeMessagePort<Output, Input>(nativeChannel.port2),
-  );
-
-  return {
-    port1,
-    port2,
-    [Symbol.dispose]: () => {
-      stack.dispose();
-    },
-  };
-};
-
-// Worker-side code (for code running inside workers)
-
-/**
- * Creates an Evolu MessagePort from a native MessagePort.
- *
- * Use this for ports received via postMessage transfer.
- */
-export const createMessagePort: CreateMessagePort = (nativePort) =>
-  wrapNativeMessagePort(nativePort as unknown as globalThis.MessagePort);
-
-/**
- * Creates an Evolu {@link WorkerScope} from the native
- * `DedicatedWorkerGlobalScope` (`self` inside a dedicated worker).
+ * @deprecated Use {@link createWorkerSelf}. Retained for backwards compatibility.
  */
 export const createWorkerScope = <Input, Output = never>(
   nativeSelf: globalThis.DedicatedWorkerGlobalScope,
 ): WorkerScope<Input, Output> => {
   const stack = new DisposableStack();
 
-  const port = stack.use(
-    wrapMessagePortLike<Output, Input>(nativeSelf, () => {
-      nativeSelf.close();
-    }),
-  );
+  const self = stack.use(createWorkerSelf<Input, Output>(nativeSelf));
 
   const scope: WorkerScope<Input, Output> = {
-    ...port,
+    ...self,
     onError: null,
     [Symbol.dispose]: () => {
       stack.dispose();
@@ -157,13 +203,14 @@ export const createWorkerScope = <Input, Output = never>(
 };
 
 /**
- * Creates an Evolu {@link SharedWorkerScope} from the native
- * `SharedWorkerGlobalScope` (`self` inside a shared worker).
+ * @deprecated Use {@link createSharedWorkerSelf}. Retained for backwards compatibility.
  */
 export const createSharedWorkerScope = <Input, Output = never>(
   nativeSelf: globalThis.SharedWorkerGlobalScope,
 ): SharedWorkerScope<Input, Output> => {
   const stack = new DisposableStack();
+
+  const self = stack.use(createSharedWorkerSelf<Input, Output>(nativeSelf));
 
   const scope: SharedWorkerScope<Input, Output> = {
     onConnect: null,
@@ -173,12 +220,11 @@ export const createSharedWorkerScope = <Input, Output = never>(
     },
   };
 
-  nativeSelf.onconnect = (e) => {
+  self.onConnect = (port) => {
     assert(
       scope.onConnect != null,
       "onConnect must be set before receiving connections",
     );
-    const port = wrapNativeMessagePort<Output, Input>(e.ports[0]);
     scope.onConnect(port);
   };
 

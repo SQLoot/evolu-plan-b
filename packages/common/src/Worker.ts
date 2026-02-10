@@ -161,24 +161,34 @@ export interface CreateMessageChannelDep {
 // Worker-side types (for code running inside workers)
 
 /**
- * Typed scope for code running inside a dedicated worker.
+ * Typed `self` for code running inside a dedicated worker.
  *
  * This is the worker-side counterpart to {@link Worker} — a typed
- * {@link MessagePort} combined with {@link GlobalErrorScope} that wraps `self`
- * inside the worker.
+ * {@link MessagePort} that wraps `self` inside the worker.
  */
-export interface WorkerScope<Input, Output = never>
-  extends MessagePort<Output, Input>,
-    GlobalErrorScope {}
+export interface WorkerSelf<Input, Output = never>
+  extends MessagePort<Output, Input> {}
 
 /**
- * Typed scope for code running inside a shared worker.
+ * Typed `self` for code running inside a shared worker.
  *
  * This is the worker-side counterpart to {@link SharedWorker}. It wraps `self`
  * inside the shared worker, providing typed `onConnect` callbacks.
  */
-export interface SharedWorkerScope<Input, Output = never>
-  extends GlobalErrorScope,
-    Disposable {
+export interface SharedWorkerSelf<Input, Output = never> extends Disposable {
   onConnect: ((port: MessagePort<Output, Input>) => void) | null;
 }
+
+/**
+ * @deprecated Use {@link WorkerSelf}. Retained for backwards compatibility.
+ */
+export interface WorkerScope<Input, Output = never>
+  extends WorkerSelf<Input, Output>,
+    GlobalErrorScope {}
+
+/**
+ * @deprecated Use {@link SharedWorkerSelf}. Retained for backwards compatibility.
+ */
+export interface SharedWorkerScope<Input, Output = never>
+  extends SharedWorkerSelf<Input, Output>,
+    GlobalErrorScope {}

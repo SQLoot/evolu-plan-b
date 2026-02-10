@@ -282,7 +282,7 @@ declare global {
  * ```ts
  * const deps = {
  *   console: createConsole({
- *     formatEntry: createConsoleEntryFormatter()({
+ *     formatter: createConsoleFormatter()({
  *       timestampFormat: "absolute",
  *     }),
  *   }),

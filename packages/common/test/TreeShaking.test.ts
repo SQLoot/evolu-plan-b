@@ -126,8 +126,8 @@ const getFixtures = (): ReadonlyArray<string> => {
  */
 const normalizeBundleSize = (size: BundleSize): BundleSize => {
   let { gzip, raw } = size;
-  if (gzip >= 5634 && gzip <= 5644) gzip = 5639;
-  if (raw >= 15116 && raw <= 15126) raw = 15121;
+  if (gzip >= 5644 && gzip <= 5654) gzip = 5649;
+  if (raw >= 15133 && raw <= 15143) raw = 15138;
   return { gzip, raw };
 };
 
@@ -151,8 +151,8 @@ describe("tree-shaking", () => {
           "raw": 1602,
         },
         "task-example": {
-          "gzip": 5639,
-          "raw": 15121,
+          "gzip": 5649,
+          "raw": 15138,
         },
         "type-object": {
           "gzip": 1549,
