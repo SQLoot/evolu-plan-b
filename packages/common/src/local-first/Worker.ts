@@ -5,6 +5,8 @@
  */
 
 import { exhaustiveCheck } from "../Function.js";
+import { ok } from "../Result.js";
+import type { Task } from "../Task.js";
 import type { Typed } from "../Type.js";
 import type {
   SharedWorker as CommonSharedWorker,
@@ -57,4 +59,18 @@ export const runEvoluWorkerScope =
         }
       };
     };
+  };
+
+/**
+ * Initializes Evolu worker handlers in a Task-based style.
+ *
+ * @deprecated Use platform-specific worker run helpers where available.
+ */
+export const initEvoluWorker =
+  (
+    self: EvoluWorkerScope<EvoluWorkerInput>,
+  ): Task<void, never, CreateMessagePortDep> =>
+  (run) => {
+    runEvoluWorkerScope(run.deps)(self);
+    return ok();
   };

@@ -6,28 +6,28 @@
 
 import {
   type CreateRunner,
-  createRunner as createCommonRunner,
+  createRun as createCommonRun,
   createUnknownError,
-  type Runner,
-  type RunnerDeps,
+  type Run,
+  type RunDeps,
 } from "@evolu/common";
 
 /**
- * Creates {@link Runner} for the browser with global error handling.
+ * Creates {@link Run} for the browser with global error handling.
  *
  * Registers `error` and `unhandledrejection` handlers that log errors to the
- * console. Handlers are removed when the runner is disposed.
+ * console. Handlers are removed when the run is disposed.
  *
  * ### Example
  *
  * ```ts
  * const console = createConsole({
- *   formatEntry: createConsoleEntryFormatter()({
+ *   formatter: createConsoleFormatter()({
  *     timestampFormat: "relative",
  *   }),
  * });
  *
- * await using run = createRunner({ console });
+ * await using run = createRun({ console });
  * await using stack = run.stack();
  *
  * await stack.use(startApp());
@@ -35,34 +35,31 @@ import {
  *
  * @group Browser Runner
  */
-export const createRunner: CreateRunner<RunnerDeps> = <D>(
+export const createRun: CreateRunner<RunDeps> = <D>(
   deps?: D,
-): Runner<RunnerDeps & D> => {
-  const run = createCommonRunner(deps);
-
+): Run<RunDeps & D> => {
+  const run = createCommonRun(deps);
   const console = run.deps.console.child("global");
+  globalThis.addEventListener(
+    "error",
+    (event) => {
+      console.error("error", createUnknownError(event.error));
+    },
+    { signal: run.signal },
+  );
 
-  const handleError = (source: string) => (event: Event) => {
-    const error: unknown =
-      event instanceof ErrorEvent
-        ? event.error
-        : (event as PromiseRejectionEvent).reason;
-    console.error(source, createUnknownError(error));
-  };
-
-  const handleWindowError = handleError("error");
-  const handleUnhandledRejection = handleError("unhandledrejection");
-
-  globalThis.addEventListener("error", handleWindowError);
-  globalThis.addEventListener("unhandledrejection", handleUnhandledRejection);
-
-  run.onAbort(() => {
-    globalThis.removeEventListener("error", handleWindowError);
-    globalThis.removeEventListener(
-      "unhandledrejection",
-      handleUnhandledRejection,
-    );
-  });
+  globalThis.addEventListener(
+    "unhandledrejection",
+    (event) => {
+      console.error("unhandledrejection", createUnknownError(event.reason));
+    },
+    { signal: run.signal },
+  );
 
   return run;
 };
+
+/**
+ * @deprecated Use {@link createRun}.
+ */
+export const createRunner = createRun;

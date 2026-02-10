@@ -5,6 +5,8 @@
  */
 
 import { objectFrom } from "./Object.js";
+import type { ReadonlyStore } from "./Store.js";
+import { createStore } from "./Store.js";
 import type { Task } from "./Task.js";
 import {
   createTime,
@@ -163,6 +165,14 @@ export type ConsoleLevel =
   | "error"
   | "silent";
 
+/**
+ * Transforms a {@link ConsoleEntry} before output.
+ *
+ * Used by {@link ConsoleConfig.formatter} and {@link ConsoleOutput.write}. Create
+ * one with {@link createConsoleFormatter}.
+ */
+export type ConsoleFormatter = (entry: ConsoleEntry) => ReadonlyArray<unknown>;
+
 /** Configuration for {@link createConsole}. */
 export interface ConsoleConfig {
   /** Name of this console. Defaults to empty string. */
@@ -185,9 +195,14 @@ export interface ConsoleConfig {
    * prefixes).
    *
    * Receives the entry and returns modified args. Use
-   * {@link createConsoleEntryFormatter} for common formatting options.
+   * {@link createConsoleFormatter} for common formatting options.
    */
-  readonly formatEntry?: (entry: ConsoleEntry) => ReadonlyArray<unknown>;
+  readonly formatter?: ConsoleFormatter;
+
+  /**
+   * @deprecated Use {@link ConsoleConfig.formatter}.
+   */
+  readonly formatEntry?: ConsoleFormatter;
 }
 
 /** Creates a {@link Console}. */
@@ -196,10 +211,12 @@ export const createConsole = ({
   level = "log",
   output = createNativeConsoleOutput(),
   path = [],
+  formatter,
   formatEntry,
 }: ConsoleConfig = {}): Console => {
   const childrenSet = new Set<Console>();
   let ownLevel: ConsoleLevel | null = null;
+  const resolvedFormatter = formatter ?? formatEntry;
 
   const getLevel = (): ConsoleLevel => ownLevel ?? level;
 
@@ -207,7 +224,7 @@ export const createConsole = ({
     (
       method: ConsoleMethod,
       methodLevel: ConsoleLevel,
-      formatter?: typeof formatEntry,
+      formatter?: ConsoleFormatter,
     ) =>
     (...args: ReadonlyArray<unknown>): void => {
       if (levelOrder[methodLevel] >= levelOrder[getLevel()])
@@ -215,7 +232,7 @@ export const createConsole = ({
     };
 
   const levelMethod = (method: ConsoleLevel & ConsoleMethod) =>
-    write(method, method, formatEntry);
+    write(method, method, resolvedFormatter);
 
   const debugMethod = (method: ConsoleMethod) => write(method, "debug");
 
@@ -234,7 +251,7 @@ export const createConsole = ({
         level,
         output,
         path: [...path, name],
-        ...(formatEntry && { formatEntry }),
+        ...(resolvedFormatter && { formatter: resolvedFormatter }),
       });
       childrenSet.add(childConsole);
       return childConsole;
@@ -271,10 +288,7 @@ const levelOrder: Record<ConsoleLevel, number> = {
  */
 export interface ConsoleOutput {
   /** Write a log entry to this output. */
-  readonly write: (
-    entry: ConsoleEntry,
-    formatEntry?: (entry: ConsoleEntry) => ReadonlyArray<unknown>,
-  ) => void;
+  readonly write: (entry: ConsoleEntry, formatter?: ConsoleFormatter) => void;
 
   /** Flush buffered entries. For async outputs that buffer for performance. */
   readonly flush?: () => Promise<void>;
@@ -332,8 +346,8 @@ export type ConsoleMethod =
  * ```
  */
 export const createNativeConsoleOutput = (): ConsoleOutput => ({
-  write: (entry, formatEntry) => {
-    const args = formatEntry ? formatEntry(entry) : entry.args;
+  write: (entry, formatter) => {
+    const args = formatter ? formatter(entry) : entry.args;
     const fn = globalThis.console[entry.method] as (
       ...args: Array<unknown>
     ) => void;
@@ -341,8 +355,8 @@ export const createNativeConsoleOutput = (): ConsoleOutput => ({
   },
 });
 
-/** Configuration for {@link createConsoleEntryFormatter}. */
-export interface ConsoleEntryFormatterConfig {
+/** Configuration for {@link createConsoleFormatter}. */
+export interface ConsoleFormatterConfig {
   /**
    * Timestamp format to prepend to log messages.
    *
@@ -362,7 +376,7 @@ export interface ConsoleEntryFormatterConfig {
   readonly startTime?: Millis;
 }
 
-/** Timestamp format for {@link ConsoleEntryFormatterConfig}. */
+/** Timestamp format for {@link ConsoleFormatterConfig}. */
 export type ConsoleEntryTimestampFormat =
   | "relative"
   | "absolute"
@@ -370,7 +384,12 @@ export type ConsoleEntryTimestampFormat =
   | "none";
 
 /**
- * Creates a formatter for {@link ConsoleConfig.formatEntry}.
+ * @deprecated Use {@link ConsoleFormatterConfig}.
+ */
+export type ConsoleEntryFormatterConfig = ConsoleFormatterConfig;
+
+/**
+ * Creates a formatter for {@link ConsoleConfig.formatter}.
  *
  * Prepends timestamps and path prefixes to entry args.
  *
@@ -379,22 +398,20 @@ export type ConsoleEntryTimestampFormat =
  * ```ts
  * const console = createConsole({
  *   level: "info",
- *   formatEntry: createConsoleEntryFormatter()({
+ *   formatter: createConsoleFormatter()({
  *     timestampFormat: "relative",
  *   }),
  * });
  * ```
  */
-export const createConsoleEntryFormatter =
-  (deps: TimeDep = { time: createTime() }) =>
-  (
-    config: ConsoleEntryFormatterConfig = {},
-  ): ((entry: ConsoleEntry) => ReadonlyArray<unknown>) => {
+export const createConsoleFormatter =
+  ({ time = createTime() }: Partial<TimeDep> = {}) =>
+  (config: ConsoleFormatterConfig = {}): ConsoleFormatter => {
     const format = config.timestampFormat ?? "none";
     let startTime = config.startTime;
 
     return (entry) => {
-      const now = deps.time.now();
+      const now = time.now();
       startTime ??= now;
 
       let timestamp: string;
@@ -421,6 +438,33 @@ export const createConsoleEntryFormatter =
       return prefix ? [prefix, ...entry.args] : entry.args;
     };
   };
+
+/**
+ * @deprecated Use {@link createConsoleFormatter}.
+ */
+export const createConsoleEntryFormatter = (
+  deps: TimeDep = { time: createTime() },
+): ((config?: ConsoleEntryFormatterConfig) => ConsoleFormatter) =>
+  createConsoleFormatter(deps);
+
+/**
+ * A {@link ConsoleOutput} that stores the latest entry in a
+ * {@link ReadonlyStore}.
+ */
+export interface ConsoleStoreOutput extends ConsoleOutput {
+  readonly entry: ReadonlyStore<ConsoleEntry | null>;
+}
+
+export interface ConsoleStoreOutputEntryDep {
+  readonly consoleStoreOutputEntry: ReadonlyStore<ConsoleEntry | null>;
+}
+
+/**
+ * @deprecated Use {@link ConsoleStoreOutputEntryDep}.
+ */
+export interface ConsoleEntryDep {
+  readonly consoleEntry: ReadonlyStore<ConsoleEntry | null>;
+}
 
 /**
  * A test console that captures all output for assertions.
@@ -581,6 +625,15 @@ export const createConsoleArrayOutput = (
   },
 });
 
+/** Creates a {@link ConsoleStoreOutput}. */
+export const createConsoleStoreOutput = (): ConsoleStoreOutput => {
+  const entry = createStore<ConsoleEntry | null>(null);
+  return {
+    write: entry.set,
+    entry,
+  };
+};
+
 /**
  * Creates a {@link ConsoleOutput} that routes entries to multiple outputs.
  *
@@ -595,16 +648,21 @@ export const createConsoleArrayOutput = (
  * ]);
  * ```
  */
-export const createConsoleMultiOutput = (
+export const createMultiOutput = (
   outputs: ReadonlyArray<ConsoleOutput>,
 ): ConsoleOutput => ({
-  write: (entry, formatEntry) => {
-    for (const output of outputs) output.write(entry, formatEntry);
+  write: (entry, formatter) => {
+    for (const output of outputs) output.write(entry, formatter);
   },
   flush: async () => {
     await Promise.all(outputs.map((o) => o.flush?.()));
   },
 });
+
+/**
+ * @deprecated Use {@link createMultiOutput}.
+ */
+export const createConsoleMultiOutput = createMultiOutput;
 
 /**
  * Creates a {@link ConsoleOutput} that buffers entries for async writing.

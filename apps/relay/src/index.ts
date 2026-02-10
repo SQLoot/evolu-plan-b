@@ -1,5 +1,5 @@
 import { mkdirSync } from "node:fs";
-import { createConsole, createConsoleEntryFormatter } from "@evolu/common";
+import { createConsole, createConsoleFormatter } from "@evolu/common";
 import { createRelayDeps, createRunner, startRelay } from "@evolu/nodejs";
 
 // Ensure the database is created in a predictable location for Docker.
@@ -8,7 +8,7 @@ process.chdir("data");
 
 const console = createConsole({
   // level: "debug",
-  formatEntry: createConsoleEntryFormatter()({
+  formatter: createConsoleFormatter()({
     timestampFormat: "relative",
   }),
 });

@@ -5,6 +5,10 @@ import {
   createConsole,
   createConsoleArrayOutput,
   createConsoleEntryFormatter,
+  createConsoleFormatter,
+  createConsoleMultiOutput,
+  createConsoleStoreOutput,
+  createMultiOutput,
   createNativeConsoleOutput,
   testCreateConsole,
 } from "../src/Console.js";
@@ -26,10 +30,10 @@ const createTestOutput = (): ConsoleOutput & {
   }> = [];
   return {
     entries,
-    write: (entry, formatEntry) => {
+    write: (entry, formatter) => {
       entries.push({
         entry,
-        formattedArgs: formatEntry ? formatEntry(entry) : entry.args,
+        formattedArgs: formatter ? formatter(entry) : entry.args,
       });
     },
   };
@@ -153,12 +157,12 @@ describe("createConsole", () => {
     expect(output.entries[0].entry.path).toEqual(["relay", "db"]);
   });
 
-  test("child inherits formatEntry", () => {
+  test("child inherits formatter", () => {
     const output = createTestOutput();
-    const formatEntry = (entry: ConsoleEntry) => ["prefix", ...entry.args];
+    const formatter = (entry: ConsoleEntry) => ["prefix", ...entry.args];
     const console = createConsole({
       output,
-      formatEntry,
+      formatter,
     });
     const child = console.child("relay");
 
@@ -194,14 +198,14 @@ describe("createConsole", () => {
 
   test("debug-level methods skip formatter", () => {
     const output = createTestOutput();
-    const formatEntry = vi.fn((entry: ConsoleEntry) => [
+    const formatter = vi.fn((entry: ConsoleEntry) => [
       "formatted",
       ...entry.args,
     ]);
     const console = createConsole({
       output,
       level: "debug",
-      formatEntry,
+      formatter,
     });
 
     console.info("info message");
@@ -236,9 +240,9 @@ describe("createConsole", () => {
   });
 });
 
-describe("createConsoleEntryFormatter", () => {
+describe("createConsoleFormatter", () => {
   test("uses default time dep when not provided", () => {
-    const formatter = createConsoleEntryFormatter()({
+    const formatter = createConsoleFormatter()({
       timestampFormat: "relative",
     });
     const entry: ConsoleEntry = {
@@ -256,7 +260,7 @@ describe("createConsoleEntryFormatter", () => {
   });
 
   test("formats path", () => {
-    const formatter = createConsoleEntryFormatter(createTimeDep())();
+    const formatter = createConsoleFormatter(createTimeDep())();
     const entry: ConsoleEntry = {
       method: "info",
       path: ["relay", "db"],
@@ -269,7 +273,7 @@ describe("createConsoleEntryFormatter", () => {
   });
 
   test("with no path returns args unchanged", () => {
-    const formatter = createConsoleEntryFormatter(createTimeDep())();
+    const formatter = createConsoleFormatter(createTimeDep())();
     const entry: ConsoleEntry = {
       method: "info",
       path: [],
@@ -283,7 +287,7 @@ describe("createConsoleEntryFormatter", () => {
 
   test("relative timestamp", () => {
     const time = testCreateTime({ startAt: 1000 as Millis });
-    const formatter = createConsoleEntryFormatter({ time })({
+    const formatter = createConsoleFormatter({ time })({
       timestampFormat: "relative",
     });
 
@@ -313,7 +317,7 @@ describe("createConsoleEntryFormatter", () => {
 
   test("relative timestamp with custom start time", () => {
     const time = testCreateTime({ startAt: 1500 as Millis });
-    const formatter = createConsoleEntryFormatter({ time })({
+    const formatter = createConsoleFormatter({ time })({
       timestampFormat: "relative",
       startTime: 500 as Millis,
     });
@@ -338,7 +342,7 @@ describe("createConsoleEntryFormatter", () => {
     const time = testCreateTime({
       startAt: Date.UTC(2026, 0, 28, 14, 30, 0, 123) as Millis,
     });
-    const formatter = createConsoleEntryFormatter({ time })({
+    const formatter = createConsoleFormatter({ time })({
       timestampFormat: "iso",
     });
 
@@ -357,7 +361,7 @@ describe("createConsoleEntryFormatter", () => {
     const time = testCreateTime({
       startAt: Date.UTC(2026, 0, 28, 14, 30, 15, 123) as Millis,
     });
-    const formatter = createConsoleEntryFormatter({ time })({
+    const formatter = createConsoleFormatter({ time })({
       timestampFormat: "absolute",
     });
 
@@ -376,7 +380,7 @@ describe("createConsoleEntryFormatter", () => {
   });
 
   test("combines timestamp and path", () => {
-    const formatter = createConsoleEntryFormatter(createTimeDep())({
+    const formatter = createConsoleFormatter(createTimeDep())({
       timestampFormat: "relative",
     });
 
@@ -391,6 +395,25 @@ describe("createConsoleEntryFormatter", () => {
     expect(result).toMatchInlineSnapshot(`
       [
         "+0.000s [relay]",
+        "message",
+      ]
+    `);
+  });
+
+  test("deprecated createConsoleEntryFormatter alias works", () => {
+    const formatter = createConsoleEntryFormatter(createTimeDep())({
+      timestampFormat: "relative",
+    });
+
+    const result = formatter({
+      method: "info",
+      path: ["alias"],
+      args: ["message"],
+    });
+
+    expect(result).toMatchInlineSnapshot(`
+      [
+        "+0.000s [alias]",
         "message",
       ]
     `);
@@ -643,5 +666,59 @@ describe("createConsoleArrayOutput", () => {
 
     expect(entries.map((e) => e.method)).toEqual(["info", "warn"]);
     expect(entries.map((e) => e.args[0])).toEqual(["hello", "world"]);
+  });
+});
+
+describe("createConsoleStoreOutput", () => {
+  test("entry starts as null", () => {
+    const output = createConsoleStoreOutput();
+    expect(output.entry.get()).toBeNull();
+  });
+
+  test("entry updates on write", () => {
+    const output = createConsoleStoreOutput();
+    const console = createConsole({ output });
+    console.info("hello");
+    expect(output.entry.get()).toEqual({
+      method: "info",
+      path: [],
+      args: ["hello"],
+    });
+  });
+});
+
+describe("createMultiOutput", () => {
+  test("writes to all outputs", () => {
+    const entries1: Array<ConsoleEntry> = [];
+    const entries2: Array<ConsoleEntry> = [];
+    const output = createMultiOutput([
+      createConsoleArrayOutput(entries1),
+      createConsoleArrayOutput(entries2),
+    ]);
+    const console = createConsole({ output });
+
+    console.info("hello");
+
+    expect(entries1).toHaveLength(1);
+    expect(entries2).toHaveLength(1);
+    expect(entries1[0]).toEqual(entries2[0]);
+  });
+
+  test("deprecated createConsoleMultiOutput alias works", () => {
+    const entries: Array<ConsoleEntry> = [];
+    const output = createConsoleMultiOutput([
+      createConsoleArrayOutput(entries),
+    ]);
+    const console = createConsole({ output });
+
+    console.warn("legacy");
+
+    expect(entries).toEqual([
+      {
+        method: "warn",
+        path: [],
+        args: ["legacy"],
+      },
+    ]);
   });
 });
