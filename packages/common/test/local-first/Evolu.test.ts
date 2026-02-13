@@ -265,6 +265,41 @@ describe("createEvolu", () => {
     expect(state.reloadCount).toBe(1);
     expect(state.mutateCount).toBeGreaterThan(0);
   });
+
+  test("db worker flow supports dispose and re-init roundtrip", async () => {
+    const { deps } = createMockDeps();
+    const evoluDeps = createEvoluDeps(deps as any);
+    const createQuery = createQueryBuilder(Schema);
+    const allTodos = createQuery((db) =>
+      db.selectFrom("todo").select(["id", "title"]),
+    );
+
+    const evolu1 = createEvolu(evoluDeps)(Schema, { name: testSimpleName });
+    await evolu1.appOwner;
+    const insertResult = evolu1.insert("todo", {
+      title: NonEmptyString100.orThrow("Task Persist"),
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const rowsBeforeDispose = await evolu1.loadQuery(allTodos);
+    expect(rowsBeforeDispose.some((row) => row.id === insertResult.id)).toBe(
+      true,
+    );
+
+    await evolu1[Symbol.asyncDispose]();
+
+    const evolu2 = createEvolu(evoluDeps)(Schema, { name: testSimpleName });
+    await evolu2.appOwner;
+
+    const rowsAfterReinit = await evolu2.loadQuery(allTodos);
+    expect(rowsAfterReinit.some((row) => row.id === insertResult.id)).toBe(
+      true,
+    );
+
+    await evolu2[Symbol.asyncDispose]();
+  });
 });
 
 // import { describe, expectTypeOf, test } from "vitest";
