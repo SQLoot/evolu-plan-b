@@ -62,7 +62,7 @@ describe("createRun", () => {
         await using _run = createRun();
         const entry = addedListeners.get("error");
         expect(entry).toBeDefined();
-        expect(entry?.signal).toBeInstanceOf(AbortSignal);
+        expect(entry.signal).toBeInstanceOf(AbortSignal);
         signal = entry.signal as AbortSignal;
         expect(signal.aborted).toBe(false);
       }
@@ -76,7 +76,7 @@ describe("createRun", () => {
 
       const entry = addedListeners.get("error");
       expect(entry).toBeDefined();
-      expect(entry?.listener).toBeDefined();
+      expect(entry.listener).toBeDefined();
       const handler = entry.listener;
       handler(new ErrorEvent("error", { error: new Error("test error") }));
 
@@ -96,7 +96,7 @@ describe("createRun", () => {
 
       const entry = addedListeners.get("unhandledrejection");
       expect(entry).toBeDefined();
-      expect(entry?.listener).toBeDefined();
+      expect(entry.listener).toBeDefined();
       const handler = entry.listener;
       handler(
         new PromiseRejectionEvent("unhandledrejection", {
