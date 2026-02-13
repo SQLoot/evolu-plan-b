@@ -1,3 +1,4 @@
+import type { ConsoleDep } from "@evolu/common";
 import type { EvoluDeps, EvoluWorkerInput } from "@evolu/common/local-first";
 import { createEvoluDeps as createCommonEvoluDeps } from "@evolu/common/local-first";
 import { reloadApp } from "../Platform.js";
@@ -11,7 +12,7 @@ import { createMessageChannel, createSharedWorker } from "../Worker.js";
 // });
 
 /** Creates Evolu dependencies for the web platform. */
-export const createEvoluDeps = (): EvoluDeps => {
+export const createEvoluDeps = (deps: Partial<ConsoleDep> = {}): EvoluDeps => {
   const evoluWorker = createSharedWorker<EvoluWorkerInput>(
     new SharedWorker(new URL("Worker.worker.js", import.meta.url), {
       type: "module",
@@ -19,6 +20,7 @@ export const createEvoluDeps = (): EvoluDeps => {
   );
 
   return createCommonEvoluDeps({
+    ...deps,
     createMessageChannel,
     reloadApp,
     evoluWorker,

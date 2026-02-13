@@ -15,26 +15,26 @@ import {
 import { ok, type Result } from "../Result.js";
 import {
   type SafeSql,
+  sql,
   SqliteBoolean,
   type SqliteDep,
   type SqliteError,
   type SqliteQuery,
   type SqliteQueryOptions,
-  type SqliteValue,
-  sql,
+  SqliteValue,
 } from "../Sqlite.js";
 import type { InferType } from "../Type.js";
 import {
   array,
   DateIso,
   type Id,
-  type IdBytes,
+  IdBytes,
   nullOr,
   object,
   record,
+  set,
   type StandardSchemaV1,
   String,
-  set,
 } from "../Type.js";
 import type { Simplify } from "../Types.js";
 import type { AppOwner } from "./Owner.js";
@@ -42,7 +42,7 @@ import { OwnerId } from "./Owner.js";
 import type { Query, Row } from "./Query.js";
 import { serializeQuery } from "./Query.js";
 import type { CrdtMessage, DbChange } from "./Storage.js";
-import type { TimestampBytes } from "./Timestamp.js";
+import { TimestampBytes } from "./Timestamp.js";
 
 /** Any {@link StandardSchemaV1}. */
 export type AnyStandardSchemaV1 = StandardSchemaV1<any, any>;
@@ -446,11 +446,10 @@ export const createQueryBuilder =
 /** Get the current database schema by reading SQLite metadata. */
 export const getDbSchema =
   (deps: SqliteDep) =>
-  ({
-    allIndexes = false,
-  }: {
-    allIndexes?: boolean;
-  } = {}): Result<DbSchema, SqliteError> => {
+  ({ allIndexes = false }: { allIndexes?: boolean } = {}): Result<
+    DbSchema,
+    SqliteError
+  > => {
     const tables = createRecord<string, Set<string>>();
 
     const tableAndColumnInfoRows = deps.sqlite.exec(sql`

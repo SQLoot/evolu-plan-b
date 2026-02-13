@@ -4,24 +4,24 @@
  * @module
  */
 
-import {
-  MessageChannel as NodeMessageChannel,
-  type MessagePort as NodeMessagePort,
-  Worker as NodeWorker,
-  type TransferListItem,
-  parentPort as workerParentPort,
-} from "node:worker_threads";
 import type {
-  CreateMessagePort,
-  MessageChannel,
-  MessagePort,
-  NativeMessagePort,
-  Transferable,
-  Worker,
-  WorkerScope,
-  WorkerSelf,
+    CreateMessagePort,
+    MessageChannel,
+    MessagePort,
+    NativeMessagePort,
+    Transferable,
+    Worker,
+    WorkerSelf,
 } from "@evolu/common";
-import { assert, handleGlobalError } from "@evolu/common";
+import { assert } from "@evolu/common";
+import {
+    MessageChannel as NodeMessageChannel,
+    Worker as NodeWorker,
+    parentPort as workerParentPort,
+    type MessagePort as NodeMessagePort,
+    type TransferListItem,
+} from "node:worker_threads";
+
 
 /** Creates an Evolu {@link Worker} from Node.js `worker_threads.Worker`. */
 export const createWorker = <Input, Output>(
@@ -66,41 +66,6 @@ export const createWorkerSelf = <Input, Output = never>(
   return wrap<Output, Input>(nativeParentPort);
 };
 
-/**
- * @deprecated Use {@link createWorkerSelf}. Retained for backwards compatibility.
- */
-export const createWorkerScope = <Input, Output = never>(
-  nativeParentPort: NodeMessagePort | null = workerParentPort,
-): WorkerScope<Input, Output> => {
-  const stack = new DisposableStack();
-  const self = stack.use(createWorkerSelf<Input, Output>(nativeParentPort));
-
-  const scope: WorkerScope<Input, Output> = {
-    ...self,
-    onError: null,
-    [Symbol.dispose]: () => {
-      stack.dispose();
-    },
-  };
-
-  const uncaughtExceptionHandler = (error: unknown) => {
-    handleGlobalError(scope, error);
-  };
-
-  const unhandledRejectionHandler = (reason: unknown) => {
-    handleGlobalError(scope, reason);
-  };
-
-  process.on("uncaughtException", uncaughtExceptionHandler);
-  process.on("unhandledRejection", unhandledRejectionHandler);
-
-  stack.defer(() => {
-    process.off("uncaughtException", uncaughtExceptionHandler);
-    process.off("unhandledRejection", unhandledRejectionHandler);
-  });
-
-  return scope;
-};
 
 const wrap = <Input, Output>(
   native: NodeWorker | NodeMessagePort,

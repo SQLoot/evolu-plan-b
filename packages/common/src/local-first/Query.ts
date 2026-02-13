@@ -20,9 +20,9 @@ import type {
   SqliteQueryOptions,
   SqliteRow,
 } from "../Sqlite.js";
-import { eqSqliteValue, type SqliteValue } from "../Sqlite.js";
+import { eqSqliteValue, SqliteValue } from "../Sqlite.js";
 import type { Store } from "../Store.js";
-import { createId, type Id, String } from "../Type.js";
+import { createId, Id, String } from "../Type.js";
 import type { Simplify } from "../Types.js";
 
 /**

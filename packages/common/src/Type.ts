@@ -45,7 +45,7 @@ import type { Literal, Refinement, Simplify, WidenLiteral } from "./Types.js";
  * Evolu Type supports [Standard Schema](https://standardschema.dev/) for
  * interoperability with 40+ validation-compatible tools and frameworks.
  *
- * ## Base types
+ * ## Base Types
  *
  * ```ts
  * // Validate unknown values
@@ -310,7 +310,7 @@ export interface Type<
    * const maxRetries = PositiveInt.orThrow(3);
    *
    * // Good: App configuration that should crash on invalid values
-   * const appName = SimpleName.orThrow("MyApp");
+   * const appName = Name.orThrow("MyApp");
    *
    * // Good: Instead of assert when Type error is clear enough
    * // Context makes it obvious: count increments from non-negative value
@@ -693,7 +693,7 @@ export type TypeErrorFormatter<Error extends TypeError> = (
  * );
  * ```
  *
- * @group Base Factories
+ * @group Base factories
  */
 export const base = <Name extends TypeName, T, Error extends TypeError>(
   name: Name,
@@ -847,7 +847,7 @@ export const formatUint8ArrayError =
  * const error = UserInstance.from({}); // err
  * ```
  *
- * @group Base Factories
+ * @group Base factories
  */
 export const instanceOf = <T extends abstract new (...args: any) => any>(
   ctor: T,
@@ -1045,7 +1045,7 @@ export const formatIsTypeError =
  * );
  * ```
  *
- * @group Base Factories
+ * @group Base factories
  */
 export function brand<
   Name extends TypeName,
@@ -1631,36 +1631,33 @@ export const base64UrlToUint8Array: (str: Base64Url) => Uint8Array =
         };
 
 /**
- * Simple alphanumeric string for naming in file systems, URLs, and identifiers.
+ * Alphanumeric string for naming in file systems, URLs, and identifiers.
  *
  * Uses the same safe alphabet as {@link UrlSafeString} (letters, digits, `-`,
- * `_`). See `UrlSafeString` for details.
+ * `_`).
  *
  * The string must be between 1 and 64 characters.
  *
  * ### Example
  *
  * ```ts
- * const result = SimpleName.from("data-report-123");
+ * const result = Name.from("data-report-123");
  * if (result.ok) {
- *   console.log("Valid SimpleName string:", result.value);
+ *   console.log("Valid Name string:", result.value);
  * } else {
- *   console.error("Invalid SimpleName string:", result.error);
+ *   console.error("Invalid Name string:", result.error);
  * }
  * ```
  *
  * @group String
  */
-export const SimpleName = /*#__PURE__*/ brand(
-  "SimpleName",
-  UrlSafeString,
-  (value) =>
-    value.length >= 1 && value.length <= 64
-      ? ok(value)
-      : err<SimpleNameError>({ type: "SimpleName", value }),
+export const Name = /*#__PURE__*/ brand("Name", UrlSafeString, (value) =>
+  value.length >= 1 && value.length <= 64
+    ? ok(value)
+    : err<NameError>({ type: "Name", value }),
 );
-export type SimpleName = typeof SimpleName.Type;
-export interface SimpleNameError extends TypeError<"SimpleName"> {}
+export type Name = typeof Name.Type;
+export interface NameError extends TypeError<"Name"> {}
 
 /**
  * Trimmed string between 8 and 64 characters, branded as `SimplePassword`.
@@ -2376,7 +2373,7 @@ export const formatBetweenError =
  *
  * TODO: Add JsonValue
  *
- * @group Base Factories
+ * @group Base factories
  */
 export const literal = <T extends Literal>(expected: T): LiteralType<T> => {
   const fromUnknown = (value: unknown): Result<T, LiteralError<T>> =>
@@ -2423,7 +2420,7 @@ export const formatLiteralError =
  * const result2 = NumberArray.from(["a", "b"]); // err(...)
  * ```
  *
- * @group Base Factories
+ * @group Base factories
  * @group Array
  */
 export const array = <ElementType extends AnyType>(
@@ -2542,7 +2539,7 @@ export const formatArrayError = <Error extends TypeError>(
  * const result2 = NumberSet.from(new Set(["a", "b"])); // err(...)
  * ```
  *
- * @group Base Factories
+ * @group Base factories
  */
 export const set = <ElementType extends AnyType>(
   element: ElementType,
@@ -2672,7 +2669,7 @@ export const formatSetError = <Error extends TypeError>(
  * StringToNumberRecord.from({ a: "x", b: 2 });
  * ```
  *
- * @group Base Factories
+ * @group Base factories
  * @group Object
  */
 export const record = <
@@ -2961,7 +2958,7 @@ export const formatRecordError = <Error extends TypeError>(
  * );
  * ```
  *
- * @group Base Factories
+ * @group Base factories
  * @group Object
  */
 export function object<Props extends Record<string, AnyType>>(
@@ -3538,7 +3535,7 @@ export type TypedType<
  * const result3 = StringOrNumber.from(42); // ok(42)
  * ```
  *
- * @group Base Factories
+ * @group Base factories
  */
 export function union<
   Members extends [AnyType, AnyType, ...ReadonlyArray<AnyType>],
@@ -3651,7 +3648,7 @@ export const isUnionType = (
  * // validated.value is Result<{ timestamp }, SyncError>
  * ```
  *
- * @group Composite Factories
+ * @group Composite factories
  */
 export const result = <OkType extends AnyType, ErrType extends AnyType>(
   okType: OkType,
@@ -3672,7 +3669,7 @@ export const result = <OkType extends AnyType, ErrType extends AnyType>(
  *
  * Useful for serializing Results where the value and error types are unknown.
  *
- * @group Composite Factories
+ * @group Composite factories
  */
 export const UnknownResult = /*#__PURE__*/ result(Unknown, Unknown);
 export type UnknownResult = typeof UnknownResult.Type;
@@ -3704,7 +3701,7 @@ export type UnknownResult = typeof UnknownResult.Type;
  * }
  * ```
  *
- * @group Composite Factories
+ * @group Composite factories
  */
 export const nextResult = <
   ValueType extends AnyType,
@@ -3727,7 +3724,7 @@ export const nextResult = <
  * Useful for checking if a value is a {@link NextResult} via
  * `UnknownNextResult.is(value)`.
  *
- * @group Composite Factories
+ * @group Composite factories
  */
 export const UnknownNextResult = /*#__PURE__*/ nextResult(
   Unknown,
@@ -3769,7 +3766,7 @@ export type UnknownNextResult = typeof UnknownNextResult.Type;
  * );
  * ```
  *
- * @group Base Factories
+ * @group Base factories
  */
 export const recursive = <ParentType extends AnyType>(
   create: () => ParentType,
@@ -3830,7 +3827,7 @@ export interface RecursiveType<ParentType extends AnyType>
  * NullOrString.from(42); // err(...)
  * ```
  *
- * @group Base Factories
+ * @group Base factories
  */
 export const nullOr = <T extends AnyType>(
   type: T,
@@ -3848,7 +3845,7 @@ export const nullOr = <T extends AnyType>(
  * UndefinedOrString.from(42); // err(...)
  * ```
  *
- * @group Base Factories
+ * @group Base factories
  */
 export const undefinedOr = <T extends AnyType>(
   type: T,
@@ -3870,7 +3867,7 @@ export const undefinedOr = <T extends AnyType>(
  * NullishOrString.from(42); // err(...)
  * ```
  *
- * @group Base Factories
+ * @group Base factories
  */
 export const nullishOr = <T extends AnyType>(
   type: T,
@@ -3891,7 +3888,7 @@ export const nullishOr = <T extends AnyType>(
  * const error = NameAndAge.from(["Alice", -10]); // err
  * ```
  *
- * @group Base Factories
+ * @group Base factories
  */
 export const tuple = <Elements extends [AnyType, ...ReadonlyArray<AnyType>]>(
   ...elements: Elements

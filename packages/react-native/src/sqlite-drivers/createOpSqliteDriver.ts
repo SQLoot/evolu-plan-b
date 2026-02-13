@@ -1,7 +1,7 @@
 import {
   bytesToHex,
-  type CreateSqliteDriver,
   createPreparedStatementsCache,
+  type CreateSqliteDriver,
   lazyVoid,
   ok,
   type SqliteRow,

@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -6,6 +5,7 @@ import {
   readFileSync,
   rmSync,
 } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
@@ -84,7 +84,7 @@ const bundleSize = async (fixturePath: string): Promise<BundleSize> => {
   });
 
   return await new Promise((resolve, reject) => {
-    compiler.run((err: Error | null, stats: Stats | undefined) => {
+    compiler.run((err, stats: Stats | undefined) => {
       compiler.close(() => {
         if (err) {
           reject(err);
@@ -118,19 +118,6 @@ const getFixtures = (): ReadonlyArray<string> => {
     .sort();
 };
 
-/**
- * Normalizes bundle sizes to handle environmental fluctuation.
- *
- * Webpack bundle size varies across Bun/Node and environment versions due to
- * minifier differences. Normalize to midpoint for snapshot stability.
- */
-const normalizeBundleSize = (size: BundleSize): BundleSize => {
-  let { gzip, raw } = size;
-  if (gzip >= 5644 && gzip <= 5654) gzip = 5649;
-  if (raw >= 15133 && raw <= 15143) raw = 15138;
-  return { gzip, raw };
-};
-
 describe("tree-shaking", () => {
   test("bundle sizes", async () => {
     const fixtures = getFixtures();
@@ -141,9 +128,12 @@ describe("tree-shaking", () => {
       results[name] = await bundleSize(fixture);
     }
 
-    // Normalize task-example sizes due to environmental fluctuation
-    results["task-example"] = normalizeBundleSize(results["task-example"]);
-
+    // NOTE: We measured that moving 3 monitoring Types
+    // (`FiberSnapshotState`, `RunEventData`, `RunEvent`) to a separate module
+    // reduces `task-example` from raw 15095 / gzip 5626 to raw 14033 / gzip
+    // 5282. We reverted that change because we don't want to introduce modules
+    // only for the sake of tree shaking. We'll investigate a better approach
+    // later and keep this as the intentional baseline for now.
     expect(results).toMatchInlineSnapshot(`
       {
         "result-all": {
@@ -151,8 +141,8 @@ describe("tree-shaking", () => {
           "raw": 1602,
         },
         "task-example": {
-          "gzip": 5649,
-          "raw": 15138,
+          "gzip": 5626,
+          "raw": 15095,
         },
         "type-object": {
           "gzip": 1549,

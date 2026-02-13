@@ -1,24 +1,26 @@
 import type {
-  MessagePort,
-  SafeSql,
-  SimpleName,
-  SqliteDriver,
-  SqliteValue,
+    MessagePort,
+    Name,
+    SafeSql,
+    SqliteDriver,
+    SqliteValue,
 } from "@evolu/common";
-import { SimpleName as SimpleNameType } from "@evolu/common";
+import { Name as NameType } from "@evolu/common";
+
 import type {
-  AppOwner,
-  DbWorkerInput,
-  DbWorkerOutput,
-  Row,
+    AppOwner,
+    DbWorkerInput,
+    DbWorkerOutput,
+    Row,
 } from "@evolu/common/local-first";
 import { createWasmSqliteDriver } from "../Sqlite.js";
 import { createRun } from "../Task.js";
 
 const workerMemoryDbName = "evolu-worker-memory";
 
-const toSimpleName = (dbName: string): SimpleName =>
-  SimpleNameType.orThrow(dbName === ":memory:" ? workerMemoryDbName : dbName);
+const toSimpleName = (dbName: string): Name =>
+  NameType.orThrow(dbName === ":memory:" ? workerMemoryDbName : dbName);
+
 
 const createDriver = async (dbName: string): Promise<SqliteDriver> => {
   const mode =

@@ -17,10 +17,10 @@ import {
   timestampBytesToFingerprint,
 } from "../../src/local-first/Storage.js";
 import {
-  type Counter,
+  Counter,
   createTimestamp,
   orderTimestampBytes,
-  type TimestampBytes,
+  TimestampBytes,
   timestampToTimestampBytes,
 } from "../../src/local-first/Timestamp.js";
 import { computeBalancedBuckets } from "../../src/Number.js";
@@ -30,7 +30,7 @@ import type { SqliteDep } from "../../src/Sqlite.js";
 import { sql } from "../../src/Sqlite.js";
 import { testCreateDeps } from "../../src/Test.js";
 import type { Millis } from "../../src/Time.js";
-import { createId, NonNegativeInt, type PositiveInt } from "../../src/Type.js";
+import { createId, NonNegativeInt, PositiveInt } from "../../src/Type.js";
 import { testCreateRunWithSqlite } from "../_deps.nodejs.js";
 import {
   testAnotherTimestampsAsc,
@@ -228,64 +228,6 @@ test("empty db", async () => {
   expect(lowerBound).toBe(0);
 });
 
-const count = 1_000_000;
-const batchSize = 10_000;
-
-const benchmarkTimestamps = async (
-  timestamps: ReadonlyArray<TimestampBytes>,
-  strategy: StorageInsertTimestampStrategy,
-) => {
-  const deps = await createDeps();
-  const insertBeginTime = performance.now();
-
-  for (
-    let batchStart = 0;
-    batchStart < timestamps.length;
-    batchStart += batchSize
-  ) {
-    const batchEnd = Math.min(batchStart + batchSize, timestamps.length);
-
-    const batchBeginTime = performance.now();
-    deps.sqlite.transaction(() => {
-      for (let i = batchStart; i < batchEnd; i++) {
-        deps.storage.insertTimestamp(
-          testAppOwnerIdBytes,
-          timestamps[i],
-          strategy,
-        );
-      }
-      return ok();
-    });
-    const batchTimeSec = (performance.now() - batchBeginTime) / 1000;
-    const insertsPerSec = ((batchEnd - batchStart) / batchTimeSec).toFixed(0);
-
-    const bucketsBeginTime = performance.now();
-    const size = deps.storage.getSize(testAppOwnerIdBytes);
-    assert(size);
-    const buckets = computeBalancedBuckets(size);
-    assert(buckets.ok);
-    const fingerprint = deps.storage.fingerprintRanges(
-      testAppOwnerIdBytes,
-      buckets.value,
-    );
-    assert(fingerprint);
-    const now = performance.now();
-    const timestampsTime = (now - insertBeginTime).toFixed(1);
-    const bucketsTime = (now - bucketsBeginTime).toFixed(1);
-
-    // eslint-disable-next-line no-console
-    console.log(
-      `${Math.min(batchStart + batchSize, timestamps.length)} timestamps ${
-        strategy
-      } in ${
-        timestampsTime
-      } ms, ${insertsPerSec} inserts/sec in batch, getSize + 16 fingerprints in ${
-        bucketsTime
-      } ms`,
-    );
-  }
-};
-
 test("findLowerBound", async () => {
   const { storage } = await createDeps();
 
@@ -448,6 +390,65 @@ test.skip("insert 1_000_000", longTimeout, async () => {
   // TODO: Ask SQLite team for paid review
   await benchmarkTimestamps(timestampsRandom, "insert");
 });
+
+// const count = 1_000_000;
+const count = 50_000;
+const batchSize = 10_000;
+
+const benchmarkTimestamps = async (
+  timestamps: ReadonlyArray<TimestampBytes>,
+  strategy: StorageInsertTimestampStrategy,
+) => {
+  const deps = await createDeps();
+  const insertBeginTime = performance.now();
+
+  for (
+    let batchStart = 0;
+    batchStart < timestamps.length;
+    batchStart += batchSize
+  ) {
+    const batchEnd = Math.min(batchStart + batchSize, timestamps.length);
+
+    const batchBeginTime = performance.now();
+    deps.sqlite.transaction(() => {
+      for (let i = batchStart; i < batchEnd; i++) {
+        deps.storage.insertTimestamp(
+          testAppOwnerIdBytes,
+          timestamps[i],
+          strategy,
+        );
+      }
+      return ok();
+    });
+    const batchTimeSec = (performance.now() - batchBeginTime) / 1000;
+    const insertsPerSec = ((batchEnd - batchStart) / batchTimeSec).toFixed(0);
+
+    const bucketsBeginTime = performance.now();
+    const size = deps.storage.getSize(testAppOwnerIdBytes);
+    assert(size);
+    const buckets = computeBalancedBuckets(size);
+    assert(buckets.ok);
+    const fingerprint = deps.storage.fingerprintRanges(
+      testAppOwnerIdBytes,
+      buckets.value,
+    );
+    assert(fingerprint);
+    const now = performance.now();
+    const timestampsTime = (now - insertBeginTime).toFixed(1);
+    const bucketsTime = (now - bucketsBeginTime).toFixed(1);
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `${Math.min(batchStart + batchSize, timestamps.length)} timestamps ${
+        strategy
+      } in ${
+        timestampsTime
+      } ms, ${insertsPerSec} inserts/sec in batch, getSize + 16 fingerprints in ${
+        bucketsTime
+      } ms`,
+    );
+  }
+};
 
 /**
  * Test with 16_777_216 sequential timestamps, as JavaScript's Set has a limit

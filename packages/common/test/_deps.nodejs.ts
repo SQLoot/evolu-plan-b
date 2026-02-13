@@ -1,5 +1,5 @@
-import { timingSafeEqual } from "node:crypto";
 import BetterSQLite, { type Statement } from "better-sqlite3";
+import { timingSafeEqual } from "crypto";
 import { assert } from "../src/Assert.js";
 import type { TimingSafeEqual } from "../src/Crypto.js";
 import { lazyTrue, lazyVoid } from "../src/Function.js";
@@ -22,8 +22,8 @@ import type {
 } from "../src/Sqlite.js";
 import { createPreparedStatementsCache, createSqlite } from "../src/Sqlite.js";
 import type { Run } from "../src/Task.js";
-import { type TestDeps, testCreateRun } from "../src/Test.js";
-import { testSimpleName } from "./_deps.js";
+import { testCreateRun, type TestDeps } from "../src/Test.js";
+import { testName } from "./_deps.js";
 
 export const testTimingSafeEqual: TimingSafeEqual = timingSafeEqual;
 
@@ -34,7 +34,7 @@ export const testCreateRunWithSqlite = async (): Promise<
     createSqliteDriver: testCreateSqliteDriver,
   });
 
-  const sqlite = await run(createSqlite(testSimpleName));
+  const sqlite = await run(createSqlite(testName));
   assert(sqlite.ok, "bug");
 
   run.defer(() => {
