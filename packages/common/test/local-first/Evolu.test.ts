@@ -1,7 +1,13 @@
 import { describe, expect, test } from "vitest";
 // Force rebuild
 import { lazyVoid } from "../../src/Function.js";
+import type {
+  DbWorkerInput,
+  DbWorkerOutput,
+} from "../../src/local-first/DbWorkerProtocol.js";
 import { createEvolu, createEvoluDeps } from "../../src/local-first/Evolu.js";
+import type { AppOwner } from "../../src/local-first/Owner.js";
+import { createQueryBuilder } from "../../src/local-first/Schema.js";
 import { SqliteBoolean } from "../../src/Sqlite.js";
 import { testCreateRun } from "../../src/Test.js";
 import { id, NonEmptyString100, nullOr } from "../../src/Type.js";
@@ -20,78 +26,322 @@ const Schema = {
 
 const _createEvoluRun = () => testCreateRun({ reloadApp: lazyVoid });
 
-const createMockMessageChannel = () => {
-  const listeners1 = new Set<(msg: any) => void>();
-  const listeners2 = new Set<(msg: any) => void>();
+type MockPort<Input, Output> = {
+  readonly postMessage: (message: Input) => void;
+  onMessage: ((message: Output) => void) | null;
+  readonly native: unknown;
+  readonly [Symbol.dispose]: () => void;
+};
 
-  const createPort = (
-    listeners: Set<(msg: any) => void>,
-    otherListeners: Set<(msg: any) => void>,
-  ) => {
-    let onMessageHandler: ((msg: any) => void) | null = null;
-    return {
-      postMessage: (msg: any) => otherListeners.forEach((l) => l(msg)),
-      get onMessage() {
-        return onMessageHandler as any;
+const createMockMessageChannel = <Input, Output>() => {
+  let port1OnMessage: ((message: Output) => void) | null = null;
+  let port2OnMessage: ((message: Input) => void) | null = null;
+
+  const port1: MockPort<Input, Output> = {
+    postMessage: (message) => {
+      port2OnMessage?.(message);
+    },
+    get onMessage() {
+      return port1OnMessage;
+    },
+    set onMessage(handler) {
+      port1OnMessage = handler;
+    },
+    native: null,
+    [Symbol.dispose]: () => {
+      port1OnMessage = null;
+    },
+  };
+
+  const port2: MockPort<Output, Input> = {
+    postMessage: (message) => {
+      port1OnMessage?.(message);
+    },
+    get onMessage() {
+      return port2OnMessage;
+    },
+    set onMessage(handler) {
+      port2OnMessage = handler;
+    },
+    native: null,
+    [Symbol.dispose]: () => {
+      port2OnMessage = null;
+    },
+  };
+
+  (port1 as { native: unknown }).native = port1;
+  (port2 as { native: unknown }).native = port2;
+
+  return {
+    port1,
+    port2,
+    [Symbol.dispose]: () => {
+      port1[Symbol.dispose]();
+      port2[Symbol.dispose]();
+    },
+  };
+};
+
+const createMockDeps = () => {
+  const rows = new Map<string, { id: string; title: string }>();
+  let persistedAppOwner: AppOwner | null = null;
+  let reloadCount = 0;
+  let resetCount = 0;
+  let mutateCount = 0;
+  let closeCount = 0;
+
+  const deps = {
+    reloadApp: () => {
+      reloadCount += 1;
+    },
+    createMessageChannel: createMockMessageChannel,
+    evoluWorker: {
+      port: {
+        postMessage: (
+          message: { type: "InitEvolu"; port: unknown },
+          _transfer?: ReadonlyArray<unknown>,
+        ) => {
+          if (message.type !== "InitEvolu") return;
+          const dbPort = message.port as MockPort<
+            DbWorkerOutput,
+            DbWorkerInput
+          >;
+
+          dbPort.onMessage = (dbMessage) => {
+            switch (dbMessage.type) {
+              case "DbWorkerInit": {
+                dbPort.postMessage({
+                  type: "DbWorkerInitResponse",
+                  success: true,
+                });
+                break;
+              }
+              case "DbWorkerGetAppOwner": {
+                dbPort.postMessage({
+                  type: "DbWorkerAppOwner",
+                  appOwner: persistedAppOwner,
+                });
+                break;
+              }
+              case "DbWorkerQuery": {
+                dbPort.postMessage({
+                  type: "DbWorkerQueryResponse",
+                  requestId: dbMessage.requestId,
+                  rows: [...rows.values()],
+                });
+                break;
+              }
+              case "DbWorkerMutate": {
+                mutateCount += 1;
+
+                if (
+                  dbMessage.sql?.includes("__evolu_meta") &&
+                  dbMessage.params?.length === 1
+                ) {
+                  const appOwnerFromDb = dbMessage.params[0];
+                  if (typeof appOwnerFromDb === "string") {
+                    persistedAppOwner = JSON.parse(appOwnerFromDb) as AppOwner;
+                  }
+                }
+
+                if (
+                  dbMessage.sql?.includes(`"title"`) &&
+                  dbMessage.params?.length === 3
+                ) {
+                  const [, id, title] = dbMessage.params;
+                  rows.set(String(id), {
+                    id: String(id),
+                    title: String(title),
+                  });
+                }
+
+                if (
+                  dbMessage.sql?.startsWith("delete from") &&
+                  dbMessage.params?.length === 2
+                ) {
+                  const [, id] = dbMessage.params;
+                  rows.delete(String(id));
+                }
+
+                dbPort.postMessage({
+                  type: "DbWorkerMutateResponse",
+                  requestId: dbMessage.requestId,
+                  changes: 1,
+                });
+                break;
+              }
+              case "DbWorkerExport": {
+                dbPort.postMessage({
+                  type: "DbWorkerExportResponse",
+                  requestId: dbMessage.requestId,
+                  data: new Uint8Array([1, 2, 3]),
+                });
+                break;
+              }
+              case "DbWorkerReset": {
+                resetCount += 1;
+                rows.clear();
+                persistedAppOwner = null;
+                dbPort.postMessage({
+                  type: "DbWorkerResetResponse",
+                  requestId: dbMessage.requestId,
+                });
+                break;
+              }
+              case "DbWorkerClose": {
+                closeCount += 1;
+                dbPort.postMessage({
+                  type: "DbWorkerCloseResponse",
+                  requestId: dbMessage.requestId,
+                });
+                break;
+              }
+            }
+          };
+        },
+        onMessage: null,
+        native: {} as unknown,
+        [Symbol.dispose]: () => {},
       },
-      set onMessage(handler: (msg: any) => void) {
-        onMessageHandler = handler;
-        listeners.add(handler);
-      },
-      native: {} as any,
-      [Symbol.dispose]: () => {},
-    };
+    },
   };
 
   return {
-    port1: createPort(listeners1, listeners2),
-    port2: createPort(listeners2, listeners1),
-    [Symbol.dispose]: () => {},
+    deps,
+    getState: () => ({
+      reloadCount,
+      resetCount,
+      mutateCount,
+      closeCount,
+      rows: [...rows],
+    }),
   };
 };
 
-const mockDeps = {
-  reloadApp: lazyVoid,
-  createMessageChannel: createMockMessageChannel,
-  evoluWorker: {
-    port: {
-      postMessage: () => {},
-      onMessage: null,
-      native: {} as any,
-      [Symbol.dispose]: () => {},
-    },
-  },
-};
-
 test("createEvoluDeps returns deps unchanged", () => {
-  const deps = mockDeps;
+  const { deps } = createMockDeps();
   expect(createEvoluDeps(deps)).toEqual(expect.objectContaining(deps));
 });
 
 describe("createEvolu", () => {
   test("appOwner from config is exposed as evolu.appOwner", async () => {
-    const deps = createEvoluDeps(mockDeps as any);
-    const evolu = createEvolu(deps)(Schema, {
+    const { deps } = createMockDeps();
+    const evoluDeps = createEvoluDeps(deps as any);
+    const createQuery = createQueryBuilder(Schema);
+    const allTodos = createQuery((db) =>
+      db.selectFrom("todo").select(["id", "title"]),
+    );
+
+    const evolu = createEvolu(evoluDeps)(Schema, {
       name: testSimpleName,
       appOwner: testAppOwner,
     });
+
     const appOwner = await evolu.appOwner;
+    const rows = await evolu.loadQuery(allTodos);
+
     expect(appOwner).toBe(testAppOwner);
+    expect(rows).toEqual([]);
   });
 
-  test.skip("appOwner is created when omitted from config", async () => {
-    const deps = createEvoluDeps(mockDeps as any);
-    const evolu = createEvolu(deps)(Schema, { name: testSimpleName });
-    const appOwner = await evolu.appOwner;
-    expect(appOwner).toMatchInlineSnapshot(`
-      {
-        "encryptionKey": uint8:[50,42,177,193,76,197,92,240,100,30,92,209,205,42,108,45,195,37,118,158,238,206,161,144,11,241,190,167,14,254,186,53],
-        "id": "t_xEbmXuICrgDm3Ob0_afw",
-        "mnemonic": "old jungle over boy ankle suggest service source civil insane end silver polar swap flight diagram keep fix gauge social wink subway bronze leader",
-        "type": "AppOwner",
-        "writeKey": uint8:[129,228,239,103,127,237,0,59,174,241,77,12,26,180,213,14],
-      }
-    `);
+  test("db worker flow handles mutate, query, export, and reset", async () => {
+    const { deps, getState } = createMockDeps();
+    const evoluDeps = createEvoluDeps(deps as any);
+    const evolu = createEvolu(evoluDeps)(Schema, { name: testSimpleName });
+    const createQuery = createQueryBuilder(Schema);
+    const allTodos = createQuery((db) =>
+      db.selectFrom("todo").select(["id", "title"]),
+    );
+
+    await evolu.appOwner;
+    const insertResult = evolu.insert("todo", {
+      title: NonEmptyString100.orThrow("Task A"),
+    });
+    expect(insertResult.id).toBeTruthy();
+
+    // Wait until microtask-driven mutation queue is processed.
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const rowsAfterInsert = await evolu.loadQuery(allTodos);
+    expect(rowsAfterInsert).toHaveLength(1);
+    expect(rowsAfterInsert[0]?.id).toBe(insertResult.id);
+    expect(String(rowsAfterInsert[0]?.title)).toBe("Task A");
+
+    const exported = await evolu.exportDatabase();
+    expect(exported).toEqual(new Uint8Array([1, 2, 3]));
+
+    await evolu.resetAppOwner({ reload: false });
+    const rowsAfterReset = await evolu.loadQuery(allTodos);
+    expect(rowsAfterReset).toEqual([]);
+
+    await evolu.resetAppOwner();
+    const state = getState();
+    expect(state.resetCount).toBeGreaterThanOrEqual(2);
+    expect(state.reloadCount).toBe(1);
+    expect(state.mutateCount).toBeGreaterThan(0);
+  });
+
+  test("resetAppOwner without reload rotates appOwner", async () => {
+    const { deps } = createMockDeps();
+    const evoluDeps = createEvoluDeps(deps as any);
+    const evolu = createEvolu(evoluDeps)(Schema, { name: testSimpleName });
+
+    const previousAppOwner = await evolu.appOwner;
+    await evolu.resetAppOwner({ reload: false });
+    const nextAppOwner = await evolu.appOwner;
+
+    expect(nextAppOwner.id).not.toBe(previousAppOwner.id);
+  });
+
+  test("restoreAppOwner uses mnemonic-derived appOwner", async () => {
+    const { deps } = createMockDeps();
+    const evoluDeps = createEvoluDeps(deps as any);
+    const evolu = createEvolu(evoluDeps)(Schema, { name: testSimpleName });
+
+    await evolu.appOwner;
+    if (!testAppOwner.mnemonic) throw new Error("Missing test mnemonic");
+    await evolu.restoreAppOwner(testAppOwner.mnemonic, { reload: false });
+
+    await expect(evolu.appOwner).resolves.toEqual(testAppOwner);
+  });
+
+  test("db worker flow supports dispose and re-init roundtrip", async () => {
+    const { deps, getState } = createMockDeps();
+    const evoluDeps = createEvoluDeps(deps as any);
+    const createQuery = createQueryBuilder(Schema);
+    const allTodos = createQuery((db) =>
+      db.selectFrom("todo").select(["id", "title"]),
+    );
+
+    const evolu1 = createEvolu(evoluDeps)(Schema, { name: testSimpleName });
+    await evolu1.appOwner;
+    const insertResult = evolu1.insert("todo", {
+      title: NonEmptyString100.orThrow("Task Persist"),
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const rowsBeforeDispose = await evolu1.loadQuery(allTodos);
+    expect(rowsBeforeDispose.some((row) => row.id === insertResult.id)).toBe(
+      true,
+    );
+
+    await evolu1[Symbol.asyncDispose]();
+
+    const evolu2 = createEvolu(evoluDeps)(Schema, { name: testSimpleName });
+    await evolu2.appOwner;
+
+    const rowsAfterReinit = await evolu2.loadQuery(allTodos);
+    expect(rowsAfterReinit.some((row) => row.id === insertResult.id)).toBe(
+      true,
+    );
+
+    await evolu2[Symbol.asyncDispose]();
+
+    const state = getState();
+    expect(state.closeCount).toBeGreaterThanOrEqual(2);
   });
 });
 

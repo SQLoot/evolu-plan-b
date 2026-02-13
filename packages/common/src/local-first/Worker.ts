@@ -15,6 +15,7 @@ import type {
   MessagePort,
   NativeMessagePort,
 } from "../Worker.js";
+import type { DbWorkerInput, DbWorkerOutput } from "./DbWorkerProtocol.js";
 import type { EvoluError } from "./Error.js";
 
 export type EvoluWorker = CommonSharedWorker<EvoluWorkerInput>;
@@ -33,8 +34,14 @@ export interface InitEvoluMessage extends Typed<"InitEvolu"> {
 
 export type EvoluWorkerInput = InitErrorStoreMessage | InitEvoluMessage;
 
+export interface RunDbWorkerPortDep {
+  readonly runDbWorkerPort: (
+    port: MessagePort<DbWorkerOutput, DbWorkerInput>,
+  ) => void;
+}
+
 export const runEvoluWorkerScope =
-  (deps: CreateMessagePortDep) =>
+  (deps: CreateMessagePortDep & RunDbWorkerPortDep) =>
   (self: EvoluWorkerScope<EvoluWorkerInput>): void => {
     const errorStorePorts = new Set<MessagePort<EvoluError>>();
 
@@ -51,9 +58,14 @@ export const runEvoluWorkerScope =
             );
             break;
           }
-          case "InitEvolu":
-            // TODO:
+          case "InitEvolu": {
+            deps.runDbWorkerPort(
+              deps.createMessagePort<DbWorkerOutput, DbWorkerInput>(
+                message.port,
+              ),
+            );
             break;
+          }
           default:
             exhaustiveCheck(message);
         }
@@ -69,7 +81,7 @@ export const runEvoluWorkerScope =
 export const initEvoluWorker =
   (
     self: EvoluWorkerScope<EvoluWorkerInput>,
-  ): Task<void, never, CreateMessagePortDep> =>
+  ): Task<void, never, CreateMessagePortDep & RunDbWorkerPortDep> =>
   (run) => {
     runEvoluWorkerScope(run.deps)(self);
     return ok();
