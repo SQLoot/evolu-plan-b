@@ -193,9 +193,8 @@ export interface AppNameError extends TypeError<"AppName"> {}
  *
  * TODO: Better docs.
  */
-export interface Evolu<
-  S extends EvoluSchema = EvoluSchema,
-> extends AsyncDisposable {
+export interface Evolu<S extends EvoluSchema = EvoluSchema>
+  extends AsyncDisposable {
   /**
    * Resolved instance name derived from {@link EvoluConfig.appName} and app
    * owner hash.

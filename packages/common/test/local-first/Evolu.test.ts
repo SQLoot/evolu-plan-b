@@ -30,7 +30,7 @@ import { testAppName } from "../_deps.js";
 import { testAppOwner } from "./_fixtures.js";
 
 const TodoId = id("Todo");
-type TodoId = typeof TodoId.Type;
+type _TodoId = typeof TodoId.Type;
 
 const Schema = {
   todo: {

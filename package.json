@@ -50,7 +50,7 @@
     "@vitest/coverage-v8": "^4.0.17",
     "rimraf": "^6.1.2",
     "turbo": "^2.8.7",
-    "typedoc": "^0.28.16",
+    "typedoc": "^0.28.17",
     "typedoc-plugin-markdown": "^4.9.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.17",

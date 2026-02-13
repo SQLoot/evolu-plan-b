@@ -4,24 +4,23 @@
  * @module
  */
 
+import {
+  MessageChannel as NodeMessageChannel,
+  type MessagePort as NodeMessagePort,
+  Worker as NodeWorker,
+  type TransferListItem,
+  parentPort as workerParentPort,
+} from "node:worker_threads";
 import type {
-    CreateMessagePort,
-    MessageChannel,
-    MessagePort,
-    NativeMessagePort,
-    Transferable,
-    Worker,
-    WorkerSelf,
+  CreateMessagePort,
+  MessageChannel,
+  MessagePort,
+  NativeMessagePort,
+  Transferable,
+  Worker,
+  WorkerSelf,
 } from "@evolu/common";
 import { assert } from "@evolu/common";
-import {
-    MessageChannel as NodeMessageChannel,
-    Worker as NodeWorker,
-    parentPort as workerParentPort,
-    type MessagePort as NodeMessagePort,
-    type TransferListItem,
-} from "node:worker_threads";
-
 
 /** Creates an Evolu {@link Worker} from Node.js `worker_threads.Worker`. */
 export const createWorker = <Input, Output>(
@@ -65,7 +64,6 @@ export const createWorkerSelf = <Input, Output = never>(
   );
   return wrap<Output, Input>(nativeParentPort);
 };
-
 
 const wrap = <Input, Output>(
   native: NodeWorker | NodeMessagePort,

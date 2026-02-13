@@ -33,7 +33,7 @@ import {
   encodeSqliteValue,
   encodeString,
   MessageType,
-  ProtocolMessageMaxSize,
+  type ProtocolMessageMaxSize,
   ProtocolMessageRangesMaxSize,
   ProtocolValueType,
   protocolVersion,
@@ -58,7 +58,7 @@ import {
   timestampToTimestampBytes,
 } from "../../src/local-first/Timestamp.js";
 import { err, getOrThrow, ok } from "../../src/Result.js";
-import { SqliteValue } from "../../src/Sqlite.js";
+import type { SqliteValue } from "../../src/Sqlite.js";
 import type { TestDeps } from "../../src/Test.js";
 import { testCreateDeps, testCreateRun } from "../../src/Test.js";
 import {
@@ -89,7 +89,7 @@ test("encodeNumber/decodeNumber", () => {
     0,
     42,
     -123,
-    3.14159,
+    Math.PI,
     Number.MAX_SAFE_INTEGER,
     Number.MIN_SAFE_INTEGER,
     Infinity,
@@ -108,7 +108,7 @@ test("encodeNumber/decodeNumber", () => {
   });
 
   expect(buffer.unwrap()).toMatchInlineSnapshot(
-    `uint8:[0,42,208,133,203,64,9,33,249,240,27,134,110,203,67,63,255,255,255,255,255,255,203,195,63,255,255,255,255,255,255,203,127,240,0,0,0,0,0,0,203,255,240,0,0,0,0,0,0,203,127,248,0,0,0,0,0,0]`,
+    `uint8:[0,42,208,133,203,64,9,33,251,84,68,45,24,203,67,63,255,255,255,255,255,255,203,195,63,255,255,255,255,255,255,203,127,240,0,0,0,0,0,0,203,255,240,0,0,0,0,0,0,203,127,248,0,0,0,0,0,0]`,
   );
 });
 
@@ -355,11 +355,11 @@ test("encodeSqliteValue/decodeSqliteValue property tests", () => {
         // Date ISO strings - both valid and invalid
         fc
           .date({ min: new Date("1970-01-01"), max: new Date("2100-01-01") })
-          .filter((d) => !isNaN(d.getTime()))
+          .filter((d) => !Number.isNaN(d.getTime()))
           .map((d) => d.toISOString()),
         fc
           .date({ min: new Date("0000-01-01"), max: new Date("9999-12-31") })
-          .filter((d) => !isNaN(d.getTime()))
+          .filter((d) => !Number.isNaN(d.getTime()))
           .map((d) => d.toISOString()),
         fc.constantFrom(
           "0000-01-01T00:00:00.000Z",

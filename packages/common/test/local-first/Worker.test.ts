@@ -1,18 +1,18 @@
-import { createStore } from "../../src/Store.js";
+import { describe, expect, test } from "vitest";
 import type { ConsoleEntry } from "../../src/Console.js";
-import type { ReadonlyStore } from "../../src/Store.js";
+import { testCreateConsole } from "../../src/Console.js";
 import {
   type EvoluWorkerInput,
   initEvoluWorker,
 } from "../../src/local-first/Worker.js";
-import { testCreateConsole } from "../../src/Console.js";
+import type { ReadonlyStore } from "../../src/Store.js";
+import { createStore } from "../../src/Store.js";
 import { testCreateRun } from "../../src/Test.js";
 import {
   testCreateMessageChannel,
   testCreateMessagePort,
   testCreateSharedWorker,
 } from "../../src/Worker.js";
-import { describe, expect, test } from "vitest";
 
 describe("initEvoluWorker", () => {
   const setupWorker = async (
