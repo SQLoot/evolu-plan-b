@@ -22,7 +22,7 @@ Migrating changes from `upstream/common-v8` to our fork, while preserving our st
 | Tool    | Before | After  | Status           |
 | ------- | ------ | ------ | ---------------- |
 | Bun     | 1.3.6  | 1.3.8  | ✅ Done           |
-| Biome   | 2.3.14 | 2.3.14 | ✅ Current        |
+| Biome   | 2.3.15 | 2.3.15 | ✅ Current        |
 | Turbo   | 2.8.1  | 2.8.1  | ✅ Current        |
 | Node.js | >=24   | >=24   | ✅ LTS 24 correct |
 
