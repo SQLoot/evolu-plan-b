@@ -1,10 +1,9 @@
 /**
- * Platform-agnostic Evolu Worker.
+ * SharedWorker integration for Evolu.
  *
  * @module
  */
 
-import type { ConsoleEntry, ConsoleStoreOutputEntryDep } from "../Console.js";
 import { exhaustiveCheck } from "../Function.js";
 import { ok } from "../Result.js";
 import type { Task } from "../Task.js";
@@ -12,10 +11,12 @@ import type { Typed } from "../Type.js";
 import type {
   SharedWorker as CommonSharedWorker,
   CreateMessagePortDep,
+  SharedWorkerScope as EvoluWorkerScope,
   MessagePort,
   NativeMessagePort,
-  SharedWorkerSelf,
 } from "../Worker.js";
+import type { DbWorkerInput, DbWorkerOutput } from "./DbWorkerProtocol.js";
+import type { EvoluError } from "./Error.js";
 
 export type EvoluWorker = CommonSharedWorker<EvoluWorkerInput>;
 
@@ -23,9 +24,7 @@ export interface EvoluWorkerDep {
   readonly evoluWorker: EvoluWorker;
 }
 
-export type EvoluWorkerInput = InitConsoleMessage | InitEvoluMessage;
-
-export interface InitConsoleMessage extends Typed<"InitConsole"> {
+export interface InitErrorStoreMessage extends Typed<"InitErrorStore"> {
   readonly port: NativeMessagePort;
 }
 
@@ -33,64 +32,38 @@ export interface InitEvoluMessage extends Typed<"InitEvolu"> {
   readonly port: NativeMessagePort;
 }
 
-export const initEvoluWorker =
-  (
-    self: SharedWorkerSelf<EvoluWorkerInput>,
-  ): Task<
-    AsyncDisposableStack,
-    never,
-    ConsoleStoreOutputEntryDep & CreateMessagePortDep
-  > =>
-  async (run) => {
-    const { createMessagePort, consoleStoreOutputEntry } = run.deps;
-    const console = run.deps.console.child("EvoluWorker");
+export type EvoluWorkerInput = InitErrorStoreMessage | InitEvoluMessage;
 
-    // TODO: Use heartbeat to detect and prune dead ports.
-    const consolePorts = new Set<MessagePort<ConsoleEntry>>();
-    const queuedConsoleEntries: Array<ConsoleEntry> = [];
-    const broadcastConsoleEntry = (entry: ConsoleEntry): void => {
-      for (const port of consolePorts) port.postMessage(entry);
+export interface RunDbWorkerPortDep {
+  readonly runDbWorkerPort: (
+    port: MessagePort<DbWorkerOutput, DbWorkerInput>,
+  ) => void;
+}
+
+export const runEvoluWorkerScope =
+  (deps: CreateMessagePortDep & RunDbWorkerPortDep) =>
+  (self: EvoluWorkerScope<EvoluWorkerInput>): void => {
+    const errorStorePorts = new Set<MessagePort<EvoluError>>();
+
+    self.onError = (error) => {
+      for (const port of errorStorePorts) port.postMessage(error);
     };
 
-    await using stack = run.stack();
-
-    stack.defer(
-      consoleStoreOutputEntry.subscribe(() => {
-        const entry = consoleStoreOutputEntry.get();
-        if (!entry) return;
-
-        if (consolePorts.size === 0) {
-          queuedConsoleEntries.push(entry);
-          return;
-        }
-
-        broadcastConsoleEntry(entry);
-      }),
-    );
-
-    console.info("initEvoluWorker");
-
     self.onConnect = (port) => {
-      console.info("onConnect");
-
       port.onMessage = (message) => {
         switch (message.type) {
-          case "InitConsole": {
-            const consolePort = createMessagePort<ConsoleEntry>(message.port);
-            consolePorts.add(consolePort);
-
-            if (queuedConsoleEntries.length > 0) {
-              queuedConsoleEntries.forEach(broadcastConsoleEntry);
-              queuedConsoleEntries.length = 0;
-            }
-
+          case "InitErrorStore": {
+            errorStorePorts.add(
+              deps.createMessagePort<EvoluError>(message.port),
+            );
             break;
           }
           case "InitEvolu": {
-            // TODO: Wrap port, do async init (open DB, load owner),
-            // then set onMessage to start processing requests.
-            // Messages are queued until onMessage is assigned.
-            const _evoluPort = createMessagePort(message.port);
+            deps.runDbWorkerPort(
+              deps.createMessagePort<DbWorkerOutput, DbWorkerInput>(
+                message.port,
+              ),
+            );
             break;
           }
           default:
@@ -98,6 +71,18 @@ export const initEvoluWorker =
         }
       };
     };
+  };
 
-    return ok(stack.move());
+/**
+ * Initializes Evolu worker handlers in a Task-based style.
+ *
+ * @deprecated Use platform-specific worker run helpers where available.
+ */
+export const initEvoluWorker =
+  (
+    self: EvoluWorkerScope<EvoluWorkerInput>,
+  ): Task<void, never, CreateMessagePortDep & RunDbWorkerPortDep> =>
+  (run) => {
+    runEvoluWorkerScope(run.deps)(self);
+    return ok();
   };

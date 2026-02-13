@@ -20,14 +20,12 @@
   "types": "./dist/src/index.d.ts",
   "exports": {
     ".": {
-      "source": "./src/index.ts",
       "types": "./dist/src/index.d.ts",
       "import": "./dist/src/index.js",
       "browser": "./dist/src/index.js",
       "react-native": "./dist/src/index.js"
     },
     "./local-first": {
-      "source": "./src/local-first/index.ts",
       "types": "./dist/src/local-first/index.d.ts",
       "import": "./dist/src/local-first/index.js"
     }
@@ -56,16 +54,8 @@
     "disposablestack": "^1.1.7",
     "kysely": "^0.28.11",
     "msgpackr": "^1.11.8",
-    "random": "^5.4.1"
-  },
-  "devDependencies": {
-    "@bokuweb/zstd-wasm": "^0.0.27",
-    "@evolu/tsconfig": "workspace:*",
-    "@types/better-sqlite3": "^7.6.13",
-    "@types/ws": "^8.18.1",
-    "better-sqlite3": "^12.6.2",
-    "fast-check": "^4.5.3",
     "playwright": "^1.58.2",
+    "random": "^5.4.1",
     "typescript": "^5.9.3",
     "webpack": "^5.105.2",
     "ws": "^8.19.0",
@@ -77,5 +67,12 @@
   "engines": {
     "node": ">=24.0.0"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "devDependencies": {
+    "@bokuweb/zstd-wasm": "^0.0.27",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/ws": "^8.18.1",
+    "better-sqlite3": "^12.6.2",
+    "fast-check": "^4.5.3"
+  }
 }

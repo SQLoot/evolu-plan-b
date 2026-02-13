@@ -2,9 +2,12 @@
 declare const self: SharedWorkerGlobalScope;
 
 import { initEvoluWorker } from "@evolu/common/local-first";
-import { createSharedWorkerSelf, createWorkerRun } from "../Worker.js";
+import { createRun } from "../Task.js";
+import { createMessagePort, createSharedWorkerScope } from "../Worker.js";
+import { runWebDbWorkerPort } from "./DbWorker.js";
 
-// No disposal (`await using`) is needed — a SharedWorker lives forever.
-const run = createWorkerRun();
-
-await run(initEvoluWorker(createSharedWorkerSelf(self)));
+await using run = createRun({
+  createMessagePort,
+  runDbWorkerPort: runWebDbWorkerPort,
+});
+await run(initEvoluWorker(createSharedWorkerScope(self)));

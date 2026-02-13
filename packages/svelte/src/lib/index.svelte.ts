@@ -121,7 +121,7 @@ export const queryState = <
 };
 
 /**
- * Get the {@link AppOwner} promise that resolves when available.
+ * Get the {@link AppOwner} state when available.
  *
  * ### Example
  *
@@ -131,7 +131,7 @@ export const queryState = <
  * const owner = appOwnerState(evolu);
  *
  * // use owner.current in your Svelte templates
- * // it will be undefined initially and set once the promise resolves
+ * // it will be undefined initially and set once available
  * ```
  */
 export const appOwnerState = <Schema extends EvoluSchema>(
@@ -144,8 +144,10 @@ export const appOwnerState = <Schema extends EvoluSchema>(
     let writableState = $state<AppOwner | undefined>(undefined);
 
     $effect(() => {
-      // TODO: Review, it was promise, it isn't anymore.
-      writableState = evolu.appOwner;
+      void Promise.resolve(evolu.appOwner).then((appOwner) => {
+        writableState = appOwner;
+      });
+      return undefined;
     });
 
     return {

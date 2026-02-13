@@ -79,7 +79,7 @@ export type NonEmptyReadonlySet<T> = ReadonlySet<T> & Brand<"NonEmpty">;
  * }
  * ```
  *
- * @group Type guards
+ * @group Type Guards
  */
 export const isNonEmptySet = <T>(
   set: ReadonlySet<T>,

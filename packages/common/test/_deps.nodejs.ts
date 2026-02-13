@@ -23,7 +23,7 @@ import type {
 import { createPreparedStatementsCache, createSqlite } from "../src/Sqlite.js";
 import type { Run } from "../src/Task.js";
 import { type TestDeps, testCreateRun } from "../src/Test.js";
-import { testName } from "./_deps.js";
+import { testSimpleName } from "./_deps.js";
 
 export const testTimingSafeEqual: TimingSafeEqual = timingSafeEqual;
 
@@ -34,7 +34,7 @@ export const testCreateRunWithSqlite = async (): Promise<
     createSqliteDriver: testCreateSqliteDriver,
   });
 
-  const sqlite = await run(createSqlite(testName));
+  const sqlite = await run(createSqlite(testSimpleName));
   assert(sqlite.ok, "bug");
 
   run.defer(() => {

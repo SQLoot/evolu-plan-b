@@ -2,7 +2,7 @@
 import {
   NonEmptyString,
   NonEmptyString1000,
-  Name,
+  SimpleName,
   SqliteBoolean,
   sqliteTrue,
   createEvolu,
@@ -53,7 +53,7 @@ const DatabaseSchema = {
 type DatabaseSchema = typeof DatabaseSchema;
 
 const evolu = createEvolu(evoluWebDeps)(DatabaseSchema, {
-  name: Name.orThrow("minimal-example"),
+  name: SimpleName.orThrow("minimal-example"),
   // ...(!!import.meta.env.DEV && {
   //   transports: [{ type: "WebSocket", url: "ws://localhost:4000" }],
   // }),

@@ -35,7 +35,7 @@ test("TODO", () => {
 //   testOwnerSecret,
 //   testRandom,
 //   testRandomBytes,
-//   testName,
+//   testSimpleName,
 //   testTime,
 //   TestWebSocket,
 // } from "../_nodeDeps.js";
@@ -88,12 +88,12 @@ test("TODO", () => {
 //   readonly transports: ReadonlyArray<TestWebSocket>;
 //   readonly testConsole: TestConsole;
 // }> => {
-//   const sqliteDriver = await testCreateSqliteDriver(testName);
+//   const sqliteDriver = await testCreateSqliteDriver(testSimpleName);
 //   const testConsole = testCreateConsole();
 //   const sqliteResult = await createSqlite({
 //     createSqliteDriver: () => Promise.resolve(sqliteDriver),
 //     console: testConsole,
-//   })(testName);
+//   })(testSimpleName);
 //   const sqlite = getOrThrow(sqliteResult);
 
 //   // Track all created WebSocket transports
