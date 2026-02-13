@@ -18,13 +18,13 @@ import type { SqliteDep, SqliteError } from "../Sqlite.js";
 import { sql } from "../Sqlite.js";
 import type { Mutex } from "../Task.js";
 import { createMutex } from "../Task.js";
-import { PositiveInt, Name } from "../Type.js";
-import { isPromiseLike, type Awaitable } from "../Types.js";
+import { type Name, PositiveInt } from "../Type.js";
+import { type Awaitable, isPromiseLike } from "../Types.js";
 import {
-  OwnerId,
-  ownerIdBytesToOwnerId,
+  type OwnerId,
   // OwnerTransport,
-  OwnerWriteKey,
+  type OwnerWriteKey,
+  ownerIdBytesToOwnerId,
 } from "./Owner.js";
 import type {
   CreateBaseSqliteStorageConfig,

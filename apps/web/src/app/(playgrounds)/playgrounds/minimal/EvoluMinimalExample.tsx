@@ -4,12 +4,12 @@ import * as Evolu from "@evolu/common";
 import { createEvoluContext } from "@evolu/react";
 import { createEvoluDeps } from "@evolu/react-web";
 import { createRun } from "@evolu/web";
-import { Suspense, use, type FC } from "react";
+import { type FC, Suspense, use } from "react";
 
 // Primary keys are branded types, preventing accidental use of IDs across
 // different tables (e.g., a TodoId can't be used where a UserId is expected).
 const TodoId = Evolu.id("Todo");
-type TodoId = typeof TodoId.Type;
+type _TodoId = typeof TodoId.Type;
 
 const AppSchema = {
   todo: {

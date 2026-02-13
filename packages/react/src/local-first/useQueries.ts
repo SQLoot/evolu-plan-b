@@ -5,10 +5,10 @@ import type {
   Row,
 } from "@evolu/common/local-first";
 import { use, useRef } from "react";
+import { EvoluContext } from "./EvoluContext.js";
 import { useIsSsr } from "./useIsSsr.js";
 import type { useQuery } from "./useQuery.js";
 import { useQuerySubscription } from "./useQuerySubscription.js";
-import { EvoluContext } from "./EvoluContext.js";
 
 /**
  * The same as {@link useQuery}, but for many queries.
@@ -47,8 +47,7 @@ export const useQueries = <
   }
 
   return allQueries.map((query, i) =>
-    // Safe until the number of queries is stable.
-    // eslint-disable-next-line react-hooks/rules-of-hooks
+    // biome-ignore lint/correctness/useHookAtTopLevel: Safe — number of queries is stable across renders (upstream pattern).
     useQuerySubscription(query, { once: i > queries.length - 1 }),
   ) as never;
 };

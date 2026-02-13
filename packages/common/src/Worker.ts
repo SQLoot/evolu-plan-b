@@ -6,7 +6,6 @@
 
 import type { Brand } from "./Brand.js";
 
-
 /**
  * Platform-agnostic Worker.
  *
@@ -179,7 +178,6 @@ export interface SharedWorkerSelf<Input, Output = never> extends Disposable {
   onConnect: ((port: MessagePort<Output, Input>) => void) | null;
 }
 
-
 /**
  * Creates a connected {@link SharedWorker} / {@link SharedWorkerSelf} pair for
  * testing.
@@ -216,10 +214,8 @@ export const testCreateSharedWorker = <Input, Output = never>(): {
 };
 
 /** {@link MessageChannel} with disposal tracking for testing. */
-export interface TestMessageChannel<
-  Input,
-  Output = never,
-> extends MessageChannel<Input, Output> {
+export interface TestMessageChannel<Input, Output = never>
+  extends MessageChannel<Input, Output> {
   readonly isDisposed: () => boolean;
 }
 

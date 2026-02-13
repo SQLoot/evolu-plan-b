@@ -1,5 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
 import {
+  type ConsoleEntry,
+  type ConsoleOutput,
   createConsole,
   createConsoleArrayOutput,
   createConsoleFormatter,
@@ -7,10 +9,8 @@ import {
   createMultiOutput,
   createNativeConsoleOutput,
   testCreateConsole,
-  type ConsoleEntry,
-  type ConsoleOutput,
 } from "../src/Console.js";
-import { testCreateTime, type Millis } from "../src/Time.js";
+import { type Millis, testCreateTime } from "../src/Time.js";
 
 const createTimeDep = (startAt?: Millis) => ({
   time: testCreateTime(startAt != null ? { startAt } : undefined),

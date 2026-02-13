@@ -5,25 +5,25 @@
  */
 
 import {
-    arrayFrom,
-    emptyArray,
-    isNonEmptyArray,
-    mapArray,
-    type NonEmptyReadonlyArray,
+  arrayFrom,
+  emptyArray,
+  isNonEmptyArray,
+  mapArray,
+  type NonEmptyReadonlyArray,
 } from "./Array.js";
 import { assert } from "./Assert.js";
-import { createConsole, type Console, type ConsoleDep } from "./Console.js";
+import { type Console, type ConsoleDep, createConsole } from "./Console.js";
 import type { RandomBytes, RandomBytesDep } from "./Crypto.js";
 import { createRandomBytes } from "./Crypto.js";
 import { eqArrayStrict } from "./Eq.js";
 import { lazyTrue, lazyVoid } from "./Function.js";
 import { decrement, increment } from "./Number.js";
 import {
-    createRecord,
-    emptyRecord,
-    isFunction,
-    isIterable,
-    mapObject,
+  createRecord,
+  emptyRecord,
+  isFunction,
+  isIterable,
+  mapObject,
 } from "./Object.js";
 import type { Random, RandomDep, RandomNumber } from "./Random.js";
 import { createRandom } from "./Random.js";
@@ -37,30 +37,30 @@ import type { Duration, Time, TimeDep } from "./Time.js";
 import { createTime, durationToMillis, Millis } from "./Time.js";
 import type { TracerConfigDep, TracerDep } from "./Tracer.js";
 import {
-    brand,
-    createId,
-    Id,
-    maxPositiveInt,
-    minPositiveInt,
-    NonNegativeInt,
-    object,
-    PositiveInt,
-    typed,
-    union,
-    Unknown,
-    UnknownResult,
-    type InferType,
-    type Typed,
+  brand,
+  createId,
+  Id,
+  type InferType,
+  maxPositiveInt,
+  minPositiveInt,
+  NonNegativeInt,
+  object,
+  PositiveInt,
+  type Typed,
+  typed,
+  Unknown,
+  UnknownResult,
+  union,
 } from "./Type.js";
-import type { isPromiseLike } from "./Types.js";
-import {
-    type Awaitable,
-    type Callback,
-    type CallbackWithCleanup,
-    type Int1To100,
-    type Mutable,
-    type NewKeys,
-    type Predicate,
+import type {
+  Awaitable,
+  Callback,
+  CallbackWithCleanup,
+  Int1To100,
+  isPromiseLike,
+  Mutable,
+  NewKeys,
+  Predicate,
 } from "./Types.js";
 
 /**
@@ -850,10 +850,8 @@ export interface FiberStateRunning extends Typed<"Running"> {}
 
 export interface FiberStateCompleting extends Typed<"Completing"> {}
 
-export interface FiberStateCompleted<
-  T = unknown,
-  E = unknown,
-> extends Typed<"Completed"> {
+export interface FiberStateCompleted<T = unknown, E = unknown>
+  extends Typed<"Completed"> {
   /**
    * The fiber's completion value.
    *
@@ -1644,7 +1642,7 @@ export function parallel<T, E, D = unknown>(
   taskOrFallback?: Task<T, E, D>,
 ): Task<T, E, D> {
   const isTask = isFunction(concurrencyOrTask);
-  const task = isTask ? concurrencyOrTask : taskOrFallback!;
+  const task = isTask ? concurrencyOrTask : (taskOrFallback as AnyTask);
   return Object.assign((run: Run<D>) => run(task), {
     [concurrencyBehaviorSymbol]: isTask ? maxPositiveInt : concurrencyOrTask,
   });
@@ -1719,7 +1717,6 @@ const yieldImpl: () => Promise<void> =
     : typeof setImmediate !== "undefined"
       ? () => new Promise<void>(setImmediate)
       : () => new Promise<void>((r) => setTimeout(r, 0)); // Safari
-
 
 /**
  * Creates a {@link Task} from a callback-based API.
@@ -2282,9 +2279,8 @@ export const createDeferred = <T, E = never>(): Deferred<T, E> => {
 export const DeferredDisposedError = /*#__PURE__*/ typed(
   "DeferredDisposedError",
 );
-export interface DeferredDisposedError extends InferType<
-  typeof DeferredDisposedError
-> {}
+export interface DeferredDisposedError
+  extends InferType<typeof DeferredDisposedError> {}
 
 /**
  * {@link DeferredDisposedError} used as abort reason in {@link createDeferred}.
@@ -2516,9 +2512,8 @@ export const createSemaphore = (permits: Concurrency): Semaphore => {
 export const SemaphoreDisposedError = /*#__PURE__*/ typed(
   "SemaphoreDisposedError",
 );
-export interface SemaphoreDisposedError extends InferType<
-  typeof SemaphoreDisposedError
-> {}
+export interface SemaphoreDisposedError
+  extends InferType<typeof SemaphoreDisposedError> {}
 
 /**
  * {@link SemaphoreDisposedError} used as abort reason in {@link createSemaphore}.
@@ -2852,9 +2847,8 @@ export function allSettled(
  * @group Composition
  */
 export const AllSettledAbortError = /*#__PURE__*/ typed("AllSettledAbortError");
-export interface AllSettledAbortError extends InferType<
-  typeof AllSettledAbortError
-> {}
+export interface AllSettledAbortError
+  extends InferType<typeof AllSettledAbortError> {}
 
 /**
  * {@link AllSettledAbortError} used as abort reason in {@link allSettled}.
@@ -2935,13 +2929,14 @@ export function map<A, T, E, D>(
 export function map<A, T, E, D>(
   items: MapInput<A>,
   fn: (a: A) => Task<T, E, D>,
-  { abortReason = mapAbortError, ...options }: CollectOptions<boolean> = {},
-): Task<ReadonlyArray<T> | Record<string, T> | void, E, D> {
+  options: CollectOptions<boolean> = {},
+): Task<ReadonlyArray<T> | Record<string, T> | undefined | void, E, D> {
+  const { abortReason = mapAbortError, ...collectOptions } = options;
   const mapped = mapInput(items, fn);
   return all(
     mapped as Iterable<Task<T, E, D>>,
     {
-      ...options,
+      ...collectOptions,
       abortReason,
     } as CollectOptions,
   );
@@ -3044,10 +3039,11 @@ export function mapSettled<A, T, E, D>(
 export function mapSettled<A, T, E, D>(
   items: MapInput<A>,
   task: (a: A) => Task<T, E, D>,
-  options?: CollectOptions<boolean>,
+  options: CollectOptions<boolean> = {},
 ): Task<
   | ReadonlyArray<Result<T, E | AbortError>>
   | Record<string, Result<T, E | AbortError>>
+  | undefined
   | void,
   never,
   D
@@ -3271,7 +3267,7 @@ function pool(
     collect: boolean;
     abortReason: unknown;
   },
-): Task<unknown, unknown>;
+): Task<unknown, unknown, any>;
 
 function pool<T, E>(
   tasksIterable: Iterable<AnyTask>,
@@ -3286,7 +3282,7 @@ function pool<T, E>(
     abortReason: unknown;
     allFailed?: AnyAllFailed;
   },
-): Task<ReadonlyArray<unknown> | T | void, E> {
+): Task<ReadonlyArray<unknown> | T | undefined | void, E> {
   const tasks = arrayFrom(tasksIterable);
   const { length } = tasks;
   if (length === 0) return () => ok(emptyArray);
@@ -3373,7 +3369,9 @@ function pool<T, E>(
     // For all/allSettled/map/mapSettled with collect: false (no allFailed handler)
     if (!allFailed) return ok();
 
-    return allFailed === "completion" ? lastResult! : lastIndexResult!;
+    return allFailed === "completion"
+      ? (lastResult as Result<T, E>)
+      : (lastIndexResult as Result<T, E>);
   };
 }
 

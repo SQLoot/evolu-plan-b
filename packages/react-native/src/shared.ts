@@ -1,9 +1,9 @@
 import {
+  type ConsoleDep,
   createConsoleStoreOutput,
   createLocalAuth,
   createRandomBytes,
   createRun,
-  type ConsoleDep,
   type LocalAuth,
   type ReloadAppDep,
   type SecureStorage,

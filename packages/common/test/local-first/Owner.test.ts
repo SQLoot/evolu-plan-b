@@ -11,8 +11,8 @@ import {
 import { testCreateDeps } from "../../src/Test.js";
 import {
   testAppOwner,
-  testAppOwnerSecret,
   testAppOwner2Secret,
+  testAppOwnerSecret,
 } from "./_fixtures.js";
 
 test("ownerIdToOwnerIdBytes/ownerIdBytesToOwnerId", () => {

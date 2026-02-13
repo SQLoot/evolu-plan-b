@@ -1,23 +1,25 @@
+import { existsSync } from "node:fs";
+import { createServer } from "node:http";
 import {
   allResult,
+  type CreateSqliteDriverDep,
   callback,
   createRandom,
   createRelation,
   createSqlite,
-  type CreateSqliteDriverDep,
   isPromiseLike,
-  ok,
-  OwnerId,
-  type RandomDep,
   Name,
+  type OwnerId,
+  ok,
+  type RandomDep,
   type SqliteError,
   type Task,
   type TimingSafeEqualDep,
   Uint8Array,
 } from "@evolu/common";
 import {
-  applyProtocolMessageAsRelay,
   type ApplyProtocolMessageAsRelayOptions,
+  applyProtocolMessageAsRelay,
   createBaseSqliteStorageTables,
   createRelaySqliteStorage,
   createRelayStorageTables,
@@ -26,11 +28,9 @@ import {
   type Relay,
   type RelayConfig,
 } from "@evolu/common/local-first";
-import { existsSync } from "fs";
-import { createServer } from "http";
 import { WebSocket, WebSocketServer } from "ws";
-import { createBetterSqliteDriver } from "../Sqlite.js";
 import { createTimingSafeEqual } from "../Crypto.js";
+import { createBetterSqliteDriver } from "../Sqlite.js";
 
 export interface NodeJsRelayConfig extends RelayConfig {
   /** The port number for the HTTP server. */

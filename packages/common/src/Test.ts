@@ -4,12 +4,12 @@
  * @module
  */
 
-import { testCreateConsole, type TestConsoleDep } from "./Console.js";
+import { type TestConsoleDep, testCreateConsole } from "./Console.js";
 import { testCreateRandomBytes } from "./Crypto.js";
 import {
+  type RandomLibDep,
   testCreateRandom,
   testCreateRandomLib,
-  type RandomLibDep,
 } from "./Random.js";
 import {
   createRun,
