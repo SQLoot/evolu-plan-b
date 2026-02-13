@@ -40,7 +40,7 @@ export interface ShutdownDep {
  *
  * ```ts
  * const console = createConsole({
- *   format: createConsoleFormatter()({
+ *   formatter: createConsoleFormatter()({
  *     timestampFormat: "relative",
  *   }),
  * });
