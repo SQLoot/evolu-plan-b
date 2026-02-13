@@ -7,4 +7,4 @@ import { createSharedWorkerSelf, createWorkerRun } from "../Worker.js";
 // No disposal (`await using`) is needed — a SharedWorker lives forever.
 const run = createWorkerRun();
 
-run(initEvoluWorker(createSharedWorkerSelf(self)));
+await run(initEvoluWorker(createSharedWorkerSelf(self)));

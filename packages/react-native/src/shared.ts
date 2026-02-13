@@ -35,7 +35,7 @@ export const createEvoluDeps = (
   });
 
   const evoluWorker = createSharedWorker<EvoluWorkerInput, never>((self) => {
-    workerRun(initEvoluWorker(self));
+    void workerRun(initEvoluWorker(self));
   });
 
   return createCommonEvoluDeps({
