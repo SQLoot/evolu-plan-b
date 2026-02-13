@@ -181,6 +181,7 @@ const createMockDeps = () => {
               case "DbWorkerReset": {
                 resetCount += 1;
                 rows.clear();
+                persistedAppOwner = null;
                 dbPort.postMessage({
                   type: "DbWorkerResetResponse",
                   requestId: dbMessage.requestId,
@@ -279,6 +280,30 @@ describe("createEvolu", () => {
     expect(state.resetCount).toBeGreaterThanOrEqual(2);
     expect(state.reloadCount).toBe(1);
     expect(state.mutateCount).toBeGreaterThan(0);
+  });
+
+  test("resetAppOwner without reload rotates appOwner", async () => {
+    const { deps } = createMockDeps();
+    const evoluDeps = createEvoluDeps(deps as any);
+    const evolu = createEvolu(evoluDeps)(Schema, { name: testSimpleName });
+
+    const previousAppOwner = await evolu.appOwner;
+    await evolu.resetAppOwner({ reload: false });
+    const nextAppOwner = await evolu.appOwner;
+
+    expect(nextAppOwner.id).not.toBe(previousAppOwner.id);
+  });
+
+  test("restoreAppOwner uses mnemonic-derived appOwner", async () => {
+    const { deps } = createMockDeps();
+    const evoluDeps = createEvoluDeps(deps as any);
+    const evolu = createEvolu(evoluDeps)(Schema, { name: testSimpleName });
+
+    await evolu.appOwner;
+    if (!testAppOwner.mnemonic) throw new Error("Missing test mnemonic");
+    await evolu.restoreAppOwner(testAppOwner.mnemonic, { reload: false });
+
+    await expect(evolu.appOwner).resolves.toEqual(testAppOwner);
   });
 
   test("db worker flow supports dispose and re-init roundtrip", async () => {

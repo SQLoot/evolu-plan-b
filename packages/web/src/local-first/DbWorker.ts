@@ -69,28 +69,36 @@ export const runWebDbWorkerPort = (
   const handleMessage = async (message: DbWorkerInput): Promise<void> => {
     switch (message.type) {
       case "DbWorkerInit": {
-        closeDb();
-        db = await createDriver(message.dbName);
+        try {
+          closeDb();
+          db = await createDriver(message.dbName);
 
-        exec("PRAGMA journal_mode = WAL;");
-        exec("PRAGMA foreign_keys = ON;");
-        exec("PRAGMA busy_timeout = 5000;");
-        exec(`
+          exec("PRAGMA journal_mode = WAL;");
+          exec("PRAGMA foreign_keys = ON;");
+          exec("PRAGMA busy_timeout = 5000;");
+          exec(`
           CREATE TABLE IF NOT EXISTS __evolu_meta (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL
           );
         `);
-        exec(
-          `
+          exec(
+            `
             INSERT INTO __evolu_meta (key, value)
             VALUES ('schemaVersion', ?)
             ON CONFLICT(key) DO UPDATE SET value = excluded.value;
           `,
-          [String(message.schemaVersion)],
-        );
+            [String(message.schemaVersion)],
+          );
 
-        postMessage({ type: "DbWorkerInitResponse", success: true });
+          postMessage({ type: "DbWorkerInitResponse", success: true });
+        } catch (error) {
+          postMessage({
+            type: "DbWorkerInitResponse",
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
         break;
       }
 
