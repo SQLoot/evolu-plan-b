@@ -1,50 +1,18 @@
 import {
-  type ConsoleDep,
-  createConsoleStoreOutput,
   createLocalAuth,
   createRandomBytes,
-  createRun,
   type LocalAuth,
   type ReloadAppDep,
   type SecureStorage,
 } from "@evolu/common";
-import type { EvoluDeps, EvoluWorkerInput } from "@evolu/common/local-first";
-import {
-  createEvoluDeps as createCommonEvoluDeps,
-  initEvoluWorker,
-} from "@evolu/common/local-first";
-import {
-  createMessageChannel,
-  createMessagePort,
-  createSharedWorker,
-} from "./Worker.js";
+import type { EvoluDeps } from "@evolu/common/local-first";
+import { createEvoluDeps as createCommonEvoluDeps } from "@evolu/common/local-first";
 
 const randomBytes = createRandomBytes();
 
 /** Creates Evolu dependencies for React Native. */
-export const createEvoluDeps = (
-  deps: ReloadAppDep & Partial<ConsoleDep>,
-): EvoluDeps => {
-  const consoleStoreOutput = createConsoleStoreOutput();
-
-  // Worker-side Run lives as long as the app. When RN supports real workers,
-  // this moves to the worker entry point (like web's Worker.worker.ts).
-  const workerRun = createRun({
-    consoleStoreOutputEntry: consoleStoreOutput.entry,
-    createMessagePort,
-  });
-
-  const evoluWorker = createSharedWorker<EvoluWorkerInput, never>((self) => {
-    void workerRun(initEvoluWorker(self));
-  });
-
-  return createCommonEvoluDeps({
-    ...deps,
-    createMessageChannel,
-    reloadApp: deps.reloadApp,
-    evoluWorker,
-  });
-};
+export const createEvoluDeps = (deps: ReloadAppDep): EvoluDeps =>
+  createCommonEvoluDeps(deps);
 
 export const createSharedLocalAuth = (
   secureStorage: SecureStorage,

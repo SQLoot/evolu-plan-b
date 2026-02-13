@@ -5,7 +5,7 @@
  */
 
 import {
-  type CreateRun,
+  type CreateRunner,
   createRun as createCommonRun,
   createUnknownError,
   type Run,
@@ -16,7 +16,7 @@ import {
  * Creates {@link Run} for the browser with global error handling.
  *
  * Registers `error` and `unhandledrejection` handlers that log errors to the
- * console. Handlers are removed when the Run is disposed.
+ * console. Handlers are removed when the run is disposed.
  *
  * ### Example
  *
@@ -32,13 +32,14 @@ import {
  *
  * await stack.use(startApp());
  * ```
+ *
+ * @group Browser Runner
  */
-export const createRun: CreateRun<RunDeps> = <D>(
+export const createRun: CreateRunner<RunDeps> = <D>(
   deps?: D,
 ): Run<RunDeps & D> => {
   const run = createCommonRun(deps);
   const console = run.deps.console.child("global");
-
   globalThis.addEventListener(
     "error",
     (event) => {
@@ -57,3 +58,8 @@ export const createRun: CreateRun<RunDeps> = <D>(
 
   return run;
 };
+
+/**
+ * @deprecated Use {@link createRun}.
+ */
+export const createRunner = createRun;

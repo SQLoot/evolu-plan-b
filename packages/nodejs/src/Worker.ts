@@ -18,9 +18,10 @@ import type {
   NativeMessagePort,
   Transferable,
   Worker,
+  WorkerScope,
   WorkerSelf,
 } from "@evolu/common";
-import { assert } from "@evolu/common";
+import { assert, handleGlobalError } from "@evolu/common";
 
 /** Creates an Evolu {@link Worker} from Node.js `worker_threads.Worker`. */
 export const createWorker = <Input, Output>(
@@ -63,6 +64,42 @@ export const createWorkerSelf = <Input, Output = never>(
     "parentPort is null; createWorkerSelf must run inside a worker thread or receive explicit parent port",
   );
   return wrap<Output, Input>(nativeParentPort);
+};
+
+/**
+ * @deprecated Use {@link createWorkerSelf}. Retained for backwards compatibility.
+ */
+export const createWorkerScope = <Input, Output = never>(
+  nativeParentPort: NodeMessagePort | null = workerParentPort,
+): WorkerScope<Input, Output> => {
+  const stack = new DisposableStack();
+  const self = stack.use(createWorkerSelf<Input, Output>(nativeParentPort));
+
+  const scope: WorkerScope<Input, Output> = {
+    ...self,
+    onError: null,
+    [Symbol.dispose]: () => {
+      stack.dispose();
+    },
+  };
+
+  const uncaughtExceptionHandler = (error: unknown) => {
+    handleGlobalError(scope, error);
+  };
+
+  const unhandledRejectionHandler = (reason: unknown) => {
+    handleGlobalError(scope, reason);
+  };
+
+  process.on("uncaughtException", uncaughtExceptionHandler);
+  process.on("unhandledRejection", unhandledRejectionHandler);
+
+  stack.defer(() => {
+    process.off("uncaughtException", uncaughtExceptionHandler);
+    process.off("unhandledRejection", unhandledRejectionHandler);
+  });
+
+  return scope;
 };
 
 const wrap = <Input, Output>(

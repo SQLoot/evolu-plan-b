@@ -17,7 +17,7 @@ import {
 } from "../src/Sqlite.js";
 import { sleep } from "../src/Task.js";
 import { testCreateRun } from "../src/Test.js";
-import { testName } from "./_deps.js";
+import { testSimpleName } from "./_deps.js";
 import { testCreateRunWithSqlite } from "./_deps.nodejs.js";
 
 describe("eqSqliteValue", () => {
@@ -175,7 +175,7 @@ describe("transactions", () => {
     await using run = testCreateRun({
       createSqliteDriver: createFailingDriver,
     });
-    const sqliteResult = await run(createSqlite(testName));
+    const sqliteResult = await run(createSqlite(testSimpleName));
     assert(sqliteResult.ok);
     const sqlite = sqliteResult.value;
 
@@ -237,7 +237,7 @@ describe("transactions", () => {
     await using run = testCreateRun({
       createSqliteDriver: createFailingDriver,
     });
-    const sqliteResult = await run(createSqlite(testName));
+    const sqliteResult = await run(createSqlite(testSimpleName));
     assert(sqliteResult.ok);
     const sqlite = sqliteResult.value;
     const { console } = run.deps;
@@ -293,7 +293,7 @@ describe("transactions", () => {
     await using run = testCreateRun({
       createSqliteDriver: createFailingDriver,
     });
-    const sqliteResult = await run(createSqlite(testName));
+    const sqliteResult = await run(createSqlite(testSimpleName));
     assert(sqliteResult.ok);
     const sqlite = sqliteResult.value;
 
@@ -334,7 +334,7 @@ describe("export", () => {
     await using run = testCreateRun({
       createSqliteDriver: createFailingDriver,
     });
-    const sqliteResult = await run(createSqlite(testName));
+    const sqliteResult = await run(createSqlite(testSimpleName));
     assert(sqliteResult.ok);
     const sqlite = sqliteResult.value;
 
@@ -411,11 +411,16 @@ describe("logExplainQueryPlan", () => {
         e.method === "log" &&
         e.args.some((arg) => typeof arg === "string" && arg.includes("SCAN")),
     );
-    expect(planEntry).toBeDefined();
+    if (!planEntry) {
+      throw new Error("Expected query plan log entry containing SCAN");
+    }
     // Nested rows produce leading spaces
-    const planOutput = planEntry?.args.find(
-      (arg) => typeof arg === "string" && arg.includes("SCAN"),
-    ) as string;
+    const planOutput = planEntry.args.find(
+      (arg): arg is string => typeof arg === "string" && arg.includes("SCAN"),
+    );
+    if (!planOutput) {
+      throw new Error("Expected SCAN row in query plan output");
+    }
     expect(planOutput).toMatch(/^ {2}/m);
   });
 });
@@ -434,7 +439,7 @@ test("dispose is idempotent", async () => {
       return ok(driver);
     },
   });
-  const sqliteResult = await run(createSqlite(testName));
+  const sqliteResult = await run(createSqlite(testSimpleName));
   assert(sqliteResult.ok);
   const sqlite = sqliteResult.value;
 
@@ -458,7 +463,7 @@ test("createSqlite returns error when driver creation is aborted", async () => {
     createSqliteDriver: createSlowDriver,
   });
 
-  const fiber = run(createSqlite(testName));
+  const fiber = run(createSqlite(testSimpleName));
   fiber.abort("test");
   const result = await fiber;
 

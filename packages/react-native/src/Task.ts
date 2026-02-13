@@ -5,18 +5,18 @@
  */
 
 import {
-  type CreateRun,
-  createRun as createCommonRun,
+  type CreateRunner,
+  createRunner as createCommonRunner,
   createUnknownError,
-  type Run,
-  type RunDeps,
+  type Runner,
+  type RunnerDeps,
 } from "@evolu/common";
 
 /**
- * Creates {@link Run} for React Native with global error handling.
+ * Creates {@link Runner} for React Native with global error handling.
  *
  * Registers `ErrorUtils.setGlobalHandler` for uncaught JavaScript errors. The
- * handler is restored to the previous one when the Run is disposed.
+ * handler is restored to the previous one when the runner is disposed.
  *
  * ### Example
  *
@@ -27,18 +27,18 @@ import {
  *   }),
  * });
  *
- * await using run = createRun({ console });
+ * await using run = createRunner({ console });
  * await using stack = run.stack();
  *
  * await stack.use(startApp());
  * ```
  *
- * @group React Native Run
+ * @group React Native Runner
  */
-export const createRun: CreateRun<RunDeps> = <D>(
+export const createRunner: CreateRunner<RunnerDeps> = <D>(
   deps?: D,
-): Run<RunDeps & D> => {
-  const run = createCommonRun(deps);
+): Runner<RunnerDeps & D> => {
+  const run = createCommonRunner(deps);
 
   const console = run.deps.console.child("global");
 

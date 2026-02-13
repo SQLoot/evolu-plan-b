@@ -334,9 +334,9 @@ test.skip("Result wrapping vs unwrapped performance", () => {
   console.log(`Difference: ${(wrappedTime - unwrappedTime).toFixed(2)} ms`);
 });
 
-// --- Result with resource management ---
+// --- Result with Resource Management ---
 //
-// Result and resource management are orthogonal concerns:
+// Result and Resource Management are orthogonal concerns:
 // - Result answers: "Did the operation succeed?"
 // - Disposable answers: "When do we clean up resources?"
 //
@@ -410,7 +410,7 @@ const createAsyncResource = async (
   return ok(createMockAsyncResource(id));
 };
 
-describe("Result with Resource management", () => {
+describe("Result with Resource Management", () => {
   describe("using keyword", () => {
     it("disposes on success", () => {
       const resource = createResource("db", false);
@@ -1044,7 +1044,7 @@ describe("NextResult", () => {
  *
  * ### Relation to Task
  *
- * Evolu also considered generators for Task and Run. The same debugging
+ * Evolu also considered generators for Task and Runner. The same debugging
  * concerns apply, but with higher stakes—async code is already harder to debug,
  * and adding generator machinery on top compounds the problem.
  *

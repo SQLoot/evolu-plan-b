@@ -30,17 +30,9 @@ import {
  * - Pluggable outputs — route logs to console, files, arrays, or custom
  *   destinations via {@link ConsoleOutput}
  * - Child consoles — use {@link Console.child} to create derived consoles
- * - Level filtering — see {@link ConsoleLevel} for severity ordering
- * - Entry formatting — use {@link createConsoleFormatter} for timestamps and path
- *   prefixes
+ * - Async support — buffer logs for high-throughput scenarios
  *
- * Built-in outputs:
- *
- * - {@link createNativeConsoleOutput} — writes to `globalThis.console` (default)
- * - {@link createConsoleArrayOutput} — captures entries to an array (testing)
- * - {@link createConsoleStoreOutput} — stores latest entry in a
- *   {@link ReadonlyStore} for subscribing
- * - {@link createMultiOutput} — fans out to multiple outputs
+ * See {@link ConsoleLevel} for available log levels and severity ordering.
  *
  * ### Example
  *
@@ -51,16 +43,14 @@ import {
  * // With formatting (timestamps and path prefixes)
  * const console = createConsole({
  *   level: "info",
- *   formatter: createConsoleFormatter()({ timestampFormat: "relative" }),
+ *   formatEntry: createConsoleEntryFormatter()({
+ *     timestampFormat: "relative",
+ *   }),
  * });
  *
  * // Children inherit level at creation, then are independent
  * const console = run.deps.console.child("relay");
  * console.setLevel("silent");
- *
- * // Tip: Wrap logged values in objects for labeled output in DevTools
- * console.info("Creating instance", { config }); // Good — expandable "config:" label
- * console.info("Creating instance", config); // Avoid — anonymous object, no label
  *
  * // Batch update via children
  * const setLevelRecursive = (c: Console, level: ConsoleLevel): void => {
@@ -71,9 +61,6 @@ import {
  *
  * Console intentionally does not use {@link Task}. Logging must be as fast as
  * possible and always work, even during error handling or shutdown.
- *
- * For testing, use {@link testCreateConsole} which creates a {@link TestConsole}
- * with array output and snapshot helpers.
  *
  * @see {@link createConsole}
  */
@@ -117,6 +104,27 @@ export interface Console {
   /** Development diagnostics. */
   readonly debug: (...args: ReadonlyArray<unknown>) => void;
 
+  /** Starts a timer with the given label. Level: debug. */
+  readonly time: (label: string) => void;
+
+  /** Logs elapsed time for a timer. Level: debug. */
+  readonly timeLog: (label: string, ...args: ReadonlyArray<unknown>) => void;
+
+  /** Ends a timer and logs elapsed time. Level: debug. */
+  readonly timeEnd: (label: string) => void;
+
+  /** Displays an object with expandable properties. Level: debug. */
+  readonly dir: (item: unknown) => void;
+
+  /** Displays tabular data. Level: debug. */
+  readonly table: (data: unknown) => void;
+
+  /** Increments and logs a counter. Level: debug. */
+  readonly count: (label?: string) => void;
+
+  /** Resets a counter. Level: debug. */
+  readonly countReset: (label?: string) => void;
+
   /** General-purpose messages. */
   readonly log: (...args: ReadonlyArray<unknown>) => void;
 
@@ -128,34 +136,6 @@ export interface Console {
 
   /** Failures requiring immediate attention. */
   readonly error: (...args: ReadonlyArray<unknown>) => void;
-
-  /** Displays an object with expandable properties. Level: debug. */
-  readonly dir: (item: unknown) => void;
-
-  /** Displays tabular data. Level: debug. */
-  readonly table: (data: unknown) => void;
-
-  /** Starts a timer with the given label. Level: debug. */
-  readonly time: (label: string) => void;
-
-  /** Logs elapsed time for a timer. Level: debug. */
-  readonly timeLog: (label: string, ...args: ReadonlyArray<unknown>) => void;
-
-  /** Ends a timer and logs elapsed time. Level: debug. */
-  readonly timeEnd: (label: string) => void;
-
-  /** Increments and logs a counter. Level: debug. */
-  readonly count: (label?: string) => void;
-
-  /** Resets a counter. Level: debug. */
-  readonly countReset: (label?: string) => void;
-
-  /**
-   * Writes a pre-built {@link ConsoleEntry} directly to the output, bypassing
-   * level filtering. Used to replay entries from another context (e.g., a
-   * SharedWorker) where filtering was already applied.
-   */
-  readonly write: (entry: ConsoleEntry) => void;
 }
 
 export interface ConsoleDep {
@@ -184,57 +164,6 @@ export type ConsoleLevel =
   | "warn"
   | "error"
   | "silent";
-
-/**
- * Structured log entry captured by {@link Console}.
- *
- * Contains all information needed for outputs to route the log: method for
- * routing, path for context, and the original arguments.
- */
-export interface ConsoleEntry {
-  /** The console method that was called. */
-  readonly method: ConsoleMethod;
-
-  /** Hierarchical path from {@link Console.child} calls (e.g., ["relay", "db"]). */
-  readonly path: ReadonlyArray<string>;
-
-  /** Original arguments passed to the console method. */
-  readonly args: ReadonlyArray<unknown>;
-}
-
-/**
- * Console method being called.
- *
- * Used in {@link ConsoleEntry} to identify which console method was invoked.
- * Outputs can route or format differently based on the method.
- */
-export type ConsoleMethod =
-  | "trace"
-  | "debug"
-  | "log"
-  | "info"
-  | "warn"
-  | "error"
-  | "dir"
-  | "table"
-  | "time"
-  | "timeLog"
-  | "timeEnd"
-  | "count"
-  | "countReset";
-
-/**
- * Output destination for {@link Console}.
- *
- * Implement this interface to create custom log destinations (file, network,
- * array for testing, etc.).
- *
- * Use {@link createNativeConsoleOutput} for native console output.
- */
-export interface ConsoleOutput {
-  /** Write a log entry to this output. */
-  readonly write: (entry: ConsoleEntry, formatter?: ConsoleFormatter) => void;
-}
 
 /**
  * Transforms a {@link ConsoleEntry} before output.
@@ -269,17 +198,172 @@ export interface ConsoleConfig {
    * {@link createConsoleFormatter} for common formatting options.
    */
   readonly formatter?: ConsoleFormatter;
+
+  /**
+   * @deprecated Use {@link ConsoleConfig.formatter}.
+   */
+  readonly formatEntry?: ConsoleFormatter;
 }
+
+/** Creates a {@link Console}. */
+export const createConsole = ({
+  name = "",
+  level = "log",
+  output = createNativeConsoleOutput(),
+  path = [],
+  formatter,
+  formatEntry,
+}: ConsoleConfig = {}): Console => {
+  const childrenSet = new Set<Console>();
+  let ownLevel: ConsoleLevel | null = null;
+  const resolvedFormatter = formatter ?? formatEntry;
+
+  const getLevel = (): ConsoleLevel => ownLevel ?? level;
+
+  const write =
+    (
+      method: ConsoleMethod,
+      methodLevel: ConsoleLevel,
+      formatter?: ConsoleFormatter,
+    ) =>
+    (...args: ReadonlyArray<unknown>): void => {
+      if (levelOrder[methodLevel] >= levelOrder[getLevel()])
+        output.write({ method, path, args }, formatter);
+    };
+
+  const levelMethod = (method: ConsoleLevel & ConsoleMethod) =>
+    write(method, method, resolvedFormatter);
+
+  const debugMethod = (method: ConsoleMethod) => write(method, "debug");
+
+  return {
+    name,
+    children: childrenSet,
+    getLevel,
+    setLevel: (level) => {
+      ownLevel = level;
+    },
+    hasOwnLevel: () => ownLevel !== null,
+
+    child: (name) => {
+      const childConsole = createConsole({
+        name,
+        level,
+        output,
+        path: [...path, name],
+        ...(resolvedFormatter && { formatter: resolvedFormatter }),
+      });
+      childrenSet.add(childConsole);
+      return childConsole;
+    },
+
+    ...objectFrom(
+      ["trace", "debug", "log", "info", "warn", "error"],
+      levelMethod,
+    ),
+    ...objectFrom(
+      ["dir", "table", "time", "timeLog", "timeEnd", "count", "countReset"],
+      debugMethod,
+    ),
+  };
+};
+
+const levelOrder: Record<ConsoleLevel, number> = {
+  trace: 0,
+  debug: 1,
+  log: 2,
+  info: 3,
+  warn: 4,
+  error: 5,
+  silent: 6,
+};
+
+/**
+ * Output destination for {@link Console}.
+ *
+ * Implement this interface to create custom log destinations (file, network,
+ * array for testing, etc.).
+ *
+ * Use {@link createNativeConsoleOutput} for native console output.
+ */
+export interface ConsoleOutput {
+  /** Write a log entry to this output. */
+  readonly write: (entry: ConsoleEntry, formatter?: ConsoleFormatter) => void;
+
+  /** Flush buffered entries. For async outputs that buffer for performance. */
+  readonly flush?: () => Promise<void>;
+}
+
+/**
+ * Structured log entry captured by {@link Console}.
+ *
+ * Contains all information needed for outputs to route the log: method for
+ * routing, path for context, and the original arguments.
+ */
+export interface ConsoleEntry {
+  /** The console method that was called. */
+  readonly method: ConsoleMethod;
+
+  /** Hierarchical path from {@link Console.child} calls (e.g., ["relay", "db"]). */
+  readonly path: ReadonlyArray<string>;
+
+  /** Original arguments passed to the console method. */
+  readonly args: ReadonlyArray<unknown>;
+}
+
+/**
+ * Console method being called.
+ *
+ * Used in {@link ConsoleEntry} to identify which console method was invoked.
+ * Outputs can route or format differently based on the method.
+ */
+export type ConsoleMethod =
+  | "log"
+  | "info"
+  | "warn"
+  | "error"
+  | "debug"
+  | "trace"
+  | "time"
+  | "timeLog"
+  | "timeEnd"
+  | "dir"
+  | "table"
+  | "count"
+  | "countReset";
+
+/**
+ * Creates a {@link ConsoleOutput} that writes to `globalThis.console`.
+ *
+ * Pure transport - just calls the native console method with the entry args.
+ * Use {@link createConsoleEntryFormatter} with {@link ConsoleConfig.formatEntry}
+ * for timestamps and path prefixes.
+ *
+ * ### Example
+ *
+ * ```ts
+ * const output = createNativeConsoleOutput();
+ * ```
+ */
+export const createNativeConsoleOutput = (): ConsoleOutput => ({
+  write: (entry, formatter) => {
+    const args = formatter ? formatter(entry) : entry.args;
+    const fn = globalThis.console[entry.method] as (
+      ...args: Array<unknown>
+    ) => void;
+    fn(...args);
+  },
+});
 
 /** Configuration for {@link createConsoleFormatter}. */
 export interface ConsoleFormatterConfig {
   /**
    * Timestamp format to prepend to log messages.
    *
-   * - `"relative"` — elapsed since start: `+0.000s`, `+1.500s`, `+1m30.000s`
-   * - `"absolute"` — local clock time: `14:32:15.234`
-   * - `"iso"` — ISO 8601 UTC: `2026-01-28T14:30:00.123Z`
-   * - `"none"` — no timestamp (default)
+   * - `"relative"`: Time since first entry (e.g., `+1.234s`)
+   * - `"absolute"`: Clock time (e.g., `[14:32:15.234]`)
+   * - `"iso"`: ISO 8601 format (e.g., `[2026-01-28T14:32:15.234Z]`)
+   * - `"none"`: No timestamp (default)
    */
   readonly timestampFormat?: ConsoleEntryTimestampFormat;
 
@@ -300,176 +384,24 @@ export type ConsoleEntryTimestampFormat =
   | "none";
 
 /**
- * A {@link ConsoleOutput} that stores the latest entry in a
- * {@link ReadonlyStore}.
- *
- * Subscribe to {@link ConsoleStoreOutput.entry} to observe all log entries.
- *
- * ### Example
- *
- * ```ts
- * const storeOutput = createConsoleStoreOutput();
- * const console = createConsole({ output: storeOutput });
- *
- * storeOutput.entry.subscribe(() => {
- *   const entry = storeOutput.entry.get();
- *   if (entry) forwardToClient(entry);
- * });
- * ```
+ * @deprecated Use {@link ConsoleFormatterConfig}.
  */
-export interface ConsoleStoreOutput extends ConsoleOutput {
-  /** Latest entry written to this output. */
-  readonly entry: ReadonlyStore<ConsoleEntry | null>;
-}
+export type ConsoleEntryFormatterConfig = ConsoleFormatterConfig;
 
 /**
- * Dependency providing the latest {@link ConsoleEntry} from a
- * {@link ConsoleStoreOutput}.
- */
-export interface ConsoleStoreOutputEntryDep {
-  readonly consoleStoreOutputEntry: ReadonlyStore<ConsoleEntry | null>;
-}
-
-/**
- * A test console that captures all output for assertions.
- *
- * Use as a drop-in replacement for {@link Console} in tests.
- */
-export interface TestConsole extends Console {
-  /** Gets all captured entries and clears the internal buffer. */
-  readonly getEntriesSnapshot: () => ReadonlyArray<ConsoleEntry>;
-
-  /** Clears all captured entries. */
-  readonly clearEntries: () => void;
-}
-
-export interface TestConsoleDep {
-  readonly console: TestConsole;
-}
-
-const levelOrder: Record<ConsoleLevel, number> = {
-  trace: 0,
-  debug: 1,
-  log: 2,
-  info: 3,
-  warn: 4,
-  error: 5,
-  silent: 6,
-};
-
-/** Creates a {@link Console}. */
-export const createConsole = ({
-  name = "",
-  level = "log",
-  output = createNativeConsoleOutput(),
-  path = [],
-  formatter,
-}: ConsoleConfig = {}): Console => {
-  const childrenSet = new Set<Console>();
-  let ownLevel: ConsoleLevel | null = null;
-
-  const getLevel = (): ConsoleLevel => ownLevel ?? level;
-
-  const createMethod =
-    (
-      method: ConsoleMethod,
-      methodLevel: ConsoleLevel,
-      formatter?: ConsoleFormatter,
-    ) =>
-    (...args: ReadonlyArray<unknown>): void => {
-      if (levelOrder[methodLevel] >= levelOrder[getLevel()])
-        output.write({ method, path, args }, formatter);
-    };
-
-  const levelMethod = (method: ConsoleLevel & ConsoleMethod) =>
-    createMethod(method, method, formatter);
-
-  const debugMethod = (method: ConsoleMethod) => createMethod(method, "debug");
-
-  return {
-    name,
-    children: childrenSet,
-    getLevel,
-    setLevel: (level) => {
-      ownLevel = level;
-    },
-    hasOwnLevel: () => ownLevel !== null,
-
-    child: (name) => {
-      const childConsole = createConsole({
-        name,
-        level,
-        output,
-        path: [...path, name],
-        ...(formatter && { formatter }),
-      });
-      childrenSet.add(childConsole);
-      return childConsole;
-    },
-
-    ...objectFrom(
-      ["trace", "debug", "log", "info", "warn", "error"],
-      levelMethod,
-    ),
-    ...objectFrom(
-      ["dir", "table", "time", "timeLog", "timeEnd", "count", "countReset"],
-      debugMethod,
-    ),
-
-    write: (entry) => {
-      output.write(entry, formatter);
-    },
-  };
-};
-
-/**
- * Creates a {@link ConsoleOutput} that writes to `globalThis.console`.
- *
- * Pure transport - just calls the native console method with the entry args.
- * Use {@link createConsoleFormatter} with {@link ConsoleConfig.formatter} for
- * timestamps and path prefixes.
- *
- * ### Example
- *
- * ```ts
- * const output = createNativeConsoleOutput();
- * ```
- */
-export const createNativeConsoleOutput = (): ConsoleOutput => ({
-  write: (entry, formatter) => {
-    const args = formatter ? formatter(entry) : entry.args;
-    const fn = globalThis.console[entry.method] as (
-      ...args: Array<unknown>
-    ) => void;
-    fn(...args);
-  },
-});
-
-/**
- * Creates a {@link ConsoleFormatter} for {@link ConsoleConfig.formatter}.
+ * Creates a formatter for {@link ConsoleConfig.formatter}.
  *
  * Prepends timestamps and path prefixes to entry args.
  *
  * ### Example
  *
  * ```ts
- * const root = createConsole({
+ * const console = createConsole({
+ *   level: "info",
  *   formatter: createConsoleFormatter()({
  *     timestampFormat: "relative",
  *   }),
  * });
- *
- * // Relative — elapsed since start
- * const relay = root.child("relay");
- * relay.log("connected"); // +0.000s [relay] connected
- * relay.log("synced"); // +1.500s [relay] synced
- *
- * // Nested children
- * const db = relay.child("db");
- * db.log("opened"); // +1.500s [relay] [db] opened
- *
- * // Absolute — local clock time (HH:MM:SS.mmm)
- * // relay.log("connected"); // 15:30:15.123 [relay] connected
  * ```
  */
 export const createConsoleFormatter =
@@ -507,60 +439,49 @@ export const createConsoleFormatter =
     };
   };
 
-/** Creates a {@link ConsoleStoreOutput}. */
-export const createConsoleStoreOutput = (): ConsoleStoreOutput => {
-  const entry = createStore<ConsoleEntry | null>(null);
-  return {
-    write: entry.set,
-    entry,
-  };
-};
+/**
+ * @deprecated Use {@link createConsoleFormatter}.
+ */
+export const createConsoleEntryFormatter = (
+  deps: TimeDep = { time: createTime() },
+): ((config?: ConsoleEntryFormatterConfig) => ConsoleFormatter) =>
+  createConsoleFormatter(deps);
 
 /**
- * Creates a {@link ConsoleOutput} that captures entries to an array.
- *
- * Useful for testing. Pass your own array to inspect captured entries.
- *
- * ### Example
- *
- * ```ts
- * const entries: Array<ConsoleEntry> = [];
- * const output = createConsoleArrayOutput(entries);
- *
- * // After logging...
- * expect(entries).toMatchInlineSnapshot();
- * ```
+ * A {@link ConsoleOutput} that stores the latest entry in a
+ * {@link ReadonlyStore}.
  */
-export const createConsoleArrayOutput = (
-  entries: Array<ConsoleEntry>,
-): ConsoleOutput => ({
-  write: (entry) => {
-    entries.push(entry);
-  },
-});
+export interface ConsoleStoreOutput extends ConsoleOutput {
+  readonly entry: ReadonlyStore<ConsoleEntry | null>;
+}
+
+export interface ConsoleStoreOutputEntryDep {
+  readonly consoleStoreOutputEntry: ReadonlyStore<ConsoleEntry | null>;
+}
 
 /**
- * Creates a {@link ConsoleOutput} that fans out to multiple outputs.
- *
- * Each entry is written to all outputs in order. Useful for combining a native
- * console output with a store output for forwarding.
- *
- * ### Example
- *
- * ```ts
- * const storeOutput = createConsoleStoreOutput();
- * const console = createConsole({
- *   output: createMultiOutput([createNativeConsoleOutput(), storeOutput]),
- * });
- * ```
+ * @deprecated Use {@link ConsoleStoreOutputEntryDep}.
  */
-export const createMultiOutput = (
-  outputs: ReadonlyArray<ConsoleOutput>,
-): ConsoleOutput => ({
-  write: (entry, formatter) => {
-    for (const output of outputs) output.write(entry, formatter);
-  },
-});
+export interface ConsoleEntryDep {
+  readonly consoleEntry: ReadonlyStore<ConsoleEntry | null>;
+}
+
+/**
+ * A test console that captures all output for assertions.
+ *
+ * Use as a drop-in replacement for {@link Console} in tests.
+ */
+export interface TestConsole extends Console {
+  /** Gets all captured entries and clears the internal buffer. */
+  readonly getEntriesSnapshot: () => ReadonlyArray<ConsoleEntry>;
+
+  /** Clears all captured entries. */
+  readonly clearEntries: () => void;
+}
+
+export interface TestConsoleDep {
+  readonly console: TestConsole;
+}
 
 /**
  * Creates a {@link TestConsole} that captures all output for testing.
@@ -594,26 +515,209 @@ export const createMultiOutput = (
  * });
  * ```
  */
-export const testCreateConsole = ({
-  level = "trace",
-}: {
-  level?: ConsoleLevel;
-} = {}): TestConsole => {
+export const testCreateConsole = (config?: {
+  readonly level?: ConsoleLevel;
+}): TestConsole => {
   const entries: Array<ConsoleEntry> = [];
-  const console = createConsole({
-    level,
-    output: createConsoleArrayOutput(entries),
-  });
+  const initialLevel = config?.level ?? "trace";
+
+  const getEntriesSnapshot = (): ReadonlyArray<ConsoleEntry> => {
+    const snapshot = [...entries];
+    entries.length = 0;
+    return snapshot;
+  };
+
+  const clearEntries = (): void => {
+    entries.length = 0;
+  };
+
+  const createInstance = (
+    path: ReadonlyArray<string>,
+    instanceName: string,
+    inheritedLevel: ConsoleLevel,
+  ): TestConsole => {
+    let ownLevel: ConsoleLevel | null = null;
+    const childrenSet = new Set<Console>();
+
+    const getLevel = (): ConsoleLevel => ownLevel ?? inheritedLevel;
+    const setLevel = (level: ConsoleLevel | null): void => {
+      ownLevel = level;
+    };
+    const hasOwnLevel = (): boolean => ownLevel !== null;
+
+    const write = (
+      method: ConsoleMethod,
+      args: ReadonlyArray<unknown>,
+    ): void => {
+      entries.push({
+        method,
+        path,
+        args,
+      });
+    };
+
+    const writeIfLevel =
+      (method: ConsoleMethod, methodLevel: ConsoleLevel) =>
+      (...args: ReadonlyArray<unknown>): void => {
+        if (levelOrder[methodLevel] >= levelOrder[getLevel()])
+          write(method, args);
+      };
+
+    const writeRawDebug = (method: ConsoleMethod) =>
+      writeIfLevel(method, "debug");
+
+    const testConsole: TestConsole = {
+      name: instanceName,
+      children: childrenSet,
+      getLevel,
+      setLevel,
+      hasOwnLevel,
+
+      child: (childName) => {
+        const childConsole = createInstance(
+          [...path, childName],
+          childName,
+          inheritedLevel,
+        );
+        childrenSet.add(childConsole);
+        return childConsole;
+      },
+
+      ...objectFrom(
+        ["trace", "debug", "log", "info", "warn", "error"],
+        (method: ConsoleLevel & ConsoleMethod) => writeIfLevel(method, method),
+      ),
+      ...objectFrom(
+        ["dir", "table", "time", "timeLog", "timeEnd", "count", "countReset"],
+        writeRawDebug,
+      ),
+
+      getEntriesSnapshot,
+      clearEntries,
+    };
+
+    return testConsole;
+  };
+
+  return createInstance([], "", initialLevel);
+};
+
+/**
+ * Creates a {@link ConsoleOutput} that captures entries to an array.
+ *
+ * Useful for testing. Pass your own array to inspect captured entries.
+ *
+ * ### Example
+ *
+ * ```ts
+ * const entries: Array<ConsoleEntry> = [];
+ * const output = createConsoleArrayOutput(entries);
+ *
+ * // After logging...
+ * expect(entries).toMatchInlineSnapshot();
+ * ```
+ */
+export const createConsoleArrayOutput = (
+  entries: Array<ConsoleEntry>,
+): ConsoleOutput => ({
+  write: (entry) => {
+    entries.push(entry);
+  },
+});
+
+/** Creates a {@link ConsoleStoreOutput}. */
+export const createConsoleStoreOutput = (): ConsoleStoreOutput => {
+  const entry = createStore<ConsoleEntry | null>(null);
+  return {
+    write: entry.set,
+    entry,
+  };
+};
+
+/**
+ * Creates a {@link ConsoleOutput} that routes entries to multiple outputs.
+ *
+ * Useful for logging to both console and file simultaneously.
+ *
+ * ### Example
+ *
+ * ```ts
+ * const output = createConsoleMultiOutput([
+ *   createNativeConsoleOutput(),
+ *   createConsoleArrayOutput(entries),
+ * ]);
+ * ```
+ */
+export const createMultiOutput = (
+  outputs: ReadonlyArray<ConsoleOutput>,
+): ConsoleOutput => ({
+  write: (entry, formatter) => {
+    for (const output of outputs) output.write(entry, formatter);
+  },
+  flush: async () => {
+    await Promise.all(outputs.map((o) => o.flush?.()));
+  },
+});
+
+/**
+ * @deprecated Use {@link createMultiOutput}.
+ */
+export const createConsoleMultiOutput = createMultiOutput;
+
+/**
+ * Creates a {@link ConsoleOutput} that buffers entries for async writing.
+ *
+ * Useful for high-throughput scenarios where synchronous logging would be a
+ * bottleneck. Call `flush()` to ensure all buffered entries are written.
+ *
+ * ### Example
+ *
+ * ```ts
+ * const entries: Array<ConsoleEntry> = [];
+ * const output = createConsoleAsyncOutput({
+ *   write: async (entry) => {
+ *     entries.push(entry);
+ *   },
+ * });
+ *
+ * // Usage with Bun file writer:
+ * // const writer = Bun.file("app.log").writer();
+ * // const output = createConsoleAsyncOutput({
+ * //   write: async (entry) => {
+ * //     writer.write(JSON.stringify(entry) + "\\n");
+ * //   },
+ * //   flush: () => writer.flush(),
+ * // });
+ * ```
+ */
+export const createConsoleAsyncOutput = (config: {
+  readonly write: (entry: ConsoleEntry) => void | Promise<void>;
+  readonly flush?: () => void | Promise<void>;
+}): ConsoleOutput => {
+  const buffer: Array<ConsoleEntry> = [];
+  let flushPromise: Promise<void> | null = null;
+
+  const processBuffer = async (): Promise<void> => {
+    while (buffer.length > 0) {
+      const entry = buffer.shift();
+      if (entry) await config.write(entry);
+    }
+    await config.flush?.();
+  };
 
   return {
-    ...console,
-    getEntriesSnapshot: () => {
-      const snapshot = [...entries];
-      entries.length = 0;
-      return snapshot;
+    write: (entry) => {
+      buffer.push(entry);
+      // Auto-flush when buffer grows (debounced)
+      if (!flushPromise && buffer.length >= 10) {
+        flushPromise = processBuffer().finally(() => {
+          flushPromise = null;
+        });
+      }
     },
-    clearEntries: () => {
-      entries.length = 0;
+    flush: async () => {
+      if (flushPromise) await flushPromise;
+      await processBuffer();
     },
   };
 };

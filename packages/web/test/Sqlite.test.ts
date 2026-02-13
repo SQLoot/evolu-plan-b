@@ -1,14 +1,14 @@
 import {
   type CreateSqliteDriverDep,
   createSqlite,
-  Name,
+  SimpleName,
   sql,
   testCreateRun,
 } from "@evolu/common";
 import { assert, describe, expect, test } from "vitest";
 import { createWasmSqliteDriver } from "../src/Sqlite.js";
 
-const testName = Name.orThrow("Test");
+const testName = SimpleName.orThrow("Test");
 
 const isWebKit =
   navigator.userAgent.includes("WebKit") &&
