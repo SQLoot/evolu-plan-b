@@ -6,7 +6,6 @@
 
 import { dedupeArray, isNonEmptyArray } from "../Array.js";
 import { assertNonEmptyReadonlyArray } from "../Assert.js";
-import { createCallbacks } from "../Callbacks.js";
 import { type ConsoleDep, createConsole } from "../Console.js";
 import {
   createRandomBytes,
@@ -14,6 +13,7 @@ import {
   type RandomBytesDep,
 } from "../Crypto.js";
 import { eqArrayNumber } from "../Eq.js";
+import { createUnknownError } from "../Error.js";
 import type { Listener, Unsubscribe } from "../Listeners.js";
 import type { FlushSyncDep, ReloadAppDep } from "../Platform.js";
 import { createDisposableDep, type DisposableStackDep } from "../Resources.js";
@@ -21,11 +21,18 @@ import { SqliteBoolean, sqliteBooleanToBoolean } from "../Sqlite.js";
 import { createStore, type ReadonlyStore, type Store } from "../Store.js";
 import { createId, type Id, type Mnemonic, type SimpleName } from "../Type.js";
 import type { CreateMessageChannelDep } from "../Worker.js";
+import type { DbWorkerInput, DbWorkerOutput } from "./DbWorkerProtocol.js";
 import type { EvoluError } from "./Error.js";
 import type { AppOwner, OwnerId, OwnerTransport } from "./Owner.js";
+import {
+  createAppOwner,
+  createOwnerSecret,
+  mnemonicToOwnerSecret,
+} from "./Owner.js";
 import { pack } from "./Protocol.js";
 import {
   createSubscribedQueries,
+  deserializeQuery,
   emptyRows,
   type Queries,
   type QueriesToQueryRowsPromises,
@@ -37,6 +44,7 @@ import {
 } from "./Query.js";
 import {
   type EvoluSchema,
+  evoluSchemaToDbSchema,
   type IndexesConfig,
   type Mutation,
   type MutationChange,
@@ -544,6 +552,7 @@ export const createEvoluDeps = <D extends EvoluPlatformDeps>(
 
   return {
     ...deps,
+    disposableStack,
     ...createDisposableDep(disposableStack),
     console: createConsole(),
     evoluError,
@@ -645,131 +654,81 @@ export const createEvolu =
     const rowsStore = createStore<QueryRowsMap>(new Map());
     const subscribedQueries = createSubscribedQueries(rowsStore);
     const loadingPromises = createLoadingPromises(subscribedQueries);
-    const onCompleteCallbacks = createCallbacks(deps);
-    const exportCallbacks = createCallbacks<Uint8Array>(deps);
 
     const loadQueryMicrotaskQueue: Array<Query> = [];
     const useOwnerMicrotaskQueue: Array<[SyncOwner, boolean, Uint8Array]> = [];
 
-    const { promise: appOwner, resolve: resolveAppOwner } =
-      Promise.withResolvers<AppOwner>();
-    if (configAppOwner) resolveAppOwner(configAppOwner);
-    else if (externalAppOwner) resolveAppOwner(externalAppOwner);
+    let appOwnerState = Promise.withResolvers<AppOwner>();
 
-    // deps.sharedWorker.
+    const getAppOwnerPromise = (): Promise<AppOwner> => appOwnerState.promise;
 
-    // const schema = _schema as EvoluSchema;
+    const resolveAppOwner = (nextAppOwner: AppOwner): void => {
+      appOwnerState.resolve(nextAppOwner);
+    };
 
-    // const { indexes, reloadUrl = "/", ...partialDbConfig } = config ?? {};
+    const resetAppOwnerPromise = (): void => {
+      appOwnerState = Promise.withResolvers<AppOwner>();
+    };
 
-    // const dbConfig: DbConfig = { ...defaultDbConfig, ...partialDbConfig };
+    const setUnknownError = (error: unknown): void => {
+      errorStore.set(createUnknownError(error));
+    };
 
-    // deps.console.log("[evolu]", "createEvoluInstance", {
-    //   name: dbConfig.name,
-    // });
+    const dbSchema = evoluSchemaToDbSchema(schema as EvoluSchema, _indexes);
+    const dbWorker = createDbWorkerClient(deps, setUnknownError);
 
-    // // TODO: Update it for the owner-api
-    // const _syncStore = createStore<SyncState>(initialSyncState);
+    const storeAppOwner = async (nextAppOwner: AppOwner): Promise<void> => {
+      await dbWorker.mutate(
+        `
+          insert into __evolu_meta (key, value)
+          values ('appOwner', ?)
+          on conflict(key) do update set value = excluded.value
+        `,
+        [JSON.stringify(nextAppOwner)],
+      );
+    };
 
-    // const dbWorker = deps.createDbWorker(dbConfig.name);
+    const initializeDb = async (forcedAppOwner?: AppOwner): Promise<void> => {
+      await dbWorker.init(_inMemory ? ":memory:" : name, 1);
 
-    // const getTabId = () => {
-    //   tabId ??= createId(deps);
-    //   return tabId;
-    // };
+      for (const statement of createDbSchemaStatements(dbSchema)) {
+        await dbWorker.mutate(statement.sql, statement.params);
+      }
 
-    // // Worker responses are delivered to all tabs. Each case must handle this
-    // // properly (e.g., AppOwner promise resolves only once, tabId filtering).
-    // dbWorker.onMessage((message) => {
-    //   switch (message.type) {
-    //     case "onError": {
-    //       errorStore.set(message.error);
-    //       break;
-    //     }
+      const preferredAppOwner =
+        forcedAppOwner ?? configAppOwner ?? externalAppOwner;
 
-    //     case "onGetAppOwner": {
-    //       resolveAppOwner(message.appOwner);
-    //       break;
-    //     }
+      if (preferredAppOwner) {
+        await storeAppOwner(preferredAppOwner);
+        resolveAppOwner(preferredAppOwner);
+        return;
+      }
 
-    //     case "onQueryPatches": {
-    //       if (message.tabId !== getTabId()) return;
+      const storedAppOwner = await dbWorker.getAppOwner();
+      if (storedAppOwner) {
+        resolveAppOwner(storedAppOwner);
+        return;
+      }
 
-    //       const state = rowsStore.get();
-    //       const nextState = new Map([
-    //         ...state,
-    //         ...message.queryPatches.map(
-    //           ({ query, patches }): [Query, ReadonlyArray<Row>] => [
-    //             query,
-    //             applyPatches(patches, state.get(query) ?? emptyRows),
-    //           ],
-    //         ),
-    //       ]);
+      const generatedAppOwner = createAppOwner(createOwnerSecret(deps));
+      await storeAppOwner(generatedAppOwner);
+      resolveAppOwner(generatedAppOwner);
+    };
 
-    //       for (const { query } of message.queryPatches) {
-    //         loadingPromises.resolve(query, nextState.get(query) ?? emptyRows);
-    //       }
+    let dbReady: Promise<void>;
 
-    //       if (deps.flushSync && message.onCompleteIds.length > 0) {
-    //         deps.flushSync(() => {
-    //           rowsStore.set(nextState);
-    //         });
-    //       } else {
-    //         rowsStore.set(nextState);
-    //       }
+    const startDbInitialization = (
+      forcedAppOwner?: AppOwner,
+    ): Promise<void> => {
+      dbReady = initializeDb(forcedAppOwner).catch((error) => {
+        setUnknownError(error);
+        appOwnerState.reject(error);
+        throw error;
+      });
+      return dbReady;
+    };
 
-    //       for (const id of message.onCompleteIds) {
-    //         onCompleteCallbacks.execute(id);
-    //       }
-    //       break;
-    //     }
-
-    //     case "refreshQueries": {
-    //       if (message.tabId && message.tabId === getTabId()) return;
-
-    //       const loadingPromisesQueries = loadingPromises.getQueries();
-    //       loadingPromises.releaseUnsubscribedOnMutation();
-
-    //       const queries = dedupeArray([
-    //         ...loadingPromisesQueries,
-    //         ...subscribedQueries.get(),
-    //       ]);
-
-    //       if (isNonEmptyArray(queries)) {
-    //         dbWorker.postMessage({ type: "query", tabId: getTabId(), queries });
-    //       }
-
-    //       break;
-    //     }
-
-    //     case "onReset": {
-    //       if (message.reload) {
-    //         deps.reloadApp(); // Fixed reloadUrl usage which was commented out
-    //       } else {
-    //         onCompleteCallbacks.execute(message.onCompleteId);
-    //       }
-    //       break;
-    //     }
-
-    //     case "onExport": {
-    //       exportCallbacks.execute(
-    //         message.onCompleteId,
-    //         message.file as Uint8Array<ArrayBuffer>,
-    //       );
-    //       break;
-    //     }
-
-    //     default:
-    //       // exhaustiveCheck(message);
-    //   }
-    // });
-
-    // const dbSchema = evoluSchemaToDbSchema(schema, indexes);
-
-    // dbWorker.postMessage({ type: "init", config: dbConfig, dbSchema });
-
-    // // We can't use `init` to get AppOwner because `init` runs only once per n tabs.
-    // dbWorker.postMessage({ type: "getAppOwner" });
+    void startDbInitialization();
 
     const mutateMicrotaskQueue: Array<
       [MutationChange, MutationOptions["onComplete"] | undefined]
@@ -820,9 +779,40 @@ export const createEvolu =
         return { id };
       };
 
+    const publishQueries = async (queries: ReadonlyArray<Query>) => {
+      if (!isNonEmptyArray(queries)) return;
+
+      await dbReady;
+      const nextState = new Map(rowsStore.get());
+
+      for (const query of queries) {
+        const sqlQuery = deserializeQuery(query);
+        const rows = await dbWorker.query(sqlQuery.sql, sqlQuery.parameters);
+        nextState.set(query, rows);
+        loadingPromises.resolve(query, rows);
+      }
+
+      if (deps.flushSync) {
+        deps.flushSync(() => {
+          rowsStore.set(nextState);
+        });
+      } else {
+        rowsStore.set(nextState);
+      }
+    };
+
+    const refreshLoadedQueries = async () => {
+      loadingPromises.releaseUnsubscribedOnMutation();
+      const queries = dedupeArray([
+        ...loadingPromises.getQueries(),
+        ...subscribedQueries.get(),
+      ]);
+      await publishQueries(queries);
+    };
+
     const processMutationQueue = () => {
       const changes: Array<MutationChange> = [];
-      const onCompletes = [];
+      const onCompletes: Array<NonNullable<MutationOptions["onComplete"]>> = [];
 
       for (const [change, onComplete] of mutateMicrotaskQueue) {
         changes.push(change);
@@ -831,19 +821,28 @@ export const createEvolu =
 
       mutateMicrotaskQueue.length = 0;
 
-      const _onCompleteIds = onCompletes.map(onCompleteCallbacks.register);
-      // loadingPromises.releaseUnsubscribedOnMutation();
-
       if (!isNonEmptyArray(changes)) return;
 
-      // TODO:
-      // dbWorker.postMessage({
-      //   type: "mutate",
-      //   tabId: getTabId(),
-      //   changes,
-      //   onCompleteIds,
-      //   subscribedQueries: subscribedQueries.get(),
-      // });
+      void (async () => {
+        try {
+          await dbReady;
+          const defaultOwnerId = (await getAppOwnerPromise()).id;
+
+          for (const change of changes) {
+            const ownerId = change.ownerId ?? defaultOwnerId;
+            const statements = mutationChangeToStatements(change, ownerId);
+            for (const statement of statements) {
+              await dbWorker.mutate(statement.sql, statement.params);
+            }
+          }
+
+          await refreshLoadedQueries();
+
+          for (const onComplete of onCompletes) onComplete();
+        } catch (error) {
+          setUnknownError(error);
+        }
+      })();
     };
 
     const evolu: Evolu<S> = {
@@ -863,11 +862,12 @@ export const createEvolu =
               loadQueryMicrotaskQueue.length = 0;
               assertNonEmptyReadonlyArray(queries);
               deps.console.log("[evolu]", "loadQuery", { queries });
-              // dbWorker.postMessage({
-              //   type: "query",
-              //   tabId: getTabId(),
-              //   queries,
-              // });
+              void publishQueries(queries).catch((error) => {
+                setUnknownError(error);
+                for (const queuedQuery of queries) {
+                  loadingPromises.resolve(queuedQuery, emptyRows);
+                }
+              });
             });
           }
         }
@@ -898,7 +898,9 @@ export const createEvolu =
       getQueryRows: <R extends Row>(query: Query<R>): QueryRows<R> =>
         (rowsStore.get().get(query) ?? emptyRows) as QueryRows<R>,
 
-      appOwner,
+      get appOwner() {
+        return getAppOwnerPromise();
+      },
 
       // TODO: Update it for the owner-api
       // subscribeSyncState: syncStore.subscribe,
@@ -908,30 +910,28 @@ export const createEvolu =
       update: createMutation("update"),
       upsert: createMutation("upsert"),
 
-      resetAppOwner: (_options) => {
-        const { promise, resolve } = Promise.withResolvers<void>();
-        // const _onCompleteId = onCompleteCallbacks.register(resolve);
-        // dbWorker.postMessage({
-        //   type: "reset",
-        //   onCompleteId,
-        //   reload: options?.reload ?? true,
-        // });
-        // Simulating completion for now since worker msg is commented
-        resolve();
-        return promise;
+      resetAppOwner: async (options) => {
+        await dbReady;
+        await dbWorker.reset();
+        rowsStore.set(new Map());
+        if ((options?.reload ?? true) && deps.reloadApp) {
+          deps.reloadApp();
+          return;
+        }
+
+        resetAppOwnerPromise();
+        await startDbInitialization();
       },
 
-      restoreAppOwner: (_mnemonic, _options) => {
-        const { promise, resolve } = Promise.withResolvers<void>();
-        // const _onCompleteId = onCompleteCallbacks.register(resolve);
-        // dbWorker.postMessage({
-        //   type: "reset",
-        //   onCompleteId,
-        //   reload: options?.reload ?? true,
-        //   restore: { mnemonic, dbSchema },
-        // });
-        resolve();
-        return promise;
+      restoreAppOwner: async (mnemonic, options) => {
+        await dbReady;
+        await dbWorker.reset();
+        rowsStore.set(new Map());
+        resetAppOwnerPromise();
+        await startDbInitialization(
+          createAppOwner(mnemonicToOwnerSecret(mnemonic)),
+        );
+        if ((options?.reload ?? true) && deps.reloadApp) deps.reloadApp();
       },
 
       reloadApp: () => {
@@ -946,11 +946,10 @@ export const createEvolu =
       //   dbWorker.postMessage({ type: "ensureDbSchema", dbSchema });
       // },
 
-      exportDatabase: () =>
-        new Promise<Uint8Array>((resolve) => {
-          const _id = exportCallbacks.register(resolve);
-          // dbWorker.postMessage({ type: "export", id });
-        }),
+      exportDatabase: async () => {
+        await dbReady;
+        return dbWorker.exportDatabase();
+      },
 
       useOwner: (owner) => {
         const scheduleOwnerQueueProcessing = () => {
@@ -1006,15 +1005,339 @@ export const createEvolu =
         return unuse;
       },
 
-      /** Disposal is not implemented yet. */
       [Symbol.asyncDispose]: async () => {
-        // throw new Error("Evolu instance disposal is not yet implemented");
-        return Promise.resolve();
+        loadQueryMicrotaskQueue.length = 0;
+        useOwnerMicrotaskQueue.length = 0;
+        mutateMicrotaskQueue.length = 0;
+        await dbWorker[Symbol.asyncDispose]();
       },
     };
 
     return evolu;
   };
+
+interface SqlStatement {
+  readonly sql: string;
+  readonly params: ReadonlyArray<unknown>;
+}
+
+interface DbWorkerClient extends Disposable, AsyncDisposable {
+  readonly init: (dbName: string, schemaVersion: number) => Promise<void>;
+  readonly getAppOwner: () => Promise<AppOwner | null>;
+  readonly query: (
+    sql: string,
+    params?: ReadonlyArray<unknown>,
+  ) => Promise<ReadonlyArray<Row>>;
+  readonly mutate: (
+    sql: string,
+    params: ReadonlyArray<unknown>,
+  ) => Promise<number>;
+  readonly exportDatabase: () => Promise<Uint8Array>;
+  readonly reset: () => Promise<void>;
+}
+
+type DbWorkerResponseWithRequestId = Extract<
+  DbWorkerOutput,
+  { readonly requestId: number }
+>;
+
+const createDbWorkerClient = (
+  deps: CreateMessageChannelDep & EvoluWorkerDep & DisposableStackDep,
+  onError: (error: unknown) => void,
+): DbWorkerClient => {
+  const channel = deps.disposableStack.use(
+    deps.createMessageChannel<DbWorkerOutput, DbWorkerInput>(),
+  );
+  const port = channel.port2;
+
+  let requestIdCounter = 1;
+  let isDisposed = false;
+  let closePromise: Promise<void> | null = null;
+
+  const pendingRequests = new Map<
+    number,
+    {
+      readonly expectedType: DbWorkerResponseWithRequestId["type"];
+      readonly resolve: (message: DbWorkerResponseWithRequestId) => void;
+      readonly reject: (error: unknown) => void;
+    }
+  >();
+
+  const initWaiters: Array<{
+    readonly resolve: () => void;
+    readonly reject: (error: unknown) => void;
+  }> = [];
+  const appOwnerWaiters: Array<{
+    readonly resolve: (appOwner: AppOwner | null) => void;
+    readonly reject: (error: unknown) => void;
+  }> = [];
+
+  const rejectAllPending = (error: unknown) => {
+    for (const { reject } of pendingRequests.values()) reject(error);
+    pendingRequests.clear();
+
+    while (initWaiters.length > 0) initWaiters.shift()?.reject(error);
+    while (appOwnerWaiters.length > 0) appOwnerWaiters.shift()?.reject(error);
+  };
+
+  const disposeNow = (error: unknown): void => {
+    if (isDisposed) return;
+    isDisposed = true;
+    rejectAllPending(error);
+    port.onMessage = null;
+    channel[Symbol.dispose]();
+  };
+
+  port.onMessage = (message) => {
+    if (message.type === "DbWorkerError") {
+      const requestId = message.requestId;
+      if (requestId != null) {
+        const pending = pendingRequests.get(requestId);
+        if (pending) {
+          pendingRequests.delete(requestId);
+          pending.reject(new Error(message.error));
+          return;
+        }
+      }
+      onError(new Error(message.error));
+      return;
+    }
+
+    if (message.type === "DbWorkerInitResponse") {
+      const waiter = initWaiters.shift();
+      if (!waiter) {
+        onError(new Error("Received unexpected DbWorkerInitResponse"));
+        return;
+      }
+      if (message.success) waiter.resolve();
+      else waiter.reject(new Error(message.error ?? "DbWorker init failed"));
+      return;
+    }
+
+    if (message.type === "DbWorkerAppOwner") {
+      const waiter = appOwnerWaiters.shift();
+      if (!waiter) {
+        onError(new Error("Received unexpected DbWorkerAppOwner"));
+        return;
+      }
+      waiter.resolve(message.appOwner);
+      return;
+    }
+
+    const pending = pendingRequests.get(message.requestId);
+    if (!pending) {
+      onError(
+        new Error(`Missing pending request for requestId ${message.requestId}`),
+      );
+      return;
+    }
+
+    pendingRequests.delete(message.requestId);
+
+    if (pending.expectedType !== message.type) {
+      pending.reject(
+        new Error(
+          `Expected ${pending.expectedType}, received ${message.type} for requestId ${message.requestId}`,
+        ),
+      );
+      return;
+    }
+
+    pending.resolve(message);
+  };
+
+  deps.evoluWorker.port.postMessage(
+    { type: "InitEvolu", port: channel.port1.native },
+    [channel.port1.native],
+  );
+
+  const request = <TExpected extends DbWorkerResponseWithRequestId["type"]>(
+    message: DbWorkerInput,
+    expectedType: TExpected,
+  ): Promise<Extract<DbWorkerResponseWithRequestId, { type: TExpected }>> =>
+    new Promise((resolve, reject) => {
+      if (isDisposed) {
+        reject(new Error("DbWorkerClient disposed"));
+        return;
+      }
+
+      if (!("requestId" in message)) {
+        reject(
+          new Error(
+            `Message ${message.type} must include requestId for request/response flow`,
+          ),
+        );
+        return;
+      }
+
+      pendingRequests.set(message.requestId, {
+        expectedType,
+        resolve: resolve as (message: DbWorkerResponseWithRequestId) => void,
+        reject,
+      });
+      port.postMessage(message);
+    });
+
+  const close = async (): Promise<void> => {
+    if (closePromise) return closePromise;
+
+    closePromise = (async () => {
+      if (isDisposed) return;
+
+      try {
+        const requestId = requestIdCounter++;
+        await request(
+          { type: "DbWorkerClose", requestId },
+          "DbWorkerCloseResponse",
+        );
+      } finally {
+        disposeNow(new Error("DbWorkerClient disposed"));
+      }
+    })();
+
+    return closePromise;
+  };
+
+  return {
+    init: (dbName, schemaVersion) =>
+      new Promise<void>((resolve, reject) => {
+        if (isDisposed) {
+          reject(new Error("DbWorkerClient disposed"));
+          return;
+        }
+        initWaiters.push({ resolve, reject });
+        port.postMessage({ type: "DbWorkerInit", dbName, schemaVersion });
+      }),
+
+    getAppOwner: () =>
+      new Promise((resolve, reject) => {
+        if (isDisposed) {
+          reject(new Error("DbWorkerClient disposed"));
+          return;
+        }
+        appOwnerWaiters.push({ resolve, reject });
+        port.postMessage({ type: "DbWorkerGetAppOwner" });
+      }),
+
+    query: async (sql, params) => {
+      const requestId = requestIdCounter++;
+      const response = await request(
+        params == null
+          ? { type: "DbWorkerQuery", requestId, sql }
+          : { type: "DbWorkerQuery", requestId, sql, params },
+        "DbWorkerQueryResponse",
+      );
+      return response.rows;
+    },
+
+    mutate: async (sql, params) => {
+      const requestId = requestIdCounter++;
+      const response = await request(
+        { type: "DbWorkerMutate", requestId, sql, params },
+        "DbWorkerMutateResponse",
+      );
+      return response.changes;
+    },
+
+    exportDatabase: async () => {
+      const requestId = requestIdCounter++;
+      const response = await request(
+        { type: "DbWorkerExport", requestId },
+        "DbWorkerExportResponse",
+      );
+      return response.data;
+    },
+
+    reset: async () => {
+      const requestId = requestIdCounter++;
+      await request(
+        { type: "DbWorkerReset", requestId },
+        "DbWorkerResetResponse",
+      );
+    },
+
+    [Symbol.asyncDispose]: close,
+
+    [Symbol.dispose]: () => {
+      disposeNow(new Error("DbWorkerClient disposed"));
+    },
+  };
+};
+
+const createDbSchemaStatements = (
+  dbSchema: ReturnType<typeof evoluSchemaToDbSchema>,
+): ReadonlyArray<SqlStatement> => {
+  const statements: Array<SqlStatement> = [];
+
+  const systemColumnNames = Object.keys(SystemColumns.props);
+
+  for (const [tableName, columns] of Object.entries(dbSchema.tables)) {
+    const allColumns = [...systemColumnNames, ...columns];
+    const tableSql = [
+      `create table if not exists ${escapeIdentifier(tableName)} (`,
+      `"id" text,`,
+      allColumns.map((column) => `${escapeIdentifier(column)} any`).join(", "),
+      'primary key ("ownerId", "id")',
+      ") without rowid, strict",
+    ].join(" ");
+    statements.push({ sql: tableSql, params: [] });
+  }
+
+  for (const index of dbSchema.indexes) {
+    statements.push({
+      sql: ensureCreateIndexIfNotExists(index.sql),
+      params: [],
+    });
+  }
+
+  return statements;
+};
+
+const mutationChangeToStatements = (
+  change: MutationChange,
+  ownerId: OwnerId,
+): ReadonlyArray<SqlStatement> => {
+  const tableIdentifier = escapeIdentifier(change.table);
+  if (change.isDelete) {
+    return [
+      {
+        sql: `delete from ${tableIdentifier} where "ownerId" = ? and "id" = ?`,
+        params: [ownerId, change.id],
+      },
+    ];
+  }
+
+  const nowIso = new Date().toISOString();
+  const columns: Array<readonly [string, unknown]> = [
+    ...Object.entries(change.values),
+    [change.isInsert ? "createdAt" : "updatedAt", nowIso],
+  ];
+
+  if (change.isDelete != null) {
+    columns.push(["isDeleted", change.isDelete ? 1 : 0]);
+  }
+
+  return columns.map(([column, value]) => {
+    const columnIdentifier = escapeIdentifier(column);
+    return {
+      sql: [
+        `insert into ${tableIdentifier} ("ownerId", "id", ${columnIdentifier})`,
+        "values (?, ?, ?)",
+        'on conflict ("ownerId", "id") do update',
+        `set ${columnIdentifier} = excluded.${columnIdentifier}`,
+      ].join(" "),
+      params: [ownerId, change.id, value],
+    };
+  });
+};
+
+const ensureCreateIndexIfNotExists = (sql: string): string =>
+  sql
+    .replace(/^create unique index /i, "create unique index if not exists ")
+    .replace(/^create index /i, "create index if not exists ");
+
+const escapeIdentifier = (identifier: string): string =>
+  `"${identifier.replaceAll('"', '""')}"`;
 
 interface LoadingPromises {
   get: <R extends Row>(

@@ -47,13 +47,19 @@ export interface DbWorkerResetMessage extends Typed<"DbWorkerReset"> {
   readonly requestId: number;
 }
 
+/** Close database resources for deterministic lifecycle handling. */
+export interface DbWorkerCloseMessage extends Typed<"DbWorkerClose"> {
+  readonly requestId: number;
+}
+
 export type DbWorkerInput =
   | DbWorkerInitMessage
   | DbWorkerGetAppOwnerMessage
   | DbWorkerQueryMessage
   | DbWorkerMutateMessage
   | DbWorkerExportMessage
-  | DbWorkerResetMessage;
+  | DbWorkerResetMessage
+  | DbWorkerCloseMessage;
 
 // === Worker Output Messages (Worker → Main) ===
 
@@ -96,6 +102,12 @@ export interface DbWorkerResetResponseMessage
   readonly requestId: number;
 }
 
+/** Database resources closed. */
+export interface DbWorkerCloseResponseMessage
+  extends Typed<"DbWorkerCloseResponse"> {
+  readonly requestId: number;
+}
+
 /** Error from worker. */
 export interface DbWorkerErrorMessage extends Typed<"DbWorkerError"> {
   readonly requestId: number | undefined;
@@ -109,4 +121,5 @@ export type DbWorkerOutput =
   | DbWorkerMutateResponseMessage
   | DbWorkerExportResponseMessage
   | DbWorkerResetResponseMessage
+  | DbWorkerCloseResponseMessage
   | DbWorkerErrorMessage;
