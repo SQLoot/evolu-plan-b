@@ -61,21 +61,24 @@ describe("createRun", () => {
       {
         await using _run = createRun();
         const entry = addedListeners.get("error");
-        signal = entry?.signal as AbortSignal;
+        expect(entry).toBeDefined();
+        expect(entry.signal).toBeInstanceOf(AbortSignal);
+        signal = entry.signal as AbortSignal;
         expect(signal.aborted).toBe(false);
       }
 
-      expect(signal?.aborted).toBe(true);
+      expect(signal.aborted).toBe(true);
     });
 
     test("error handler logs ErrorEvent", async () => {
       const console = testCreateConsole();
       await using _run = createRun({ console });
 
-      const handler = addedListeners.get("error")?.listener;
-      (handler as any)?.(
-        new ErrorEvent("error", { error: new Error("test error") }),
-      );
+      const entry = addedListeners.get("error");
+      expect(entry).toBeDefined();
+      expect(entry.listener).toBeDefined();
+      const handler = entry.listener;
+      handler(new ErrorEvent("error", { error: new Error("test error") }));
 
       const entries = console.getEntriesSnapshot();
       expect(entries).toHaveLength(1);
@@ -91,8 +94,11 @@ describe("createRun", () => {
       const console = testCreateConsole();
       await using _run = createRun({ console });
 
-      const handler = addedListeners.get("unhandledrejection")?.listener;
-      (handler as any)?.(
+      const entry = addedListeners.get("unhandledrejection");
+      expect(entry).toBeDefined();
+      expect(entry.listener).toBeDefined();
+      const handler = entry.listener;
+      handler(
         new PromiseRejectionEvent("unhandledrejection", {
           promise: Promise.resolve(),
           reason: new Error("test rejection"),

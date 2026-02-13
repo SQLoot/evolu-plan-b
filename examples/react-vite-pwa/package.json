@@ -8,6 +8,7 @@
     "clean": "rimraf node_modules dist .vite .turbo dev-dist",
     "dev": "vite",
     "generate-pwa-assets": "pwa-assets-generator",
+    "lint": "biome lint .",
     "preview": "vite preview"
   },
   "dependencies": {

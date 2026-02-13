@@ -1,9 +1,9 @@
 "use client";
 
-import { type Run, testCreateRun } from "@evolu/common";
+import type { Run } from "@evolu/common";
 import { createContext, type ReactNode } from "react";
 
-const RunContext = /*#__PURE__*/ createContext<Run>(testCreateRun());
+const RunContext = /*#__PURE__*/ createContext<Run | null>(null);
 
 /**
  * Creates typed React Context and Provider for {@link Run}.
