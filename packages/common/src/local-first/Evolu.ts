@@ -24,7 +24,11 @@ import type { CreateMessageChannelDep } from "../Worker.js";
 import type { DbWorkerInput, DbWorkerOutput } from "./DbWorkerProtocol.js";
 import type { EvoluError } from "./Error.js";
 import type { AppOwner, OwnerId, OwnerTransport } from "./Owner.js";
-import { createAppOwner, createOwnerSecret } from "./Owner.js";
+import {
+  createAppOwner,
+  createOwnerSecret,
+  mnemonicToOwnerSecret,
+} from "./Owner.js";
 import { pack } from "./Protocol.js";
 import {
   createSubscribedQueries,
@@ -654,10 +658,17 @@ export const createEvolu =
     const loadQueryMicrotaskQueue: Array<Query> = [];
     const useOwnerMicrotaskQueue: Array<[SyncOwner, boolean, Uint8Array]> = [];
 
-    const { promise: appOwner, resolve: resolveAppOwner } =
-      Promise.withResolvers<AppOwner>();
-    if (configAppOwner) resolveAppOwner(configAppOwner);
-    else if (externalAppOwner) resolveAppOwner(externalAppOwner);
+    let appOwnerState = Promise.withResolvers<AppOwner>();
+
+    const getAppOwnerPromise = (): Promise<AppOwner> => appOwnerState.promise;
+
+    const resolveAppOwner = (nextAppOwner: AppOwner): void => {
+      appOwnerState.resolve(nextAppOwner);
+    };
+
+    const resetAppOwnerPromise = (): void => {
+      appOwnerState = Promise.withResolvers<AppOwner>();
+    };
 
     const setUnknownError = (error: unknown): void => {
       errorStore.set(createUnknownError(error));
@@ -677,20 +688,19 @@ export const createEvolu =
       );
     };
 
-    const initializeDb = async (): Promise<void> => {
+    const initializeDb = async (forcedAppOwner?: AppOwner): Promise<void> => {
       await dbWorker.init(_inMemory ? ":memory:" : name, 1);
 
       for (const statement of createDbSchemaStatements(dbSchema)) {
         await dbWorker.mutate(statement.sql, statement.params);
       }
 
-      if (configAppOwner) {
-        await storeAppOwner(configAppOwner);
-        return;
-      }
+      const preferredAppOwner =
+        forcedAppOwner ?? configAppOwner ?? externalAppOwner;
 
-      if (externalAppOwner) {
-        await storeAppOwner(externalAppOwner);
+      if (preferredAppOwner) {
+        await storeAppOwner(preferredAppOwner);
+        resolveAppOwner(preferredAppOwner);
         return;
       }
 
@@ -705,10 +715,20 @@ export const createEvolu =
       resolveAppOwner(generatedAppOwner);
     };
 
-    const dbReady = initializeDb().catch((error) => {
-      setUnknownError(error);
-      throw error;
-    });
+    let dbReady: Promise<void>;
+
+    const startDbInitialization = (
+      forcedAppOwner?: AppOwner,
+    ): Promise<void> => {
+      dbReady = initializeDb(forcedAppOwner).catch((error) => {
+        setUnknownError(error);
+        appOwnerState.reject(error);
+        throw error;
+      });
+      return dbReady;
+    };
+
+    void startDbInitialization();
 
     const mutateMicrotaskQueue: Array<
       [MutationChange, MutationOptions["onComplete"] | undefined]
@@ -806,7 +826,7 @@ export const createEvolu =
       void (async () => {
         try {
           await dbReady;
-          const defaultOwnerId = (await appOwner).id;
+          const defaultOwnerId = (await getAppOwnerPromise()).id;
 
           for (const change of changes) {
             const ownerId = change.ownerId ?? defaultOwnerId;
@@ -878,7 +898,9 @@ export const createEvolu =
       getQueryRows: <R extends Row>(query: Query<R>): QueryRows<R> =>
         (rowsStore.get().get(query) ?? emptyRows) as QueryRows<R>,
 
-      appOwner,
+      get appOwner() {
+        return getAppOwnerPromise();
+      },
 
       // TODO: Update it for the owner-api
       // subscribeSyncState: syncStore.subscribe,
@@ -892,14 +914,24 @@ export const createEvolu =
         await dbReady;
         await dbWorker.reset();
         rowsStore.set(new Map());
-        if (options?.reload ?? true) deps.reloadApp();
+        if ((options?.reload ?? true) && deps.reloadApp) {
+          deps.reloadApp();
+          return;
+        }
+
+        resetAppOwnerPromise();
+        await startDbInitialization();
       },
 
-      restoreAppOwner: async (_mnemonic, options) => {
-        await evolu.resetAppOwner(options);
-        const { promise, resolve } = Promise.withResolvers<void>();
-        resolve();
-        return promise;
+      restoreAppOwner: async (mnemonic, options) => {
+        await dbReady;
+        await dbWorker.reset();
+        rowsStore.set(new Map());
+        resetAppOwnerPromise();
+        await startDbInitialization(
+          createAppOwner(mnemonicToOwnerSecret(mnemonic)),
+        );
+        if ((options?.reload ?? true) && deps.reloadApp) deps.reloadApp();
       },
 
       reloadApp: () => {

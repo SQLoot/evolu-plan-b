@@ -105,6 +105,8 @@ export const createWorkerScope = <Input, Output = never>(
 const wrap = <Input, Output>(
   native: NodeWorker | NodeMessagePort,
 ): MessagePort<Input, Output> => {
+  let port: MessagePort<Input, Output>;
+
   const onNativeMessage = (message: Output) => {
     assert(
       port.onMessage != null,
@@ -113,9 +115,7 @@ const wrap = <Input, Output>(
     port.onMessage(message);
   };
 
-  native.on("message", onNativeMessage);
-
-  const port: MessagePort<Input, Output> = {
+  port = {
     postMessage: (message: Input, transfer?: ReadonlyArray<Transferable>) => {
       if (transfer == null) native.postMessage(message);
       else native.postMessage(message, toTransferList(transfer));
@@ -129,6 +129,8 @@ const wrap = <Input, Output>(
       else native.close();
     },
   };
+
+  native.on("message", onNativeMessage);
 
   return port;
 };
