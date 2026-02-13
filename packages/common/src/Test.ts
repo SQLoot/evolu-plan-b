@@ -5,22 +5,21 @@
  */
 
 import { type TestConsoleDep, testCreateConsole } from "./Console.js";
-import { type RandomBytesDep, testCreateRandomBytes } from "./Crypto.js";
+import { testCreateRandomBytes } from "./Crypto.js";
 import {
-  type RandomDep,
   type RandomLibDep,
   testCreateRandom,
   testCreateRandomLib,
 } from "./Random.js";
-import { createRunner, type Runner, type RunnerConfigDep } from "./Task.js";
-import { type TimeDep, testCreateTime } from "./Time.js";
+import {
+  createRun,
+  type Run,
+  type RunConfigDep,
+  type RunDeps,
+} from "./Task.js";
+import { testCreateTime } from "./Time.js";
 
-/** Test deps created by {@link testCreateDeps}. */
-export type TestDeps = TestConsoleDep &
-  RandomBytesDep &
-  RandomDep &
-  RandomLibDep &
-  TimeDep;
+export type TestDeps = RunDeps & TestConsoleDep & RandomLibDep;
 
 /**
  * Creates test dependencies for proper isolation.
@@ -32,7 +31,7 @@ export type TestDeps = TestConsoleDep &
  * ```ts
  * test("my test", async () => {
  *   const deps = testCreateDeps();
- *   await using run = testCreateRunner(deps);
+ *   await using run = testCreateRun(deps);
  *
  *   const fiber = run(sleep("1s"));
  *   deps.time.advance("1s");
@@ -53,45 +52,38 @@ export const testCreateDeps = (options?: {
 };
 
 /**
- * Creates a test {@link Runner} with deterministic deps.
+ * Creates a test {@link Run} with deterministic deps.
  *
  * Uses {@link TestDeps} which provides seeded random values, ensuring
  * deterministic fiber IDs, timestamps, and other generated values. This makes
  * tests reproducible and snapshot-friendly.
  *
  * Accepts partial deps - any missing deps are created with defaults. Also
- * accepts {@link RunnerConfigDep} for enabling events and custom deps.
+ * accepts {@link RunConfigDep} for enabling events and custom deps.
  *
  * ### Example
  *
  * ```ts
  * // Basic usage with TestDeps
- * await using run = testCreateRunner();
+ * await using run = testCreateRun();
  *
  * // Override specific deps
- * await using run = testCreateRunner({ time: customTime });
+ * await using run = testCreateRun({ time: customTime });
  *
  * // Add custom deps
  * interface HttpDep {
  *   readonly http: Http;
  * }
- * await using run = testCreateRunner({ http });
- * // run is Runner<TestDeps & HttpDep>
+ * await using run = testCreateRun({ http });
+ * // run is Run<TestDeps & HttpDep>
  * ```
  */
-export function testCreateRunner(): Runner<TestDeps>;
+export function testCreateRun(): Run<TestDeps>;
 
 /** With custom dependencies merged into {@link TestDeps}. */
-export function testCreateRunner<D>(deps: D): Runner<TestDeps & D>;
+export function testCreateRun<D>(deps: D): Run<TestDeps & D>;
 
-export function testCreateRunner<D>(deps?: D): Runner<TestDeps & D> {
+export function testCreateRun<D>(deps?: D): Run<TestDeps & D> {
   const defaults = testCreateDeps();
-  return createRunner<TestDeps & D>({ ...defaults, ...deps } as TestDeps & D);
+  return createRun<TestDeps & D>({ ...defaults, ...deps } as TestDeps & D);
 }
-
-/**
- * Backward-compatible alias for upstream naming.
- *
- * Prefer {@link testCreateRunner} in SQLoot code.
- */
-export const testCreateRun: typeof testCreateRunner = testCreateRunner;

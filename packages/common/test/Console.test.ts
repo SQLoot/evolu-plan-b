@@ -4,9 +4,7 @@ import {
   type ConsoleOutput,
   createConsole,
   createConsoleArrayOutput,
-  createConsoleEntryFormatter,
   createConsoleFormatter,
-  createConsoleMultiOutput,
   createConsoleStoreOutput,
   createMultiOutput,
   createNativeConsoleOutput,
@@ -238,6 +236,74 @@ describe("createConsole", () => {
     expect(console.name).toBe("root");
     expect(child.name).toBe("relay");
   });
+
+  test("write bypasses level filtering", () => {
+    const output = createTestOutput();
+    const console = createConsole({ output, level: "silent" });
+
+    const entry: ConsoleEntry = {
+      method: "debug",
+      path: ["worker"],
+      args: ["replayed"],
+    };
+    console.write(entry);
+
+    expect(output.entries).toHaveLength(1);
+    expect(output.entries[0].entry).toEqual(entry);
+  });
+
+  test("write passes formatter to output", () => {
+    const output = createTestOutput();
+    const formatter = (entry: ConsoleEntry) => ["fmt", ...entry.args];
+    const console = createConsole({ output, formatter });
+
+    const entry: ConsoleEntry = {
+      method: "info",
+      path: [],
+      args: ["msg"],
+    };
+    console.write(entry);
+
+    expect(output.entries[0].formattedArgs).toEqual(["fmt", "msg"]);
+  });
+});
+
+describe("createNativeConsoleOutput", () => {
+  test("calls native console", () => {
+    const logSpy = vi
+      .spyOn(globalThis.console, "info")
+      .mockImplementation(() => undefined);
+    const output = createNativeConsoleOutput();
+
+    output.write({
+      method: "info",
+      path: [],
+      args: ["hello", "world"],
+    });
+
+    expect(logSpy).toHaveBeenCalledWith("hello", "world");
+    logSpy.mockRestore();
+  });
+
+  test("applies formatter", () => {
+    const logSpy = vi
+      .spyOn(globalThis.console, "info")
+      .mockImplementation(() => undefined);
+    const output = createNativeConsoleOutput();
+    const formatter = (entry: ConsoleEntry) => ["prefix", ...entry.args];
+
+    output.write(
+      {
+        method: "info",
+        path: [],
+        args: ["message"],
+      },
+      formatter,
+    );
+
+    expect(logSpy).toHaveBeenCalledWith("prefix", "message");
+    logSpy.mockRestore();
+  });
 });
 
 describe("createConsoleFormatter", () => {
@@ -400,61 +466,191 @@ describe("createConsoleFormatter", () => {
     `);
   });
 
-  test("deprecated createConsoleEntryFormatter alias works", () => {
-    const formatter = createConsoleEntryFormatter(createTimeDep())({
-      timestampFormat: "relative",
+  test("createConsoleFormatter example", () => {
+    const time = testCreateTime({ startAt: 0 as Millis });
+    const output = createTestOutput();
+
+    // Relative timestamps
+    const root = createConsole({
+      output,
+      formatter: createConsoleFormatter({ time })({
+        timestampFormat: "relative",
+      }),
     });
 
-    const result = formatter({
-      method: "info",
-      path: ["alias"],
-      args: ["message"],
-    });
+    const relay = root.child("relay");
+    relay.log("connected");
+    time.advance("1.5s");
+    relay.log("synced");
 
-    expect(result).toMatchInlineSnapshot(`
+    expect(output.entries.map((e) => e.formattedArgs)).toMatchInlineSnapshot(`
       [
-        "+0.000s [alias]",
-        "message",
+        [
+          "+0.000s [relay]",
+          "connected",
+        ],
+        [
+          "+1.500s [relay]",
+          "synced",
+        ],
       ]
     `);
+
+    // Nested children
+    const db = relay.child("db");
+    db.log("opened");
+
+    expect(output.entries[2].formattedArgs).toMatchInlineSnapshot(`
+      [
+        "+1.500s [relay] [db]",
+        "opened",
+      ]
+    `);
+
+    // Absolute timestamps (local clock time HH:MM:SS.mmm)
+    const absoluteOutput = createTestOutput();
+    const absoluteTime = testCreateTime({
+      startAt: Date.UTC(2026, 0, 28, 14, 30, 15, 123) as Millis,
+    });
+    const absoluteRoot = createConsole({
+      output: absoluteOutput,
+      formatter: createConsoleFormatter({ time: absoluteTime })({
+        timestampFormat: "absolute",
+      }),
+    });
+    const absoluteRelay = absoluteRoot.child("relay");
+
+    absoluteRelay.log("connected");
+
+    const [timestamp, message] = absoluteOutput.entries[0].formattedArgs;
+    expect(timestamp).toMatch(/^\d{2}:\d{2}:\d{2}\.\d{3} \[relay\]$/);
+    expect(message).toBe("connected");
   });
 });
 
-describe("createNativeConsoleOutput", () => {
-  test("calls native console", () => {
-    const logSpy = vi
-      .spyOn(globalThis.console, "info")
-      .mockImplementation(() => undefined);
-    const output = createNativeConsoleOutput();
+describe("createConsoleStoreOutput", () => {
+  test("entry starts as null", () => {
+    const output = createConsoleStoreOutput();
+    expect(output.entry.get()).toBeNull();
+  });
+
+  test("entry updates on write", () => {
+    const output = createConsoleStoreOutput();
+    const console = createConsole({ output });
+    console.info("hello");
+    expect(output.entry.get()).toEqual({
+      method: "info",
+      path: [],
+      args: ["hello"],
+    });
+  });
+
+  test("entry notifies subscribers", () => {
+    const output = createConsoleStoreOutput();
+    const console = createConsole({ output });
+    const received: Array<ConsoleEntry | null> = [];
+    output.entry.subscribe(() => {
+      received.push(output.entry.get());
+    });
+
+    console.warn("one");
+    console.error("two");
+
+    expect(received).toEqual([
+      { method: "warn", path: [], args: ["one"] },
+      { method: "error", path: [], args: ["two"] },
+    ]);
+  });
+
+  test("captures child entries", () => {
+    const output = createConsoleStoreOutput();
+    const console = createConsole({ output });
+    const child = console.child("db");
+    const received: Array<ConsoleEntry | null> = [];
+    output.entry.subscribe(() => {
+      received.push(output.entry.get());
+    });
+
+    child.info("from child");
+
+    expect(received).toEqual([
+      { method: "info", path: ["db"], args: ["from child"] },
+    ]);
+  });
+
+  test("skips filtered entries", () => {
+    const output = createConsoleStoreOutput();
+    const console = createConsole({ output, level: "warn" });
+    console.debug("ignored");
+    expect(output.entry.get()).toBeNull();
+    console.warn("logged");
+    expect(output.entry.get()?.method).toBe("warn");
+  });
+});
+
+describe("createConsoleArrayOutput", () => {
+  test("captures entries to array", () => {
+    const entries: Array<ConsoleEntry> = [];
+    const output = createConsoleArrayOutput(entries);
 
     output.write({
       method: "info",
-      path: [],
-      args: ["hello", "world"],
+      path: ["relay"],
+      args: ["message", 123],
     });
 
-    expect(logSpy).toHaveBeenCalledWith("hello", "world");
-    logSpy.mockRestore();
-  });
-
-  test("applies formatter", () => {
-    const logSpy = vi
-      .spyOn(globalThis.console, "info")
-      .mockImplementation(() => undefined);
-    const output = createNativeConsoleOutput();
-    const formatter = (entry: ConsoleEntry) => ["prefix", ...entry.args];
-
-    output.write(
+    expect(entries).toEqual([
       {
         method: "info",
-        path: [],
-        args: ["message"],
+        path: ["relay"],
+        args: ["message", 123],
       },
-      formatter,
-    );
+    ]);
+  });
 
-    expect(logSpy).toHaveBeenCalledWith("prefix", "message");
-    logSpy.mockRestore();
+  test("works with createConsole", () => {
+    const entries: Array<ConsoleEntry> = [];
+    const output = createConsoleArrayOutput(entries);
+    const console = createConsole({ output });
+
+    console.info("hello");
+    console.warn("world");
+
+    expect(entries.map((e) => e.method)).toEqual(["info", "warn"]);
+    expect(entries.map((e) => e.args[0])).toEqual(["hello", "world"]);
+  });
+});
+
+describe("createMultiOutput", () => {
+  test("writes to all outputs", () => {
+    const entries1: Array<ConsoleEntry> = [];
+    const entries2: Array<ConsoleEntry> = [];
+    const output = createMultiOutput([
+      createConsoleArrayOutput(entries1),
+      createConsoleArrayOutput(entries2),
+    ]);
+    const console = createConsole({ output });
+
+    console.info("hello");
+
+    expect(entries1).toHaveLength(1);
+    expect(entries2).toHaveLength(1);
+    expect(entries1[0]).toEqual(entries2[0]);
+  });
+
+  test("combines native and store outputs", () => {
+    const storeOutput = createConsoleStoreOutput();
+    const entries: Array<ConsoleEntry> = [];
+    const output = createMultiOutput([
+      createConsoleArrayOutput(entries),
+      storeOutput,
+    ]);
+    const console = createConsole({ output });
+
+    console.error("fail");
+
+    expect(entries).toHaveLength(1);
+    expect(storeOutput.entry.get()?.args).toEqual(["fail"]);
   });
 });
 
@@ -633,92 +829,5 @@ describe("testCreateConsole", () => {
 
     expect(console.name).toBe("");
     expect(child.name).toBe("relay");
-  });
-});
-
-describe("createConsoleArrayOutput", () => {
-  test("captures entries to array", () => {
-    const entries: Array<ConsoleEntry> = [];
-    const output = createConsoleArrayOutput(entries);
-
-    output.write({
-      method: "info",
-      path: ["relay"],
-      args: ["message", 123],
-    });
-
-    expect(entries).toEqual([
-      {
-        method: "info",
-        path: ["relay"],
-        args: ["message", 123],
-      },
-    ]);
-  });
-
-  test("works with createConsole", () => {
-    const entries: Array<ConsoleEntry> = [];
-    const output = createConsoleArrayOutput(entries);
-    const console = createConsole({ output });
-
-    console.info("hello");
-    console.warn("world");
-
-    expect(entries.map((e) => e.method)).toEqual(["info", "warn"]);
-    expect(entries.map((e) => e.args[0])).toEqual(["hello", "world"]);
-  });
-});
-
-describe("createConsoleStoreOutput", () => {
-  test("entry starts as null", () => {
-    const output = createConsoleStoreOutput();
-    expect(output.entry.get()).toBeNull();
-  });
-
-  test("entry updates on write", () => {
-    const output = createConsoleStoreOutput();
-    const console = createConsole({ output });
-    console.info("hello");
-    expect(output.entry.get()).toEqual({
-      method: "info",
-      path: [],
-      args: ["hello"],
-    });
-  });
-});
-
-describe("createMultiOutput", () => {
-  test("writes to all outputs", () => {
-    const entries1: Array<ConsoleEntry> = [];
-    const entries2: Array<ConsoleEntry> = [];
-    const output = createMultiOutput([
-      createConsoleArrayOutput(entries1),
-      createConsoleArrayOutput(entries2),
-    ]);
-    const console = createConsole({ output });
-
-    console.info("hello");
-
-    expect(entries1).toHaveLength(1);
-    expect(entries2).toHaveLength(1);
-    expect(entries1[0]).toEqual(entries2[0]);
-  });
-
-  test("deprecated createConsoleMultiOutput alias works", () => {
-    const entries: Array<ConsoleEntry> = [];
-    const output = createConsoleMultiOutput([
-      createConsoleArrayOutput(entries),
-    ]);
-    const console = createConsole({ output });
-
-    console.warn("legacy");
-
-    expect(entries).toEqual([
-      {
-        method: "warn",
-        path: [],
-        args: ["legacy"],
-      },
-    ]);
   });
 });

@@ -60,7 +60,7 @@ import {
 import { err, getOrThrow, ok } from "../../src/Result.js";
 import type { SqliteValue } from "../../src/Sqlite.js";
 import type { TestDeps } from "../../src/Test.js";
-import { testCreateDeps, testCreateRunner } from "../../src/Test.js";
+import { testCreateDeps, testCreateRun } from "../../src/Test.js";
 import {
   createId,
   dateToDateIso,
@@ -739,7 +739,7 @@ test("createProtocolMessageForSync", async () => {
 
 describe("E2E versioning", () => {
   test("same versions", async () => {
-    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
+    await using run = testCreateRun(shouldNotBeCalledStorageDep);
     const v0 = 0 as NonNegativeInt;
 
     const clientMessage = createProtocolMessageBuffer(testAppOwner.id, {
@@ -756,7 +756,7 @@ describe("E2E versioning", () => {
   });
 
   test("non-initiator version is higher", async () => {
-    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
+    await using run = testCreateRun(shouldNotBeCalledStorageDep);
     const v0 = 0 as NonNegativeInt;
     const v1 = 1 as NonNegativeInt;
 
@@ -786,7 +786,7 @@ describe("E2E versioning", () => {
   });
 
   test("initiator version is higher", async () => {
-    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
+    await using run = testCreateRun(shouldNotBeCalledStorageDep);
     const v0 = 0 as NonNegativeInt;
     const v1 = 1 as NonNegativeInt;
 
@@ -818,7 +818,7 @@ describe("E2E versioning", () => {
 
 describe("E2E errors", () => {
   test("ProtocolInvalidDataError", async () => {
-    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
+    await using run = testCreateRun(shouldNotBeCalledStorageDep);
     const malformedMessage = createBuffer();
     encodeNonNegativeInt(malformedMessage, 1 as NonNegativeInt); // Only version, no ownerId
 
@@ -848,7 +848,7 @@ describe("E2E errors", () => {
 
     let responseMessage: Uint8Array;
     {
-      await using run = testCreateRunner({
+      await using run = testCreateRun({
         storage: {
           ...shouldNotBeCalledStorageDep.storage,
           validateWriteKey: lazyFalse,
@@ -862,7 +862,7 @@ describe("E2E errors", () => {
       responseMessage = response.value.message;
     }
 
-    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
+    await using run = testCreateRun(shouldNotBeCalledStorageDep);
     const clientResult = await run(
       applyProtocolMessageAsClient(responseMessage),
     );
@@ -874,7 +874,7 @@ describe("E2E errors", () => {
 
 describe("E2E relay options", () => {
   test("subscribe", async () => {
-    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
+    await using run = testCreateRun(shouldNotBeCalledStorageDep);
     const message = createProtocolMessageBuffer(testAppOwner.id, {
       messageType: MessageType.Request,
       subscriptionFlag: SubscriptionFlags.Subscribe,
@@ -894,7 +894,7 @@ describe("E2E relay options", () => {
   });
 
   test("unsubscribe", async () => {
-    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
+    await using run = testCreateRun(shouldNotBeCalledStorageDep);
     const message = createProtocolMessageBuffer(testAppOwner.id, {
       messageType: MessageType.Request,
       subscriptionFlag: SubscriptionFlags.Unsubscribe,
@@ -913,7 +913,7 @@ describe("E2E relay options", () => {
   });
 
   test("no subscription flag (None)", async () => {
-    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
+    await using run = testCreateRun(shouldNotBeCalledStorageDep);
     const message = createProtocolMessageBuffer(testAppOwner.id, {
       messageType: MessageType.Request,
       subscriptionFlag: SubscriptionFlags.None,
@@ -938,7 +938,7 @@ describe("E2E relay options", () => {
   });
 
   test("default subscription flag (undefined)", async () => {
-    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
+    await using run = testCreateRun(shouldNotBeCalledStorageDep);
     const message = createProtocolMessageBuffer(testAppOwner.id, {
       messageType: MessageType.Request,
       // No subscriptionFlag provided, should default to None
@@ -981,7 +981,7 @@ describe("E2E relay options", () => {
 
     let broadcastedMessage = null as Uint8Array | null;
 
-    await using run = testCreateRunner({
+    await using run = testCreateRun({
       storage: {
         ...shouldNotBeCalledStorageDep.storage,
         validateWriteKey: lazyTrue,
@@ -1005,7 +1005,7 @@ describe("E2E relay options", () => {
 
     let writeMessagesCalled = false;
     {
-      await using run = testCreateRunner({
+      await using run = testCreateRun({
         storage: {
           ...shouldNotBeCalledStorageDep.storage,
           writeMessages:
@@ -1084,12 +1084,12 @@ describe("E2E sync", () => {
       }
 
       if (turn === "relay") {
-        await using run = testCreateRunner(relayStorageDep);
+        await using run = testCreateRun(relayStorageDep);
         result = await run(
           applyProtocolMessageAsRelay(message, { rangesMaxSize }),
         );
       } else {
-        await using run = testCreateRunner(clientStorageDep);
+        await using run = testCreateRun(clientStorageDep);
         result = await run(
           applyProtocolMessageAsClient(message, {
             getWriteKey: () => testAppOwner.writeKey,
@@ -1132,8 +1132,8 @@ describe("E2E sync", () => {
     return { syncSteps, syncSizes };
   };
 
-  it("client and relay have all data", { timeout: 15000 }, async () => {
-    await using run = testCreateRunner();
+  it("client and relay have all data", async () => {
+    await using run = testCreateRun();
     const [clientStorage, relayStorage] = await createStorages();
     await run(clientStorage.writeMessages(testAppOwnerIdBytes, messages));
     await run(relayStorage.writeMessages(testAppOwnerIdBytes, messages));
@@ -1151,7 +1151,7 @@ describe("E2E sync", () => {
   });
 
   it("client has all data", async () => {
-    await using run = testCreateRunner();
+    await using run = testCreateRun();
     const [clientStorage, relayStorage] = await createStorages();
     await run(clientStorage.writeMessages(testAppOwnerIdBytes, messages));
 
@@ -1171,8 +1171,8 @@ describe("E2E sync", () => {
     `);
   });
 
-  it("client has all data - many steps", { timeout: 15000 }, async () => {
-    await using run = testCreateRunner();
+  it("client has all data - many steps", async () => {
+    await using run = testCreateRun();
     const [clientStorage, relayStorage] = await createStorages();
     await run(clientStorage.writeMessages(testAppOwnerIdBytes, messages));
 
@@ -1205,7 +1205,7 @@ describe("E2E sync", () => {
   });
 
   it("relay has all data", async () => {
-    await using run = testCreateRunner();
+    await using run = testCreateRun();
     const [clientStorage, relayStorage] = await createStorages();
     await run(relayStorage.writeMessages(testAppOwnerIdBytes, messages));
 
@@ -1223,8 +1223,8 @@ describe("E2E sync", () => {
     `);
   });
 
-  it("relay has all data - many steps", { timeout: 15000 }, async () => {
-    await using run = testCreateRunner();
+  it("relay has all data - many steps", async () => {
+    await using run = testCreateRun();
     const [clientStorage, relayStorage] = await createStorages();
     await run(relayStorage.writeMessages(testAppOwnerIdBytes, messages));
 
@@ -1264,28 +1264,23 @@ describe("E2E sync", () => {
     `);
   });
 
-  // Increased timeout for CI environments where this E2E sync test with large data sets
-  // can take longer than the default 5s due to storage operations and reconciliation
-  it(
-    "client and relay each have a random half of the data",
-    { timeout: 15000 },
-    async () => {
-      await using run = testCreateRunner();
-      const [clientStorage, relayStorage] = await createStorages();
+  it("client and relay each have a random half of the data", async () => {
+    await using run = testCreateRun();
+    const [clientStorage, relayStorage] = await createStorages();
 
-      const shuffledMessages = deps.randomLib.shuffle(messages);
-      const middle = Math.floor(shuffledMessages.length / 2);
-      const firstHalf = shuffledMessages.slice(0, middle);
-      const secondHalf = shuffledMessages.slice(middle);
+    const shuffledMessages = deps.randomLib.shuffle(messages);
+    const middle = Math.floor(shuffledMessages.length / 2);
+    const firstHalf = shuffledMessages.slice(0, middle);
+    const secondHalf = shuffledMessages.slice(middle);
 
-      assertNonEmptyArray(firstHalf);
-      assertNonEmptyArray(secondHalf);
+    assertNonEmptyArray(firstHalf);
+    assertNonEmptyArray(secondHalf);
 
-      await run(clientStorage.writeMessages(testAppOwnerIdBytes, firstHalf));
-      await run(relayStorage.writeMessages(testAppOwnerIdBytes, secondHalf));
+    await run(clientStorage.writeMessages(testAppOwnerIdBytes, firstHalf));
+    await run(relayStorage.writeMessages(testAppOwnerIdBytes, secondHalf));
 
-      const syncSteps = await reconcile(clientStorage, relayStorage);
-      expect(syncSteps).toMatchInlineSnapshot(`
+    const syncSteps = await reconcile(clientStorage, relayStorage);
+    expect(syncSteps).toMatchInlineSnapshot(`
       {
         "syncSizes": [
           370,
@@ -1298,33 +1293,29 @@ describe("E2E sync", () => {
         "syncSteps": 6,
       }
     `);
-    },
-  );
+  });
 
-  it(
-    "client and relay each have a random half of the data - many steps",
-    { timeout: 15000 },
-    async () => {
-      await using run = testCreateRunner();
-      const [clientStorage, relayStorage] = await createStorages();
+  it("client and relay each have a random half of the data - many steps", async () => {
+    await using run = testCreateRun();
+    const [clientStorage, relayStorage] = await createStorages();
 
-      const shuffledMessages = deps.randomLib.shuffle(messages);
-      const middle = Math.floor(shuffledMessages.length / 2);
-      const firstHalf = shuffledMessages.slice(0, middle);
-      const secondHalf = shuffledMessages.slice(middle);
+    const shuffledMessages = deps.randomLib.shuffle(messages);
+    const middle = Math.floor(shuffledMessages.length / 2);
+    const firstHalf = shuffledMessages.slice(0, middle);
+    const secondHalf = shuffledMessages.slice(middle);
 
-      assertNonEmptyArray(firstHalf);
-      assertNonEmptyArray(secondHalf);
+    assertNonEmptyArray(firstHalf);
+    assertNonEmptyArray(secondHalf);
 
-      await run(clientStorage.writeMessages(testAppOwnerIdBytes, firstHalf));
-      await run(relayStorage.writeMessages(testAppOwnerIdBytes, secondHalf));
+    await run(clientStorage.writeMessages(testAppOwnerIdBytes, firstHalf));
+    await run(relayStorage.writeMessages(testAppOwnerIdBytes, secondHalf));
 
-      const syncSteps = await reconcile(
-        clientStorage,
-        relayStorage,
-        ProtocolMessageRangesMaxSize.orThrow(3000),
-      );
-      expect(syncSteps).toMatchInlineSnapshot(`
+    const syncSteps = await reconcile(
+      clientStorage,
+      relayStorage,
+      ProtocolMessageRangesMaxSize.orThrow(3000),
+    );
+    expect(syncSteps).toMatchInlineSnapshot(`
       {
         "syncSizes": [
           392,
@@ -1369,8 +1360,7 @@ describe("E2E sync", () => {
         "syncSteps": 38,
       }
     `);
-    },
-  );
+  });
 
   it("starts sync from createProtocolMessageFromCrdtMessages", async () => {
     const owner = testAppOwner;

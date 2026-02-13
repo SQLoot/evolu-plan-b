@@ -47,8 +47,7 @@ export const useQueries = <
   }
 
   return allQueries.map((query, i) =>
-    // Safe until the number of queries is stable.
-    // biome-ignore lint/correctness/useHookAtTopLevel: intentional
+    // biome-ignore lint/correctness/useHookAtTopLevel: Safe — number of queries is stable across renders (upstream pattern).
     useQuerySubscription(query, { once: i > queries.length - 1 }),
   ) as never;
 };

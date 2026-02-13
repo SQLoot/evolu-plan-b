@@ -1,11 +1,12 @@
 "use client";
 
 import * as Evolu from "@evolu/common";
-import { createUseEvolu, EvoluProvider, useQuery } from "@evolu/react";
+import { createEvoluContext, useQuery } from "@evolu/react";
 import { evoluReactWebDeps } from "@evolu/react-web";
+import { createRun } from "@evolu/web";
 import { IconEdit, IconTrash } from "@tabler/icons-react";
 import clsx from "clsx";
-import { type FC, Suspense, use, useState } from "react";
+import { type FC, Suspense, use, useEffect, useState } from "react";
 
 // Primary keys are branded types, preventing accidental use of IDs across
 // different tables (e.g., a TodoId can't be used where a UserId is expected).
@@ -26,30 +27,38 @@ const Schema = {
 };
 
 // Create Evolu instance for the React web platform.
-const evolu = Evolu.createEvolu(evoluReactWebDeps)(Schema, {
-  name: Evolu.SimpleName.orThrow("minimal-example"),
+// Create Evolu instance for the React web platform.
+const run = createRun(evoluReactWebDeps);
+const app = run(
+  Evolu.createEvolu(Schema, {
+    appName: Evolu.AppName.orThrow("minimal-example"),
 
-  // ...(process.env.NODE_ENV === "development" && {
-  //   transports: [{ type: "WebSocket", url: "ws://localhost:4000" }],
-  // }),
-});
+    // ...(process.env.NODE_ENV === "development" && {
+    //   transports: [{ type: "WebSocket", url: "ws://localhost:4000" }],
+    // }),
+  }),
+);
 
-// Creates a typed React Hook returning an instance of Evolu.
-const useEvolu = createUseEvolu(evolu);
+// Creates typed React Context and Provider for Evolu.
+const [EvoluContext, EvoluProvider] = createEvoluContext(app);
 
 /**
  * Subscribe to unexpected Evolu errors (database, network, sync issues). These
  * should not happen in normal operation, so always log them for debugging. Show
  * users a friendly error message instead of technical details.
  */
-evolu.subscribeError(() => {
-  const error = evolu.getError();
-  if (!error) return;
+const useEvoluError = (evolu: Evolu.Evolu) => {
+  useEffect(() => {
+    return evolu.subscribeError(() => {
+      const error = evolu.getError();
+      if (!error) return;
 
-  alert("🚨 Evolu error occurred! Check the console.");
-  // eslint-disable-next-line no-console
-  console.error(error);
-});
+      alert("🚨 Evolu error occurred! Check the console.");
+
+      console.error(error);
+    });
+  }, [evolu]);
+};
 
 export const EvoluMinimalExample: FC = () => {
   return (
@@ -61,7 +70,7 @@ export const EvoluMinimalExample: FC = () => {
           </h1>
         </div>
 
-        <EvoluProvider value={evolu}>
+        <EvoluProvider>
           {/*
             Suspense delivers great UX (no loading flickers) and DX (no loading
             states to manage). Highly recommended with Evolu.
@@ -102,7 +111,9 @@ type TodosRow = typeof todosQuery.Row;
 const Todos: FC = () => {
   // useQuery returns live data - component re-renders when data changes.
   const todos = useQuery(todosQuery);
-  const { insert } = useEvolu();
+  const evolu = use(EvoluContext);
+  useEvoluError(evolu);
+  const { insert } = evolu;
   const [newTodoTitle, setNewTodoTitle] = useState("");
 
   const addTodo = () => {
@@ -151,7 +162,7 @@ const Todos: FC = () => {
 const TodoItem: FC<{
   row: TodosRow;
 }> = ({ row: { id, title, isCompleted } }) => {
-  const { update } = useEvolu();
+  const { update } = use(EvoluContext);
 
   const handleToggleCompletedClick = () => {
     update("todo", {
@@ -217,7 +228,7 @@ const TodoItem: FC<{
 };
 
 const OwnerActions: FC = () => {
-  const evolu = useEvolu();
+  const evolu = use(EvoluContext);
   const appOwner = use(evolu.appOwner);
 
   const [showMnemonic, setShowMnemonic] = useState(false);

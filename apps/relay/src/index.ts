@@ -1,6 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { createConsole, createConsoleFormatter } from "@evolu/common";
-import { createRelayDeps, createRunner, startRelay } from "@evolu/nodejs";
+import { createRelayDeps, createRun, startRelay } from "@evolu/nodejs";
 
 // Ensure the database is created in a predictable location for Docker.
 mkdirSync("data", { recursive: true });
@@ -15,7 +15,7 @@ const console = createConsole({
 
 const deps = { ...createRelayDeps(), console };
 
-await using run = createRunner(deps);
+await using run = createRun(deps);
 await using stack = run.stack();
 
 await stack.use(

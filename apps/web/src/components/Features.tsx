@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  IconArrowsSplit2,
   IconBrandJavascript,
   IconBrandOpenSource,
   IconBrandTypescript,
@@ -9,11 +10,9 @@ import {
   IconFeather,
   IconFilter,
   IconLayersIntersect2,
-  IconLibrary,
   IconLivePhoto,
   IconPackage,
   type IconProps,
-  IconShieldCheck,
   IconShieldLock,
   IconSql,
   IconSubtask,
@@ -153,21 +152,21 @@ const features: Array<Feature> = [
   {
     name: "Standard library",
     description: "A tree-shakable TypeScript library that fits in your head.",
-    icon: IconLibrary,
+    icon: IconBrandTypescript,
   },
   {
-    name: "Runtime types",
-    description: "Typed parsing, errors, and formatters. Branded types.",
+    name: "Type",
+    description: "Runtime types, typed errors and formatters. All branded.",
     icon: IconFilter,
   },
   {
-    name: "Tasks",
+    name: "Task",
     description: "Structured concurrency built on JavaScript Promises.",
     icon: IconSubtask,
   },
   {
     name: "Lightweight",
-    description: "Runtime types, Tasks, and Logger in 5.6 kB gzipped.",
+    description: "Runtime types, structured concurrency, logging: 5.6 kB.",
     icon: IconFeather,
   },
   {
@@ -176,9 +175,9 @@ const features: Array<Feature> = [
     icon: IconPackage,
   },
   {
-    name: "Typed errors",
-    description: "Result type. No try/catch. Exhaustive error handling.",
-    icon: IconShieldCheck,
+    name: "Result",
+    description: "Typed errors. No try/catch. Exhaustive error handling.",
+    icon: IconArrowsSplit2,
   },
   {
     name: "Universal",

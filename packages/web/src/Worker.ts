@@ -8,11 +8,9 @@ import type {
   Run,
   RunDeps,
   SharedWorker,
-  SharedWorkerScope,
   SharedWorkerSelf,
   Transferable,
   Worker,
-  WorkerScope,
   WorkerSelf,
 } from "@evolu/common";
 import {
@@ -21,7 +19,6 @@ import {
   createConsoleStoreOutput,
   createMultiOutput,
   createNativeConsoleOutput,
-  handleGlobalError,
 } from "@evolu/common";
 import { createRun } from "./Task.js";
 
@@ -87,6 +84,8 @@ export const createWorkerSelf = <Input, Output = never>(
 /**
  * Creates an Evolu {@link SharedWorkerSelf} from a Web `SharedWorkerGlobalScope`
  * (`self` inside a shared worker).
+ *
+ * Disposing closes the shared worker scope for all connected clients.
  */
 export const createSharedWorkerSelf = <Input, Output = never>(
   nativeSelf: globalThis.SharedWorkerGlobalScope,
@@ -99,12 +98,12 @@ export const createSharedWorkerSelf = <Input, Output = never>(
     },
   };
 
-  nativeSelf.onconnect = (event) => {
+  nativeSelf.onconnect = (e) => {
     assert(
       self.onConnect != null,
       "onConnect must be set before receiving connections",
     );
-    self.onConnect(wrap<Output, Input>(event.ports[0]));
+    self.onConnect(wrap<Output, Input>(e.ports[0]));
   };
 
   return self;
@@ -113,14 +112,23 @@ export const createSharedWorkerSelf = <Input, Output = never>(
 /**
  * Creates {@link Run} for a Web Worker or SharedWorker.
  *
- * Includes a console store output for forwarding worker logs and native output
- * for local debugging.
+ * Sets up console with {@link createConsoleStoreOutput} combined with native
+ * console via {@link createMultiOutput}, and provides the store output's entry
+ * as the `consoleEntry` dependency and {@link createMessagePort} as the
+ * `createMessagePort` dependency.
+ *
+ * ### Example
+ *
+ * ```ts
+ * await using run = createRun();
+ * ```
+ *
+ * @group Worker Run
  */
 export const createWorkerRun = (): Run<
   RunDeps & ConsoleStoreOutputEntryDep & CreateMessagePortDep
 > => {
   const consoleStoreOutput = createConsoleStoreOutput();
-
   const console = createConsole({
     output: createMultiOutput([
       createNativeConsoleOutput(),
@@ -137,111 +145,39 @@ export const createWorkerRun = (): Run<
 
 const wrap = <Input, Output>(
   native:
-    | globalThis.DedicatedWorkerGlobalScope
+    | DedicatedWorkerGlobalScope
     | globalThis.MessagePort
     | globalThis.Worker,
 ): MessagePort<Input, Output> => {
-  const port: MessagePort<Input, Output> = {
+  let onMessageHandler: ((message: Output) => void) | null = null;
+
+  return {
     postMessage: (message: Input, transfer?: ReadonlyArray<Transferable>) => {
       if (transfer == null) native.postMessage(message);
       else native.postMessage(message, [...transfer]);
     },
-    onMessage: null,
+
+    get onMessage() {
+      return onMessageHandler;
+    },
+    set onMessage(fn) {
+      onMessageHandler = fn;
+      if (fn) {
+        // Messages are queued until onMessage is assigned.
+        native.onmessage = (event: MessageEvent<Output>) => {
+          fn(event.data);
+        };
+      } else {
+        native.onmessage = null;
+      }
+    },
+
     native: native as unknown as NativeMessagePort,
+
     [Symbol.dispose]: () => {
       native.onmessage = null;
       if (native instanceof globalThis.Worker) native.terminate();
       else native.close();
     },
   };
-
-  native.onmessage = (event: MessageEvent<Output>) => {
-    assert(
-      port.onMessage != null,
-      "onMessage must be set before receiving messages",
-    );
-    port.onMessage(event.data);
-  };
-
-  return port;
-};
-
-/**
- * @deprecated Use {@link createWorkerSelf}. Retained for backwards compatibility.
- */
-export const createWorkerScope = <Input, Output = never>(
-  nativeSelf: globalThis.DedicatedWorkerGlobalScope,
-): WorkerScope<Input, Output> => {
-  const stack = new DisposableStack();
-
-  const self = stack.use(createWorkerSelf<Input, Output>(nativeSelf));
-
-  const scope: WorkerScope<Input, Output> = {
-    ...self,
-    onError: null,
-    [Symbol.dispose]: () => {
-      stack.dispose();
-    },
-  };
-
-  const errorHandler = (event: ErrorEvent) => {
-    handleGlobalError(scope, event.error);
-  };
-  const rejectionHandler = (event: PromiseRejectionEvent) => {
-    handleGlobalError(scope, event.reason);
-  };
-
-  nativeSelf.addEventListener("error", errorHandler);
-  nativeSelf.addEventListener("unhandledrejection", rejectionHandler);
-
-  stack.defer(() => {
-    nativeSelf.removeEventListener("error", errorHandler);
-    nativeSelf.removeEventListener("unhandledrejection", rejectionHandler);
-  });
-
-  return scope;
-};
-
-/**
- * @deprecated Use {@link createSharedWorkerSelf}. Retained for backwards compatibility.
- */
-export const createSharedWorkerScope = <Input, Output = never>(
-  nativeSelf: globalThis.SharedWorkerGlobalScope,
-): SharedWorkerScope<Input, Output> => {
-  const stack = new DisposableStack();
-
-  const self = stack.use(createSharedWorkerSelf<Input, Output>(nativeSelf));
-
-  const scope: SharedWorkerScope<Input, Output> = {
-    onConnect: null,
-    onError: null,
-    [Symbol.dispose]: () => {
-      stack.dispose();
-    },
-  };
-
-  self.onConnect = (port) => {
-    assert(
-      scope.onConnect != null,
-      "onConnect must be set before receiving connections",
-    );
-    scope.onConnect(port);
-  };
-
-  const errorHandler = (event: ErrorEvent) => {
-    handleGlobalError(scope, event.error);
-  };
-  const rejectionHandler = (event: PromiseRejectionEvent) => {
-    handleGlobalError(scope, event.reason);
-  };
-
-  nativeSelf.addEventListener("error", errorHandler);
-  nativeSelf.addEventListener("unhandledrejection", rejectionHandler);
-
-  stack.defer(() => {
-    nativeSelf.removeEventListener("error", errorHandler);
-    nativeSelf.removeEventListener("unhandledrejection", rejectionHandler);
-  });
-
-  return scope;
 };
