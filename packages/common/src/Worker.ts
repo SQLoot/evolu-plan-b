@@ -235,8 +235,8 @@ export const testCreateMessageChannel = <
   const state1: TestPortState<Output> = { handler: null, queue: [] };
   const state2: TestPortState<Input> = { handler: null, queue: [] };
 
-  const native1 = Symbol("NativeMessagePort1") as unknown as NativeMessagePort;
-  const native2 = Symbol("NativeMessagePort2") as unknown as NativeMessagePort;
+  const native1 = Object({}) as unknown as NativeMessagePort;
+  const native2 = Object({}) as unknown as NativeMessagePort;
 
   const port1 = createTestPort<Input, Output>(state1, state2, native1);
   const port2 = createTestPort<Output, Input>(state2, state1, native2);

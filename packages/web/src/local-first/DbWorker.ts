@@ -18,14 +18,22 @@ import { createRun } from "../Task.js";
 
 const workerMemoryDbName = "evolu-worker-memory";
 
-const toSimpleName = (dbName: string): Name =>
+const safeParseAppOwner = (value: string): AppOwner | null => {
+  try {
+    return JSON.parse(value) as AppOwner;
+  } catch {
+    return null;
+  }
+};
+
+const toName = (dbName: string): Name =>
   NameType.orThrow(dbName === ":memory:" ? workerMemoryDbName : dbName);
 
 const createDriver = async (dbName: string): Promise<SqliteDriver> => {
   const mode =
     dbName === ":memory:" ? ({ mode: "memory" } as const) : undefined;
   await using run = createRun();
-  const result = await run(createWasmSqliteDriver(toSimpleName(dbName), mode));
+  const result = await run(createWasmSqliteDriver(toName(dbName), mode));
   if (!result.ok) throw new Error("Failed to create web SQLite driver");
   return result.value;
 };
@@ -113,7 +121,7 @@ export const runWebDbWorkerPort = (
           type: "DbWorkerAppOwner",
           appOwner:
             typeof appOwnerValue === "string"
-              ? (JSON.parse(appOwnerValue) as AppOwner)
+              ? safeParseAppOwner(appOwnerValue)
               : null,
         });
         break;

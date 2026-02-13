@@ -30,6 +30,6 @@ export const createRunContext = <D,>(
 } => ({
   Run: RunContext as React.Context<Run<D>>,
   RunProvider: ({ children }) => (
-    <RunContext value={run}>{children}</RunContext>
+    <RunContext.Provider value={run}>{children}</RunContext.Provider>
   ),
 });
