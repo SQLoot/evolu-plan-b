@@ -13,13 +13,14 @@
     "@evolu/common": "workspace:*",
     "@evolu/react": "workspace:*",
     "@evolu/react-web": "workspace:*",
+    "@evolu/web": "workspace:*",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
   "devDependencies": {
     "@types/react": "~19.2.14",
     "@types/react-dom": "~19.2.3",
-    "@vitejs/plugin-react": "^5.1.4",
+    "@vitejs/plugin-react": "^5.1.2",
     "electron": "38.2.0",
     "electron-builder": "^26.4.0",
     "typescript": "^5.9.3",

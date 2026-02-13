@@ -8,10 +8,10 @@ import {
   createRelation,
   createSqlite,
   isPromiseLike,
+  Name,
   type OwnerId,
   ok,
   type RandomDep,
-  SimpleName,
   type SqliteError,
   type Task,
   type TimingSafeEqualDep,
@@ -57,7 +57,7 @@ export const createRelayDeps = (): RelayDeps => ({
  * ```ts
  * const deps = { ...createRelayDeps(), console };
  *
- * await using run = createRunner(deps);
+ * await using run = createRun(deps);
  * await using stack = run.stack();
  *
  * await stack.use(startRelay({ port: 4000 }));
@@ -68,7 +68,7 @@ export const createRelayDeps = (): RelayDeps => ({
 export const startRelay =
   ({
     port = 443,
-    name = SimpleName.orThrow("evolu-relay"),
+    name = Name.orThrow("evolu-relay"),
     isOwnerAllowed,
     isOwnerWithinQuota,
   }: NodeJsRelayConfig): Task<Relay, SqliteError, RelayDeps> =>
@@ -221,7 +221,6 @@ export const startRelay =
           console.info("HTTP server closed");
           ok();
         });
-        return undefined;
       }),
     );
 
@@ -233,7 +232,6 @@ export const startRelay =
           console.info("WebSocketServer closed");
           ok();
         });
-        return undefined;
       }),
     );
 
@@ -246,7 +244,6 @@ export const startRelay =
           }
         }
         ok();
-        return undefined;
       }),
     );
 

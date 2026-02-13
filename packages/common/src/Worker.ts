@@ -5,7 +5,6 @@
  */
 
 import type { Brand } from "./Brand.js";
-import type { GlobalErrorScope } from "./Error.js";
 
 /**
  * Platform-agnostic Worker.
@@ -180,15 +179,134 @@ export interface SharedWorkerSelf<Input, Output = never> extends Disposable {
 }
 
 /**
- * @deprecated Use {@link WorkerSelf}. Retained for backwards compatibility.
+ * Creates a connected {@link SharedWorker} / {@link SharedWorkerSelf} pair for
+ * testing.
+ *
+ * Returns both sides so tests can exercise the full worker ↔ client pipeline
+ * without a real worker thread. Calling `connect()` triggers `self.onConnect`.
  */
-export interface WorkerScope<Input, Output = never>
-  extends WorkerSelf<Input, Output>,
-    GlobalErrorScope {}
+export const testCreateSharedWorker = <Input, Output = never>(): {
+  readonly worker: SharedWorker<Input, Output>;
+  readonly self: SharedWorkerSelf<Input, Output>;
+  readonly connect: () => void;
+} => {
+  const channel = testCreateMessageChannel<Input, Output>();
+
+  const self: SharedWorkerSelf<Input, Output> = {
+    onConnect: null,
+    [Symbol.dispose]: () => {
+      self.onConnect = null;
+    },
+  };
+
+  const worker: SharedWorker<Input, Output> = {
+    port: channel.port1,
+    [Symbol.dispose]: () => {
+      channel[Symbol.dispose]();
+    },
+  };
+
+  const connect = () => {
+    if (self.onConnect) self.onConnect(channel.port2);
+  };
+
+  return { worker, self, connect };
+};
+
+/** {@link MessageChannel} with disposal tracking for testing. */
+export interface TestMessageChannel<Input, Output = never>
+  extends MessageChannel<Input, Output> {
+  readonly isDisposed: () => boolean;
+}
 
 /**
- * @deprecated Use {@link SharedWorkerSelf}. Retained for backwards compatibility.
+ * Creates an in-memory {@link MessageChannel} for testing.
+ *
+ * Messages are queued until `onMessage` is assigned, matching the browser
+ * MessagePort behavior where the port message queue starts disabled.
+ *
+ * Both ports are registered in the native port registry so
+ * {@link testCreateMessagePort} can look them up by their native token.
  */
-export interface SharedWorkerScope<Input, Output = never>
-  extends SharedWorkerSelf<Input, Output>,
-    GlobalErrorScope {}
+export const testCreateMessageChannel = <
+  Input,
+  Output = never,
+>(): TestMessageChannel<Input, Output> => {
+  const state1: TestPortState<Output> = { handler: null, queue: [] };
+  const state2: TestPortState<Input> = { handler: null, queue: [] };
+
+  const native1 = Object({}) as unknown as NativeMessagePort;
+  const native2 = Object({}) as unknown as NativeMessagePort;
+
+  const port1 = createTestPort<Input, Output>(state1, state2, native1);
+  const port2 = createTestPort<Output, Input>(state2, state1, native2);
+
+  nativePortRegistry.set(native1, port1);
+  nativePortRegistry.set(native2, port2);
+
+  let disposed = false;
+
+  return {
+    port1,
+    port2,
+    isDisposed: () => disposed,
+    [Symbol.dispose]: () => {
+      disposed = true;
+      port1[Symbol.dispose]();
+      port2[Symbol.dispose]();
+    },
+  };
+};
+
+/** Creates an in-memory {@link CreateMessagePort} for testing. */
+export const testCreateMessagePort: CreateMessagePort = <Input, Output = never>(
+  nativePort: NativeMessagePort,
+): MessagePort<Input, Output> => {
+  const pair = nativePortRegistry.get(nativePort);
+  if (!pair) throw new Error("Unknown native port — did you transfer it?");
+  return pair as MessagePort<Input, Output>;
+};
+
+interface TestPortState<T> {
+  handler: ((message: T) => void) | null;
+  readonly queue: Array<T>;
+}
+
+const createTestPort = <Input, Output>(
+  receive: TestPortState<Output>,
+  peerReceive: TestPortState<Input>,
+  native: NativeMessagePort,
+): MessagePort<Input, Output> => ({
+  postMessage: (message) => {
+    if (peerReceive.handler) peerReceive.handler(message);
+    else peerReceive.queue.push(message);
+  },
+  get onMessage() {
+    return receive.handler;
+  },
+  set onMessage(fn) {
+    receive.handler = fn;
+    if (fn) {
+      for (const msg of receive.queue.splice(0)) fn(msg);
+    }
+  },
+  native,
+  [Symbol.dispose]: () => {
+    receive.handler = null;
+  },
+});
+
+/**
+ * Registry mapping native port tokens to their in-memory port counterparts.
+ *
+ * When {@link testCreateMessageChannel} creates a pair, both ports are
+ * registered here. When {@link testCreateMessagePort} wraps a native token
+ * (received via `postMessage` transfer), it looks up the actual port.
+ *
+ * Uses `WeakMap` so entries are garbage collected when the native token is no
+ * longer referenced.
+ */
+const nativePortRegistry = new WeakMap<
+  NativeMessagePort,
+  MessagePort<any, any>
+>();

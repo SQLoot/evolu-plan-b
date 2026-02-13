@@ -2,14 +2,14 @@ import { existsSync, unlinkSync } from "node:fs";
 import {
   type CreateSqliteDriverDep,
   createSqlite,
-  SimpleName,
+  Name,
   sql,
   testCreateRun,
 } from "@evolu/common";
 import { afterEach, assert, describe, expect, test } from "vitest";
 import { createBetterSqliteDriver } from "../src/Sqlite.js";
 
-const testName = SimpleName.orThrow("Test");
+const testName = Name.orThrow("Test");
 
 describe("createBetterSqliteDriver", () => {
   test("creates in-memory database", async () => {
