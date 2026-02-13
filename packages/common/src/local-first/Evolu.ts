@@ -977,7 +977,7 @@ export const createEvolu =
         loadQueryMicrotaskQueue.length = 0;
         useOwnerMicrotaskQueue.length = 0;
         mutateMicrotaskQueue.length = 0;
-        dbWorker[Symbol.dispose]();
+        await dbWorker[Symbol.asyncDispose]();
       },
     };
 
@@ -989,7 +989,7 @@ interface SqlStatement {
   readonly params: ReadonlyArray<unknown>;
 }
 
-interface DbWorkerClient extends Disposable {
+interface DbWorkerClient extends Disposable, AsyncDisposable {
   readonly init: (dbName: string, schemaVersion: number) => Promise<void>;
   readonly getAppOwner: () => Promise<AppOwner | null>;
   readonly query: (
@@ -1019,6 +1019,8 @@ const createDbWorkerClient = (
   const port = channel.port2;
 
   let requestIdCounter = 1;
+  let isDisposed = false;
+  let closePromise: Promise<void> | null = null;
 
   const pendingRequests = new Map<
     number,
@@ -1044,6 +1046,14 @@ const createDbWorkerClient = (
 
     while (initWaiters.length > 0) initWaiters.shift()?.reject(error);
     while (appOwnerWaiters.length > 0) appOwnerWaiters.shift()?.reject(error);
+  };
+
+  const disposeNow = (error: unknown): void => {
+    if (isDisposed) return;
+    isDisposed = true;
+    rejectAllPending(error);
+    port.onMessage = null;
+    channel[Symbol.dispose]();
   };
 
   port.onMessage = (message) => {
@@ -1114,6 +1124,11 @@ const createDbWorkerClient = (
     expectedType: TExpected,
   ): Promise<Extract<DbWorkerResponseWithRequestId, { type: TExpected }>> =>
     new Promise((resolve, reject) => {
+      if (isDisposed) {
+        reject(new Error("DbWorkerClient disposed"));
+        return;
+      }
+
       if (!("requestId" in message)) {
         reject(
           new Error(
@@ -1131,15 +1146,43 @@ const createDbWorkerClient = (
       port.postMessage(message);
     });
 
+  const close = async (): Promise<void> => {
+    if (closePromise) return closePromise;
+
+    closePromise = (async () => {
+      if (isDisposed) return;
+
+      try {
+        const requestId = requestIdCounter++;
+        await request(
+          { type: "DbWorkerClose", requestId },
+          "DbWorkerCloseResponse",
+        );
+      } finally {
+        disposeNow(new Error("DbWorkerClient disposed"));
+      }
+    })();
+
+    return closePromise;
+  };
+
   return {
     init: (dbName, schemaVersion) =>
       new Promise<void>((resolve, reject) => {
+        if (isDisposed) {
+          reject(new Error("DbWorkerClient disposed"));
+          return;
+        }
         initWaiters.push({ resolve, reject });
         port.postMessage({ type: "DbWorkerInit", dbName, schemaVersion });
       }),
 
     getAppOwner: () =>
       new Promise((resolve, reject) => {
+        if (isDisposed) {
+          reject(new Error("DbWorkerClient disposed"));
+          return;
+        }
         appOwnerWaiters.push({ resolve, reject });
         port.postMessage({ type: "DbWorkerGetAppOwner" });
       }),
@@ -1181,11 +1224,10 @@ const createDbWorkerClient = (
       );
     },
 
+    [Symbol.asyncDispose]: close,
+
     [Symbol.dispose]: () => {
-      const disposalError = new Error("DbWorkerClient disposed");
-      rejectAllPending(disposalError);
-      port.onMessage = null;
-      channel[Symbol.dispose]();
+      disposeNow(new Error("DbWorkerClient disposed"));
     },
   };
 };
