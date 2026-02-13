@@ -208,6 +208,15 @@ export const runBunDbWorkerScope = (self: BunDbWorkerScope): void => {
           break;
         }
 
+        case "DbWorkerClose": {
+          closeDb();
+          postMessage({
+            type: "DbWorkerCloseResponse",
+            requestId: message.requestId,
+          });
+          break;
+        }
+
         default: {
           const _exhaustive: never = message;
           throw new Error(
@@ -341,6 +350,19 @@ self.onmessage = (event) => {
         self.postMessage({ 
           type: "DbWorkerResetResponse", 
           requestId: message.requestId 
+        });
+        break;
+      }
+      
+      case "DbWorkerClose": {
+        if (db) {
+          clearStatementCache();
+          db.close();
+          db = null;
+        }
+        self.postMessage({
+          type: "DbWorkerCloseResponse",
+          requestId: message.requestId,
         });
         break;
       }

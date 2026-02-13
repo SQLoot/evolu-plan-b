@@ -88,6 +88,7 @@ const createMockDeps = () => {
   let reloadCount = 0;
   let resetCount = 0;
   let mutateCount = 0;
+  let closeCount = 0;
 
   const deps = {
     reloadApp: () => {
@@ -186,6 +187,14 @@ const createMockDeps = () => {
                 });
                 break;
               }
+              case "DbWorkerClose": {
+                closeCount += 1;
+                dbPort.postMessage({
+                  type: "DbWorkerCloseResponse",
+                  requestId: dbMessage.requestId,
+                });
+                break;
+              }
             }
           };
         },
@@ -198,7 +207,13 @@ const createMockDeps = () => {
 
   return {
     deps,
-    getState: () => ({ reloadCount, resetCount, mutateCount, rows: [...rows] }),
+    getState: () => ({
+      reloadCount,
+      resetCount,
+      mutateCount,
+      closeCount,
+      rows: [...rows],
+    }),
   };
 };
 
@@ -267,7 +282,7 @@ describe("createEvolu", () => {
   });
 
   test("db worker flow supports dispose and re-init roundtrip", async () => {
-    const { deps } = createMockDeps();
+    const { deps, getState } = createMockDeps();
     const evoluDeps = createEvoluDeps(deps as any);
     const createQuery = createQueryBuilder(Schema);
     const allTodos = createQuery((db) =>
@@ -299,6 +314,9 @@ describe("createEvolu", () => {
     );
 
     await evolu2[Symbol.asyncDispose]();
+
+    const state = getState();
+    expect(state.closeCount).toBeGreaterThanOrEqual(2);
   });
 });
 

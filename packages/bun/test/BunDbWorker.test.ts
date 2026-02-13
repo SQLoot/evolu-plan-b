@@ -205,4 +205,25 @@ describe("runBunDbWorkerScope", () => {
     const response = expectMessage(output, "DbWorkerAppOwner");
     expect(response.appOwner).toBeNull();
   });
+
+  test("closes database on close message", () => {
+    const { send } = createHarness();
+    init(send);
+
+    const close = send({
+      type: "DbWorkerClose",
+      requestId: 15,
+    });
+    const closeResponse = expectMessage(close, "DbWorkerCloseResponse");
+    expect(closeResponse.requestId).toBe(15);
+
+    const output = send({
+      type: "DbWorkerQuery",
+      requestId: 16,
+      sql: "SELECT 1",
+    });
+    const error = expectMessage(output, "DbWorkerError");
+    expect(error.requestId).toBe(16);
+    expect(error.error).toContain("Database not initialized");
+  });
 });

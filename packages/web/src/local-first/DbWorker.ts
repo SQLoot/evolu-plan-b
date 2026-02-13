@@ -165,6 +165,15 @@ export const runWebDbWorkerPort = (
         break;
       }
 
+      case "DbWorkerClose": {
+        closeDb();
+        postMessage({
+          type: "DbWorkerCloseResponse",
+          requestId: message.requestId,
+        });
+        break;
+      }
+
       default: {
         const _exhaustive: never = message;
         throw new Error(`Unknown message type: ${String(_exhaustive)}`);
