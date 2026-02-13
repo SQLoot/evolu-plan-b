@@ -1,15 +1,15 @@
 import {
-  type ApplicationConfig,
+  ApplicationConfig,
   InjectionToken,
   provideBrowserGlobalErrorListeners,
   provideZonelessChangeDetection,
 } from "@angular/core";
-import { createEvolu, type Evolu, getOrThrow, SimpleName } from "@evolu/common";
+import { createEvolu, Evolu, getOrThrow, Name } from "@evolu/common";
 import { evoluWebDeps } from "@evolu/web";
 import { Schema } from "./schema";
 
 const evolu = createEvolu(evoluWebDeps)(Schema, {
-  name: getOrThrow(SimpleName.from("angular-vite-pwa-minimal")),
+  name: getOrThrow(Name.from("angular-vite-pwa-minimal")),
 
   // ...(typeof window !== "undefined" &&
   //   window.location.hostname === "localhost" && {

@@ -1,113 +1,158 @@
-import { expect, test, vi } from "vitest";
-import type { UnknownError } from "../../src/Error.js";
-import { createUnknownError } from "../../src/Error.js";
-import type {
-  DbWorkerInput,
-  DbWorkerOutput,
-} from "../../src/local-first/DbWorkerProtocol.js";
+import { createStore } from "../../src/Store.js";
+import type { ConsoleEntry } from "../../src/Console.js";
+import type { ReadonlyStore } from "../../src/Store.js";
 import {
   type EvoluWorkerInput,
-  runEvoluWorkerScope,
+  initEvoluWorker,
 } from "../../src/local-first/Worker.js";
-import type {
-  CreateMessagePort,
-  MessagePort,
-  NativeMessagePort,
-  SharedWorkerScope,
+import { testCreateConsole } from "../../src/Console.js";
+import { testCreateRun } from "../../src/Test.js";
+import {
+  testCreateMessageChannel,
+  testCreateMessagePort,
+  testCreateSharedWorker,
 } from "../../src/Worker.js";
+import { describe, expect, test } from "vitest";
 
-const createTrackedPort = <Input, Output = never>() => {
-  let onMessage: ((message: Output) => void) | null = null;
-  const sentMessages: Array<Input> = [];
-  const native = {} as NativeMessagePort;
+describe("initEvoluWorker", () => {
+  const setupWorker = async (
+    consoleStoreOutputEntry: ReadonlyStore<ConsoleEntry | null> = createStore<ConsoleEntry | null>(
+      null,
+    ),
+  ) => {
+    const { worker, self, connect } =
+      testCreateSharedWorker<EvoluWorkerInput>();
 
-  const port: MessagePort<Input, Output> = {
-    postMessage: (message) => {
-      sentMessages.push(message);
-    },
-    get onMessage() {
-      return onMessage;
-    },
-    set onMessage(handler) {
-      onMessage = handler;
-    },
-    native,
-    [Symbol.dispose]: () => {
-      onMessage = null;
-    },
+    await using run = testCreateRun({
+      console: testCreateConsole(),
+      consoleStoreOutputEntry,
+      createMessagePort: testCreateMessagePort,
+    });
+
+    const initResult = await run(initEvoluWorker(self));
+    if (!initResult.ok)
+      throw new Error("initEvoluWorker should always succeed");
+
+    connect();
+
+    return {
+      worker,
+      workerStack: initResult.value,
+    };
   };
 
-  return {
-    native,
-    port,
-    sentMessages,
-    emit: (message: Output) => {
-      onMessage?.(message);
-    },
-  };
-};
+  test("replays queued console entries after first console port connects", async () => {
+    const consoleStoreOutputEntry = createStore<ConsoleEntry | null>(null);
+    const { worker, workerStack } = await setupWorker(consoleStoreOutputEntry);
+    await using _workerStack = workerStack;
 
-const createWorkerScope = (): SharedWorkerScope<EvoluWorkerInput> => ({
-  onConnect: null,
-  onError: null,
-  [Symbol.dispose]: () => {},
-});
+    const firstEntry: ConsoleEntry = {
+      method: "info",
+      path: ["before"],
+      args: ["queued"],
+    };
 
-test("runEvoluWorkerScope forwards global errors to registered error port", () => {
-  const workerScope = createWorkerScope();
-  const workerConnection = createTrackedPort<never, EvoluWorkerInput>();
-  const errorPort = createTrackedPort<UnknownError, never>();
+    consoleStoreOutputEntry.set(firstEntry);
 
-  const createMessagePort: CreateMessagePort = <Input, Output = never>(
-    nativePort: NativeMessagePort,
-  ): MessagePort<Input, Output> => {
-    if (nativePort === errorPort.native)
-      return errorPort.port as unknown as MessagePort<Input, Output>;
-    throw new Error("Unexpected native port");
-  };
+    const receivedEntries: Array<ConsoleEntry> = [];
+    const consoleChannel = testCreateMessageChannel<ConsoleEntry>();
+    consoleChannel.port2.onMessage = (entry) => {
+      receivedEntries.push(entry);
+    };
 
-  runEvoluWorkerScope({
-    createMessagePort,
-    runDbWorkerPort: vi.fn(),
-  })(workerScope);
+    worker.port.postMessage({
+      type: "InitConsole",
+      port: consoleChannel.port1.native,
+    });
 
-  workerScope.onConnect?.(workerConnection.port);
-  workerConnection.emit({
-    type: "InitErrorStore",
-    port: errorPort.native,
+    const secondEntry: ConsoleEntry = {
+      method: "info",
+      path: ["after"],
+      args: ["live"],
+    };
+
+    consoleStoreOutputEntry.set(secondEntry);
+
+    expect(receivedEntries).toEqual([firstEntry, secondEntry]);
   });
 
-  const error = createUnknownError(new Error("boom"));
-  workerScope.onError?.(error);
+  test("forwards entries immediately when console port is already connected", async () => {
+    const consoleStoreOutputEntry = createStore<ConsoleEntry | null>(null);
+    const { worker, workerStack } = await setupWorker(consoleStoreOutputEntry);
+    await using _workerStack = workerStack;
 
-  expect(errorPort.sentMessages).toEqual([error]);
-});
+    const receivedEntries: Array<ConsoleEntry> = [];
+    const consoleChannel = testCreateMessageChannel<ConsoleEntry>();
+    consoleChannel.port2.onMessage = (entry) => {
+      receivedEntries.push(entry);
+    };
 
-test("runEvoluWorkerScope routes InitEvolu port to db worker runner", () => {
-  const workerScope = createWorkerScope();
-  const workerConnection = createTrackedPort<never, EvoluWorkerInput>();
-  const dbPort = createTrackedPort<DbWorkerOutput, DbWorkerInput>();
-  const runDbWorkerPort = vi.fn();
+    worker.port.postMessage({
+      type: "InitConsole",
+      port: consoleChannel.port1.native,
+    });
 
-  const createMessagePort: CreateMessagePort = <Input, Output = never>(
-    nativePort: NativeMessagePort,
-  ): MessagePort<Input, Output> => {
-    if (nativePort === dbPort.native)
-      return dbPort.port as unknown as MessagePort<Input, Output>;
-    throw new Error("Unexpected native port");
-  };
+    const liveEntry: ConsoleEntry = {
+      method: "info",
+      path: ["live"],
+      args: ["entry"],
+    };
 
-  runEvoluWorkerScope({
-    createMessagePort,
-    runDbWorkerPort,
-  })(workerScope);
+    consoleStoreOutputEntry.set(liveEntry);
 
-  workerScope.onConnect?.(workerConnection.port);
-  workerConnection.emit({
-    type: "InitEvolu",
-    port: dbPort.native,
+    expect(receivedEntries).toEqual([liveEntry]);
   });
 
-  expect(runDbWorkerPort).toHaveBeenCalledTimes(1);
-  expect(runDbWorkerPort).toHaveBeenCalledWith(dbPort.port);
+  test("ignores null console store updates", async () => {
+    const consoleStoreOutputEntry = createStore<ConsoleEntry | null>(null);
+    const { worker, workerStack } = await setupWorker(consoleStoreOutputEntry);
+    await using _workerStack = workerStack;
+
+    const receivedEntries: Array<ConsoleEntry> = [];
+    const consoleChannel = testCreateMessageChannel<ConsoleEntry>();
+    consoleChannel.port2.onMessage = (entry) => {
+      receivedEntries.push(entry);
+    };
+
+    worker.port.postMessage({
+      type: "InitConsole",
+      port: consoleChannel.port1.native,
+    });
+
+    const entry: ConsoleEntry = {
+      method: "info",
+      path: ["before-null"],
+      args: ["value"],
+    };
+
+    consoleStoreOutputEntry.set(entry);
+    consoleStoreOutputEntry.set(null);
+
+    expect(receivedEntries).toEqual([entry]);
+  });
+
+  test("accepts InitEvolu message", async () => {
+    const { worker, workerStack } = await setupWorker();
+    await using _workerStack = workerStack;
+
+    const evoluChannel = testCreateMessageChannel<string>();
+
+    expect(() => {
+      worker.port.postMessage({
+        type: "InitEvolu",
+        port: evoluChannel.port1.native,
+      });
+    }).not.toThrow();
+  });
+
+  test("throws for unknown message type", async () => {
+    const { worker, workerStack } = await setupWorker();
+    await using _workerStack = workerStack;
+
+    expect(() => {
+      worker.port.postMessage({
+        type: "Unknown",
+      } as never);
+    }).toThrow();
+  });
 });

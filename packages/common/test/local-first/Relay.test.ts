@@ -21,8 +21,8 @@ import { testCreateRunWithSqliteAndRelayStorage } from "../_deps.nodejs.js";
 import {
   testAppOwner,
   testAppOwner2,
-  testAppOwner2IdBytes,
   testAppOwnerIdBytes,
+  testAppOwner2IdBytes,
   testTimestampsAsc,
 } from "./_fixtures.js";
 

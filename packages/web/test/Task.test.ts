@@ -50,38 +50,28 @@ describe("createRun", () => {
     test("passes abort signal to addEventListener", async () => {
       await using _run = createRun();
 
-      const errorListener = addedListeners.get("error");
-      const rejectionListener = addedListeners.get("unhandledrejection");
-
-      expect(errorListener).toBeDefined();
-      expect(rejectionListener).toBeDefined();
-
-      expect(errorListener?.signal).toBeInstanceOf(AbortSignal);
-      expect(rejectionListener?.signal).toBeInstanceOf(AbortSignal);
+      expect(addedListeners.get("error")!.signal).toBeInstanceOf(AbortSignal);
+      expect(addedListeners.get("unhandledrejection")!.signal).toBeInstanceOf(
+        AbortSignal,
+      );
     });
 
     test("abort signal is aborted on dispose", async () => {
       let signal: AbortSignal;
       {
         await using _run = createRun();
-        const errorListener = addedListeners.get("error");
-        expect(errorListener?.signal).toBeDefined();
-        if (!errorListener?.signal) throw new Error("Missing abort signal");
-        signal = errorListener.signal;
+        signal = addedListeners.get("error")!.signal!;
         expect(signal.aborted).toBe(false);
       }
 
-      expect(signal.aborted).toBe(true);
+      expect(signal!.aborted).toBe(true);
     });
 
     test("error handler logs ErrorEvent", async () => {
       const console = testCreateConsole();
       await using _run = createRun({ console });
 
-      const errorListener = addedListeners.get("error");
-      expect(errorListener).toBeDefined();
-      if (!errorListener) throw new Error("Missing error listener");
-      const handler = errorListener.listener;
+      const handler = addedListeners.get("error")!.listener;
       handler(new ErrorEvent("error", { error: new Error("test error") }));
 
       const entries = console.getEntriesSnapshot();
@@ -98,10 +88,7 @@ describe("createRun", () => {
       const console = testCreateConsole();
       await using _run = createRun({ console });
 
-      const rejectionListener = addedListeners.get("unhandledrejection");
-      expect(rejectionListener).toBeDefined();
-      if (!rejectionListener) throw new Error("Missing rejection listener");
-      const handler = rejectionListener.listener;
+      const handler = addedListeners.get("unhandledrejection")!.listener;
       handler(
         new PromiseRejectionEvent("unhandledrejection", {
           promise: Promise.resolve(),
