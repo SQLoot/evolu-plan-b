@@ -188,7 +188,7 @@ const Test = () => {
 // //         const error = evolu.getError();
 // //         if (!error) return;
 // //         Alert.alert("🚨 Evolu error occurred! Check the console.");
-// //         // eslint-disable-next-line no-console
+// //
 // //         console.error(error);
 // //       });
 // //     })().catch((error) => {
