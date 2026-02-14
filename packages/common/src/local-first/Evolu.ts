@@ -17,9 +17,18 @@ import { createUnknownError } from "../Error.js";
 import type { Listener, Unsubscribe } from "../Listeners.js";
 import type { FlushSyncDep, ReloadAppDep } from "../Platform.js";
 import { createDisposableDep, type DisposableStackDep } from "../Resources.js";
+import { err, ok } from "../Result.js";
 import { SqliteBoolean, sqliteBooleanToBoolean } from "../Sqlite.js";
 import { createStore, type ReadonlyStore, type Store } from "../Store.js";
-import { createId, type Id, type Mnemonic, type SimpleName } from "../Type.js";
+import {
+  brand,
+  createId,
+  type Id,
+  type Mnemonic,
+  SimpleName,
+  type TypeError,
+  UrlSafeString,
+} from "../Type.js";
 import type { CreateMessageChannelDep } from "../Worker.js";
 import type { DbWorkerInput, DbWorkerOutput } from "./DbWorkerProtocol.js";
 import type { EvoluError } from "./Error.js";
@@ -73,7 +82,13 @@ export interface EvoluConfig {
    * // name: SimpleName.orThrow("MyApp")
    * ```
    */
-  readonly name: SimpleName;
+  readonly name?: SimpleName;
+
+  /**
+   * @deprecated Use {@link EvoluConfig.name}. Compatibility alias for
+   * `upstream/common-v8`.
+   */
+  readonly appName?: AppName;
 
   /**
    * External AppOwner to use when creating Evolu instance. Use this when you
@@ -218,6 +233,18 @@ export interface EvoluConfig {
    */
   readonly encryptionKey?: EncryptionKey;
 }
+
+/**
+ * @deprecated Use {@link SimpleName}. Kept as compatibility alias for
+ * `upstream/common-v8`.
+ */
+export const AppName = /*#__PURE__*/ brand("AppName", UrlSafeString, (value) =>
+  value.length >= 1 && value.length <= 41
+    ? ok(value)
+    : err<AppNameError>({ type: "AppName", value }),
+);
+export type AppName = typeof AppName.Type;
+export interface AppNameError extends TypeError<"AppName"> {}
 
 /** Local-first SQL database with typed queries, mutations, and sync. */
 export interface Evolu<S extends EvoluSchema = EvoluSchema>
@@ -538,29 +565,29 @@ export type EvoluDeps = EvoluPlatformDeps &
   Partial<FlushSyncDep> &
   DisposableStackDep &
   ConsoleDep &
-  RandomBytesDep; // Assuming RandomBytesDep is available, based on usage
+  RandomBytesDep;
 
-export type EvoluPlatformDeps = ReloadAppDep & Partial<FlushSyncDep>;
+export type EvoluPlatformDeps = ReloadAppDep &
+  Partial<ConsoleDep> &
+  Partial<FlushSyncDep>;
 
 /** Creates Evolu dependencies from platform-specific dependencies. */
-// eslint-disable-next-line arrow-body-style
 export const createEvoluDeps = <D extends EvoluPlatformDeps>(
   deps: D,
 ): EvoluDeps => {
   const disposableStack = new DisposableStack();
-  const evoluError = createErrorStore({ ...deps, disposableStack } as any); // simplifying types for restoration
+  const evoluError = createErrorStore({ ...deps, disposableStack } as any);
 
   return {
     ...deps,
     disposableStack,
     ...createDisposableDep(disposableStack),
-    console: createConsole(),
+    console: deps.console ?? createConsole(),
     evoluError,
     randomBytes: createRandomBytes(),
   } as unknown as EvoluDeps;
 };
 
-// Simplify interfaces for restoration if imports are missing, but trying to match commented code
 export interface ErrorStoreDep {
   /**
    * Shared error store for all Evolu instances. Subscribe once to handle errors
@@ -638,8 +665,11 @@ export const createEvolu =
   (deps: EvoluDeps) =>
   <S extends EvoluSchema>(
     schema: ValidateSchema<S> extends never ? S : ValidateSchema<S>,
-    {
-      name,
+    config: EvoluConfig = {},
+  ): Evolu<S> => {
+    const {
+      name: configName,
+      appName,
       // TODO:
       transports: _transports = [
         { type: "WebSocket", url: "wss://free.evoluhq.com" },
@@ -648,8 +678,12 @@ export const createEvolu =
       appOwner: configAppOwner, // Alias to avoid variable name conflict with promise
       inMemory: _inMemory,
       indexes: _indexes,
-    }: EvoluConfig = { name: "default" as SimpleName }, // Added default for config destructuring safety
-  ): Evolu<S> => {
+    } = config;
+    const name =
+      configName ??
+      (appName as unknown as SimpleName | undefined) ??
+      SimpleName.orThrow("default");
+
     const errorStore = createStore<EvoluError | null>(null);
     const rowsStore = createStore<QueryRowsMap>(new Map());
     const subscribedQueries = createSubscribedQueries(rowsStore);

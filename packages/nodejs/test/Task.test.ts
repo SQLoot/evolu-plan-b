@@ -1,6 +1,6 @@
 import { testCreateConsole } from "@evolu/common";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { createRunner } from "../src/Task.js";
+import { createRun, createRunner } from "../src/Task.js";
 
 describe("createRunner", () => {
   beforeEach(() => {
@@ -24,6 +24,11 @@ describe("createRunner", () => {
   test("provides shutdown in deps", async () => {
     await using run = createRunner();
 
+    expect(run.deps.shutdown).toBeInstanceOf(Promise);
+  });
+
+  test("createRun alias is compatible with createRunner", async () => {
+    await using run = createRun();
     expect(run.deps.shutdown).toBeInstanceOf(Promise);
   });
 
