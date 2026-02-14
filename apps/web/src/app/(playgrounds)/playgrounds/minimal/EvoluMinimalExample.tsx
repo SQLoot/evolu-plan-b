@@ -39,11 +39,7 @@ deps.evoluError.subscribe(() => {
 // Create Evolu instance for the React web platform.
 const evolu = Evolu.createEvolu(deps)(Schema, {
   name: Evolu.SimpleName.orThrow("minimal-example"),
-
-  // TODO: Patri do web deps only? hmm, deps jsou sdilene
-  // tohle musim pak domyslet, callback? webReloadUrl? uvidime
-  // tohle rozhodne patri se
-  // reloadUrl: "/playgrounds/minimal",
+  appOwner: Evolu.testAppOwner,
 
   ...(process.env.NODE_ENV === "development" && {
     transports: [{ type: "WebSocket", url: "ws://localhost:4000" }],
