@@ -19,7 +19,6 @@ export * from "./Function.js";
 export * from "./Identicon.js";
 export * from "./Instances.js";
 export * from "./Listeners.js";
-export * from "./Microtask.js";
 // Local-first essentials.
 export type { EvoluError } from "./local-first/Error.js";
 export type {
@@ -78,6 +77,7 @@ export {
   timestampBytesToTimestamp,
   timestampToTimestampBytes,
 } from "./local-first/Timestamp.js";
+export * from "./Microtask.js";
 export * from "./Number.js";
 export * from "./Object.js";
 export * from "./Option.js";
