@@ -4,10 +4,10 @@
  * @module
  */
 
+import type { ConsoleEntry } from "../Console.js";
 import { exhaustiveCheck } from "../Function.js";
 import { ok } from "../Result.js";
 import type { Task } from "../Task.js";
-import type { Typed } from "../Type.js";
 import type {
   SharedWorker as CommonSharedWorker,
   CreateMessagePortDep,
@@ -24,15 +24,25 @@ export interface EvoluWorkerDep {
   readonly evoluWorker: EvoluWorker;
 }
 
-export interface InitErrorStoreMessage extends Typed<"InitErrorStore"> {
-  readonly port: NativeMessagePort;
-}
+export type EvoluWorkerInput =
+  | {
+      readonly type: "InitTab";
+      readonly port: NativeMessagePort;
+    }
+  | {
+      readonly type: "InitEvolu";
+      readonly port: NativeMessagePort;
+    };
 
-export interface InitEvoluMessage extends Typed<"InitEvolu"> {
-  readonly port: NativeMessagePort;
-}
-
-export type EvoluWorkerInput = InitErrorStoreMessage | InitEvoluMessage;
+export type EvoluTabOutput =
+  | {
+      readonly type: "ConsoleEntry";
+      readonly entry: ConsoleEntry;
+    }
+  | {
+      readonly type: "EvoluError";
+      readonly error: EvoluError;
+    };
 
 export interface RunDbWorkerPortDep {
   readonly runDbWorkerPort: (
@@ -43,19 +53,35 @@ export interface RunDbWorkerPortDep {
 export const runEvoluWorkerScope =
   (deps: CreateMessagePortDep & RunDbWorkerPortDep) =>
   (self: EvoluWorkerScope<EvoluWorkerInput>): void => {
-    const errorStorePorts = new Set<MessagePort<EvoluError>>();
+    const tabPorts = new Set<MessagePort<EvoluTabOutput>>();
+    const queuedTabOutputs: Array<EvoluTabOutput> = [];
+
+    const postTabOutput = (output: EvoluTabOutput): void => {
+      if (tabPorts.size === 0) {
+        queuedTabOutputs.push(output);
+        return;
+      }
+      for (const port of tabPorts) port.postMessage(output);
+    };
 
     self.onError = (error) => {
-      for (const port of errorStorePorts) port.postMessage(error);
+      postTabOutput({ type: "EvoluError", error });
     };
 
     self.onConnect = (port) => {
       port.onMessage = (message) => {
         switch (message.type) {
-          case "InitErrorStore": {
-            errorStorePorts.add(
-              deps.createMessagePort<EvoluError>(message.port),
+          case "InitTab": {
+            const tabPort = deps.createMessagePort<EvoluTabOutput>(
+              message.port,
             );
+            tabPorts.add(tabPort);
+
+            if (queuedTabOutputs.length > 0) {
+              for (const output of queuedTabOutputs)
+                tabPort.postMessage(output);
+              queuedTabOutputs.length = 0;
+            }
             break;
           }
           case "InitEvolu": {
