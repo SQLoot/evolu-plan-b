@@ -94,6 +94,23 @@ const Schema = {
   `createdAt`, `updatedAt`, `isDeleted`, and `ownerId`.
 </Note>
 
+## Bun hot workflow (schema iteration)
+
+If you run your app entrypoint directly with Bun, you can use hot mode while
+iterating on schema and mutations:
+
+```bash
+bun --hot ./apps/relay/src/index.ts
+```
+
+This keeps process startup fast during development and reloads on file changes.
+
+<Note>
+  Schema changes can invalidate existing local data during development. If you
+  hit schema mismatch errors, reset local state (for example with
+  `resetAppOwner({ reload: false })`) before retrying.
+</Note>
+
 ## Create Evolu
 
 After defining the schema, create an Evolu instance for your environment.
