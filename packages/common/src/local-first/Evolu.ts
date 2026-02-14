@@ -6,7 +6,12 @@
 
 import { dedupeArray, isNonEmptyArray } from "../Array.js";
 import { assertNonEmptyReadonlyArray } from "../Assert.js";
-import { type ConsoleDep, createConsole } from "../Console.js";
+import {
+  type Console,
+  type ConsoleDep,
+  type ConsoleEntry,
+  createConsole,
+} from "../Console.js";
 import {
   createRandomBytes,
   type EncryptionKey,
@@ -14,6 +19,7 @@ import {
 } from "../Crypto.js";
 import { eqArrayNumber } from "../Eq.js";
 import { createUnknownError } from "../Error.js";
+import { exhaustiveCheck } from "../Function.js";
 import type { Listener, Unsubscribe } from "../Listeners.js";
 import type { FlushSyncDep, ReloadAppDep } from "../Platform.js";
 import { createDisposableDep, type DisposableStackDep } from "../Resources.js";
@@ -65,7 +71,7 @@ import {
 } from "./Schema.js";
 import type { DbChange, ValidDbChangeValues } from "./Storage.js";
 import type { SyncOwner } from "./Sync.js";
-import type { EvoluWorkerDep } from "./Worker.js";
+import type { EvoluTabOutput, EvoluWorkerDep } from "./Worker.js";
 
 export interface EvoluConfig {
   /**
@@ -571,18 +577,59 @@ export type EvoluPlatformDeps = ReloadAppDep &
   Partial<ConsoleDep> &
   Partial<FlushSyncDep>;
 
+const writeConsoleEntry = (console: Console, entry: ConsoleEntry): void => {
+  const method = console[entry.method] as (
+    ...args: ReadonlyArray<unknown>
+  ) => void;
+  method(...entry.args);
+};
+
 /** Creates Evolu dependencies from platform-specific dependencies. */
 export const createEvoluDeps = <D extends EvoluPlatformDeps>(
   deps: D,
 ): EvoluDeps => {
+  const { createMessageChannel, evoluWorker } = deps as D &
+    CreateMessageChannelDep &
+    EvoluWorkerDep;
   const disposableStack = new DisposableStack();
-  const evoluError = createErrorStore({ ...deps, disposableStack } as any);
+  const console = deps.console ?? createConsole();
+  const evoluError = disposableStack.use(createStore<EvoluError | null>(null));
+  const tabChannel = disposableStack.use(
+    createMessageChannel<EvoluTabOutput>(),
+  );
+
+  disposableStack.use(evoluWorker);
+
+  tabChannel.port2.onMessage = (output: EvoluTabOutput) => {
+    switch (output.type) {
+      case "ConsoleEntry": {
+        writeConsoleEntry(console, output.entry);
+        if (output.entry.method === "error") {
+          // Fallback when an error was logged without typed EvoluError payload.
+          evoluError.set(createUnknownError(output.entry.args));
+        }
+        break;
+      }
+      case "EvoluError": {
+        evoluError.set(output.error);
+        console.error(output.error);
+        break;
+      }
+      default:
+        exhaustiveCheck(output);
+    }
+  };
+
+  evoluWorker.port.postMessage(
+    { type: "InitTab", port: tabChannel.port1.native },
+    [tabChannel.port1.native],
+  );
 
   return {
     ...deps,
     disposableStack,
     ...createDisposableDep(disposableStack),
-    console: deps.console ?? createConsole(),
+    console,
     evoluError,
     randomBytes: createRandomBytes(),
   } as unknown as EvoluDeps;
@@ -605,28 +652,6 @@ export interface ErrorStoreDep {
    */
   readonly evoluError: ReadonlyStore<EvoluError | null>;
 }
-
-const createErrorStore = (
-  deps: CreateMessageChannelDep & EvoluWorkerDep & DisposableStackDep,
-): Store<EvoluError | null> => {
-  const errorChannel = deps.disposableStack.use(
-    deps.createMessageChannel<EvoluError>(),
-  );
-  const evoluError = deps.disposableStack.use(
-    createStore<EvoluError | null>(null),
-  );
-
-  deps.evoluWorker.port.postMessage(
-    { type: "InitErrorStore", port: errorChannel.port1.native },
-    [errorChannel.port1.native],
-  );
-
-  errorChannel.port2.onMessage = (error) => {
-    evoluError.set(error);
-  };
-
-  return evoluError;
-};
 
 /**
  * Creates an {@link Evolu} instance for a platform configured with the specified
@@ -681,10 +706,10 @@ export const createEvolu =
     } = config;
     const name =
       configName ??
-      appName ??
+      (appName ? SimpleName.orThrow(appName) : undefined) ??
       SimpleName.orThrow("default");
 
-    const errorStore = createStore<EvoluError | null>(null);
+    const errorStore = deps.evoluError as Store<EvoluError | null>;
     const rowsStore = createStore<QueryRowsMap>(new Map());
     const subscribedQueries = createSubscribedQueries(rowsStore);
     const loadingPromises = createLoadingPromises(subscribedQueries);

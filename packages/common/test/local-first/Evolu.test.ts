@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 // Force rebuild
 import { testCreateConsole } from "../../src/Console.js";
+import { createUnknownError } from "../../src/Error.js";
 import { lazyVoid } from "../../src/Function.js";
 import type {
   DbWorkerInput,
@@ -13,6 +14,7 @@ import {
 } from "../../src/local-first/Evolu.js";
 import type { AppOwner } from "../../src/local-first/Owner.js";
 import { createQueryBuilder } from "../../src/local-first/Schema.js";
+import type { EvoluTabOutput } from "../../src/local-first/Worker.js";
 import { SqliteBoolean } from "../../src/Sqlite.js";
 import { testCreateRun } from "../../src/Test.js";
 import { id, NonEmptyString100, nullOr } from "../../src/Type.js";
@@ -94,6 +96,7 @@ const createMockDeps = () => {
   let resetCount = 0;
   let mutateCount = 0;
   let closeCount = 0;
+  let tabPort: MockPort<EvoluTabOutput, never> | null = null;
 
   const deps = {
     reloadApp: () => {
@@ -103,9 +106,14 @@ const createMockDeps = () => {
     evoluWorker: {
       port: {
         postMessage: (
-          message: { type: "InitEvolu"; port: unknown },
+          message: { type: "InitTab" | "InitEvolu"; port: unknown },
           _transfer?: ReadonlyArray<unknown>,
         ) => {
+          if (message.type === "InitTab") {
+            tabPort = message.port as MockPort<EvoluTabOutput, never>;
+            return;
+          }
+
           if (message.type !== "InitEvolu") return;
           const dbPort = message.port as MockPort<
             DbWorkerOutput,
@@ -208,16 +216,21 @@ const createMockDeps = () => {
         native: {} as unknown,
         [Symbol.dispose]: () => {},
       },
+      [Symbol.dispose]: () => {},
     },
   };
 
   return {
     deps,
+    emitTabOutput: (output: EvoluTabOutput) => {
+      tabPort?.postMessage(output);
+    },
     getState: () => ({
       reloadCount,
       resetCount,
       mutateCount,
       closeCount,
+      hasTabPort: tabPort !== null,
       rows: [...rows],
     }),
   };
@@ -233,6 +246,34 @@ test("createEvoluDeps keeps provided console instance", () => {
   const console = testCreateConsole();
   const evoluDeps = createEvoluDeps({ ...deps, console } as any);
   expect(evoluDeps.console).toBe(console);
+});
+
+test("createEvoluDeps updates evoluError store from tab output", () => {
+  const { deps, emitTabOutput, getState } = createMockDeps();
+  const evoluDeps = createEvoluDeps(deps as any);
+
+  expect(getState().hasTabPort).toBe(true);
+
+  const error = createUnknownError(new Error("tab-boom"));
+  emitTabOutput({ type: "EvoluError", error });
+
+  expect(evoluDeps.evoluError.get()).toEqual(error);
+});
+
+test("createEvoluDeps wraps console error entry into UnknownError", () => {
+  const { deps, emitTabOutput } = createMockDeps();
+  const evoluDeps = createEvoluDeps(deps as any);
+
+  emitTabOutput({
+    type: "ConsoleEntry",
+    entry: {
+      method: "error",
+      path: ["mock-worker"],
+      args: ["boom"],
+    },
+  });
+
+  expect(evoluDeps.evoluError.get()).toEqual(createUnknownError(["boom"]));
 });
 
 describe("createEvolu", () => {
