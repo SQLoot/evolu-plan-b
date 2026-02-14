@@ -681,7 +681,7 @@ export const createEvolu =
     } = config;
     const name =
       configName ??
-      (appName as unknown as SimpleName | undefined) ??
+      appName ??
       SimpleName.orThrow("default");
 
     const errorStore = createStore<EvoluError | null>(null);
