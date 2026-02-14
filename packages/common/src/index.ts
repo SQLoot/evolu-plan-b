@@ -22,12 +22,13 @@ export * from "./Listeners.js";
 // Local-first essentials.
 export type { EvoluError } from "./local-first/Error.js";
 export type {
+  AppNameError,
   Evolu,
   EvoluConfig,
   EvoluDeps,
   UnuseOwner,
 } from "./local-first/Evolu.js";
-export { createEvolu } from "./local-first/Evolu.js";
+export { AppName, createEvolu } from "./local-first/Evolu.js";
 export * as kysely from "./local-first/Kysely.js";
 export * from "./local-first/LocalAuth.js";
 export * from "./local-first/Owner.js";

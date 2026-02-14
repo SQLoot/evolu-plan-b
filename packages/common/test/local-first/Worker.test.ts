@@ -1,11 +1,11 @@
 import { expect, test, vi } from "vitest";
-import type { UnknownError } from "../../src/Error.js";
 import { createUnknownError } from "../../src/Error.js";
 import type {
   DbWorkerInput,
   DbWorkerOutput,
 } from "../../src/local-first/DbWorkerProtocol.js";
 import {
+  type EvoluTabOutput,
   type EvoluWorkerInput,
   runEvoluWorkerScope,
 } from "../../src/local-first/Worker.js";
@@ -53,16 +53,16 @@ const createWorkerScope = (): SharedWorkerScope<EvoluWorkerInput> => ({
   [Symbol.dispose]: () => {},
 });
 
-test("runEvoluWorkerScope forwards global errors to registered error port", () => {
+test("runEvoluWorkerScope forwards global errors to registered tab port", () => {
   const workerScope = createWorkerScope();
   const workerConnection = createTrackedPort<never, EvoluWorkerInput>();
-  const errorPort = createTrackedPort<UnknownError, never>();
+  const tabPort = createTrackedPort<EvoluTabOutput, never>();
 
   const createMessagePort: CreateMessagePort = <Input, Output = never>(
     nativePort: NativeMessagePort,
   ): MessagePort<Input, Output> => {
-    if (nativePort === errorPort.native)
-      return errorPort.port as unknown as MessagePort<Input, Output>;
+    if (nativePort === tabPort.native)
+      return tabPort.port as unknown as MessagePort<Input, Output>;
     throw new Error("Unexpected native port");
   };
 
@@ -73,14 +73,14 @@ test("runEvoluWorkerScope forwards global errors to registered error port", () =
 
   workerScope.onConnect?.(workerConnection.port);
   workerConnection.emit({
-    type: "InitErrorStore",
-    port: errorPort.native,
+    type: "InitTab",
+    port: tabPort.native,
   });
 
   const error = createUnknownError(new Error("boom"));
   workerScope.onError?.(error);
 
-  expect(errorPort.sentMessages).toEqual([error]);
+  expect(tabPort.sentMessages).toEqual([{ type: "EvoluError", error }]);
 });
 
 test("runEvoluWorkerScope routes InitEvolu port to db worker runner", () => {

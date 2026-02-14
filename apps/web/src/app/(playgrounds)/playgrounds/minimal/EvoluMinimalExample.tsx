@@ -27,6 +27,15 @@ const Schema = {
 
 const deps = createEvoluDeps();
 
+deps.evoluError.subscribe(() => {
+  const error = deps.evoluError.get();
+  if (!error) return;
+
+  alert("🚨 Evolu error occurred! Check the console.");
+  // eslint-disable-next-line no-console
+  console.error(error);
+});
+
 // Create Evolu instance for the React web platform.
 const evolu = Evolu.createEvolu(deps)(Schema, {
   name: Evolu.SimpleName.orThrow("minimal-example"),
@@ -45,20 +54,6 @@ const evolu = Evolu.createEvolu(deps)(Schema, {
 // You can also use `evolu` directly, but the hook enables replacing Evolu
 // in tests via the EvoluProvider.
 const useEvolu = createUseEvolu(evolu);
-
-/**
- * Subscribe to Evolu errors (database, network, sync issues). These should not
- * happen in normal operation, so always log them for debugging. Show users a
- * friendly error message instead of technical details.
- */
-evolu.subscribeError(() => {
-  const error = evolu.getError();
-  if (!error) return;
-
-  alert("🚨 Evolu error occurred! Check the console.");
-  // eslint-disable-next-line no-console
-  console.error(error);
-});
 
 export const EvoluMinimalExample: FC = () => (
   <div className="min-h-screen px-8 py-8">

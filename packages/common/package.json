@@ -21,12 +21,14 @@
   "exports": {
     ".": {
       "types": "./dist/src/index.d.ts",
+      "source": "./src/index.ts",
       "import": "./dist/src/index.js",
       "browser": "./dist/src/index.js",
       "react-native": "./dist/src/index.js"
     },
     "./local-first": {
       "types": "./dist/src/local-first/index.d.ts",
+      "source": "./src/local-first/index.ts",
       "import": "./dist/src/local-first/index.js"
     }
   },
