@@ -1,13 +1,20 @@
 import { describe, expect, test } from "vitest";
 // Force rebuild
+import { testCreateConsole } from "../../src/Console.js";
+import { createUnknownError } from "../../src/Error.js";
 import { lazyVoid } from "../../src/Function.js";
 import type {
   DbWorkerInput,
   DbWorkerOutput,
 } from "../../src/local-first/DbWorkerProtocol.js";
-import { createEvolu, createEvoluDeps } from "../../src/local-first/Evolu.js";
+import {
+  AppName,
+  createEvolu,
+  createEvoluDeps,
+} from "../../src/local-first/Evolu.js";
 import type { AppOwner } from "../../src/local-first/Owner.js";
 import { createQueryBuilder } from "../../src/local-first/Schema.js";
+import type { EvoluTabOutput } from "../../src/local-first/Worker.js";
 import { SqliteBoolean } from "../../src/Sqlite.js";
 import { testCreateRun } from "../../src/Test.js";
 import { id, NonEmptyString100, nullOr } from "../../src/Type.js";
@@ -89,6 +96,7 @@ const createMockDeps = () => {
   let resetCount = 0;
   let mutateCount = 0;
   let closeCount = 0;
+  let tabPort: MockPort<EvoluTabOutput, never> | null = null;
 
   const deps = {
     reloadApp: () => {
@@ -98,9 +106,14 @@ const createMockDeps = () => {
     evoluWorker: {
       port: {
         postMessage: (
-          message: { type: "InitEvolu"; port: unknown },
+          message: { type: "InitTab" | "InitEvolu"; port: unknown },
           _transfer?: ReadonlyArray<unknown>,
         ) => {
+          if (message.type === "InitTab") {
+            tabPort = message.port as MockPort<EvoluTabOutput, never>;
+            return;
+          }
+
           if (message.type !== "InitEvolu") return;
           const dbPort = message.port as MockPort<
             DbWorkerOutput,
@@ -203,16 +216,21 @@ const createMockDeps = () => {
         native: {} as unknown,
         [Symbol.dispose]: () => {},
       },
+      [Symbol.dispose]: () => {},
     },
   };
 
   return {
     deps,
+    emitTabOutput: (output: EvoluTabOutput) => {
+      tabPort?.postMessage(output);
+    },
     getState: () => ({
       reloadCount,
       resetCount,
       mutateCount,
       closeCount,
+      hasTabPort: tabPort !== null,
       rows: [...rows],
     }),
   };
@@ -220,7 +238,42 @@ const createMockDeps = () => {
 
 test("createEvoluDeps returns deps unchanged", () => {
   const { deps } = createMockDeps();
-  expect(createEvoluDeps(deps)).toEqual(expect.objectContaining(deps));
+  expect(createEvoluDeps(deps as any)).toEqual(expect.objectContaining(deps));
+});
+
+test("createEvoluDeps keeps provided console instance", () => {
+  const { deps } = createMockDeps();
+  const console = testCreateConsole();
+  const evoluDeps = createEvoluDeps({ ...deps, console } as any);
+  expect(evoluDeps.console).toBe(console);
+});
+
+test("createEvoluDeps updates evoluError store from tab output", () => {
+  const { deps, emitTabOutput, getState } = createMockDeps();
+  const evoluDeps = createEvoluDeps(deps as any);
+
+  expect(getState().hasTabPort).toBe(true);
+
+  const error = createUnknownError(new Error("tab-boom"));
+  emitTabOutput({ type: "EvoluError", error });
+
+  expect(evoluDeps.evoluError.get()).toEqual(error);
+});
+
+test("createEvoluDeps wraps console error entry into UnknownError", () => {
+  const { deps, emitTabOutput } = createMockDeps();
+  const evoluDeps = createEvoluDeps(deps as any);
+
+  emitTabOutput({
+    type: "ConsoleEntry",
+    entry: {
+      method: "error",
+      path: ["mock-worker"],
+      args: ["boom"],
+    },
+  });
+
+  expect(evoluDeps.evoluError.get()).toEqual(createUnknownError(["boom"]));
 });
 
 describe("createEvolu", () => {
@@ -242,6 +295,20 @@ describe("createEvolu", () => {
 
     expect(appOwner).toBe(testAppOwner);
     expect(rows).toEqual([]);
+  });
+
+  test("appName compatibility alias works when name is omitted", async () => {
+    const { deps } = createMockDeps();
+    const evoluDeps = createEvoluDeps(deps as any);
+    const appName = AppName.orThrow("compat-app");
+    const evolu = createEvolu(evoluDeps)(Schema, {
+      appName,
+      appOwner: testAppOwner,
+    });
+
+    await evolu.appOwner;
+
+    expect(evolu.name).toBe(appName);
   });
 
   test("db worker flow handles mutate, query, export, and reset", async () => {

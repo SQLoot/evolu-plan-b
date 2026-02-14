@@ -17,6 +17,14 @@ import { createRun } from "../Task.js";
 
 const workerMemoryDbName = "evolu-worker-memory";
 
+const safeParseAppOwner = (value: string): AppOwner | null => {
+  try {
+    return JSON.parse(value) as AppOwner;
+  } catch {
+    return null;
+  }
+};
+
 const toSimpleName = (dbName: string): SimpleName =>
   SimpleNameType.orThrow(dbName === ":memory:" ? workerMemoryDbName : dbName);
 
@@ -112,7 +120,7 @@ export const runWebDbWorkerPort = (
           type: "DbWorkerAppOwner",
           appOwner:
             typeof appOwnerValue === "string"
-              ? (JSON.parse(appOwnerValue) as AppOwner)
+              ? safeParseAppOwner(appOwnerValue)
               : null,
         });
         break;
