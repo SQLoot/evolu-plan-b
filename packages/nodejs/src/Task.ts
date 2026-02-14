@@ -97,3 +97,9 @@ export const createRunner: CreateRunner<RunnerDeps & ShutdownDep> = <D>(
 
   return run;
 };
+
+/**
+ * @deprecated Use {@link createRunner}. Kept for `upstream/common-v8`
+ * compatibility.
+ */
+export const createRun: typeof createRunner = createRunner;

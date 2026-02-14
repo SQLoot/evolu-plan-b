@@ -1,11 +1,16 @@
 import { describe, expect, test } from "vitest";
 // Force rebuild
+import { testCreateConsole } from "../../src/Console.js";
 import { lazyVoid } from "../../src/Function.js";
 import type {
   DbWorkerInput,
   DbWorkerOutput,
 } from "../../src/local-first/DbWorkerProtocol.js";
-import { createEvolu, createEvoluDeps } from "../../src/local-first/Evolu.js";
+import {
+  AppName,
+  createEvolu,
+  createEvoluDeps,
+} from "../../src/local-first/Evolu.js";
 import type { AppOwner } from "../../src/local-first/Owner.js";
 import { createQueryBuilder } from "../../src/local-first/Schema.js";
 import { SqliteBoolean } from "../../src/Sqlite.js";
@@ -220,7 +225,14 @@ const createMockDeps = () => {
 
 test("createEvoluDeps returns deps unchanged", () => {
   const { deps } = createMockDeps();
-  expect(createEvoluDeps(deps)).toEqual(expect.objectContaining(deps));
+  expect(createEvoluDeps(deps as any)).toEqual(expect.objectContaining(deps));
+});
+
+test("createEvoluDeps keeps provided console instance", () => {
+  const { deps } = createMockDeps();
+  const console = testCreateConsole();
+  const evoluDeps = createEvoluDeps({ ...deps, console } as any);
+  expect(evoluDeps.console).toBe(console);
 });
 
 describe("createEvolu", () => {
@@ -242,6 +254,20 @@ describe("createEvolu", () => {
 
     expect(appOwner).toBe(testAppOwner);
     expect(rows).toEqual([]);
+  });
+
+  test("appName compatibility alias works when name is omitted", async () => {
+    const { deps } = createMockDeps();
+    const evoluDeps = createEvoluDeps(deps as any);
+    const appName = AppName.orThrow("compat-app");
+    const evolu = createEvolu(evoluDeps)(Schema, {
+      appName,
+      appOwner: testAppOwner,
+    });
+
+    await evolu.appOwner;
+
+    expect(evolu.name).toBe(appName);
   });
 
   test("db worker flow handles mutate, query, export, and reset", async () => {
