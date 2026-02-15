@@ -1285,8 +1285,8 @@ const createDbWorkerClient = (
     {
       type: "InitEvolu",
       name,
-      port: channel.port1.native,
-      brokerPort: brokerChannel.port1.native,
+      port1: channel.port1.native,
+      port2: brokerChannel.port1.native,
     },
     [channel.port1.native, brokerChannel.port1.native],
   );
