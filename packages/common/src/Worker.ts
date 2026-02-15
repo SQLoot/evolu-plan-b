@@ -6,6 +6,7 @@
 
 import type { Brand } from "./Brand.js";
 import type { GlobalErrorScope } from "./Error.js";
+import type { ConsoleDep, ConsoleStoreOutputEntryDep } from "./Console.js";
 
 /**
  * Platform-agnostic Worker.
@@ -104,6 +105,10 @@ export interface CreateMessagePortDep {
   readonly createMessagePort: CreateMessagePort;
 }
 
+/** Common dependencies for worker entry points. */
+export type WorkerDeps = ConsoleDep &
+  ConsoleStoreOutputEntryDep &
+  CreateMessagePortDep;
 /**
  * Platform-agnostic MessageChannel.
  *
