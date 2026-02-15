@@ -3,6 +3,80 @@
  *
  * @module
  */
+
+import type { LeaderLockDep } from "../Platform.js";
+import { ok } from "../Result.js";
+import type { AsyncDisposableStack, Task } from "../Task.js";
+import type { Name } from "../Type.js";
+import type {
+  NativeMessagePort,
+  Worker,
+  WorkerInitDep,
+  WorkerSelf,
+} from "../Worker.js";
+
+export interface DbWorkerInput {
+  readonly type: "init";
+  readonly name: Name;
+  readonly brokerPort: NativeMessagePort;
+}
+
+export type DbWorker = Worker<DbWorkerInput>;
+
+export type CreateDbWorker = () => DbWorker;
+
+export interface CreateDbWorkerDep {
+  readonly createDbWorker: CreateDbWorker;
+}
+
+export interface DbWorkerLeaderOutput {
+  readonly type: "LeaderAcquired";
+  readonly name: Name;
+}
+
+export const initDbWorker =
+  (
+    self: WorkerSelf<DbWorkerInput>,
+  ): Task<AsyncDisposableStack, never, WorkerInitDep & LeaderLockDep> =>
+  (run) => {
+    const { leaderLock } = run.deps;
+    const stack = run.stack();
+
+    let initialized = false;
+
+    self.onMessage = ({ name, brokerPort: nativeBrokerPort }) => {
+      if (!initialized) {
+        initialized = true;
+
+        const brokerPort =
+          run.deps.createMessagePort<DbWorkerLeaderOutput>(nativeBrokerPort);
+
+        void run.daemon(async (run) => {
+          await stack.use(leaderLock.acquire(name));
+          brokerPort.postMessage({ type: "LeaderAcquired", name });
+          return run(initializeDb(name));
+        });
+      }
+    };
+
+    return ok(stack);
+  };
+
+const initializeDb =
+  (name: Name): Task<void, never, WorkerInitDep> =>
+  (run) => {
+    const _console = run.deps.console.child("DbWorker");
+
+    globalThis.console.info("initializeDb", { name });
+    // TODO: Add parallel stale-leader detection.
+    // Heartbeat is emitted by the active DB worker and sent to
+    // SharedWorker. SharedWorker tracks last-seen heartbeat per Evolu
+    // name and if silent for 10 seconds, it waits for another DB worker
+    // to announce itself alive and then routes requests to that worker.
+
+    return ok();
+  };
+
 // import {
 //   firstInArray,
 //   isNonEmptyArray,
@@ -27,7 +101,7 @@
 //   SqliteError,
 // } from "../Sqlite.js";
 // import { TimeDep } from "../Time.js";
-// import { Id, Mnemonic, SimpleName } from "../Type.js";
+// import { Id, Mnemonic, Name } from "../Type.js";
 // import { CreateWebSocketDep } from "../WebSocket.js";
 // import {
 //   createInitializedWorkerWithHandlers,
@@ -93,10 +167,10 @@
 //    * ### Example
 //    *
 //    * ```ts
-//    * // name: SimpleName.orThrow("MyApp")
+//    * // name: Name.orThrow("MyApp")
 //    * ```
 //    */
-//   readonly name: SimpleName;
+//   readonly name: Name;
 
 //   /**
 //    * Transport configuration for data sync and backup. Supports single transport
@@ -180,13 +254,13 @@
 //    *
 //    * // Local-only instance for device settings (no sync)
 //    * const deviceEvolu = createEvolu(evoluReactWebDeps)(DeviceSchema, {
-//    *   name: SimpleName.orThrow("MyApp-Device"),
+//    *   name: Name.orThrow("MyApp-Device"),
 //    *   transports: [], // No sync - stays local to device
 //    * });
 //    *
 //    * // Main synced instance for user data
 //    * const evolu = createEvolu(evoluReactWebDeps)(MainSchema, {
-//    *   name: SimpleName.orThrow("MyApp"),
+//    *   name: Name.orThrow("MyApp"),
 //    *   // Default transports for sync
 //    * });
 //    * ```
@@ -215,7 +289,7 @@
 // }
 
 // export const defaultDbConfig: DbConfig = {
-//   name: SimpleName.orThrow("Evolu"),
+//   name: Name.orThrow("Evolu"),
 //   transports: [{ type: "WebSocket", url: "wss://free.evoluhq.com" }],
 //   maxDrift: 5 * 60 * 1000,
 //   enableLogging: false,
@@ -223,7 +297,7 @@
 
 // export type DbWorker = Worker<DbWorkerInput, DbWorkerOutput>;
 
-// export type CreateDbWorker = (name: SimpleName) => DbWorker;
+// export type CreateDbWorker = (name: Name) => DbWorker;
 
 // export interface CreateDbWorkerDep {
 //   readonly createDbWorker: CreateDbWorker;
