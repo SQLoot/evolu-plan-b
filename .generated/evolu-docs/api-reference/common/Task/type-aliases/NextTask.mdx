@@ -1,0 +1,27 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Task](/docs/api-reference/common/Task/page.mdx) / NextTask
+
+```ts
+type NextTask<T, E, D> = Task<T, 
+  | E
+| Done<D>>;
+```
+
+Defined in: [packages/common/src/Task.ts:422](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L422)
+
+A [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx) that can complete with a value, signal done, or fail.
+
+Forms a parallel with [NextResult](/docs/api-reference/common/Result/type-aliases/NextResult.mdx):
+
+- `Result<A, E>` → `NextResult<A, E, D>`
+- `Task<T, E>` → `NextTask<T, E, D>`
+
+Use for pull-based protocols like iterators where `Done<D>` signals normal
+completion rather than an error.
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `T` | - |
+| `E` | `never` |
+| `D` | `void` |

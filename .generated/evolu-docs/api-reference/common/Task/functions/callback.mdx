@@ -1,0 +1,62 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Task](/docs/api-reference/common/Task/page.mdx) / callback
+
+```ts
+function callback<T, E>(callback: CallbackWithCleanup<{
+  deps: RunnerDeps;
+  err: Callback<E>;
+  ok: Callback<T>;
+  signal: AbortSignal;
+}>): Task<T, E>;
+```
+
+Defined in: [packages/common/src/Task.ts:1798](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L1798)
+
+Creates a [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx) from a callback-based API.
+
+Use this to wrap callback-style APIs (event listeners, Node.js callbacks,
+etc.) into Tasks with proper abort handling.
+
+Optionally return a cleanup function that runs on abort.
+
+### Example
+
+```ts
+// The sleep helper is implemented using callback:
+const sleep = (duration: Duration): Task<void> =>
+  callback(({ ok, deps: { time } }) => {
+    const id = time.setTimeout(ok, durationToMillis(duration));
+    return () => time.clearTimeout(id);
+  });
+
+// Wrap an event listener — use signal directly
+const waitForClick = (element: HTMLElement): Task<MouseEvent> =>
+  callback(({ ok, signal }) => {
+    element.addEventListener("click", ok, { once: true, signal });
+  });
+
+// Wrap Node.js callback API
+const readFile = (path: string): Task<string, NodeJS.ErrnoException> =>
+  callback(({ ok, err }) => {
+    fs.readFile(path, "utf8", (error, data) => {
+      if (error) err(error);
+      else ok(data);
+    });
+  });
+```
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `T` | - |
+| `E` | `never` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `callback` | [`CallbackWithCleanup`](/docs/api-reference/common/Types/type-aliases/CallbackWithCleanup.mdx)\<\{ `deps`: [`RunnerDeps`](/docs/api-reference/common/Task/type-aliases/RunnerDeps.mdx); `err`: [`Callback`](/docs/api-reference/common/Types/type-aliases/Callback.mdx)\<`E`\>; `ok`: [`Callback`](/docs/api-reference/common/Types/type-aliases/Callback.mdx)\<`T`\>; `signal`: `AbortSignal`; \}\> |
+
+## Returns
+
+[`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T`, `E`\>

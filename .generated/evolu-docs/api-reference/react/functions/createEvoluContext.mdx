@@ -1,0 +1,54 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/react](/docs/api-reference/react/page.mdx) / createEvoluContext
+
+```ts
+function createEvoluContext<S>(fiber: PromiseLike<Result<Evolu<S>, unknown>>): readonly [Context<Evolu<S>>, FC<{
+  children?: ReactNode;
+}>];
+```
+
+Defined in: [local-first/EvoluContext.tsx:37](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/react/src/local-first/EvoluContext.tsx#L37)
+
+Creates typed React Context and Provider for [Evolu](/docs/api-reference/common/local-first/Evolu/interfaces/Evolu.mdx).
+
+Returns a tuple for easy renaming when using multiple Evolu instances.
+
+The provider internally uses React's `use()` to unwrap the Fiber, so it must
+be wrapped in a Suspense boundary.
+
+### Example
+
+```tsx
+const app = run(Evolu.createEvolu(Schema, {...}));
+const [App, AppProvider] = createEvoluContext(app);
+
+// Multiple instances with custom names
+const [TodoEvolu, TodoEvoluProvider] = createEvoluContext(todo);
+const [NotesEvolu, NotesEvoluProvider] = createEvoluContext(notes);
+
+<Suspense>
+  <AppProvider>
+    <App />
+  </AppProvider>
+</Suspense>;
+
+// In a component
+const evolu = use(App);
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `S` *extends* `Readonly`\<`Record`\<`string`, `Readonly`\<`Record`\<`string`, [`AnyStandardSchemaV1`](/docs/api-reference/common/local-first/Schema/type-aliases/AnyStandardSchemaV1.mdx)\>\>\>\> |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `fiber` | [`PromiseLike`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables)\<[`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<[`Evolu`](/docs/api-reference/common/local-first/Evolu/interfaces/Evolu.mdx)\<`S`\>, `unknown`\>\> |
+
+## Returns
+
+readonly \[`Context`\<[`Evolu`](/docs/api-reference/common/local-first/Evolu/interfaces/Evolu.mdx)\<`S`\>\>, `FC`\<\{
+  `children?`: `ReactNode`;
+\}\>\]

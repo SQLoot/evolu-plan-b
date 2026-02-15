@@ -1,0 +1,25 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Number](/docs/api-reference/common/Number/page.mdx) / max
+
+```ts
+function max<T>(...values: [T, ...T[]]): IsBranded<T> extends true ? T : WidenLiteral<T>;
+```
+
+Defined in: [packages/common/src/Number.ts:54](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Number.ts#L54)
+
+Returns the maximum value, preserving branded type if applicable.
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` *extends* `number` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| ...`values` | \[`T`, `...T[]`\] |
+
+## Returns
+
+[`IsBranded`](/docs/api-reference/common/Brand/type-aliases/IsBranded.mdx)\<`T`\> *extends* `true` ? `T` : [`WidenLiteral`](/docs/api-reference/common/Types/type-aliases/WidenLiteral.mdx)\<`T`\>

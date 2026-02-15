@@ -1,0 +1,53 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Task](/docs/api-reference/common/Task/page.mdx) / timeout
+
+```ts
+function timeout<T, E, D>(
+   task: Task<T, E, D>, 
+   duration: Duration, 
+   __namedParameters?: {
+  abortReason?: unknown;
+}): Task<T, 
+  | E
+| TimeoutError, D>;
+```
+
+Defined in: [packages/common/src/Task.ts:1927](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L1927)
+
+Wraps a [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx) with a time limit.
+
+Returns [TimeoutError](/docs/api-reference/common/Task/variables/TimeoutError-1.mdx) if the task doesn't complete within the specified
+duration. The original task is aborted when the timeout fires.
+
+### Example
+
+```ts
+const fetchWithTimeout = timeout(fetchData, "5s");
+
+const result = await run(fetchWithTimeout);
+if (!result.ok && result.error.type === "TimeoutError") {
+  console.log("Request timed out");
+}
+```
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `T` | - |
+| `E` | - |
+| `D` | `unknown` |
+
+## Parameters
+
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `task` | [`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T`, `E`, `D`\> | - |
+| `duration` | [`Duration`](/docs/api-reference/common/Time/type-aliases/Duration.mdx) | - |
+| `__namedParameters` | \{ `abortReason?`: `unknown`; \} | - |
+| `__namedParameters.abortReason?` | `unknown` | Abort reason for the task when timeout fires. Defaults to [timeoutError](/docs/api-reference/common/Task/variables/timeoutError.mdx). |
+
+## Returns
+
+[`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T`, 
+  \| `E`
+  \| [`TimeoutError`](/docs/api-reference/common/Task/interfaces/TimeoutError.mdx), `D`\>

@@ -1,0 +1,12 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [local-first/Protocol](/docs/api-reference/common/local-first/Protocol/page.mdx) / defaultProtocolMessageRangesMaxSize
+
+```ts
+const defaultProtocolMessageRangesMaxSize: number & Brand<"Int"> & Brand<"Between3000-100000">;
+```
+
+Defined in: [packages/common/src/local-first/Protocol.ts:336](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L336)
+
+Default [ProtocolMessageRangesMaxSize](/docs/api-reference/common/local-first/Protocol/variables/ProtocolMessageRangesMaxSize.mdx) (30KB).
+
+The standard size used across Evolu implementations. Relays with more
+resources can configure larger sizes to reduce roundtrips.

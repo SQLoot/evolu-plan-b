@@ -1,0 +1,35 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Schedule](/docs/api-reference/common/Schedule/page.mdx) / linear
+
+```ts
+function linear(base: Duration): Schedule<number & Brand<"Int"> & Brand<"NonNegative"> & Brand<"LessThan281474976710655"> & Brand<"Millis">>;
+```
+
+Defined in: [packages/common/src/Schedule.ts:273](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Schedule.ts#L273)
+
+Linear backoff schedule.
+
+Delay increases linearly: `base * attempt`:
+
+- Attempt 1: `base`
+- Attempt 2: `base * 2`
+- Attempt 3: `base * 3`
+- ...
+
+Never stops — combine with [take](/docs/api-reference/common/Schedule/functions/take.mdx) or [maxElapsed](/docs/api-reference/common/Schedule/functions/maxElapsed.mdx) to limit.
+
+### Example
+
+```ts
+// 100ms, 200ms, 300ms, 400ms, ...
+const lin = linear("100ms");
+```
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `base` | [`Duration`](/docs/api-reference/common/Time/type-aliases/Duration.mdx) |
+
+## Returns
+
+[`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`number` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Int"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"NonNegative"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"LessThan281474976710655"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Millis"`\>\>

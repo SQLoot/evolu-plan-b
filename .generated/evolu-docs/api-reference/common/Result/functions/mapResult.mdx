@@ -1,0 +1,110 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Result](/docs/api-reference/common/Result/page.mdx) / mapResult
+
+## Call Signature
+
+```ts
+function mapResult<A, T, E>(items: A, fn: (a: A[number]) => Result<T, E>): Result<{ [K in string | number | symbol]: T }, E>;
+```
+
+Defined in: [packages/common/src/Result.ts:627](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Result.ts#L627)
+
+Maps items to [Result](/docs/api-reference/common/Result/type-aliases/Result.mdx)s and extracts all values.
+
+Returns the first error if any result fails.
+
+### Example
+
+```ts
+const users = [{ id: 1 }, { id: 2 }];
+const result = mapResult(users, validateUser);
+// Result<ReadonlyArray<ValidUser>, ValidateUserError>
+```
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `A` *extends* readonly \[`unknown`, `unknown`\] |
+| `T` |
+| `E` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `items` | `A` |
+| `fn` | (`a`: `A`\[`number`\]) => [`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`T`, `E`\> |
+
+### Returns
+
+[`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<\{ \[K in string \| number \| symbol\]: T \}, `E`\>
+
+## Call Signature
+
+```ts
+function mapResult<A, T, E>(items: Iterable<A>, fn: (a: A) => Result<T, E>): Result<readonly T[], E>;
+```
+
+Defined in: [packages/common/src/Result.ts:645](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Result.ts#L645)
+
+For dynamic or generated item lists.
+
+```ts
+const users = [{ id: 1 }, { id: 2 }];
+const result = mapResult(users, validateUser);
+// Result<ReadonlyArray<ValidUser>, ValidateUserError>
+```
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `A` |
+| `T` |
+| `E` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `items` | [`Iterable`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols#the_iterable_protocol)\<`A`\> |
+| `fn` | (`a`: `A`) => [`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`T`, `E`\> |
+
+### Returns
+
+[`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<readonly `T`[], `E`\>
+
+## Call Signature
+
+```ts
+function mapResult<A, T, E, K>(items: Readonly<Record<K, A>>, fn: (a: A) => Result<T, E>): Result<Readonly<Record<K, T>>, E>;
+```
+
+Defined in: [packages/common/src/Result.ts:658](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Result.ts#L658)
+
+Returns object with same keys.
+
+```ts
+const result = mapResult({ a: 1, b: 2 }, double);
+// Result<{ a: number, b: number }, DoubleError>
+```
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `A` |
+| `T` |
+| `E` |
+| `K` *extends* `string` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `items` | `Readonly`\<`Record`\<`K`, `A`\>\> |
+| `fn` | (`a`: `A`) => [`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`T`, `E`\> |
+
+### Returns
+
+[`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`Readonly`\<`Record`\<`K`, `T`\>\>, `E`\>

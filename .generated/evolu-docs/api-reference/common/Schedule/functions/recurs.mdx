@@ -1,0 +1,29 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Schedule](/docs/api-reference/common/Schedule/page.mdx) / recurs
+
+```ts
+function recurs(n: number): Schedule<number>;
+```
+
+Defined in: [packages/common/src/Schedule.ts:184](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Schedule.ts#L184)
+
+A schedule that recurs a fixed number of times.
+
+Convenience for `take(n)(forever)`. Outputs the current repetition count (0,
+1, 2, ..., n-1).
+
+### Example
+
+```ts
+// Retry up to 3 times (4 total attempts including initial)
+const retry = recurs(3);
+```
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `n` | `number` |
+
+## Returns
+
+[`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`number`\>

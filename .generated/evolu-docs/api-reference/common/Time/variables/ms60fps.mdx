@@ -1,0 +1,11 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Time](/docs/api-reference/common/Time/page.mdx) / ms60fps
+
+```ts
+const ms60fps: number & Brand<"Int"> & Brand<"NonNegative"> & Brand<"LessThan281474976710655"> & Brand<"Millis">;
+```
+
+Defined in: [packages/common/src/Time.ts:326](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Time.ts#L326)
+
+Frame budget at 60fps (16ms).
+
+Work exceeding this blocks a frame, causing visible jank in animations.

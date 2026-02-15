@@ -1,0 +1,160 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / object
+
+## Call Signature
+
+```ts
+function object<Props>(props: Props): ObjectType<Props>;
+```
+
+Defined in: [packages/common/src/Type.ts:2965](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L2965)
+
+Object [Type](/docs/api-reference/common/Type/interfaces/Type.mdx).
+
+This validates that:
+
+- The value is a plain object (checked with [isPlainObject](/docs/api-reference/common/Object/functions/isPlainObject.mdx)).
+- The object has no extra properties beyond the specified keys unless an index
+  signature is provided.
+- Each property's value matches the specified Type.
+
+When an index signature is included, the object can have additional keys that
+conform to the specified key and value Types.
+
+The resulting `ObjectType` includes `props` for reflection, which defines the
+expected structure, and optionally an `record` for flexible key/value pairs.
+
+https://www.typescriptlang.org/docs/handbook/2/objects.html#index-signatures
+
+### Example
+
+## Basic Object Validation
+
+```ts
+const User = object({
+  name: NonEmptyTrimmedString,
+  age: PositiveNumber,
+});
+interface User extends InferType<typeof User> {}
+
+const result = User.from({ name: "John", age: 30 }); // ok({ name: "John", age: 30 })
+const error = User.from({ name: "John", age: -5 }); // err
+```
+
+## Optional Properties
+
+In this example the `age` property is marked as optional using
+[optional](/docs/api-reference/common/Type/functions/optional.mdx).
+
+```ts
+const User = object({
+  name: NonEmptyString, // Required
+  age: optional(PositiveNumber), // Optional
+});
+interface User extends InferType<typeof User> {}
+```
+
+## Allowing Additional Properties
+
+```ts
+const UserWithAnyExtraProperties = object(
+  {
+    name: NonEmptyString,
+    age: PositiveNumber,
+  },
+  record(String, Unknown),
+);
+
+expect(
+  UserWithAnyExtraProperties.from({ name: "a", age: 1, foo: 1 }),
+).toEqual({
+  ok: true,
+  value: { age: 1, foo: 1, name: "a" },
+});
+```
+
+## Combining Fixed and Flexible Properties
+
+```ts
+const NumberDictionary = object(
+  { length: Number },
+  record(String, Number),
+);
+
+const validInput = {
+  length: 5,
+  extraKey1: 10,
+  extraKey2: 15,
+};
+
+const fromResult = NumberDictionary.from(validInput);
+expect(fromResult).toEqual(ok(validInput));
+
+const invalidInput = {
+  length: 5,
+  extraKey1: "not a number",
+  extraKey2: 15,
+};
+
+const invalidFromResult = NumberDictionary.fromUnknown(invalidInput);
+expect(invalidFromResult).toEqual(
+  err({
+    type: "Object",
+    value: invalidInput,
+    reason: {
+      kind: "IndexValue",
+      key: "extraKey1",
+      error: { type: "Number", value: "not a number" },
+    },
+  }),
+);
+```
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Props` *extends* `Record`\<`string`, [`AnyType`](/docs/api-reference/common/Type/type-aliases/AnyType.mdx)\> |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `props` | `Props` |
+
+### Returns
+
+[`ObjectType`](/docs/api-reference/common/Type/interfaces/ObjectType.mdx)\<`Props`\>
+
+## Call Signature
+
+```ts
+function object<Props, KeyName, KeyT, KeyInput, KeyError, KeyParent, KeyParentError, Value>(props: Props, record: RecordType<KeyName, KeyT, KeyInput, KeyError, KeyParent, KeyParentError, Value>): ObjectWithRecordType<Props, KeyName, KeyT, KeyInput, KeyError, KeyParent, KeyParentError, Value>;
+```
+
+Defined in: [packages/common/src/Type.ts:2970](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L2970)
+
+With additional record properties.
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Props` *extends* `Record`\<`string`, [`AnyType`](/docs/api-reference/common/Type/type-aliases/AnyType.mdx)\> |
+| `KeyName` *extends* `string` |
+| `KeyT` *extends* `string` |
+| `KeyInput` *extends* `string` |
+| `KeyError` *extends* [`TypeError`](/docs/api-reference/common/Type/interfaces/TypeError.mdx)\<`Capitalize`\<`string`\>\> |
+| `KeyParent` *extends* `string` |
+| `KeyParentError` *extends* [`TypeError`](/docs/api-reference/common/Type/interfaces/TypeError.mdx)\<`Capitalize`\<`string`\>\> |
+| `Value` *extends* [`AnyType`](/docs/api-reference/common/Type/type-aliases/AnyType.mdx) |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `props` | `Props` |
+| `record` | [`RecordType`](/docs/api-reference/common/Type/interfaces/RecordType.mdx)\<`KeyName`, `KeyT`, `KeyInput`, `KeyError`, `KeyParent`, `KeyParentError`, `Value`\> |
+
+### Returns
+
+[`ObjectWithRecordType`](/docs/api-reference/common/Type/interfaces/ObjectWithRecordType.mdx)\<`Props`, `KeyName`, `KeyT`, `KeyInput`, `KeyError`, `KeyParent`, `KeyParentError`, `Value`\>

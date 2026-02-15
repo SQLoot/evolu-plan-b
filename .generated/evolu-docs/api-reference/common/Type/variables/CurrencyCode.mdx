@@ -1,0 +1,16 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / CurrencyCode
+
+```ts
+const CurrencyCode: brand(
+  "CurrencyCode",
+  String,
+  (value) =>
+    /^[A-Z]{3}$/.test(value)
+      ? ok(value)
+      : err<CurrencyCodeError>({ type: "CurrencyCode", value }),
+);
+```
+
+Defined in: [packages/common/src/Type.ts:1137](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L1137)
+
+A three-letter ISO 4217 currency code (e.g., USD, EUR).

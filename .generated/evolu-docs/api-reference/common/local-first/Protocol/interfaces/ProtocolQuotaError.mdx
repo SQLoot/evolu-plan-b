@@ -1,0 +1,51 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [local-first/Protocol](/docs/api-reference/common/local-first/Protocol/page.mdx) / ProtocolQuotaError
+
+Defined in: [packages/common/src/local-first/Protocol.ts:437](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L437)
+
+Error when storage or billing quota is exceeded.
+
+When relay rejects writes due to quota, the affected device stops syncing
+because RBSR requires both sides to converge—if the relay won't accept the
+client's data, they can never reach the same state. Only the device with
+excess local data is affected. Other devices that haven't exceeded quota can
+still sync normally.
+
+Clients should prompt the user to contact the relay provider or upgrade their
+plan. Quota monitoring and management is the relay provider's
+responsibility.
+
+## Extends
+
+- [`OwnerError`](/docs/api-reference/common/local-first/Owner/interfaces/OwnerError.mdx).[`Typed`](/docs/api-reference/common/Type/interfaces/Typed.mdx)\<`"ProtocolQuotaError"`\>
+
+## Properties
+
+<a id="ownerid"></a>
+
+### ownerId
+
+```ts
+readonly ownerId: string & Brand<"Id"> & Brand<"OwnerId">;
+```
+
+Defined in: [packages/common/src/local-first/Owner.ts:387](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Owner.ts#L387)
+
+#### Inherited from
+
+[`OwnerError`](/docs/api-reference/common/local-first/Owner/interfaces/OwnerError.mdx).[`ownerId`](/docs/api-reference/common/local-first/Owner/interfaces/OwnerError.mdx#ownerid)
+
+***
+
+<a id="type"></a>
+
+### type
+
+```ts
+readonly type: "ProtocolQuotaError";
+```
+
+Defined in: [packages/common/src/Type.ts:3456](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L3456)
+
+#### Inherited from
+
+[`Typed`](/docs/api-reference/common/Type/interfaces/Typed.mdx).[`type`](/docs/api-reference/common/Type/interfaces/Typed.mdx#type)

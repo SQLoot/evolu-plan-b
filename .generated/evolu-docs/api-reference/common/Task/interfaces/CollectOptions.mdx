@@ -1,0 +1,47 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Task](/docs/api-reference/common/Task/page.mdx) / CollectOptions
+
+Defined in: [packages/common/src/Task.ts:2635](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L2635)
+
+Options for [all](/docs/api-reference/common/Task/functions/all.mdx), [allSettled](/docs/api-reference/common/Task/functions/allSettled.mdx), [map](/docs/api-reference/common/Task/functions/map.mdx), and [mapSettled](/docs/api-reference/common/Task/functions/mapSettled.mdx).
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `Collect` *extends* `boolean` | `true` |
+
+## Properties
+
+<a id="abortreason"></a>
+
+### abortReason?
+
+```ts
+readonly optional abortReason: unknown;
+```
+
+Defined in: [packages/common/src/Task.ts:2648](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L2648)
+
+Custom reason for aborting remaining tasks on failure.
+
+By default, uses the helper's default abort error.
+
+***
+
+<a id="collect-1"></a>
+
+### collect?
+
+```ts
+readonly optional collect: Collect;
+```
+
+Defined in: [packages/common/src/Task.ts:2641](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L2641)
+
+Whether to collect results. When `false`, returns `Task<void, E, D>`.
+
+#### Default
+
+```ts
+true
+```

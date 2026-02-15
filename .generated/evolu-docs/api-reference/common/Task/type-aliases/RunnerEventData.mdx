@@ -1,0 +1,9 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Task](/docs/api-reference/common/Task/page.mdx) / RunnerEventData
+
+```ts
+type RunnerEventData = Readonly<{ type: "ChildAdded"; childId: string & import("/Users/miccy/Dev/workspaces/SQLoot/evolu-plan-b/packages/common/src/Brand").Brand<"Id">; }> | Readonly<{ type: "ChildRemoved"; childId: string & import("/Users/miccy/Dev/workspaces/SQLoot/evolu-plan-b/packages/common/src/Brand").Brand<"Id">; }> | Readonly<{ type: "StateChanged"; state: Readonly<{ type: "Running"; }> | Readonly<{ type: "Completing"; }> | Readonly<{ type: "Completed"; result: Readonly<{ value: unknown; ok: true; }> | Readonly<{ error: unknown; ok: false; }>; outcome: Readonly<{ value: unknown; ok: true; }> | Readonly<{ error: unknown; ok: false; }>; }>; }>;
+```
+
+Defined in: [packages/common/src/Task.ts:935](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L935)
+
+The event-specific payload of a [RunnerEvent](/docs/api-reference/common/Task/variables/RunnerEvent.mdx).

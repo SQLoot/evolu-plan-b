@@ -1,0 +1,63 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Array](/docs/api-reference/common/Array/page.mdx) / sortArray
+
+## Call Signature
+
+```ts
+function sortArray<T>(array: readonly [T, T], compareFn?: (a: T, b: T) => number): readonly [T, T];
+```
+
+Defined in: [packages/common/src/Array.ts:577](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Array.ts#L577)
+
+Returns a new sorted readonly array.
+
+Wraps native `toSorted`. Preserves non-empty type.
+
+### Example
+
+```ts
+sortArray([3, 1, 2], (a, b) => a - b); // [1, 2, 3]
+```
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `array` | readonly \[`T`, `T`\] |
+| `compareFn?` | (`a`: `T`, `b`: `T`) => `number` |
+
+### Returns
+
+readonly \[`T`, `T`\]
+
+## Call Signature
+
+```ts
+function sortArray<T>(array: readonly T[], compareFn?: (a: T, b: T) => number): readonly T[];
+```
+
+Defined in: [packages/common/src/Array.ts:582](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Array.ts#L582)
+
+Possibly empty array.
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `array` | readonly `T`[] |
+| `compareFn?` | (`a`: `T`, `b`: `T`) => `number` |
+
+### Returns
+
+readonly `T`[]

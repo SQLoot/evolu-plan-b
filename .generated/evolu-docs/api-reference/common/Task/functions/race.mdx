@@ -1,0 +1,61 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Task](/docs/api-reference/common/Task/page.mdx) / race
+
+```ts
+function race<T>(tasks: T, __namedParameters?: {
+  abortReason?: unknown;
+}): Task<InferTaskOk<T[number]>, InferTaskErr<T[number]>, InferTaskDeps<T[number]>>;
+```
+
+Defined in: [packages/common/src/Task.ts:1880](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L1880)
+
+Returns a [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx) that completes first.
+
+Like
+[Promise.race](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/race),
+the first task to complete (whether success or failure) wins. All other tasks
+are aborted. Use [any](/docs/api-reference/common/Task/functions/any.mdx) if you need the first task to succeed instead.
+
+Requires a non-empty array — racing zero tasks has no meaningful result
+(there's no "first to complete" without participants). This is enforced at
+compile time for non-empty tuple types. For other arrays, guard with
+[isNonEmptyArray](/docs/api-reference/common/Array/functions/isNonEmptyArray.mdx):
+
+```ts
+if (isNonEmptyArray(tasks)) {
+  await run(race(tasks));
+}
+```
+
+### Example
+
+```ts
+const fast: Task<string> = () => ok("fast");
+const slow: Task<string> = async (run) => {
+  await run(sleep("10ms"));
+  return ok("slow");
+};
+
+// First wins, others are aborted.
+const result = await run(race([fast, slow])); // ok("fast")
+```
+
+Always runs with unlimited concurrency — a sequential race makes no sense
+since the first task would always "win".
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` *extends* readonly \[[`AnyTask`](/docs/api-reference/common/Task/type-aliases/AnyTask.mdx), [`AnyTask`](/docs/api-reference/common/Task/type-aliases/AnyTask.mdx)\] |
+
+## Parameters
+
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `tasks` | `T` | - |
+| `__namedParameters` | \{ `abortReason?`: `unknown`; \} | - |
+| `__namedParameters.abortReason?` | `unknown` | Abort reason for losing tasks. Defaults to [raceLostError](/docs/api-reference/common/Task/variables/raceLostError.mdx). |
+
+## Returns
+
+[`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<[`InferTaskOk`](/docs/api-reference/common/Task/type-aliases/InferTaskOk.mdx)\<`T`\[`number`\]\>, [`InferTaskErr`](/docs/api-reference/common/Task/type-aliases/InferTaskErr.mdx)\<`T`\[`number`\]\>, [`InferTaskDeps`](/docs/api-reference/common/Task/type-aliases/InferTaskDeps.mdx)\<`T`\[`number`\]\>\>

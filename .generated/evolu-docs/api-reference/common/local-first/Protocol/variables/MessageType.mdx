@@ -1,0 +1,19 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [local-first/Protocol](/docs/api-reference/common/local-first/Protocol/page.mdx) / MessageType
+
+```ts
+const MessageType: {
+  Broadcast: 2;
+  Request: 0;
+  Response: 1;
+};
+```
+
+Defined in: [packages/common/src/local-first/Protocol.ts:345](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L345)
+
+## Type Declaration
+
+| Name | Type | Default value | Description | Defined in |
+| ------ | ------ | ------ | ------ | ------ |
+| <a id="property-broadcast"></a> `Broadcast` | `2` | `2` | Broadcast message from non-initiator (relay) to subscribed clients. | [packages/common/src/local-first/Protocol.ts:351](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L351) |
+| <a id="property-request"></a> `Request` | `0` | `0` | Request message from initiator (client) to non-initiator (relay). | [packages/common/src/local-first/Protocol.ts:347](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L347) |
+| <a id="property-response"></a> `Response` | `1` | `1` | Response message from non-initiator (relay) to initiator (client). | [packages/common/src/local-first/Protocol.ts:349](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L349) |

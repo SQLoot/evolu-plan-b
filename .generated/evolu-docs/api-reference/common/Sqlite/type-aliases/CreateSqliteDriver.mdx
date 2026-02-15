@@ -1,0 +1,20 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Sqlite](/docs/api-reference/common/Sqlite/page.mdx) / CreateSqliteDriver
+
+```ts
+type CreateSqliteDriver = (name: SimpleName, options?: SqliteDriverOptions) => Task<SqliteDriver>;
+```
+
+Defined in: [packages/common/src/Sqlite.ts:132](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Sqlite.ts#L132)
+
+Creates a [SqliteDriver](/docs/api-reference/common/Sqlite/interfaces/SqliteDriver.mdx).
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `name` | [`SimpleName`](/docs/api-reference/common/Type/type-aliases/SimpleName.mdx) |
+| `options?` | [`SqliteDriverOptions`](/docs/api-reference/common/Sqlite/type-aliases/SqliteDriverOptions.mdx) |
+
+## Returns
+
+[`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<[`SqliteDriver`](/docs/api-reference/common/Sqlite/interfaces/SqliteDriver.mdx)\>

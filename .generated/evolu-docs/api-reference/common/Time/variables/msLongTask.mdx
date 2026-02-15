@@ -1,0 +1,16 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Time](/docs/api-reference/common/Time/page.mdx) / msLongTask
+
+```ts
+const msLongTask: number & Brand<"Int"> & Brand<"NonNegative"> & Brand<"LessThan281474976710655"> & Brand<"Millis">;
+```
+
+Defined in: [packages/common/src/Time.ts:343](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Time.ts#L343)
+
+Long task threshold (50ms).
+
+Tasks exceeding this are "long tasks" per web standards. Use with
+[yieldNow](/docs/api-reference/common/Task/variables/yieldNow.mdx) to yield periodically and keep UI responsive.
+
+## See
+
+https://web.dev/articles/optimize-long-tasks

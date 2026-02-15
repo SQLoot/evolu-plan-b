@@ -1,0 +1,42 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / local-first/LocalAuth
+
+Local authentication and owner management.
+
+## Functions
+
+| Function | Description |
+| ------ | ------ |
+| [createLocalAuth](/docs/api-reference/common/local-first/LocalAuth/functions/createLocalAuth.mdx) | Creates a local auth using the given secure storage implementation. This factory function allows each platform to provide its own storage layer while sharing the common auth logic. |
+
+## Interfaces
+
+| Interface | Description |
+| ------ | ------ |
+| [AuthenticationPrompt](/docs/api-reference/common/local-first/LocalAuth/interfaces/AuthenticationPrompt.mdx) | Configuration for the biometric/device credential prompt shown when a protected item is accessed. |
+| [AuthList](/docs/api-reference/common/local-first/LocalAuth/interfaces/AuthList.mdx) | - |
+| [AuthResult](/docs/api-reference/common/local-first/LocalAuth/interfaces/AuthResult.mdx) | - |
+| [LocalAuth](/docs/api-reference/common/local-first/LocalAuth/interfaces/LocalAuth.mdx) | Local authentication and authorization system for Evolu. This is API is subject to change and not recommended for production use. |
+| [LocalAuthDep](/docs/api-reference/common/local-first/LocalAuth/interfaces/LocalAuthDep.mdx) | - |
+| [LocalAuthOptions](/docs/api-reference/common/local-first/LocalAuth/interfaces/LocalAuthOptions.mdx) | - |
+| [LocalAuthOptionsValues](/docs/api-reference/common/local-first/LocalAuth/interfaces/LocalAuthOptionsValues.mdx) | - |
+| [MutationResult](/docs/api-reference/common/local-first/LocalAuth/interfaces/MutationResult.mdx) | - |
+| [SecureStorage](/docs/api-reference/common/local-first/LocalAuth/interfaces/SecureStorage.mdx) | Secure storage interface that must be implemented by each platform. |
+| [SecureStorageDep](/docs/api-reference/common/local-first/LocalAuth/interfaces/SecureStorageDep.mdx) | - |
+| [SensitiveInfoGetRequest](/docs/api-reference/common/local-first/LocalAuth/interfaces/SensitiveInfoGetRequest.mdx) | - |
+| [SensitiveInfoItem](/docs/api-reference/common/local-first/LocalAuth/interfaces/SensitiveInfoItem.mdx) | - |
+| [StorageMetadata](/docs/api-reference/common/local-first/LocalAuth/interfaces/StorageMetadata.mdx) | - |
+
+## Type Aliases
+
+| Type Alias | Description |
+| ------ | ------ |
+| [AccessControl](/docs/api-reference/common/local-first/LocalAuth/type-aliases/AccessControl.mdx) | Enumerates the access-control policy enforced by the underlying secure storage. |
+| [SecurityLevel](/docs/api-reference/common/local-first/LocalAuth/type-aliases/SecurityLevel.mdx) | Enumerates the highest security tier that was effectively applied while storing a value. |
+| [StorageBackend](/docs/api-reference/common/local-first/LocalAuth/type-aliases/StorageBackend.mdx) | Enumerates the native storage backend used to persist sensitive data. |
+
+## Variables
+
+| Variable | Description |
+| ------ | ------ |
+| [localAuth\_Namespace](/docs/api-reference/common/local-first/LocalAuth/variables/localAuth_Namespace.mdx) | - |
+| [localAuthDefaultOptions](/docs/api-reference/common/local-first/LocalAuth/variables/localAuthDefaultOptions.mdx) | - |

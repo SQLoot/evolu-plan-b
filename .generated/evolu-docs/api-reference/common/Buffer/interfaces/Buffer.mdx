@@ -1,0 +1,215 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Buffer](/docs/api-reference/common/Buffer/page.mdx) / Buffer
+
+Defined in: [packages/common/src/Buffer.ts:72](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Buffer.ts#L72)
+
+A Buffer is a dynamic, resizable container for binary data, optimized for
+scenarios where the final size is unknown. It grows exponentially (doubling
+its capacity) to minimize memory reallocations and uses `subarray` for
+efficient, copy-free data access in methods like `unwrap` and `shift`.
+
+## Recommended Usage
+
+Create as few Buffers as possible—typically one main Buffer for the final
+output. Temporary Buffers are allowed when necessary (e.g., for
+variable-length headers), but avoid excessive allocations. Buffers can be
+reused within functions by leveraging `reset` to clear contents while
+preserving capacity, or `truncate` to adjust the length to a specific size,
+reducing the need for new allocations. Pass Buffers to `encode*` functions to
+append serialized data and use `decode*` functions to extract data. Both
+`shift` and `shiftN` throw an [BufferError](/docs/api-reference/common/Buffer/classes/BufferError.mdx) with message "Buffer parse
+ended prematurely" on failure, as do higher-level `decode*` functions,
+providing stack traces for debugging instead of using [Result](/docs/api-reference/common/Result/type-aliases/Result.mdx). This
+avoids allocation overhead in success cases and leverages exceptions'
+diagnostic benefits.
+
+### Example
+
+```ts
+const buffer = createBuffer();
+encodeNonNegativeInt(buffer, someInt);
+encodeId(buffer, someId);
+const result = buffer.unwrap(); // Final serialized data
+
+// Decoding example (throws on error)
+try {
+  const num = decodeNonNegativeInt(buffer);
+  const id = decodeId(buffer);
+} catch (e) {
+  console.error(e.stack); // Stack trace for debugging
+}
+```
+
+For more on exponential growth, see:
+https://blog.mozilla.org/nnethercote/2014/11/04/please-grow-your-buffers-exponentially
+
+## Properties
+
+<a id="extend"></a>
+
+### extend()
+
+```ts
+extend: (arg: Uint8Array<ArrayBufferLike> | ArrayLike<number>) => void;
+```
+
+Defined in: [packages/common/src/Buffer.ts:83](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Buffer.ts#L83)
+
+Appends binary data to the buffer, resizing if necessary. Throws if
+`arg.length` is not a non-negative integer.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `arg` | `Uint8Array`\<`ArrayBufferLike`\> \| `ArrayLike`\<`number`\> |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="getcapacity"></a>
+
+### getCapacity()
+
+```ts
+getCapacity: () => number & Brand<"Int"> & Brand<"NonNegative">;
+```
+
+Defined in: [packages/common/src/Buffer.ts:74](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Buffer.ts#L74)
+
+Returns the current capacity of the buffer.
+
+#### Returns
+
+`number` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Int"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"NonNegative"`\>
+
+***
+
+<a id="getlength"></a>
+
+### getLength()
+
+```ts
+getLength: () => number & Brand<"Int"> & Brand<"NonNegative">;
+```
+
+Defined in: [packages/common/src/Buffer.ts:77](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Buffer.ts#L77)
+
+Returns the current number of bytes stored in the buffer.
+
+#### Returns
+
+`number` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Int"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"NonNegative"`\>
+
+***
+
+<a id="reset"></a>
+
+### reset()
+
+```ts
+reset: () => void;
+```
+
+Defined in: [packages/common/src/Buffer.ts:110](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Buffer.ts#L110)
+
+Resets the buffer to its initial empty state, preserving its capacity.
+
+This allows efficient buffer reuse without reallocating memory. Use this
+when you want to clear the buffer and write new data, avoiding unnecessary
+allocations.
+
+#### Returns
+
+`void`
+
+***
+
+<a id="shift"></a>
+
+### shift()
+
+```ts
+shift: () => number & Brand<"Int"> & Brand<"NonNegative">;
+```
+
+Defined in: [packages/common/src/Buffer.ts:89](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Buffer.ts#L89)
+
+Removes and returns the first byte. Throws an `Error` with message "Buffer
+parse ended prematurely" if the buffer is empty.
+
+#### Returns
+
+`number` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Int"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"NonNegative"`\>
+
+***
+
+<a id="shiftn"></a>
+
+### shiftN()
+
+```ts
+shiftN: (n: number & Brand<"Int"> & Brand<"NonNegative">) => Uint8Array;
+```
+
+Defined in: [packages/common/src/Buffer.ts:95](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Buffer.ts#L95)
+
+Removes and returns the first `n` bytes. Throws an `Error` with message
+"Buffer parse ended prematurely" if fewer than `n` bytes remain.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `n` | `number` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Int"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"NonNegative"`\> |
+
+#### Returns
+
+`Uint8Array`
+
+***
+
+<a id="truncate"></a>
+
+### truncate()
+
+```ts
+truncate: (length: number & Brand<"Int"> & Brand<"NonNegative">) => void;
+```
+
+Defined in: [packages/common/src/Buffer.ts:101](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Buffer.ts#L101)
+
+Truncates the buffer to the specified length, discarding data from the end.
+Throws if the new length is greater than the current length.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `length` | `number` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Int"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"NonNegative"`\> |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="unwrap"></a>
+
+### unwrap()
+
+```ts
+unwrap: () => Uint8Array;
+```
+
+Defined in: [packages/common/src/Buffer.ts:117](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Buffer.ts#L117)
+
+Returns a view of the buffer’s current data. Do not modify this array, as
+it directly alters the buffer’s internal state, potentially breaking
+subsequent operations.
+
+#### Returns
+
+`Uint8Array`

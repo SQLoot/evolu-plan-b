@@ -1,0 +1,56 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/react-native](/docs/api-reference/react-native/page.mdx) / [web](/docs/api-reference/react-native/web/page.mdx) / createRunContext
+
+```ts
+const createRunContext: <D>(run: Run<D>) => {
+  Run: React.Context<Run<D>>;
+  RunProvider: React.FC<{
+     children?: ReactNode;
+  }>;
+};
+```
+
+Defined in: react/dist/Task.d.ts:20
+
+Creates typed React Context and Provider for [Run](/docs/api-reference/common/Task/type-aliases/Run.mdx).
+
+### Example
+
+```tsx
+const run = createRun(createEvoluDeps());
+const { Run, RunProvider } = createRunContext(run);
+
+<RunProvider>
+  <App />
+</RunProvider>;
+
+// In a component
+const run = use(Run);
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `D` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `run` | [`Run`](/docs/api-reference/common/Task/type-aliases/Run.mdx)\<`D`\> |
+
+## Returns
+
+```ts
+{
+  Run: React.Context<Run<D>>;
+  RunProvider: React.FC<{
+     children?: ReactNode;
+  }>;
+}
+```
+
+| Name | Type | Defined in |
+| ------ | ------ | ------ |
+| `Run` | `React.Context`\<[`Run`](/docs/api-reference/common/Task/type-aliases/Run.mdx)\<`D`\>\> | react/dist/Task.d.ts:21 |
+| `RunProvider` | `React.FC`\<\{ `children?`: `ReactNode`; \}\> | react/dist/Task.d.ts:22 |

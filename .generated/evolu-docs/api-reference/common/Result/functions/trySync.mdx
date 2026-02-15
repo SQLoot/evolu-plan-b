@@ -1,0 +1,37 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Result](/docs/api-reference/common/Result/page.mdx) / trySync
+
+```ts
+function trySync<T, E>(fn: () => T, mapError: (error: unknown) => E): Result<T, E>;
+```
+
+Defined in: [packages/common/src/Result.ts:395](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Result.ts#L395)
+
+Wraps a synchronous function that may throw, returning a [Result](/docs/api-reference/common/Result/type-aliases/Result.mdx).
+
+### Example
+
+```ts
+const parseJson = (value: string): Result<unknown, ParseJsonError> =>
+  trySync(
+    () => JSON.parse(value) as unknown,
+    (error) => ({ type: "ParseJsonError", message: String(error) }),
+  );
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+| `E` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `fn` | () => `T` |
+| `mapError` | (`error`: `unknown`) => `E` |
+
+## Returns
+
+[`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`T`, `E`\>

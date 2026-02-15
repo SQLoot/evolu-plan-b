@@ -1,0 +1,19 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Schedule](/docs/api-reference/common/Schedule/page.mdx) / forever
+
+```ts
+const forever: Schedule<number>;
+```
+
+Defined in: [packages/common/src/Schedule.ts:141](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Schedule.ts#L141)
+
+A schedule that never stops and has no delay.
+
+Outputs the attempt count (0, 1, 2, ...). Useful as a base for composition or
+for immediate retry without backoff.
+
+### Example
+
+```ts
+// Retry immediately, up to 5 times
+const immediate = take(5)(forever);
+```

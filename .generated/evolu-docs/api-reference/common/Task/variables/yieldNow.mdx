@@ -1,0 +1,64 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Task](/docs/api-reference/common/Task/page.mdx) / yieldNow
+
+```ts
+const yieldNow: Task<void>;
+```
+
+Defined in: [packages/common/src/Task.ts:1738](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L1738)
+
+Yields execution to allow other work to proceed.
+
+Long-running JavaScript blocks the main thread. In browsers, this makes the
+UI unresponsive (user interactions, animations). In Node.js, it prevents I/O
+callbacks, timers, and other requests from being handled. Inserting yield
+points lets the runtime process high-priority work between chunks of code.
+
+Uses `scheduler.yield()` in browsers for optimal main thread scheduling,
+falls back to `setImmediate` in Node.js, or `setTimeout` elsewhere.
+
+### Example
+
+```ts
+const processLargeArray: Task<void, never> = async (run) => {
+  const { time } = run.deps;
+  let lastYield = time.now();
+
+  for (const item of largeArray) {
+    processItem(item);
+
+    // Yield periodically to keep UI responsive
+    if (time.now() - lastYield > msLongTask) {
+      const r = await run(yieldNow);
+      if (!r.ok) return r;
+      lastYield = time.now();
+    }
+  }
+
+  return ok();
+};
+```
+
+Recursive tasks also benefit from periodic yields — without them, deep
+recursion overflows the call stack:
+
+```ts
+const processRecursive =
+  (count: number, index: number, sum: number): Task<number> =>
+  async (run) => {
+    if (index >= count) return ok(sum);
+
+    // Yield periodically to break synchronous call chains.
+    if (index > 0 && index % 1000 === 0) {
+      const y = await run(yieldNow);
+      if (!y.ok) return y;
+    }
+
+    // Direct tail-call: no fiber overhead, stack-safe thanks to yieldNow.
+    return await processRecursive(count, index + 1, sum + index)(run);
+  };
+```
+
+## See
+
+ - https://developer.mozilla.org/en-US/docs/Web/API/Scheduler/yield
+ - https://web.dev/articles/optimize-long-tasks

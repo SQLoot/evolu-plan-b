@@ -1,0 +1,26 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [local-first/Query](/docs/api-reference/common/local-first/Query/page.mdx) / makePatches
+
+```ts
+function makePatches(previousRows: 
+  | readonly Row[]
+  | undefined, nextRows: readonly Row[]): readonly Patch[];
+```
+
+Defined in: [packages/common/src/local-first/Query.ts:256](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Query.ts#L256)
+
+We detect only changes in the whole result and in-place edits. In the future,
+we will add more heuristics. We will probably not implement the Myers diff
+algorithm because it's faster to rerender all than to compute many detailed
+patches. We will only implement logic a developer would implement manually,
+if necessary.
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `previousRows` | \| readonly [`Row`](/docs/api-reference/common/local-first/Query/interfaces/Row.mdx)[] \| `undefined` |
+| `nextRows` | readonly [`Row`](/docs/api-reference/common/local-first/Query/interfaces/Row.mdx)[] |
+
+## Returns
+
+readonly [`Patch`](/docs/api-reference/common/local-first/Query/type-aliases/Patch.mdx)[]

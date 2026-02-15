@@ -1,0 +1,39 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Object](/docs/api-reference/common/Object/page.mdx) / getProperty
+
+```ts
+function getProperty<K, V>(record: ReadonlyRecord<K, V>, key: K): V | undefined;
+```
+
+Defined in: [packages/common/src/Object.ts:197](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Object.ts#L197)
+
+Safely gets a property from a record, returning `undefined` if the key
+doesn't exist.
+
+TypeScript's `Record<K, V>` type assumes all keys exist, but at runtime
+accessing a non-existent key returns `undefined`. This helper provides proper
+typing for that case without needing a type assertion.
+
+### Example
+
+```ts
+const users: Record<string, User> = { alice: { name: "Alice" } };
+const user = getProperty(users, "bob"); // User | undefined
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `K` *extends* `string` |
+| `V` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `record` | [`ReadonlyRecord`](/docs/api-reference/common/Object/type-aliases/ReadonlyRecord.mdx)\<`K`, `V`\> |
+| `key` | `K` |
+
+## Returns
+
+`V` \| `undefined`

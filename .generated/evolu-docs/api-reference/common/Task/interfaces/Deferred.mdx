@@ -1,0 +1,113 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Task](/docs/api-reference/common/Task/page.mdx) / Deferred
+
+Defined in: [packages/common/src/Task.ts:2245](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L2245)
+
+A value that can be resolved later.
+
+Similar to
+[Promise.withResolvers](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/withResolvers),
+but integrated with [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx) and [Runner](/docs/api-reference/common/Task/interfaces/Runner.mdx) for cancellation support.
+
+Use for bridging callback-based APIs or coordinating between tasks.
+
+Disposing aborts all waiting tasks with an [AbortError](/docs/api-reference/common/Task/variables/AbortError.mdx) with
+[deferredDisposedError](/docs/api-reference/common/Task/variables/deferredDisposedError.mdx) reason.
+
+## See
+
+[createDeferred](/docs/api-reference/common/Task/functions/createDeferred.mdx)
+
+## Extends
+
+- [`Disposable`](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-2.html#using-declarations-and-explicit-resource-management)
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `T` | - |
+| `E` | `never` |
+
+## Methods
+
+<a id="dispose"></a>
+
+### \[dispose\]()
+
+#### Call Signature
+
+```ts
+dispose: void;
+```
+
+Defined in: node\_modules/.bun/typescript@5.9.3/node\_modules/typescript/lib/lib.esnext.disposable.d.ts:36
+
+##### Returns
+
+`void`
+
+##### Inherited from
+
+```ts
+Disposable.[dispose]
+```
+
+#### Call Signature
+
+```ts
+dispose: void;
+```
+
+Defined in: node\_modules/.bun/@types+node@22.19.11/node\_modules/@types/node/compatibility/disposable.d.ts:9
+
+##### Returns
+
+`void`
+
+##### Inherited from
+
+```ts
+Disposable.[dispose]
+```
+
+## Properties
+
+<a id="resolve"></a>
+
+### resolve()
+
+```ts
+readonly resolve: (result: Result<T, 
+  | E
+  | DeferredDisposedError>) => boolean;
+```
+
+Defined in: [packages/common/src/Task.ts:2250](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L2250)
+
+Resolves the value. Returns `true` once, then `false`.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `result` | [`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`T`, \| `E` \| [`DeferredDisposedError`](/docs/api-reference/common/Task/interfaces/DeferredDisposedError.mdx)\> |
+
+#### Returns
+
+`boolean`
+
+***
+
+<a id="task"></a>
+
+### task
+
+```ts
+readonly task: Task<T, 
+  | E
+| DeferredDisposedError>;
+```
+
+Defined in: [packages/common/src/Task.ts:2247](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L2247)
+
+A [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx) that waits until [Deferred.resolve](/docs/api-reference/common/Task/interfaces/Deferred.mdx#resolve) is called.

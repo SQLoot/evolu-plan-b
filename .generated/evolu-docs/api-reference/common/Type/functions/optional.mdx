@@ -1,0 +1,43 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / optional
+
+```ts
+function optional<T>(type: T): OptionalType<T>;
+```
+
+Defined in: [packages/common/src/Type.ts:4295](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L4295)
+
+Optional [Type](/docs/api-reference/common/Type/interfaces/Type.mdx).
+
+Marks a `Type` as **optional**, meaning:
+
+- If the value is **present**, it must match the given `Type`.
+- If the value is **absent**, it is **not included** in the final object.
+
+This is different from [undefinedOr](/docs/api-reference/common/Type/functions/undefinedOr.mdx), which allows explicit `undefined`
+but **still requires the key to exist**.
+
+### Example:
+
+```ts
+const Todo = object({
+  id: TodoId,
+  title: NonEmptyString1000,
+  isCompleted: optional(SqliteBoolean),
+});
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` *extends* [`AnyType`](/docs/api-reference/common/Type/type-aliases/AnyType.mdx) |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `type` | `T` |
+
+## Returns
+
+[`OptionalType`](/docs/api-reference/common/Type/interfaces/OptionalType.mdx)\<`T`\>

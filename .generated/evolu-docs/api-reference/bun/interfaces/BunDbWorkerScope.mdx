@@ -1,0 +1,44 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/bun](/docs/api-reference/bun/page.mdx) / BunDbWorkerScope
+
+Defined in: [BunDbWorker.ts:32](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/bun/src/BunDbWorker.ts#L32)
+
+Minimal worker scope shape used by [runBunDbWorkerScope](/docs/api-reference/bun/functions/runBunDbWorkerScope.mdx).
+
+Using this explicit interface allows running the worker logic in tests
+without spawning a real Worker thread.
+
+## Properties
+
+<a id="onmessage"></a>
+
+### onmessage
+
+```ts
+onmessage: 
+  | (event: MessageEvent<DbWorkerInput>) => void
+  | null;
+```
+
+Defined in: [BunDbWorker.ts:34](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/bun/src/BunDbWorker.ts#L34)
+
+***
+
+<a id="postmessage"></a>
+
+### postMessage()
+
+```ts
+postMessage: (message: DbWorkerOutput) => void;
+```
+
+Defined in: [BunDbWorker.ts:33](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/bun/src/BunDbWorker.ts#L33)
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `message` | [`DbWorkerOutput`](/docs/api-reference/common/local-first/DbWorkerProtocol/type-aliases/DbWorkerOutput.mdx) |
+
+#### Returns
+
+`void`

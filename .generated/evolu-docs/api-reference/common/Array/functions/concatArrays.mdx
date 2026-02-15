@@ -1,0 +1,92 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Array](/docs/api-reference/common/Array/page.mdx) / concatArrays
+
+## Call Signature
+
+```ts
+function concatArrays<T>(first: readonly [T, T] | [T, ...T[]], second: readonly T[] | T[]): readonly [T, T];
+```
+
+Defined in: [packages/common/src/Array.ts:380](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Array.ts#L380)
+
+Concatenates two arrays, returning a new readonly array.
+
+Returns a non-empty array when at least one input is non-empty.
+
+### Example
+
+```ts
+concatArrays([1, 2], [3, 4]); // [1, 2, 3, 4]
+concatArrays([], [1]); // [1] (non-empty)
+concatArrays([1], []); // [1] (non-empty)
+```
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `first` | readonly \[`T`, `T`\] \| \[`T`, `...T[]`\] |
+| `second` | readonly `T`[] \| `T`[] |
+
+### Returns
+
+readonly \[`T`, `T`\]
+
+## Call Signature
+
+```ts
+function concatArrays<T>(first: readonly T[] | T[], second: readonly [T, T] | [T, ...T[]]): readonly [T, T];
+```
+
+Defined in: [packages/common/src/Array.ts:385](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Array.ts#L385)
+
+Second non-empty.
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `first` | readonly `T`[] \| `T`[] |
+| `second` | readonly \[`T`, `T`\] \| \[`T`, `...T[]`\] |
+
+### Returns
+
+readonly \[`T`, `T`\]
+
+## Call Signature
+
+```ts
+function concatArrays<T>(first: readonly T[] | T[], second: readonly T[] | T[]): readonly T[];
+```
+
+Defined in: [packages/common/src/Array.ts:390](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Array.ts#L390)
+
+Both possibly empty.
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `first` | readonly `T`[] \| `T`[] |
+| `second` | readonly `T`[] \| `T`[] |
+
+### Returns
+
+readonly `T`[]

@@ -1,0 +1,61 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Schedule](/docs/api-reference/common/Schedule/page.mdx) / ScheduleStep
+
+Defined in: [packages/common/src/Schedule.ts:76](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Schedule.ts#L76)
+
+Base interface for schedule-based task helpers.
+
+Used by [RetryAttempt](/docs/api-reference/common/Task/interfaces/RetryAttempt.mdx), [RepeatAttempt](/docs/api-reference/common/Task/interfaces/RepeatAttempt.mdx), and future schedule-driven
+helpers.
+
+## Extended by
+
+- [`RetryAttempt`](/docs/api-reference/common/Task/interfaces/RetryAttempt.mdx)
+- [`RepeatAttempt`](/docs/api-reference/common/Task/interfaces/RepeatAttempt.mdx)
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Output` |
+
+## Properties
+
+<a id="attempt"></a>
+
+### attempt
+
+```ts
+readonly attempt: number & Brand<"Int"> & Brand<"NonNegative"> & Brand<"Positive">;
+```
+
+Defined in: [packages/common/src/Schedule.ts:78](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Schedule.ts#L78)
+
+The current attempt.
+
+***
+
+<a id="delay"></a>
+
+### delay
+
+```ts
+readonly delay: number & Brand<"Int"> & Brand<"NonNegative"> & Brand<"LessThan281474976710655"> & Brand<"Millis">;
+```
+
+Defined in: [packages/common/src/Schedule.ts:84](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Schedule.ts#L84)
+
+Delay before this step executes.
+
+***
+
+<a id="output-1"></a>
+
+### output
+
+```ts
+readonly output: Output;
+```
+
+Defined in: [packages/common/src/Schedule.ts:81](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Schedule.ts#L81)
+
+Output from the [Schedule](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx) step.

@@ -1,0 +1,35 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [local-first/Owner](/docs/api-reference/common/local-first/Owner/page.mdx) / parseOwnerIdFromOwnerWebSocketTransportUrl
+
+```ts
+function parseOwnerIdFromOwnerWebSocketTransportUrl(url: string): 
+  | string & Brand<"Id"> & Brand<"OwnerId">
+  | null;
+```
+
+Defined in: [packages/common/src/local-first/Owner.ts:381](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Owner.ts#L381)
+
+Extracts [OwnerId](/docs/api-reference/common/local-first/Owner/variables/OwnerId.mdx) from an [OwnerWebSocketTransport](/docs/api-reference/common/local-first/Owner/interfaces/OwnerWebSocketTransport.mdx) URL query
+string.
+
+Parses the query string `?ownerId=...` and validates that the extracted value
+is a valid [OwnerId](/docs/api-reference/common/local-first/Owner/variables/OwnerId.mdx).
+
+### Example
+
+```ts
+parseOwnerIdFromOwnerWebSocketTransportUrl(
+  "/sync?ownerId=_12345678abcdefgh",
+);
+// Returns: OwnerId or null
+```
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `url` | `string` |
+
+## Returns
+
+  \| `string` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Id"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"OwnerId"`\>
+  \| `null`

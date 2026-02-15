@@ -1,0 +1,31 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/vue](/docs/api-reference/vue/page.mdx) / useQueries
+
+```ts
+function useQueries<R, Q, OQ>(queries: [...Q[]], options?: Partial<{
+  once: [...OQ];
+  promises: [...QueriesToQueryRowsPromises<Q>, ...QueriesToQueryRowsPromises<OQ>];
+}>): [...QueriesToQueryRowsRef<Q>[], ...QueriesToQueryRowsRef<OQ>[]];
+```
+
+Defined in: [useQueries.ts:16](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/vue/src/useQueries.ts#L16)
+
+The same as [useQuery](/docs/api-reference/vue/functions/useQuery.mdx), but for many queries.
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `R` *extends* [`Row`](/docs/api-reference/common/local-first/Query/interfaces/Row.mdx) |
+| `Q` *extends* [`Queries`](/docs/api-reference/common/local-first/Query/type-aliases/Queries.mdx)\<`R`\> |
+| `OQ` *extends* [`Queries`](/docs/api-reference/common/local-first/Query/type-aliases/Queries.mdx)\<`R`\> |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `queries` | \[`...Q[]`\] |
+| `options` | `Partial`\<\{ `once`: \[`...OQ`\]; `promises`: \[`...QueriesToQueryRowsPromises<Q>`, `...QueriesToQueryRowsPromises<OQ>`\]; \}\> |
+
+## Returns
+
+\[`...QueriesToQueryRowsRef<Q>[]`, `...QueriesToQueryRowsRef<OQ>[]`\]

@@ -1,0 +1,58 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / Option
+
+Optional value container.
+
+Distinguishes absence from values like `null` or `undefined`.
+
+Use Option when the value itself can be `null` or `undefined`. For APIs where
+`null` means "not found", just use `T | null` directly.
+
+### Example
+
+```ts
+// A cache that can store any value, including null and undefined
+const cache = new Map<string, Option<unknown>>();
+
+const get = (key: string): Option<unknown> => cache.get(key) ?? none;
+
+cache.set("a", some(null)); // Stored null
+cache.set("b", some(undefined)); // Stored undefined
+
+isSome(get("a")); // true — value is null
+isSome(get("b")); // true — value is undefined
+isNone(get("c")); // true — key doesn't exist
+```
+
+## Utilities
+
+| Type Alias | Description |
+| ------ | ------ |
+| [InferOption](/docs/api-reference/common/Option/type-aliases/InferOption.mdx) | Extracts the value type from an [Option](/docs/api-reference/common/Option/type-aliases/Option.mdx) or [Some](/docs/api-reference/common/Option/interfaces/Some.mdx). |
+
+## Functions
+
+| Function | Description |
+| ------ | ------ |
+| [fromNullable](/docs/api-reference/common/Option/functions/fromNullable.mdx) | Converts a nullable value to an [Option](/docs/api-reference/common/Option/type-aliases/Option.mdx). |
+| [isNone](/docs/api-reference/common/Option/functions/isNone.mdx) | Type guard for [None](/docs/api-reference/common/Option/interfaces/None.mdx). |
+| [isSome](/docs/api-reference/common/Option/functions/isSome.mdx) | Type guard for [Some](/docs/api-reference/common/Option/interfaces/Some.mdx). |
+| [some](/docs/api-reference/common/Option/functions/some.mdx) | Creates a [Some](/docs/api-reference/common/Option/interfaces/Some.mdx). |
+
+## Interfaces
+
+| Interface | Description |
+| ------ | ------ |
+| [None](/docs/api-reference/common/Option/interfaces/None.mdx) | Absent value in an [Option](/docs/api-reference/common/Option/type-aliases/Option.mdx). |
+| [Some](/docs/api-reference/common/Option/interfaces/Some.mdx) | Present value in an [Option](/docs/api-reference/common/Option/type-aliases/Option.mdx). |
+
+## Type Aliases
+
+| Type Alias | Description |
+| ------ | ------ |
+| [Option](/docs/api-reference/common/Option/type-aliases/Option.mdx) | Optional value. |
+
+## Variables
+
+| Variable | Description |
+| ------ | ------ |
+| [none](/docs/api-reference/common/Option/variables/none.mdx) | Shared [None](/docs/api-reference/common/Option/interfaces/None.mdx) instance. |

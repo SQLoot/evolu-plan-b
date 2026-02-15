@@ -1,0 +1,32 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Schedule](/docs/api-reference/common/Schedule/page.mdx) / windowed
+
+```ts
+function windowed(interval: Duration): Schedule<number>;
+```
+
+Defined in: [packages/common/src/Schedule.ts:382](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Schedule.ts#L382)
+
+Divides the timeline into fixed windows and sleeps until the next boundary.
+
+Similar to [fixed](/docs/api-reference/common/Schedule/functions/fixed.mdx), but always sleeps until the next window boundary
+regardless of when the last execution started. Outputs the repetition count.
+
+Useful for aligning executions to regular intervals from the start time.
+
+### Example
+
+```ts
+// Execute at regular 5-second boundaries from start
+const aligned = windowed("5s");
+// If elapsed is 3s, waits 2s. If elapsed is 7s, waits 3s.
+```
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `interval` | [`Duration`](/docs/api-reference/common/Time/type-aliases/Duration.mdx) |
+
+## Returns
+
+[`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`number`\>

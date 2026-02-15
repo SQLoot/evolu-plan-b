@@ -1,0 +1,43 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Set](/docs/api-reference/common/Set/page.mdx) / isNonEmptySet
+
+```ts
+function isNonEmptySet<T>(set: ReadonlySet<T>): set is NonEmptyReadonlySet<T>;
+```
+
+Defined in: [packages/common/src/Set.ts:84](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Set.ts#L84)
+
+Checks if a set is non-empty and narrows its type to
+[NonEmptyReadonlySet](/docs/api-reference/common/Set/type-aliases/NonEmptyReadonlySet.mdx).
+
+Both mutable and readonly sets narrow to the branded
+[NonEmptyReadonlySet](/docs/api-reference/common/Set/type-aliases/NonEmptyReadonlySet.mdx) type, which can be used with functions like
+[firstInSet](/docs/api-reference/common/Set/functions/firstInSet.mdx).
+
+To check if a set is empty, use `if (!isNonEmptySet(set))` — using the
+negated guard is better than `.size === 0` for early returns because
+TypeScript narrows the type after the check.
+
+### Example
+
+```ts
+const set: ReadonlySet<number> = new Set([1, 2, 3]);
+if (isNonEmptySet(set)) {
+  firstInSet(set); // set is NonEmptyReadonlySet<number>
+}
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `set` | `ReadonlySet`\<`T`\> |
+
+## Returns
+
+`set is NonEmptyReadonlySet<T>`

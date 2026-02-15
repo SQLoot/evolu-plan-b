@@ -1,0 +1,209 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / Typed
+
+Defined in: [packages/common/src/Type.ts:3455](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L3455)
+
+Base interface for objects with a discriminant `type` property.
+
+This enables
+[discriminated unions](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#discriminated-unions)
+(also known as tagged unions) — a pattern where TypeScript uses a literal
+`type` field to narrow union types automatically.
+
+## Why Discriminated Unions?
+
+Discriminated unions model states that are **mutually exclusive**. Instead of
+optional fields and boolean flags that can combine into invalid
+configurations, each variant is a distinct type. This makes illegal states
+unrepresentable — invalid combinations cannot exist, so bugs cannot create
+them.
+
+Benefits:
+
+- **Self-documenting** — Union cases immediately show all possible states
+- **Compile-time safety** — TypeScript enforces handling all cases
+- **Refactoring-friendly** — Adding a new state breaks code that doesn't handle
+  it
+
+### Example
+
+```ts
+// Bad: optional fields allow invalid states (no contact info at all)
+interface Contact {
+  readonly email?: Email;
+  readonly phone?: Phone;
+}
+
+// Good: discriminated union makes "at least one" explicit
+interface EmailOnly extends Typed<"EmailOnly"> {
+  readonly email: Email;
+}
+interface PhoneOnly extends Typed<"PhoneOnly"> {
+  readonly phone: Phone;
+}
+interface EmailAndPhone extends Typed<"EmailAndPhone"> {
+  readonly email: Email;
+  readonly phone: Phone;
+}
+
+type ContactInfo = EmailOnly | PhoneOnly | EmailAndPhone;
+```
+
+```ts
+interface Pending extends Typed<"Pending"> {
+  readonly createdAt: DateIso;
+}
+interface Shipped extends Typed<"Shipped"> {
+  readonly trackingNumber: TrackingNumber;
+}
+interface Delivered extends Typed<"Delivered"> {
+  readonly deliveredAt: DateIso;
+}
+interface Cancelled extends Typed<"Cancelled"> {
+  readonly reason: CancellationReason;
+}
+
+type OrderState = Pending | Shipped | Delivered | Cancelled;
+
+// TypeScript enforces exhaustiveness via return type
+const getStatusMessage = (state: OrderState): string => {
+  switch (state.type) {
+    case "Pending":
+      return "Order placed";
+    case "Shipped":
+      return `Shipped: ${state.trackingNumber}`;
+    case "Delivered":
+      return `Delivered on ${state.deliveredAt.toLocaleDateString()}`;
+    case "Cancelled":
+      return `Cancelled: ${state.reason}`;
+  }
+};
+
+// For void functions, use exhaustiveCheck to ensure all cases are handled
+const logState = (state: OrderState): void => {
+  switch (state.type) {
+    case "Pending":
+      console.log("Order placed");
+      break;
+    case "Shipped":
+      console.log(`Shipped: ${state.trackingNumber}`);
+      break;
+    case "Delivered":
+      console.log(
+        `Delivered on ${state.deliveredAt.toLocaleDateString()}`,
+      );
+      break;
+    case "Cancelled":
+      console.log(`Cancelled: ${state.reason}`);
+      break;
+    default:
+      exhaustiveCheck(state);
+  }
+};
+```
+
+## Why `type` (and not e.g. `_tag`)?
+
+Underscore-prefixing is meant to avoid clashing with domain properties, but
+proper discriminated union design means the discriminant IS the domain
+concept — there's no clash to avoid. The `type` prop name also aligns with
+[Type](/docs/api-reference/common/Type/interfaces/Type.mdx)'s name. If an entity has a meaningful "type" (like product
+category), model it as the discriminant itself:
+
+```ts
+interface Electronics extends Typed<"Electronics"> {
+  voltage: Voltage;
+}
+interface Clothing extends Typed<"Clothing"> {
+  size: Size;
+}
+type Product = Electronics | Clothing;
+```
+
+## See
+
+ - [exhaustiveCheck](/docs/api-reference/common/Function/functions/exhaustiveCheck.mdx) to ensure all cases are handled in void functions.
+ - [typed](/docs/api-reference/common/Type/functions/typed.mdx) for runtime-validated typed objects.
+
+## Extended by
+
+- [`DecryptWithXChaCha20Poly1305Error`](/docs/api-reference/common/Crypto/interfaces/DecryptWithXChaCha20Poly1305Error.mdx)
+- [`UnknownError`](/docs/api-reference/common/Error/interfaces/UnknownError.mdx)
+- [`Some`](/docs/api-reference/common/Option/interfaces/Some.mdx)
+- [`None`](/docs/api-reference/common/Option/interfaces/None.mdx)
+- [`ResourceNotFoundError`](/docs/api-reference/common/Resources/interfaces/ResourceNotFoundError.mdx)
+- [`ConsumerNotFoundError`](/docs/api-reference/common/Resources/interfaces/ConsumerNotFoundError.mdx)
+- [`Done`](/docs/api-reference/common/Result/interfaces/Done.mdx)
+- [`SqliteError`](/docs/api-reference/common/Sqlite/interfaces/SqliteError.mdx)
+- [`SqlIdentifier`](/docs/api-reference/common/Sqlite/interfaces/SqlIdentifier.mdx)
+- [`RawSql`](/docs/api-reference/common/Sqlite/interfaces/RawSql.mdx)
+- [`FiberStateRunning`](/docs/api-reference/common/Task/interfaces/FiberStateRunning.mdx)
+- [`FiberStateCompleting`](/docs/api-reference/common/Task/interfaces/FiberStateCompleting.mdx)
+- [`FiberStateCompleted`](/docs/api-reference/common/Task/interfaces/FiberStateCompleted.mdx)
+- [`RetryError`](/docs/api-reference/common/Task/interfaces/RetryError.mdx)
+- [`WebSocketSendError`](/docs/api-reference/common/WebSocket/interfaces/WebSocketSendError.mdx)
+- [`WebSocketConnectError`](/docs/api-reference/common/WebSocket/interfaces/WebSocketConnectError.mdx)
+- [`WebSocketConnectionError`](/docs/api-reference/common/WebSocket/interfaces/WebSocketConnectionError.mdx)
+- [`WebSocketConnectionCloseError`](/docs/api-reference/common/WebSocket/interfaces/WebSocketConnectionCloseError.mdx)
+- [`DbWorkerInitMessage`](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerInitMessage.mdx)
+- [`DbWorkerGetAppOwnerMessage`](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerGetAppOwnerMessage.mdx)
+- [`DbWorkerQueryMessage`](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerQueryMessage.mdx)
+- [`DbWorkerMutateMessage`](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerMutateMessage.mdx)
+- [`DbWorkerExportMessage`](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerExportMessage.mdx)
+- [`DbWorkerResetMessage`](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerResetMessage.mdx)
+- [`DbWorkerCloseMessage`](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerCloseMessage.mdx)
+- [`DbWorkerInitResponseMessage`](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerInitResponseMessage.mdx)
+- [`DbWorkerAppOwnerMessage`](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerAppOwnerMessage.mdx)
+- [`DbWorkerQueryResponseMessage`](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerQueryResponseMessage.mdx)
+- [`DbWorkerMutateResponseMessage`](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerMutateResponseMessage.mdx)
+- [`DbWorkerExportResponseMessage`](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerExportResponseMessage.mdx)
+- [`DbWorkerResetResponseMessage`](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerResetResponseMessage.mdx)
+- [`DbWorkerCloseResponseMessage`](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerCloseResponseMessage.mdx)
+- [`DbWorkerErrorMessage`](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerErrorMessage.mdx)
+- [`DbWorkerLeaderOutput`](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerLeaderOutput.mdx)
+- [`DbWorkerLeaderInput`](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerLeaderInput.mdx)
+- [`AppOwner`](/docs/api-reference/common/local-first/Owner/interfaces/AppOwner.mdx)
+- [`ShardOwner`](/docs/api-reference/common/local-first/Owner/interfaces/ShardOwner.mdx)
+- [`SharedOwner`](/docs/api-reference/common/local-first/Owner/interfaces/SharedOwner.mdx)
+- [`SharedReadonlyOwner`](/docs/api-reference/common/local-first/Owner/interfaces/SharedReadonlyOwner.mdx)
+- [`OwnerWebSocketTransport`](/docs/api-reference/common/local-first/Owner/interfaces/OwnerWebSocketTransport.mdx)
+- [`ProtocolVersionError`](/docs/api-reference/common/local-first/Protocol/interfaces/ProtocolVersionError.mdx)
+- [`ProtocolInvalidDataError`](/docs/api-reference/common/local-first/Protocol/interfaces/ProtocolInvalidDataError.mdx)
+- [`ProtocolWriteKeyError`](/docs/api-reference/common/local-first/Protocol/interfaces/ProtocolWriteKeyError.mdx)
+- [`ProtocolWriteError`](/docs/api-reference/common/local-first/Protocol/interfaces/ProtocolWriteError.mdx)
+- [`ProtocolQuotaError`](/docs/api-reference/common/local-first/Protocol/interfaces/ProtocolQuotaError.mdx)
+- [`ProtocolSyncError`](/docs/api-reference/common/local-first/Protocol/interfaces/ProtocolSyncError.mdx)
+- [`ProtocolTimestampMismatchError`](/docs/api-reference/common/local-first/Protocol/interfaces/ProtocolTimestampMismatchError.mdx)
+- [`ApplyProtocolMessageAsClientResponse`](/docs/api-reference/common/local-first/Protocol/interfaces/ApplyProtocolMessageAsClientResponse.mdx)
+- [`ApplyProtocolMessageAsClientNoResponse`](/docs/api-reference/common/local-first/Protocol/interfaces/ApplyProtocolMessageAsClientNoResponse.mdx)
+- [`ApplyProtocolMessageAsClientBroadcast`](/docs/api-reference/common/local-first/Protocol/interfaces/ApplyProtocolMessageAsClientBroadcast.mdx)
+- [`ApplyProtocolMessageAsRelayResult`](/docs/api-reference/common/local-first/Protocol/interfaces/ApplyProtocolMessageAsRelayResult.mdx)
+- [`StorageWriteError`](/docs/api-reference/common/local-first/Storage/interfaces/StorageWriteError.mdx)
+- [`StorageQuotaError`](/docs/api-reference/common/local-first/Storage/interfaces/StorageQuotaError.mdx)
+- [`SyncStateInitial`](/docs/api-reference/common/local-first/Sync/interfaces/SyncStateInitial.mdx)
+- [`SyncStateIsSyncing`](/docs/api-reference/common/local-first/Sync/interfaces/SyncStateIsSyncing.mdx)
+- [`SyncStateIsSynced`](/docs/api-reference/common/local-first/Sync/interfaces/SyncStateIsSynced.mdx)
+- [`SyncStateIsNotSynced`](/docs/api-reference/common/local-first/Sync/interfaces/SyncStateIsNotSynced.mdx)
+- [`NetworkError`](/docs/api-reference/common/local-first/Sync/interfaces/NetworkError.mdx)
+- [`ServerError`](/docs/api-reference/common/local-first/Sync/interfaces/ServerError.mdx)
+- [`PaymentRequiredError`](/docs/api-reference/common/local-first/Sync/interfaces/PaymentRequiredError.mdx)
+- [`TimestampDriftError`](/docs/api-reference/common/local-first/Timestamp/interfaces/TimestampDriftError.mdx)
+- [`TimestampCounterOverflowError`](/docs/api-reference/common/local-first/Timestamp/interfaces/TimestampCounterOverflowError.mdx)
+- [`TimestampTimeOutOfRangeError`](/docs/api-reference/common/local-first/Timestamp/interfaces/TimestampTimeOutOfRangeError.mdx)
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` *extends* `Capitalize`\<`string`\> |
+
+## Properties
+
+<a id="type"></a>
+
+### type
+
+```ts
+readonly type: T;
+```
+
+Defined in: [packages/common/src/Type.ts:3456](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L3456)

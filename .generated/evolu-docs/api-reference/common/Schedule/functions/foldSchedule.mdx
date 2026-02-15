@@ -1,0 +1,75 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Schedule](/docs/api-reference/common/Schedule/page.mdx) / foldSchedule
+
+```ts
+function foldSchedule<Z, Output>(initial: Z, f: (acc: Z, output: Output) => Z): <Input>(schedule: Schedule<Output, Input>) => Schedule<Z, Input>;
+```
+
+Defined in: [packages/common/src/Schedule.ts:1064](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Schedule.ts#L1064)
+
+Folds over the outputs of a schedule, accumulating state.
+
+Each step outputs the accumulated value. Useful for tracking totals,
+collecting outputs, or building up metadata across attempts.
+
+### Example
+
+```ts
+// Track total delay spent
+const withTotal = foldSchedule(
+  0,
+  (total: number, delay: Millis) => total + delay,
+)(exponential("100ms"));
+// Outputs: 100, 300, 700, 1500, ... (cumulative)
+
+// Collect all outputs
+const collected = foldSchedule([] as Millis[], (acc, delay: Millis) => [
+  ...acc,
+  delay,
+])(take(3)(spaced("1s")));
+// Outputs: [1000], [1000, 1000], [1000, 1000, 1000]
+
+// Count attempts with custom output
+const counted = foldSchedule(
+  { attempts: 0, lastDelay: 0 as Millis },
+  (acc, delay: Millis) => ({
+    attempts: acc.attempts + 1,
+    lastDelay: delay,
+  }),
+)(exponential("100ms"));
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Z` |
+| `Output` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `initial` | `Z` |
+| `f` | (`acc`: `Z`, `output`: `Output`) => `Z` |
+
+## Returns
+
+```ts
+<Input>(schedule: Schedule<Output, Input>): Schedule<Z, Input>;
+```
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Input` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `schedule` | [`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`Output`, `Input`\> |
+
+### Returns
+
+[`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`Z`, `Input`\>

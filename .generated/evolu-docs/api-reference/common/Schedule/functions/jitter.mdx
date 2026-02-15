@@ -1,0 +1,55 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Schedule](/docs/api-reference/common/Schedule/page.mdx) / jitter
+
+```ts
+function jitter(factor?: number): <Output, Input>(schedule: Schedule<Output, Input>) => Schedule<Output, Input>;
+```
+
+Defined in: [packages/common/src/Schedule.ts:663](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Schedule.ts#L663)
+
+Adds randomized jitter to delays.
+
+Jitter helps prevent "thundering herd" when many clients retry simultaneously
+after a service recovers. The delay is randomized within a range:
+
+- `factor = 0` — no jitter (original delay)
+- `factor = 0.5` — delay varies ±50% (e.g., 1s becomes 500ms-1500ms)
+- `factor = 1` — full jitter, delay varies 0-200% (e.g., 1s becomes 0-2s)
+
+### Example
+
+```ts
+// AWS-style full jitter
+const awsStyle = jitter(1)(exponential("1s"));
+
+// Conservative jitter (±25%)
+const conservative = jitter(0.25)(exponential("1s"));
+```
+
+## Parameters
+
+| Parameter | Type | Default value |
+| ------ | ------ | ------ |
+| `factor` | `number` | `0.5` |
+
+## Returns
+
+```ts
+<Output, Input>(schedule: Schedule<Output, Input>): Schedule<Output, Input>;
+```
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Output` |
+| `Input` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `schedule` | [`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`Output`, `Input`\> |
+
+### Returns
+
+[`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`Output`, `Input`\>

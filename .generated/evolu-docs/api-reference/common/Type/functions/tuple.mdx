@@ -1,0 +1,36 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / tuple
+
+```ts
+function tuple<Elements>(...elements: Elements): TupleType<Elements>;
+```
+
+Defined in: [packages/common/src/Type.ts:3892](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L3892)
+
+Tuple [Type](/docs/api-reference/common/Type/interfaces/Type.mdx).
+
+Represents a tuple of specific Types.
+
+### Example
+
+```ts
+const NameAndAge = tuple(NonEmptyTrimmedString, PositiveNumber);
+
+const result = NameAndAge.from(["Alice", 25]); // ok(["Alice", 25])
+const error = NameAndAge.from(["Alice", -10]); // err
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Elements` *extends* \[[`AnyType`](/docs/api-reference/common/Type/type-aliases/AnyType.mdx), `...AnyType[]`\] |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| ...`elements` | `Elements` |
+
+## Returns
+
+[`TupleType`](/docs/api-reference/common/Type/interfaces/TupleType.mdx)\<`Elements`\>

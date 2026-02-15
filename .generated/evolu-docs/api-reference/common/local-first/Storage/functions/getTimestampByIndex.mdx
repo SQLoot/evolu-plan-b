@@ -1,0 +1,30 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [local-first/Storage](/docs/api-reference/common/local-first/Storage/page.mdx) / getTimestampByIndex
+
+```ts
+function getTimestampByIndex(deps: SqliteDep): (ownerId: Uint8Array<ArrayBufferLike> & Brand<"Length16"> & Brand<"IdBytes"> & Brand<"OwnerIdBytes">, index: number & Brand<"Int"> & Brand<"NonNegative">) => Result<Uint8Array<ArrayBufferLike> & Brand<"Length16"> & Brand<"TimestampBytes">, SqliteError>;
+```
+
+Defined in: [packages/common/src/local-first/Storage.ts:1559](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Storage.ts#L1559)
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `deps` | [`SqliteDep`](/docs/api-reference/common/Sqlite/interfaces/SqliteDep.mdx) |
+
+## Returns
+
+```ts
+(ownerId: Uint8Array<ArrayBufferLike> & Brand<"Length16"> & Brand<"IdBytes"> & Brand<"OwnerIdBytes">, index: number & Brand<"Int"> & Brand<"NonNegative">): Result<Uint8Array<ArrayBufferLike> & Brand<"Length16"> & Brand<"TimestampBytes">, SqliteError>;
+```
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `ownerId` | `Uint8Array`\<`ArrayBufferLike`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Length16"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"IdBytes"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"OwnerIdBytes"`\> |
+| `index` | `number` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Int"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"NonNegative"`\> |
+
+### Returns
+
+[`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`Uint8Array`\<`ArrayBufferLike`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Length16"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"TimestampBytes"`\>, [`SqliteError`](/docs/api-reference/common/Sqlite/interfaces/SqliteError.mdx)\>

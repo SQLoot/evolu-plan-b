@@ -1,0 +1,64 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / local-first/Schema
+
+Database schema definition and validation.
+
+## Utilities
+
+| Interface | Description |
+| ------ | ------ |
+| [DbIndex](/docs/api-reference/common/local-first/Schema/interfaces/DbIndex.mdx) | Extracts the type from a [Type](/docs/api-reference/common/Type/interfaces/Type.mdx). |
+| [DbSchema](/docs/api-reference/common/local-first/Schema/interfaces/DbSchema.mdx) | Extracts the type from a [Type](/docs/api-reference/common/Type/interfaces/Type.mdx). |
+
+## Functions
+
+| Function | Description |
+| ------ | ------ |
+| [createQueryBuilder](/docs/api-reference/common/local-first/Schema/functions/createQueryBuilder.mdx) | Creates a query builder from a [EvoluSchema](/docs/api-reference/common/local-first/Schema/type-aliases/EvoluSchema.mdx). |
+| [ensureDbSchema](/docs/api-reference/common/local-first/Schema/functions/ensureDbSchema.mdx) | - |
+| [evoluSchemaToDbSchema](/docs/api-reference/common/local-first/Schema/functions/evoluSchemaToDbSchema.mdx) | - |
+| [getDbSchema](/docs/api-reference/common/local-first/Schema/functions/getDbSchema.mdx) | Get the current database schema by reading SQLite metadata. |
+
+## Interfaces
+
+| Interface | Description |
+| ------ | ------ |
+| [DbSchemaDep](/docs/api-reference/common/local-first/Schema/interfaces/DbSchemaDep.mdx) | - |
+| [MutationChange](/docs/api-reference/common/local-first/Schema/interfaces/MutationChange.mdx) | A DbChange is a change to a table row. Together with a unique [Timestamp](/docs/api-reference/common/local-first/Timestamp/variables/Timestamp.mdx), it forms a [CrdtMessage](/docs/api-reference/common/local-first/Storage/interfaces/CrdtMessage.mdx). |
+| [MutationOptions](/docs/api-reference/common/local-first/Schema/interfaces/MutationOptions.mdx) | - |
+| [SystemColumns](/docs/api-reference/common/local-first/Schema/interfaces/SystemColumns.mdx) | System columns that are implicitly defined by Evolu. |
+
+## Type Aliases
+
+| Type Alias | Description |
+| ------ | ------ |
+| [AnyStandardSchemaV1](/docs/api-reference/common/local-first/Schema/type-aliases/AnyStandardSchemaV1.mdx) | Any [StandardSchemaV1](/docs/api-reference/common/Type/interfaces/StandardSchemaV1.mdx). |
+| [CreateQuery](/docs/api-reference/common/local-first/Schema/type-aliases/CreateQuery.mdx) | - |
+| [EvoluSchema](/docs/api-reference/common/local-first/Schema/type-aliases/EvoluSchema.mdx) | Defines the schema of an Evolu database. |
+| [IndexesConfig](/docs/api-reference/common/local-first/Schema/type-aliases/IndexesConfig.mdx) | - |
+| [InsertValues](/docs/api-reference/common/local-first/Schema/type-aliases/InsertValues.mdx) | Insert values: `id` omitted (auto-generated), nullable columns optional, non-nullable columns required. |
+| [Mutation](/docs/api-reference/common/local-first/Schema/type-aliases/Mutation.mdx) | Mutation function type. Accepts already-validated values — validation is the caller's responsibility using any Standard Schema library (Evolu Type, Zod, Valibot, ArkType, etc.). |
+| [MutationKind](/docs/api-reference/common/local-first/Schema/type-aliases/MutationKind.mdx) | - |
+| [MutationValues](/docs/api-reference/common/local-first/Schema/type-aliases/MutationValues.mdx) | Derives the expected values type for a mutation from a table's column schemas and a [MutationKind](/docs/api-reference/common/local-first/Schema/type-aliases/MutationKind.mdx). |
+| [NullableColumnsToOptional](/docs/api-reference/common/local-first/Schema/type-aliases/NullableColumnsToOptional.mdx) | Makes columns whose output type includes `null` optional. |
+| [OptionalColumnKeys](/docs/api-reference/common/local-first/Schema/type-aliases/OptionalColumnKeys.mdx) | - |
+| [RequiredColumnKeys](/docs/api-reference/common/local-first/Schema/type-aliases/RequiredColumnKeys.mdx) | - |
+| [SchemaValidationError](/docs/api-reference/common/local-first/Schema/type-aliases/SchemaValidationError.mdx) | Schema validation error that shows clear, readable messages |
+| [TableSchema](/docs/api-reference/common/local-first/Schema/type-aliases/TableSchema.mdx) | A table schema: column names mapped to Standard Schema validators. |
+| [UpdateValues](/docs/api-reference/common/local-first/Schema/type-aliases/UpdateValues.mdx) | Update values: `id` required, all other columns optional. Includes `isDeleted` for soft deletes. |
+| [UpsertValues](/docs/api-reference/common/local-first/Schema/type-aliases/UpsertValues.mdx) | Upsert values: `id` required, nullable columns optional, non-nullable columns required. Includes `isDeleted` for soft deletes. |
+| [ValidateColumnTypes](/docs/api-reference/common/local-first/Schema/type-aliases/ValidateColumnTypes.mdx) | - |
+| [ValidateIdColumnType](/docs/api-reference/common/local-first/Schema/type-aliases/ValidateIdColumnType.mdx) | - |
+| [ValidateNoSystemColumns](/docs/api-reference/common/local-first/Schema/type-aliases/ValidateNoSystemColumns.mdx) | - |
+| [ValidateSchema](/docs/api-reference/common/local-first/Schema/type-aliases/ValidateSchema.mdx) | Validates an [EvoluSchema](/docs/api-reference/common/local-first/Schema/type-aliases/EvoluSchema.mdx) at compile time, returning the first error found as a readable string literal type. This approach provides much clearer and more actionable TypeScript errors than the default, which are often hard to read. |
+| [ValidateSchemaHasId](/docs/api-reference/common/local-first/Schema/type-aliases/ValidateSchemaHasId.mdx) | - |
+
+## Variables
+
+| Variable | Description |
+| ------ | ------ |
+| [DbIndex](/docs/api-reference/common/local-first/Schema/variables/DbIndex.mdx) | - |
+| [DbSchema](/docs/api-reference/common/local-first/Schema/variables/DbSchema.mdx) | - |
+| [kysely](/docs/api-reference/common/local-first/Schema/variables/kysely.mdx) | - |
+| [systemColumns](/docs/api-reference/common/local-first/Schema/variables/systemColumns.mdx) | - |
+| [SystemColumns](/docs/api-reference/common/local-first/Schema/variables/SystemColumns-1.mdx) | System columns that are implicitly defined by Evolu. |
+| [systemColumnsWithId](/docs/api-reference/common/local-first/Schema/variables/systemColumnsWithId.mdx) | - |

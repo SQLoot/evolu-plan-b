@@ -1,0 +1,55 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Schedule](/docs/api-reference/common/Schedule/page.mdx) / unfoldSchedule
+
+```ts
+function unfoldSchedule<State>(initial: State, next: (state: State) => State): Schedule<State>;
+```
+
+Defined in: [packages/common/src/Schedule.ts:541](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Schedule.ts#L541)
+
+Creates a schedule by unfolding a state.
+
+Each step outputs the current state and computes the next state using the
+provided function. Never stops — combine with [take](/docs/api-reference/common/Schedule/functions/take.mdx) or
+[maxElapsed](/docs/api-reference/common/Schedule/functions/maxElapsed.mdx) to limit.
+
+### Example
+
+```ts
+// Counter: 0, 1, 2, 3, ...
+const counter = unfoldSchedule(0, (n) => n + 1);
+
+// Custom backoff: 100, 150, 225, 338, ... (×1.5 each time)
+const customBackoff = unfoldSchedule(100, (delay) =>
+  Math.round(delay * 1.5),
+);
+
+// State machine
+type Phase = "init" | "warmup" | "active";
+const phases = unfoldSchedule<Phase>("init", (phase) => {
+  switch (phase) {
+    case "init":
+      return "warmup";
+    case "warmup":
+      return "active";
+    case "active":
+      return "active";
+  }
+});
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `State` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `initial` | `State` |
+| `next` | (`state`: `State`) => `State` |
+
+## Returns
+
+[`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`State`\>

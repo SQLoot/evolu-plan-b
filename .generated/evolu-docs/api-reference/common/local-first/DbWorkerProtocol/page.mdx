@@ -1,0 +1,42 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / local-first/DbWorkerProtocol
+
+Database Worker message protocol.
+
+Defines all messages exchanged between main thread and the database worker.
+The worker runs SQLite operations off the main thread for better performance.
+
+## Interfaces
+
+| Interface | Description |
+| ------ | ------ |
+| [DbWorkerAppOwnerMessage](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerAppOwnerMessage.mdx) | AppOwner from storage. |
+| [DbWorkerCloseMessage](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerCloseMessage.mdx) | Close database resources for deterministic lifecycle handling. |
+| [DbWorkerCloseResponseMessage](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerCloseResponseMessage.mdx) | Database resources closed. |
+| [DbWorkerErrorMessage](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerErrorMessage.mdx) | Error from worker. |
+| [DbWorkerExportMessage](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerExportMessage.mdx) | Export the database as a binary blob. |
+| [DbWorkerExportResponseMessage](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerExportResponseMessage.mdx) | Database exported. |
+| [DbWorkerGetAppOwnerMessage](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerGetAppOwnerMessage.mdx) | Request the current AppOwner from storage. |
+| [DbWorkerInitMessage](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerInitMessage.mdx) | Initialize the database worker with configuration. |
+| [DbWorkerInitResponseMessage](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerInitResponseMessage.mdx) | Worker initialized successfully. |
+| [DbWorkerLeaderInput](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerLeaderInput.mdx) | Heartbeat sent by an Evolu client over the broker channel. |
+| [DbWorkerLeaderOutput](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerLeaderOutput.mdx) | Leader lock lifecycle event emitted by the DB worker channel. |
+| [DbWorkerMutateMessage](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerMutateMessage.mdx) | Execute a mutation (insert/update/delete). |
+| [DbWorkerMutateResponseMessage](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerMutateResponseMessage.mdx) | Mutation completed. |
+| [DbWorkerQueryMessage](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerQueryMessage.mdx) | Execute a query and return results. |
+| [DbWorkerQueryResponseMessage](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerQueryResponseMessage.mdx) | Query results. |
+| [DbWorkerResetMessage](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerResetMessage.mdx) | Reset the database (delete all data). |
+| [DbWorkerResetResponseMessage](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerResetResponseMessage.mdx) | Database reset. |
+
+## Type Aliases
+
+| Type Alias | Description |
+| ------ | ------ |
+| [DbWorkerInput](/docs/api-reference/common/local-first/DbWorkerProtocol/type-aliases/DbWorkerInput.mdx) | - |
+| [DbWorkerOutput](/docs/api-reference/common/local-first/DbWorkerProtocol/type-aliases/DbWorkerOutput.mdx) | - |
+
+## Variables
+
+| Variable | Description |
+| ------ | ------ |
+| [dbWorkerLeaderHeartbeatIntervalMs](/docs/api-reference/common/local-first/DbWorkerProtocol/variables/dbWorkerLeaderHeartbeatIntervalMs.mdx) | Default heartbeat interval for broker liveness checks. |
+| [dbWorkerLeaderHeartbeatTimeoutMs](/docs/api-reference/common/local-first/DbWorkerProtocol/variables/dbWorkerLeaderHeartbeatTimeoutMs.mdx) | Timeout after which missing heartbeats mark a worker port as stale. |

@@ -1,0 +1,68 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / nextResult
+
+```ts
+function nextResult<ValueType, ErrorType, DoneType>(
+   valueType: ValueType, 
+   errorType: ErrorType, 
+   doneType: DoneType): UnionType<[ObjectType<{
+  ok: LiteralType<true>;
+  value: ValueType;
+}>, ObjectType<{
+  error: UnionType;
+  ok: LiteralType<false>;
+}>]>;
+```
+
+Defined in: [packages/common/src/Type.ts:3705](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L3705)
+
+Creates a [Type](/docs/api-reference/common/Type/interfaces/Type.mdx) for [NextResult](/docs/api-reference/common/Result/type-aliases/NextResult.mdx) with three outcomes.
+
+Validates results where the producer responds with:
+
+- `Ok<A>` — produced a value
+- `Err<Done<D>>` — completed normally with a done value
+- `Err<E>` — failed with an error
+
+### Example
+
+```ts
+const MyNextResult = nextResult(Item, MyError, Summary);
+
+const validated = MyNextResult.fromUnknown(data);
+if (!validated.ok) return validated;
+
+const result = validated.value;
+if (result.ok) {
+  console.log(result.value);
+} else if (result.error.type === "Done") {
+  console.log("Done:", result.error.done);
+} else {
+  console.error(result.error);
+}
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `ValueType` *extends* [`AnyType`](/docs/api-reference/common/Type/type-aliases/AnyType.mdx) |
+| `ErrorType` *extends* [`AnyType`](/docs/api-reference/common/Type/type-aliases/AnyType.mdx) |
+| `DoneType` *extends* [`AnyType`](/docs/api-reference/common/Type/type-aliases/AnyType.mdx) |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `valueType` | `ValueType` |
+| `errorType` | `ErrorType` |
+| `doneType` | `DoneType` |
+
+## Returns
+
+[`UnionType`](/docs/api-reference/common/Type/interfaces/UnionType.mdx)\<\[[`ObjectType`](/docs/api-reference/common/Type/interfaces/ObjectType.mdx)\<\{
+  `ok`: [`LiteralType`](/docs/api-reference/common/Type/interfaces/LiteralType.mdx)\<`true`\>;
+  `value`: `ValueType`;
+\}\>, [`ObjectType`](/docs/api-reference/common/Type/interfaces/ObjectType.mdx)\<\{
+  `error`: [`UnionType`](/docs/api-reference/common/Type/interfaces/UnionType.mdx);
+  `ok`: [`LiteralType`](/docs/api-reference/common/Type/interfaces/LiteralType.mdx)\<`false`\>;
+\}\>\]\>

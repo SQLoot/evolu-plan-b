@@ -1,0 +1,81 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / [StandardSchemaV1](/docs/api-reference/common/Type/namespaces/StandardSchemaV1/page.mdx) / Props
+
+Defined in: [packages/common/src/Type.ts:4824](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L4824)
+
+The Standard Schema properties interface.
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `Input` | `unknown` |
+| `Output` | `Input` |
+
+## Properties
+
+<a id="types"></a>
+
+### types?
+
+```ts
+readonly optional types: Types<Input, Output>;
+```
+
+Defined in: [packages/common/src/Type.ts:4834](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L4834)
+
+Inferred types associated with the schema.
+
+***
+
+<a id="validate"></a>
+
+### validate()
+
+```ts
+readonly validate: (value: unknown) => 
+  | Result<Output>
+| Promise<Result<Output>>;
+```
+
+Defined in: [packages/common/src/Type.ts:4830](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L4830)
+
+Validates unknown input values.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `value` | `unknown` |
+
+#### Returns
+
+  \| [`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`Output`\>
+  \| `Promise`\<[`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`Output`\>\>
+
+***
+
+<a id="vendor"></a>
+
+### vendor
+
+```ts
+readonly vendor: string;
+```
+
+Defined in: [packages/common/src/Type.ts:4828](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L4828)
+
+The vendor name of the schema library.
+
+***
+
+<a id="version"></a>
+
+### version
+
+```ts
+readonly version: 1;
+```
+
+Defined in: [packages/common/src/Type.ts:4826](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L4826)
+
+The version number of the standard.

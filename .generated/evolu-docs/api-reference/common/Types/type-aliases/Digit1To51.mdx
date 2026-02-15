@@ -1,0 +1,12 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Types](/docs/api-reference/common/Types/page.mdx) / Digit1To51
+
+```ts
+type Digit1To51 = 
+  | Digit1To9
+  | `${"1" | "2" | "3" | "4"}${Digit}`
+  | `5${"0" | "1"}`;
+```
+
+Defined in: [packages/common/src/Types.ts:277](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Types.ts#L277)
+
+Numeric string 1-51. Useful for weeks validation.

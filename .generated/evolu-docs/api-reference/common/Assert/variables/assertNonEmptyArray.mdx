@@ -1,0 +1,37 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Assert](/docs/api-reference/common/Assert/page.mdx) / assertNonEmptyArray
+
+```ts
+const assertNonEmptyArray: <T>(arr: T[], message?: string) => asserts arr is [T, ...T[]];
+```
+
+Defined in: [packages/common/src/Assert.ts:50](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Assert.ts#L50)
+
+Asserts that an array is non-empty.
+
+Ensures the provided array has at least one element, helping TypeScript infer
+the array as non-empty when this is logically guaranteed but not statically
+known.
+
+### Example
+
+```ts
+assertNonEmptyArray([1, 2, 3]); // no-op
+assertNonEmptyArray([]); // throws Error
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `arr` | `T`[] |
+| `message?` | `string` |
+
+## Returns
+
+`asserts arr is [T, ...T[]]`

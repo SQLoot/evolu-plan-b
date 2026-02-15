@@ -1,0 +1,16 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Time](/docs/api-reference/common/Time/page.mdx) / createTime
+
+```ts
+function createTime(): Time;
+```
+
+Defined in: [packages/common/src/Time.ts:50](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Time.ts#L50)
+
+Creates a [Time](/docs/api-reference/common/Time/interfaces/Time.mdx) using `Date.now()` and `globalThis.setTimeout`.
+
+Throws if the system clock returns an out-of-range value. This is intentional
+— there's no reasonable fallback for a misconfigured clock.
+
+## Returns
+
+[`Time`](/docs/api-reference/common/Time/interfaces/Time.mdx)

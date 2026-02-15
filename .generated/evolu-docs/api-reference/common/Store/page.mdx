@@ -1,0 +1,16 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / Store
+
+Observable state container with change notifications.
+
+## Functions
+
+| Function | Description |
+| ------ | ------ |
+| [createStore](/docs/api-reference/common/Store/functions/createStore.mdx) | Creates a store with the given initial state. The store encapsulates its state, which can be read with `get` and updated with `set` or `modify`. All changes are broadcast to subscribers. |
+
+## Interfaces
+
+| Interface | Description |
+| ------ | ------ |
+| [ReadonlyStore](/docs/api-reference/common/Store/interfaces/ReadonlyStore.mdx) | A read-only view of a [Store](/docs/api-reference/common/Store/interfaces/Store.mdx) that provides state access and change notifications without allowing modifications. |
+| [Store](/docs/api-reference/common/Store/interfaces/Store.mdx) | A store for managing state with change notifications. Like a [Ref](/docs/api-reference/common/Ref/interfaces/Ref.mdx) with subscriptions. |
