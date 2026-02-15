@@ -273,7 +273,12 @@ test("createEvoluDeps wraps console error entry into UnknownError", () => {
     },
   });
 
-  expect(evoluDeps.evoluError.get()).toEqual(createUnknownError(["boom"]));
+  expect(evoluDeps.evoluError.get()).toEqual(
+    createUnknownError([
+      "Worker console.error without typed EvoluError payload",
+      { argCount: 1, argKinds: ["string(4)"] },
+    ]),
+  );
 });
 
 describe("createEvolu", () => {

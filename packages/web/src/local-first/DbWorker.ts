@@ -16,6 +16,27 @@ import { createWasmSqliteDriver } from "../Sqlite.js";
 import { createRun } from "../Task.js";
 
 const workerMemoryDbName = "evolu-worker-memory";
+const namedDbLocks = new Map<string, { tail: Promise<void> }>();
+
+const acquireDbLock = async (name: string): Promise<() => void> => {
+  const state = namedDbLocks.get(name) ?? { tail: Promise.resolve() };
+  namedDbLocks.set(name, state);
+
+  const previousTail = state.tail;
+  const releaseGate = Promise.withResolvers<void>();
+  const myTail = previousTail.then(() => releaseGate.promise);
+  state.tail = myTail;
+
+  await previousTail;
+
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    releaseGate.resolve();
+    if (state.tail === myTail) namedDbLocks.delete(name);
+  };
+};
 
 const safeParseAppOwner = (value: string): AppOwner | null => {
   try {
@@ -41,6 +62,7 @@ export const runWebDbWorkerPort = (
   port: MessagePort<DbWorkerOutput, DbWorkerInput>,
 ): void => {
   let db: SqliteDriver | null = null;
+  let releaseDbLock: (() => void) | null = null;
 
   const postMessage = (message: DbWorkerOutput): void => {
     port.postMessage(message);
@@ -50,6 +72,12 @@ export const runWebDbWorkerPort = (
     if (!db) return;
     db[Symbol.dispose]();
     db = null;
+  };
+
+  const releaseLock = (): void => {
+    if (!releaseDbLock) return;
+    releaseDbLock();
+    releaseDbLock = null;
   };
 
   const requireDb = (): SqliteDriver => {
@@ -79,6 +107,8 @@ export const runWebDbWorkerPort = (
       case "DbWorkerInit": {
         try {
           closeDb();
+          releaseLock();
+          releaseDbLock = await acquireDbLock(message.dbName);
           db = await createDriver(message.dbName);
 
           exec("PRAGMA journal_mode = WAL;");
@@ -106,6 +136,8 @@ export const runWebDbWorkerPort = (
             success: false,
             error: error instanceof Error ? error.message : String(error),
           });
+          closeDb();
+          releaseLock();
         }
         break;
       }
@@ -183,6 +215,7 @@ export const runWebDbWorkerPort = (
 
       case "DbWorkerClose": {
         closeDb();
+        releaseLock();
         postMessage({
           type: "DbWorkerCloseResponse",
           requestId: message.requestId,
