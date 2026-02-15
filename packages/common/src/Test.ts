@@ -19,6 +19,7 @@ import {
 } from "./Random.js";
 import { createRunner, type Runner, type RunnerConfigDep } from "./Task.js";
 import { type TimeDep, testCreateTime } from "./Time.js";
+import { SimpleName } from "./Type.js";
 
 /** Test deps created by {@link testCreateDeps}. */
 export type TestDeps = TestConsoleDep &
@@ -115,3 +116,5 @@ export const testEntropy32 = /*#__PURE__*/ Entropy32.orThrow(
 export const testOwnerSecret = /*#__PURE__*/ OwnerSecret.orThrow(testEntropy32);
 
 export const testAppOwner = /*#__PURE__*/ createAppOwner(testOwnerSecret);
+
+export const testName = /*#__PURE__*/ SimpleName.orThrow("Name");

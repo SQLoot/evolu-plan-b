@@ -45,4 +45,21 @@ describe("leaderLock", () => {
     if (a.ok) a.value[Symbol.dispose]();
     if (b.ok) b.value[Symbol.dispose]();
   });
+
+  test("runner disposal releases held lease", async () => {
+    const run = createRun();
+    const first = await run(leaderLock.acquire(testName));
+
+    if (!first.ok) {
+      await run[Symbol.asyncDispose]();
+      throw new Error("Expected leader lock acquire to succeed.");
+    }
+
+    const disposeResult = Promise.race([
+      run[Symbol.asyncDispose]().then(() => "disposed"),
+      new Promise((resolve) => setTimeout(() => resolve("timeout"), 100)),
+    ]);
+
+    await expect(disposeResult).resolves.toBe("disposed");
+  });
 });

@@ -5,12 +5,12 @@ import { describe, expect, it } from "vitest";
 /**
  * Tests for typedoc-plugin-evolu-type output.
  *
- * These tests verify the generated documentation. Run `bun run build:docs` before
- * running these tests.
+ * These tests verify generated TypeDoc output.
+ * Run `bun run docs:generate:api` before running these tests.
  *
  * NOTE: This test is excluded from the regular test run in vitest.config.mts
- * because it requires generated docs. It runs explicitly in the verify script
- * after `bun run build:docs`.
+ * because it requires generated docs. Run it explicitly via
+ * `bun run test:docs`.
  */
 
 const docsPath = join(
