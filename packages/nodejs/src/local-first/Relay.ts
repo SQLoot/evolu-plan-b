@@ -1,25 +1,21 @@
-import { existsSync } from "node:fs";
-import { createServer } from "node:http";
 import {
-  allResult,
-  type CreateSqliteDriverDep,
   callback,
   createRandom,
   createRelation,
   createSqlite,
+  type CreateSqliteDriverDep,
   isPromiseLike,
-  type OwnerId,
   ok,
+  OwnerId,
   type RandomDep,
-  SimpleName,
-  type SqliteError,
+  Name,
   type Task,
   type TimingSafeEqualDep,
   Uint8Array,
 } from "@evolu/common";
 import {
-  type ApplyProtocolMessageAsRelayOptions,
   applyProtocolMessageAsRelay,
+  type ApplyProtocolMessageAsRelayOptions,
   createBaseSqliteStorageTables,
   createRelaySqliteStorage,
   createRelayStorageTables,
@@ -28,9 +24,11 @@ import {
   type Relay,
   type RelayConfig,
 } from "@evolu/common/local-first";
+import { existsSync } from "fs";
+import { createServer } from "http";
 import { WebSocket, WebSocketServer } from "ws";
-import { createTimingSafeEqual } from "../Crypto.js";
 import { createBetterSqliteDriver } from "../Sqlite.js";
+import { createTimingSafeEqual } from "../Crypto.js";
 
 export interface NodeJsRelayConfig extends RelayConfig {
   /** The port number for the HTTP server. */
@@ -57,7 +55,7 @@ export const createRelayDeps = (): RelayDeps => ({
  * ```ts
  * const deps = { ...createRelayDeps(), console };
  *
- * await using run = createRunner(deps);
+ * await using run = createRun(deps);
  * await using stack = run.stack();
  *
  * await stack.use(startRelay({ port: 4000 }));
@@ -68,36 +66,26 @@ export const createRelayDeps = (): RelayDeps => ({
 export const startRelay =
   ({
     port = 443,
-    name = SimpleName.orThrow("evolu-relay"),
+    name = Name.orThrow("evolu-relay"),
     isOwnerAllowed,
     isOwnerWithinQuota,
-  }: NodeJsRelayConfig): Task<Relay, SqliteError, RelayDeps> =>
+  }: NodeJsRelayConfig): Task<Relay, never, RelayDeps> =>
   async (_run) => {
     await using stack = _run.stack();
     const console = _run.deps.console.child("relay");
 
     const dbFileExists = existsSync(`${name}.db`);
 
-    const sqlite = await stack.use(createSqlite(name));
-    if (!sqlite.ok) {
-      console.error(sqlite.error);
-      return sqlite;
-    }
-    const deps = { ..._run.deps, sqlite: sqlite.value };
+    const sqliteResult = await stack.use(createSqlite(name));
+    if (!sqliteResult.ok) return sqliteResult;
+    const deps = { ..._run.deps, sqlite: sqliteResult.value };
 
     if (!dbFileExists) {
-      const result = allResult([
-        createBaseSqliteStorageTables(deps),
-        createRelayStorageTables(deps),
-      ]);
-      if (!result.ok) {
-        console.error(result.error);
-        return result;
-      }
+      createBaseSqliteStorageTables(deps);
+      createRelayStorageTables(deps);
     }
 
     const storage = createRelaySqliteStorage(deps)({
-      onStorageError: console.error,
       isOwnerWithinQuota,
     });
 
@@ -221,7 +209,6 @@ export const startRelay =
           console.info("HTTP server closed");
           ok();
         });
-        return undefined;
       }),
     );
 
@@ -233,7 +220,6 @@ export const startRelay =
           console.info("WebSocketServer closed");
           ok();
         });
-        return undefined;
       }),
     );
 
@@ -246,7 +232,6 @@ export const startRelay =
           }
         }
         ok();
-        return undefined;
       }),
     );
 
