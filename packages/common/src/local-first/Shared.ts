@@ -1,0 +1,151 @@
+/**
+ * Platform-agnostic Evolu Worker.
+ *
+ * @module
+ */
+
+import type { NonEmptyReadonlyArray } from "../Array.js";
+import type { CallbackId } from "../Callbacks.js";
+import type { ConsoleEntry } from "../Console.js";
+import { exhaustiveCheck } from "../Function.js";
+import { ok } from "../Result.js";
+import type { Task } from "../Task.js";
+import type { Name } from "../Type.js";
+import type {
+  SharedWorker as CommonSharedWorker,
+  MessagePort,
+  NativeMessagePort,
+  SharedWorkerSelf,
+  WorkerInitDep,
+} from "../Worker.js";
+import type { DbWorkerLeaderOutput } from "./Db.js";
+import type { EvoluError } from "./Error.js";
+import type { Query } from "./Query.js";
+import type { MutationChange } from "./Schema.js";
+
+export type SharedWorker = CommonSharedWorker<SharedWorkerInput>;
+
+export interface SharedWorkerDep {
+  readonly sharedWorker: SharedWorker;
+}
+
+/**
+ * Messages sent from an Evolu instance to the worker-side Evolu port.
+ *
+ * Redesign status: currently only mutation dispatch is defined. Additional
+ * request variants will be added as query and owner flows are implemented.
+ */
+export interface EvoluInput {
+  readonly type: "mutate";
+  readonly changes: NonEmptyReadonlyArray<MutationChange>;
+  readonly onCompleteIds: ReadonlyArray<CallbackId>;
+  readonly subscribedQueries: ReadonlyArray<Query>;
+}
+
+export type SharedWorkerInput =
+  | {
+      /** Tab-level channel for broadcast outputs (console/error). */
+      readonly type: "InitTab";
+      readonly port: NativeMessagePort;
+    }
+  | {
+      /** Per-Evolu instance request channel. */
+      readonly type: "InitEvolu";
+      readonly name: Name;
+      readonly port: NativeMessagePort;
+      readonly brokerPort: NativeMessagePort;
+    };
+
+export type EvoluTabOutput =
+  | {
+      readonly type: "ConsoleEntry";
+      readonly entry: ConsoleEntry;
+    }
+  | {
+      readonly type: "EvoluError";
+      readonly error: EvoluError;
+    };
+
+export const initSharedWorker =
+  (
+    self: SharedWorkerSelf<SharedWorkerInput>,
+  ): Task<AsyncDisposableStack, never, WorkerInitDep> =>
+  async (run) => {
+    const { createMessagePort, consoleStoreOutputEntry } = run.deps;
+    const console = run.deps.console.child("SharedWorker");
+
+    // TODO: Use heartbeat to detect and prune dead ports.
+    const tabPorts = new Set<MessagePort<EvoluTabOutput>>();
+    const queuedTabOutputs: Array<EvoluTabOutput> = [];
+    const leaderPorts = new Map<
+      Name,
+      MessagePort<never, DbWorkerLeaderOutput>
+    >();
+
+    const postTabOutput = (output: EvoluTabOutput): void => {
+      for (const port of tabPorts) port.postMessage(output);
+    };
+
+    const postOrQueueTabOutput = (output: EvoluTabOutput): void => {
+      if (tabPorts.size === 0) queuedTabOutputs.push(output);
+      else postTabOutput(output);
+    };
+
+    await using stack = run.stack();
+
+    stack.defer(
+      consoleStoreOutputEntry.subscribe(() => {
+        const entry = consoleStoreOutputEntry.get();
+        if (entry) postOrQueueTabOutput({ type: "ConsoleEntry", entry });
+      }),
+    );
+
+    console.info("initSharedWorker");
+
+    self.onConnect = (port) => {
+      console.info("onConnect");
+
+      port.onMessage = (message) => {
+        switch (message.type) {
+          case "InitTab": {
+            const tabPort = createMessagePort<EvoluTabOutput>(message.port);
+            tabPorts.add(tabPort);
+
+            if (queuedTabOutputs.length > 0) {
+              queuedTabOutputs.forEach(postTabOutput);
+              queuedTabOutputs.length = 0;
+            }
+
+            break;
+          }
+          case "InitEvolu": {
+            // TODO: Wrap port, do async init (open DB, load owner),
+            // then set onMessage to start processing requests.
+            // Messages are queued until onMessage is assigned.
+            const evoluPort = createMessagePort<never, EvoluInput>(
+              message.port,
+            );
+            const brokerPort = createMessagePort<never, DbWorkerLeaderOutput>(
+              message.brokerPort,
+            );
+
+            leaderPorts.set(message.name, brokerPort);
+
+            brokerPort.onMessage = (leaderEvent) => {
+              leaderPorts.set(leaderEvent.name, brokerPort);
+              console.info("leaderAcquired", { name: leaderEvent.name });
+            };
+
+            evoluPort.onMessage = (message) => {
+              console.log(message);
+            };
+            break;
+          }
+          default:
+            exhaustiveCheck(message);
+        }
+      };
+    };
+
+    return ok(stack.move());
+  };
