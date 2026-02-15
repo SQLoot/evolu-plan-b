@@ -16,7 +16,7 @@
 | ---------------- | ------------- |
 | Package Manager  | Bun 1.3.9     |
 | Node.js          | >=24.0.0      |
-| Linter/Formatter | Biome 2.3.15  |
+| Linter/Formatter | Biome 2.4.0   |
 | Test Framework   | Vitest        |
 | Upstream         | evoluhq/evolu |
 

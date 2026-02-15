@@ -15,14 +15,14 @@ bunx <package>       # Execute packages
 | Tool       | Minimum  | Current |
 | ---------- | -------- | ------- |
 | Node.js    | >=24.0.0 | LTS 24  |
-| Bun        | 1.3.8    | 1.3.8   |
+| Bun        | 1.3.8    | 1.3.9   |
 | TypeScript | ^5.9.3   | 5.9.3   |
 
 ## Key Dependencies
 
 ### Development
-- **Turbo** 2.8.1 - Monorepo build orchestration
-- **Biome** 2.3.15 - Linting and formatting
+- **Turbo** 2.8.9 - Monorepo build orchestration
+- **Biome** 2.4.0 - Linting and formatting
 - **Vitest** ^4.0.18 - Testing framework
 - **TypeDoc** ^0.28.16 - API documentation
 
