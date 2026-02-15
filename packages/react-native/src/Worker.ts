@@ -33,7 +33,7 @@ export const createWorker = <Input, Output>(
       });
     },
     onMessage: null,
-    native: null as unknown as NativeMessagePort, // React Native runs in-process, no real native port
+    native: null as unknown as NativeMessagePort<Input, Output>, // React Native runs in-process, no real native port
     [Symbol.dispose]: () => {
       worker.onMessage = null;
       workerSelf?.[Symbol.dispose]();
@@ -52,7 +52,7 @@ export const createWorker = <Input, Output>(
         worker.onMessage(message);
       });
     },
-    native: null as unknown as NativeMessagePort, // React Native runs in-process, no real native port
+    native: null as unknown as NativeMessagePort<Output, Input>, // React Native runs in-process, no real native port
     [Symbol.dispose]: () => {
       if (workerSelf) workerSelf.onMessage = null;
     },
@@ -87,7 +87,7 @@ export const createSharedWorker = <Input, Output>(
       });
     },
     onMessage: null,
-    native: null as unknown as NativeMessagePort, // React Native runs in-process, no real native port
+    native: null as unknown as NativeMessagePort<Input, Output>, // React Native runs in-process, no real native port
     [Symbol.dispose]: () => {
       clientPort.onMessage = null;
     },
@@ -104,7 +104,7 @@ export const createSharedWorker = <Input, Output>(
       });
     },
     onMessage: null,
-    native: null as unknown as NativeMessagePort, // React Native runs in-process, no real native port
+    native: null as unknown as NativeMessagePort<Output, Input>, // React Native runs in-process, no real native port
     [Symbol.dispose]: () => {
       if (workerPort) workerPort.onMessage = null;
     },
@@ -160,7 +160,7 @@ export const createMessageChannel = <Input, Output = never>(): MessageChannel<
       });
     },
     onMessage: null,
-    native: null as unknown as NativeMessagePort, // React Native runs in-process, no real native port
+    native: null as unknown as NativeMessagePort<Input, Output>, // React Native runs in-process, no real native port
     [Symbol.dispose]: () => {
       port1.onMessage = null;
     },
@@ -177,7 +177,7 @@ export const createMessageChannel = <Input, Output = never>(): MessageChannel<
       });
     },
     onMessage: null,
-    native: null as unknown as NativeMessagePort, // React Native runs in-process, no real native port
+    native: null as unknown as NativeMessagePort<Output, Input>, // React Native runs in-process, no real native port
     [Symbol.dispose]: () => {
       port2.onMessage = null;
     },
@@ -200,6 +200,6 @@ export const createMessageChannel = <Input, Output = never>(): MessageChannel<
  * wrapper, so this is a passthrough.
  */
 export const createMessagePort = <Input, Output = never>(
-  nativePort: NativeMessagePort,
+  nativePort: NativeMessagePort<Input, Output>,
 ): MessagePort<Input, Output> =>
   nativePort as unknown as MessagePort<Input, Output>;
