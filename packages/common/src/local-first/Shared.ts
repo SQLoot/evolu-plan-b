@@ -135,8 +135,22 @@ export const initSharedWorker =
             leaderPorts.set(message.name, brokerPort);
 
             brokerPort.onMessage = (leaderEvent: DbWorkerLeaderOutput) => {
-              leaderPorts.set(leaderEvent.name, brokerPort);
-              console.info("leaderAcquired", { name: leaderEvent.name });
+              switch (leaderEvent.type) {
+                case "LeaderAcquired": {
+                  leaderPorts.set(leaderEvent.name, brokerPort);
+                  console.info("leaderAcquired", { name: leaderEvent.name });
+                  break;
+                }
+                case "ConsoleEntry": {
+                  postOrQueueTabOutput({
+                    type: "ConsoleEntry",
+                    entry: leaderEvent.entry,
+                  });
+                  break;
+                }
+                default:
+                  exhaustiveCheck(leaderEvent);
+              }
             };
 
             evoluPort.onMessage = (message: EvoluInput) => {
