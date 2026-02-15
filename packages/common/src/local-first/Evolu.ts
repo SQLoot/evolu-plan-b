@@ -1281,6 +1281,8 @@ const createDbWorkerClient = (
     }
   };
 
+  // All Evolu instance traffic goes through SharedWorker, which is our
+  // single control point for observability and resilience behavior.
   deps.evoluWorker.port.postMessage(
     {
       type: "InitEvolu",
