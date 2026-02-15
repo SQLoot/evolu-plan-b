@@ -2621,7 +2621,6 @@ test("createFormatTypeError", () => {
   const formatTypeErrorWithCustomMessage = createFormatTypeError<StringError>(
     (error) => {
       switch (error.type) {
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         case "String":
           return "string";
       }
@@ -2638,7 +2637,6 @@ test("createFormatTypeError", () => {
   const formatTypeErrorWithCustomError = createFormatTypeError<NameError>(
     (error) => {
       switch (error.type) {
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         case "Name":
           return "name";
       }

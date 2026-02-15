@@ -170,7 +170,6 @@ export const loadMdxContent = async (
     };
   } catch (error) {
     // Log error but continue processing other files
-    // eslint-disable-next-line no-console
     console.error(`Error loading ${relativePath}:`, error);
     return {
       path: `/(docs)/docs/${relativePath.replace(/page\.mdx$/, "")}`,

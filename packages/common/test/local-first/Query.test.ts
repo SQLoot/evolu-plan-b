@@ -14,17 +14,13 @@ test("Query", () => {
 
   // Ensure query1 and query2 are treated as different types
   // @ts-expect-error - query1 should not be assignable to query2
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _shouldError: typeof query2 = query1;
 
   // @ts-expect-error - query2 should not be assignable to query1
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _shouldAlsoError: typeof query1 = query2;
 
   // Valid assignments
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _validQuery1: typeof query1 = query1;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _validQuery2: typeof query2 = query2;
 });
 

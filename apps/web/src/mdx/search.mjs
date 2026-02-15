@@ -87,11 +87,8 @@ export default function Search(nextConfig = {}) {
 
                   cache.set(file, [mdx, sections]);
                 } catch (err) {
-                  // eslint-disable-next-line no-undef
                   console.error(`\n\n❌ MDX PARSE ERROR in file: ${file}\n`);
-                  // eslint-disable-next-line no-undef
                   console.log(JSON.stringify(err));
-                  // eslint-disable-next-line no-undef
                   console.error("\n");
                   throw err;
                 }

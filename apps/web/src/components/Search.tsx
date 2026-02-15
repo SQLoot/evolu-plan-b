@@ -410,7 +410,6 @@ const useSearchProps = () => {
 
 export const Search = (): React.ReactElement => {
   const [modifierKey] = useState<string>(() =>
-    // eslint-disable-next-line @typescript-eslint/no-deprecated
     /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform) ? "⌘" : "Ctrl ",
   );
   const { buttonProps, dialogProps } = useSearchProps();

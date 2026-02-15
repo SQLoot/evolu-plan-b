@@ -348,7 +348,6 @@ const useTabGroupProps = (availableLanguages: Array<string>) => {
     setSelectedIndex(newSelectedIndex);
   }
 
-  // eslint-disable-next-line @typescript-eslint/unbound-method
   const { positionRef, preventLayoutShift } = usePreventLayoutShift();
 
   return {

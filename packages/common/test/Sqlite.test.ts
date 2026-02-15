@@ -707,7 +707,6 @@ describe("SqliteBoolean", () => {
 //   }
 
 //   // Method 1: Individual queries
-//   // eslint-disable-next-line no-console
 //   console.log(
 //     `Testing ${queryIds.length} ID lookups against ${totalRows} rows`,
 //   );
@@ -774,14 +773,10 @@ describe("SqliteBoolean", () => {
 
 //   expect(sortedCteResults).toEqual(sortedIndividualResults);
 
-//   // eslint-disable-next-line no-console
 //   console.log(`Individual queries: ${individualTime.toFixed(2)}ms`);
-//   // eslint-disable-next-line no-console
 //   console.log(`CTE query: ${cteTime.toFixed(2)}ms`);
-//   // eslint-disable-next-line no-console
 //   console.log(`Speedup: ${(individualTime / cteTime).toFixed(2)}x`);
 
-//   // eslint-disable-next-line no-console
 //   console.log(
 //     `CTE approach is ${cteTime < individualTime ? "faster" : "slower"} than individual queries`,
 //   );

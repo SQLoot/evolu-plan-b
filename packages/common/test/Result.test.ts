@@ -177,7 +177,6 @@ describe("tryAsync", () => {
 
   it("returns Err on rejected promise", async () => {
     const result = await tryAsync(
-      // eslint-disable-next-line @typescript-eslint/require-await
       async () => {
         throw new Error("Something went wrong");
       },
@@ -194,7 +193,6 @@ describe("tryAsync", () => {
 
   it("maps custom error properties", async () => {
     const result = await tryAsync(
-      // eslint-disable-next-line @typescript-eslint/require-await
       async () => {
         throw new TypeError("Invalid type");
       },
@@ -311,7 +309,6 @@ test.skip("Result wrapping vs unwrapped performance", () => {
   const wrappedStart = performance.now();
   for (let offset = 0, i = 0; i < NUM_ITEMS; i++, offset += AVG_ITEM_SIZE) {
     const result = readWrapped(data, offset, AVG_ITEM_SIZE);
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
     if (result.ok) result.value;
   }
   const wrappedTime = performance.now() - wrappedStart;
@@ -319,18 +316,14 @@ test.skip("Result wrapping vs unwrapped performance", () => {
   const unwrappedStart = performance.now();
   for (let offset = 0, i = 0; i < NUM_ITEMS; i++, offset += AVG_ITEM_SIZE) {
     const _chunk = readUnwrapped(data, offset, AVG_ITEM_SIZE);
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
     _chunk;
   }
   const unwrappedTime = performance.now() - unwrappedStart;
 
-  // eslint-disable-next-line no-console
   console.log(`Wrapped: ${wrappedTime.toFixed(2)} ms for ${NUM_ITEMS} items`);
-  // eslint-disable-next-line no-console
   console.log(
     `Unwrapped: ${unwrappedTime.toFixed(2)} ms for ${NUM_ITEMS} items`,
   );
-  // eslint-disable-next-line no-console
   console.log(`Difference: ${(wrappedTime - unwrappedTime).toFixed(2)} ms`);
 });
 
@@ -1077,7 +1070,6 @@ describe("generator-based composition", () => {
    *
    * @yields {Err<E>} Err if the result is an error
    */
-  // eslint-disable-next-line func-style -- generators require function keyword
   function* gen<T, E>(result: Result<T, E>): Gen<T, E> {
     if (result.ok) {
       return result.value;
@@ -1209,7 +1201,6 @@ describe("generator-based composition", () => {
     const effectOk = <T, E = never>(value: T): EffectResult<T, E> => ({
       ok: true,
       value,
-      // eslint-disable-next-line require-yield
       *[Symbol.iterator]() {
         return value;
       },
@@ -1286,25 +1277,18 @@ describe("generator-based composition", () => {
     }
     const imperativeTime = performance.now() - imperativeStart;
 
-    // eslint-disable-next-line no-console
     console.log(`Generator (gen wrapper):     ${generatorTime.toFixed(2)} ms`);
-    // eslint-disable-next-line no-console
     console.log(`Iterator (IIFE):             ${effectTime.toFixed(2)} ms`);
-    // eslint-disable-next-line no-console
     console.log(
       `Iterator (hoisted):          ${effectHoistedTime.toFixed(2)} ms`,
     );
-    // eslint-disable-next-line no-console
     console.log(`Imperative:                  ${imperativeTime.toFixed(2)} ms`);
-    // eslint-disable-next-line no-console
     console.log(
       `gen wrapper is ${(generatorTime / imperativeTime).toFixed(1)}x slower`,
     );
-    // eslint-disable-next-line no-console
     console.log(
       `iterator IIFE is ${(effectTime / imperativeTime).toFixed(1)}x slower`,
     );
-    // eslint-disable-next-line no-console
     console.log(
       `iterator hoisted is ${(effectHoistedTime / imperativeTime).toFixed(1)}x slower`,
     );
@@ -1397,7 +1381,6 @@ describe("generator-based composition", () => {
     const effectOk = <T, E = never>(value: T): EffectResult<T, E> => ({
       ok: true,
       value,
-      // eslint-disable-next-line require-yield
       *[Symbol.iterator]() {
         return value;
       },
