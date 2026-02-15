@@ -966,7 +966,6 @@ describe("Runner", () => {
       await using run = createRunner();
 
       let cleanupSignal: AbortSignal | null = null;
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       const originalAddEventListener = AbortSignal.prototype.addEventListener;
 
       let childSignal: AbortSignal | null = null;
@@ -1010,7 +1009,6 @@ describe("Runner", () => {
       await using run = createRunner();
 
       let cleanupSignal: AbortSignal | null = null;
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       const originalAddEventListener = AbortSignal.prototype.addEventListener;
 
       // We need to capture the parent's requestSignal to identify the right listener
@@ -1771,7 +1769,6 @@ describe("AsyncDisposableStack", () => {
       events.push(`${id} acquired`);
       return ok({
         id,
-        // eslint-disable-next-line @typescript-eslint/require-await
         [Symbol.asyncDispose]: async () => {
           events.push(`${id} released`);
         },
@@ -2084,7 +2081,6 @@ describe("AsyncDisposableStack", () => {
         events.push(`acquire completed, aborted: ${signal.aborted}`);
         return ok({
           id: "slow",
-          // eslint-disable-next-line @typescript-eslint/require-await
           [Symbol.asyncDispose]: async () => {
             events.push("slow released");
           },
@@ -2184,7 +2180,6 @@ describe("AsyncDisposableStack", () => {
         await using stack = run.stack();
 
         const resource: AsyncDisposable = {
-          // eslint-disable-next-line @typescript-eslint/require-await
           [Symbol.asyncDispose]: async () => {
             events.push("released");
           },

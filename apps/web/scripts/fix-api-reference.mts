@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import { compile } from "@mdx-js/mdx";
 import glob from "fast-glob";
 import fs from "node:fs";

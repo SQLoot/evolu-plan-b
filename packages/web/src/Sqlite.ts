@@ -15,7 +15,6 @@ globalThis.sqlite3ApiConfig = {
       arg.startsWith("Ignoring inability to install OPFS sqlite3_vfs")
     )
       return;
-    // eslint-disable-next-line no-console
     console.warn(arg);
   },
 };
@@ -28,7 +27,6 @@ export const createWasmSqliteDriver: CreateSqliteDriver =
     const sqlite3 = await sqlite3Promise;
     // This is used to make OPFS default vfs for multipleciphers
     // @ts-expect-error Missing types (update @evolu/sqlite-wasm types)
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     sqlite3.capi.sqlite3mc_vfs_create("opfs", 1);
 
     let db: Database;

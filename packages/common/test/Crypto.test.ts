@@ -111,7 +111,6 @@ test.skip("createRandomBytes generates unique values", () => {
   const end = performance.now();
 
   // ~14ms on Apple M1
-  // eslint-disable-next-line no-console
   console.log(
     `createRandomBytes: ${iterations} in ${(end - start).toFixed(2)}ms`,
   );
