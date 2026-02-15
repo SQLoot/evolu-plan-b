@@ -14,7 +14,7 @@ import type {
   WorkerDeps,
   WorkerSelf,
 } from "../Worker.js";
-import type { ConsoleEntry } from "../Console.js";
+import type { EvoluTabOutput } from "./Shared.js";
 
 export interface DbWorkerInput {
   readonly type: "init";
@@ -35,10 +35,7 @@ export type DbWorkerLeaderOutput =
       readonly type: "LeaderAcquired";
       readonly name: SimpleName;
     }
-  | {
-      readonly type: "ConsoleEntry";
-      readonly entry: ConsoleEntry;
-    };
+  | EvoluTabOutput;
 
 export const initDbWorker =
   (
