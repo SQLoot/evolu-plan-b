@@ -22,7 +22,7 @@ import type {
 const createTrackedPort = <Input, Output = never>() => {
   let onMessage: ((message: Output) => void) | null = null;
   const sentMessages: Array<Input> = [];
-  const native = {} as NativeMessagePort;
+  const native = {} as NativeMessagePort<Input, Output>;
 
   const port: MessagePort<Input, Output> = {
     postMessage: (message) => {
@@ -62,7 +62,7 @@ test("runEvoluWorkerScope forwards global errors to registered tab port", () => 
   const tabPort = createTrackedPort<EvoluTabOutput, never>();
 
   const createMessagePort: CreateMessagePort = <Input, Output = never>(
-    nativePort: NativeMessagePort,
+    nativePort: NativeMessagePort<Input, Output>,
   ): MessagePort<Input, Output> => {
     if (nativePort === tabPort.native)
       return tabPort.port as unknown as MessagePort<Input, Output>;
@@ -97,7 +97,7 @@ test("runEvoluWorkerScope routes InitEvolu port to db worker runner", () => {
   const runDbWorkerPort = vi.fn();
 
   const createMessagePort: CreateMessagePort = <Input, Output = never>(
-    nativePort: NativeMessagePort,
+    nativePort: NativeMessagePort<Input, Output>,
   ): MessagePort<Input, Output> => {
     if (nativePort === dbPort.native)
       return dbPort.port as unknown as MessagePort<Input, Output>;
@@ -116,8 +116,8 @@ test("runEvoluWorkerScope routes InitEvolu port to db worker runner", () => {
   workerConnection.emit({
     type: "InitEvolu",
     name,
-    port: dbPort.native,
-    brokerPort: brokerPort.native,
+    port1: dbPort.native,
+    port2: brokerPort.native,
   });
 
   expect(runDbWorkerPort).toHaveBeenCalledTimes(1);

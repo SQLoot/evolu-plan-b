@@ -119,8 +119,8 @@ const createMockDeps = () => {
             | {
                 type: "InitEvolu";
                 name: SimpleName;
-                port: unknown;
-                brokerPort: unknown;
+                port1: unknown;
+                port2: unknown;
               },
           _transfer?: ReadonlyArray<unknown>,
         ) => {
@@ -130,11 +130,11 @@ const createMockDeps = () => {
           }
 
           if (message.type !== "InitEvolu") return;
-          const dbPort = message.port as MockPort<
+          const dbPort = message.port1 as MockPort<
             DbWorkerOutput,
             DbWorkerInput
           >;
-          const brokerPort = message.brokerPort as MockPort<
+          const brokerPort = message.port2 as MockPort<
             DbWorkerLeaderOutput,
             DbWorkerLeaderInput
           >;
