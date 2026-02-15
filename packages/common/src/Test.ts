@@ -4,7 +4,7 @@
  * @module
  */
 
-import { testCreateConsole, type TestConsoleDep } from "./Console.js";
+import { type TestConsoleDep, testCreateConsole } from "./Console.js";
 import {
   Entropy32,
   type RandomBytesDep,
