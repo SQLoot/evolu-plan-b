@@ -1243,16 +1243,6 @@ const createDbWorkerClient = (
     pending.resolve(message);
   };
 
-  deps.evoluWorker.port.postMessage(
-    {
-      type: "InitEvolu",
-      name,
-      port: channel.port1.native,
-      brokerPort: brokerChannel.port1.native,
-    },
-    [channel.port1.native, brokerChannel.port1.native],
-  );
-
   brokerPort.onMessage = (output) => {
     if (output.type === "LeaderAcquired" && output.name !== name) {
       onError(
@@ -1262,6 +1252,16 @@ const createDbWorkerClient = (
       );
     }
   };
+
+  deps.evoluWorker.port.postMessage(
+    {
+      type: "InitEvolu",
+      name,
+      port: channel.port1.native,
+      brokerPort: brokerChannel.port1.native,
+    },
+    [channel.port1.native, brokerChannel.port1.native],
+  );
 
   const request = <TExpected extends DbWorkerResponseWithRequestId["type"]>(
     message: DbWorkerInput,
