@@ -72,10 +72,10 @@ export interface MessagePort<Input, Output = never> extends Disposable {
   onMessage: ((message: Output) => void) | null;
 
   /** The native underlying port. Use this only for transferring via postMessage. */
-  readonly native: NativeMessagePort;
+  readonly native: NativeMessagePort<Input, Output>;
 }
 
-export type Transferable = NativeMessagePort | ArrayBuffer;
+export type Transferable = NativeMessagePort<any, any> | ArrayBuffer;
 
 /**
  * Opaque type for platform-specific native MessagePort.
@@ -84,11 +84,20 @@ export type Transferable = NativeMessagePort | ArrayBuffer;
  * a wrapper. Ensures type-safe wiring between {@link MessagePort.native} and
  * {@link CreateMessagePort} without exposing platform details.
  */
-export type NativeMessagePort = Brand<"NativeMessagePort">;
+export type NativeMessagePort<
+  Input = unknown,
+  Output = never,
+> = Brand<"NativeMessagePort"> & {
+  readonly [nativeMessagePortInput]?: Input;
+  readonly [nativeMessagePortOutput]?: Output;
+};
+
+declare const nativeMessagePortInput: unique symbol;
+declare const nativeMessagePortOutput: unique symbol;
 
 /** Factory function to create a {@link MessagePort} from a native port. */
 export type CreateMessagePort = <Input, Output = never>(
-  nativePort: NativeMessagePort,
+  nativePort: NativeMessagePort<Input, Output>,
 ) => MessagePort<Input, Output>;
 
 export interface CreateMessagePortDep {
