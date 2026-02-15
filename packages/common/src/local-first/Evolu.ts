@@ -654,7 +654,11 @@ export const createEvoluDeps = <D extends EvoluPlatformDeps>(
   };
 
   evoluWorker.port.postMessage(
-    { type: "InitTab", port: tabChannel.port1.native },
+    {
+      type: "InitTab",
+      consoleLevel: console.getLevel(),
+      port: tabChannel.port1.native,
+    },
     [tabChannel.port1.native],
   );
 

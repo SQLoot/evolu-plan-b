@@ -115,7 +115,7 @@ const createMockDeps = () => {
       port: {
         postMessage: (
           message:
-            | { type: "InitTab"; port: unknown }
+            | { type: "InitTab"; consoleLevel: string; port: unknown }
             | {
                 type: "InitEvolu";
                 name: SimpleName;
