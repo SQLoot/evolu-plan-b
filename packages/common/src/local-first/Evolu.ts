@@ -252,6 +252,8 @@ export const AppName = /*#__PURE__*/ brand("AppName", UrlSafeString, (value) =>
 export type AppName = typeof AppName.Type;
 export interface AppNameError extends TypeError<"AppName"> {}
 
+export const testAppName = /*#__PURE__*/ AppName.orThrow("AppName");
+
 /** Local-first SQL database with typed queries, mutations, and sync. */
 export interface Evolu<S extends EvoluSchema = EvoluSchema>
   extends AsyncDisposable {
@@ -584,6 +586,31 @@ const writeConsoleEntry = (console: Console, entry: ConsoleEntry): void => {
   method(...entry.args);
 };
 
+const summarizeConsoleArg = (value: unknown): string => {
+  if (value === null) return "null";
+  if (value === undefined) return "undefined";
+  if (typeof value === "string") return `string(${value.length})`;
+  if (typeof value === "number") return "number";
+  if (typeof value === "boolean") return "boolean";
+  if (typeof value === "bigint") return "bigint";
+  if (typeof value === "symbol") return "symbol";
+  if (typeof value === "function") return "function";
+  if (value instanceof Error) return `Error(${value.name})`;
+  if (value instanceof globalThis.Uint8Array)
+    return `Uint8Array(${value.byteLength})`;
+  if (Array.isArray(value)) return `Array(${value.length})`;
+  return "object";
+};
+
+const createConsoleFallbackError = (args: ReadonlyArray<unknown>): EvoluError =>
+  createUnknownError([
+    "Worker console.error without typed EvoluError payload",
+    {
+      argCount: args.length,
+      argKinds: args.map(summarizeConsoleArg),
+    },
+  ]);
+
 /** Creates Evolu dependencies from platform-specific dependencies. */
 export const createEvoluDeps = <D extends EvoluPlatformDeps>(
   deps: D,
@@ -606,7 +633,7 @@ export const createEvoluDeps = <D extends EvoluPlatformDeps>(
         writeConsoleEntry(console, output.entry);
         if (output.entry.method === "error") {
           // Fallback when an error was logged without typed EvoluError payload.
-          evoluError.set(createUnknownError(output.entry.args));
+          evoluError.set(createConsoleFallbackError(output.entry.args));
         }
         break;
       }

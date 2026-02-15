@@ -287,11 +287,7 @@
         "disposablestack": "^1.1.7",
         "kysely": "^0.28.11",
         "msgpackr": "^1.11.8",
-        "playwright": "^1.58.2",
         "random": "^5.4.1",
-        "typescript": "^5.9.3",
-        "webpack": "^5.105.2",
-        "ws": "^8.19.0",
         "zod": "^4.3.6",
       },
       "devDependencies": {
@@ -300,6 +296,10 @@
         "@types/ws": "^8.18.1",
         "better-sqlite3": "^12.6.2",
         "fast-check": "^4.5.3",
+        "playwright": "^1.58.2",
+        "typescript": "^5.9.3",
+        "webpack": "^5.105.2",
+        "ws": "^8.19.0",
       },
     },
     "packages/nodejs": {

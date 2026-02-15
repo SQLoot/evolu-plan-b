@@ -1662,6 +1662,8 @@ export const SimpleName = /*#__PURE__*/ brand(
 export type SimpleName = typeof SimpleName.Type;
 export interface SimpleNameError extends TypeError<"SimpleName"> {}
 
+export const testName = /*#__PURE__*/ SimpleName.orThrow("Name");
+
 /**
  * Trimmed string between 8 and 64 characters, branded as `SimplePassword`.
  *

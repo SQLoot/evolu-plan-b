@@ -19,8 +19,6 @@ import {
   assert,
   createConsole,
   createConsoleStoreOutput,
-  createMultiOutput,
-  createNativeConsoleOutput,
   handleGlobalError,
 } from "@evolu/common";
 import { createRun } from "./Task.js";
@@ -120,13 +118,7 @@ export const createWorkerRun = (): Run<
   RunDeps & ConsoleStoreOutputEntryDep & CreateMessagePortDep
 > => {
   const consoleStoreOutput = createConsoleStoreOutput();
-
-  const console = createConsole({
-    output: createMultiOutput([
-      createNativeConsoleOutput(),
-      consoleStoreOutput,
-    ]),
-  });
+  const console = createConsole({ output: consoleStoreOutput });
 
   return createRun({
     console,
