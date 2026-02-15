@@ -1,0 +1,18 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / positive
+
+```ts
+const positive: BrandFactory<"Positive", number, PositiveError>;
+```
+
+Defined in: [packages/common/src/Type.ts:1927](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L1927)
+
+Positive number (> 0).
+
+### Example
+
+```ts
+const PositiveNumber = positive(Number);
+
+const result = PositiveNumber.from(42); // ok
+const errorResult = PositiveNumber.from(-5); // err
+```

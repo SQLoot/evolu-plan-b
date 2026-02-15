@@ -1,0 +1,68 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [local-first/Evolu](/docs/api-reference/common/local-first/Evolu/page.mdx) / createEvolu
+
+```ts
+function createEvolu(deps: EvoluDeps): <S>(schema: ValidateSchema<S> extends never ? S : ValidateSchema<S>, config: EvoluConfig) => Evolu<S>;
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:723](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L723)
+
+Creates an [Evolu](/docs/api-reference/common/local-first/Evolu/interfaces/Evolu.mdx) instance for a platform configured with the specified
+[EvoluSchema](/docs/api-reference/common/local-first/Schema/type-aliases/EvoluSchema.mdx) and optional [EvoluConfig](/docs/api-reference/common/local-first/Evolu/interfaces/EvoluConfig.mdx) providing a typed
+interface for querying, mutating, and syncing data.
+
+### Example
+
+```ts
+const TodoId = id("Todo");
+type TodoId = InferType<typeof TodoId>;
+
+const TodoCategoryId = id("TodoCategory");
+type TodoCategoryId = InferType<typeof TodoCategoryId>;
+
+const NonEmptyString50 = maxLength(50, NonEmptyString);
+type NonEmptyString50 = InferType<typeof NonEmptyString50>;
+
+const Schema = {
+  todo: {
+    id: TodoId,
+    title: NonEmptyString1000,
+    isCompleted: nullOr(SqliteBoolean),
+    categoryId: nullOr(TodoCategoryId),
+  },
+  todoCategory: {
+    id: TodoCategoryId,
+    name: NonEmptyString50,
+  },
+};
+
+const evolu = createEvolu(evoluReactDeps)(Schema);
+```
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `deps` | [`EvoluDeps`](/docs/api-reference/common/local-first/Evolu/type-aliases/EvoluDeps.mdx) |
+
+## Returns
+
+```ts
+<S>(schema: ValidateSchema<S> extends never ? S : ValidateSchema<S>, config?: EvoluConfig): Evolu<S>;
+```
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `S` *extends* `Readonly`\<`Record`\<`string`, `Readonly`\<`Record`\<`string`, [`AnyStandardSchemaV1`](/docs/api-reference/common/local-first/Schema/type-aliases/AnyStandardSchemaV1.mdx)\>\>\>\> |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `schema` | [`ValidateSchema`](/docs/api-reference/common/local-first/Schema/type-aliases/ValidateSchema.mdx)\<`S`\> *extends* `never` ? `S` : [`ValidateSchema`](/docs/api-reference/common/local-first/Schema/type-aliases/ValidateSchema.mdx)\<`S`\> |
+| `config` | [`EvoluConfig`](/docs/api-reference/common/local-first/Evolu/interfaces/EvoluConfig.mdx) |
+
+### Returns
+
+[`Evolu`](/docs/api-reference/common/local-first/Evolu/interfaces/Evolu.mdx)\<`S`\>

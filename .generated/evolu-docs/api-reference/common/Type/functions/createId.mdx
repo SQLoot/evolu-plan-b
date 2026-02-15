@@ -1,0 +1,36 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / createId
+
+```ts
+function createId<B>(deps: RandomBytesDep): [B] extends [never] ? string & Brand<"Id"> : string & Brand<"Id"> & Brand<B>;
+```
+
+Defined in: [packages/common/src/Type.ts:1756](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L1756)
+
+Creates a random [Id](/docs/api-reference/common/Type/variables/Id.mdx). This is the recommended default.
+
+Use [createIdFromString](/docs/api-reference/common/Type/functions/createIdFromString.mdx) for deterministic mapping of external IDs or
+[createIdAsUuidv7](/docs/api-reference/common/Type/functions/createIdAsUuidv7.mdx) when you accept timestamp leakage for index
+locality.
+
+### Example
+
+```ts
+const id = createId(deps);
+const todoId = createId<"Todo">(deps);
+```
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `B` *extends* `string` | `never` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `deps` | [`RandomBytesDep`](/docs/api-reference/common/Crypto/interfaces/RandomBytesDep.mdx) |
+
+## Returns
+
+\[`B`\] *extends* \[`never`\] ? `string` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Id"`\> : `string` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Id"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`B`\>

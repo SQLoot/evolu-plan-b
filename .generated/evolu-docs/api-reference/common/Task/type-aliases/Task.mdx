@@ -1,0 +1,320 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Task](/docs/api-reference/common/Task/page.mdx) / Task
+
+```ts
+type Task<T, E, D> = (run: Runner<D>) => Awaitable<Result<T, 
+  | E
+| AbortError>>;
+```
+
+Defined in: [packages/common/src/Task.ts:374](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L374)
+
+JavaScript-native structured concurrency.
+
+Structured concurrency is a simple idea: async operations form a tree where
+no child can outlive its parent — ending a parent aborts its children and
+waits for them to complete. This eliminates resource leaking and "fire and
+forget" bugs.
+
+- **Automatic cancellation** — abort propagates to all descendants
+- **Guaranteed cleanup** — resources always released
+- **Observable state** — inspect what’s running and why
+
+Evolu implements structured concurrency with these types:
+
+- **[Task](/docs/api-reference/common/Task/type-aliases/Task.mdx)** — a function that takes [Runner](/docs/api-reference/common/Task/interfaces/Runner.mdx) and returns
+  [Awaitable](/docs/api-reference/common/Types/type-aliases/Awaitable.mdx) (sync or async) [Result](/docs/api-reference/common/Result/type-aliases/Result.mdx)
+- **[Runner](/docs/api-reference/common/Task/interfaces/Runner.mdx)** — runs tasks, creates [Fiber](/docs/api-reference/common/Task/classes/Fiber.mdx)s, monitors and aborts
+  them
+- **[Fiber](/docs/api-reference/common/Task/classes/Fiber.mdx)** — awaitable, abortable/disposable handle to a running task
+- **[AsyncDisposableStack](/docs/api-reference/common/Task/classes/AsyncDisposableStack.mdx)** — task-aware resource management that
+  completes even when aborted
+
+Evolu's structured concurrency core is minimal — one function with a few
+flags and helper methods using native APIs.
+
+### Example
+
+```ts
+// A dependency — wraps native fetch for testability.
+interface NativeFetchDep {
+  readonly fetch: typeof globalThis.fetch;
+}
+
+interface FetchError extends Typed<"FetchError"> {
+  readonly error: unknown;
+}
+
+// A Task wrapping native fetch — adds abortability.
+const fetch =
+  (url: string): Task<Response, FetchError, NativeFetchDep> =>
+  ({ deps, signal }) =>
+    tryAsync(
+      () => deps.fetch(url, { signal }),
+      (error): FetchError | AbortError => {
+        if (AbortError.is(error)) return error;
+        return { type: "FetchError", error };
+      },
+    );
+
+// In a composition root…
+const deps: NativeFetchDep = {
+  fetch: globalThis.fetch.bind(globalThis),
+};
+
+// Create runner with dependencies.
+await using run = createRunner(deps);
+
+// Running a task returns a fiber that can be awaited.
+const result = await run(fetch("/users/123"));
+expectTypeOf(result).toEqualTypeOf<
+  Result<Response, FetchError | AbortError>
+>();
+
+// A fiber can also be aborted (or disposed with `using`).
+const fiber = run(fetch("/users/456"));
+fiber.abort();
+
+// When this block ends, `await using` disposes run — aborting all fibers.
+```
+
+## Composition
+
+| Category   | Helper             | Description                         |
+| ---------- | ------------------ | ----------------------------------- |
+| Collection | [all](/docs/api-reference/common/Task/functions/all.mdx)        | fail-fast on first error            |
+|            | [allSettled](/docs/api-reference/common/Task/functions/allSettled.mdx) | complete all regardless of failures |
+|            | [map](/docs/api-reference/common/Task/functions/map.mdx)        | values to tasks, fail-fast          |
+|            | [mapSettled](/docs/api-reference/common/Task/functions/mapSettled.mdx) | values to tasks, complete all       |
+| Timing     | [sleep](/docs/api-reference/common/Task/functions/sleep.mdx)      | pause execution                     |
+|            | [timeout](/docs/api-reference/common/Task/functions/timeout.mdx)    | time-bounded execution              |
+|            | [repeat](/docs/api-reference/common/Task/functions/repeat.mdx)     | repeat with schedule                |
+|            | [yieldNow](/docs/api-reference/common/Task/variables/yieldNow.mdx)   | yield to event loop                 |
+| Racing     | [race](/docs/api-reference/common/Task/functions/race.mdx)       | first to complete wins              |
+|            | [any](/docs/api-reference/common/Task/functions/any.mdx)        | first success wins                  |
+| Resilience | [retry](/docs/api-reference/common/Task/functions/retry.mdx)      | retry with backoff                  |
+| Interop    | [callback](/docs/api-reference/common/Task/functions/callback.mdx)   | wrap callback APIs                  |
+|            | [fetch](/docs/api-reference/common/Task/functions/fetch.mdx)      | HTTP requests with abort handling   |
+
+Collection helpers run sequentially by default. Use [parallel](/docs/api-reference/common/Task/functions/parallel.mdx) to run
+tasks in parallel. Note helpers like [race](/docs/api-reference/common/Task/functions/race.mdx) always run in parallel;
+sequential execution wouldn't make sense for their semantics.
+
+### Building a better fetch
+
+Use [timeout](/docs/api-reference/common/Task/functions/timeout.mdx) to prevent hanging:
+
+```ts
+const fetchWithTimeout = (url: string) => timeout(fetch(url), "30s");
+
+expectTypeOf(fetchWithTimeout).toEqualTypeOf<
+  (
+    url: string,
+  ) => Task<Response, FetchError | TimeoutError, NativeFetchDep>
+>();
+```
+
+Add [retry](/docs/api-reference/common/Task/functions/retry.mdx) for resilience:
+
+```ts
+const fetchWithRetry = (url: string) =>
+  retry(
+    fetchWithTimeout(url),
+    // A jittered, capped, limited exponential backoff.
+    jitter(1)(maxDelay("20s")(take(2)(exponential("100ms")))),
+  );
+
+expectTypeOf(fetchWithRetry).toEqualTypeOf<
+  (
+    url: string,
+  ) => Task<
+    Response,
+    RetryError<FetchError | TimeoutError>,
+    NativeFetchDep
+  >
+>();
+```
+
+Run composed tasks with [parallel](/docs/api-reference/common/Task/functions/parallel.mdx) and [map](/docs/api-reference/common/Task/functions/map.mdx):
+
+```ts
+await using run = createRunner();
+
+const urls = [
+  "https://api.example.com/users",
+  "https://api.example.com/posts",
+  "https://api.example.com/comments",
+];
+
+// At most 2 concurrent requests
+const result = await run(parallel(2, map(urls, fetchWithRetry)));
+
+expectTypeOf(result).toEqualTypeOf<
+  Result<
+    readonly Response[],
+    AbortError | RetryError<TimeoutError | FetchError>
+  >
+>();
+```
+
+## Dependency Injection
+
+Assumes familiarity with
+[Evolu Pure DI](https://www.evolu.dev/docs/dependency-injection). Task
+DI is the same but without manually passing deps.
+
+Tasks declare dependencies via the `D` type parameter and access them via
+`run.deps`:
+
+```ts
+const fetchUser =
+  (id: UserId): Task<User, FetchUserError, FetchDep> =>
+  async (run) => {
+    const { fetch } = run.deps;
+    // ...
+  };
+```
+
+Provide dependencies when creating a runner:
+
+```ts
+const deps: FetchDep = {
+  fetch: globalThis.fetch.bind(globalThis),
+};
+
+await using run = createRunner(deps);
+await run(fetchUser(123));
+```
+
+For runtime-created dependencies, use [Runner.addDeps](/docs/api-reference/common/Task/interfaces/Runner.mdx#adddeps).
+
+### Built-in dependencies
+
+[createRunner](/docs/api-reference/common/Task/variables/createRunner.mdx) provides default [RunnerDeps](/docs/api-reference/common/Task/type-aliases/RunnerDeps.mdx) available to all tasks
+without declaring `D`:
+
+- [Console](/docs/api-reference/common/Console/interfaces/Console.mdx) — logging with hierarchical context via `child()`
+- [Time](/docs/api-reference/common/Time/interfaces/Time.mdx) — current time
+- [Random](/docs/api-reference/common/Random/interfaces/Random.mdx) — random number generation
+- [RandomBytes](/docs/api-reference/common/Crypto/interfaces/RandomBytes.mdx) — cryptographic random bytes
+
+For example, using `Console`:
+
+```ts
+const myTask: Task<void> = async (run) => {
+  const { console } = run.deps;
+  console.log("started");
+  // ...
+};
+```
+
+Custom Console with formatted output:
+
+```ts
+const deps = {
+  console: createConsole({
+    formatter: createConsoleFormatter()({
+      timestampFormat: "absolute",
+    }),
+  }),
+};
+
+await using run = createRunner(deps);
+
+const console = run.deps.console.child("main");
+
+console.log("started");
+// 21:20:25.588 [main] started
+```
+
+For testing, use [testCreateRunner](/docs/api-reference/common/Test/functions/testCreateRunner.mdx) to get deterministic, controllable
+implementations of all RunnerDeps.
+
+## Resource management
+
+Evolu uses standard JavaScript
+[resource management](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Resource_management).
+
+For task-based disposal, Evolu provides [AsyncDisposableStack](/docs/api-reference/common/Task/classes/AsyncDisposableStack.mdx) — a
+wrapper around the native
+[AsyncDisposableStack](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/AsyncDisposableStack)
+where methods accept [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx) for acquisition. All operations run
+[unabortable](/docs/api-reference/common/Task/variables/unabortable.mdx), ensuring resources are acquired and released even when
+abort is requested.
+
+### Example
+
+```ts
+await using stack = run.stack();
+stack.defer(task);
+const conn = await stack.use(openConnection);
+const session = await stack.adopt(login, logout);
+```
+
+## Awaitable
+
+```ts
+type Awaitable<T> = T | PromiseLike<T>;
+```
+
+Even though [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx) returns [Awaitable](/docs/api-reference/common/Types/type-aliases/Awaitable.mdx) (allowing sync or async
+results), the [Runner](/docs/api-reference/common/Task/interfaces/Runner.mdx) itself is always async. This is a deliberate
+design choice:
+
+- **Sync** → [Result](/docs/api-reference/common/Result/type-aliases/Result.mdx), native `using` / `DisposableStack`
+- **Async** → [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx), [Runner](/docs/api-reference/common/Task/interfaces/Runner.mdx), [Fiber](/docs/api-reference/common/Task/classes/Fiber.mdx), `await using` /
+  `AsyncDisposableStack`
+
+Benefits:
+
+- **No API ambiguity** — Task means async, Result means sync
+- **Zero overhead** — sync code stays with zero overhead
+
+While a unified sync/async API is technically possible — with
+[isPromiseLike](/docs/api-reference/common/Types/functions/isPromiseLike.mdx) detection and two-phase disposal (sync first, async if
+needed, and a flag for callers) — Evolu prefers plain functions for sync code
+because most operations involve I/O, which is inherently async, and when we
+need sync, it's for simplicity (no dependencies) and performance (zero
+abstraction).
+
+Sync functions should be fast, so there's no need to monitor them. They
+should take values, not dependencies — following the
+[impure/pure/impure sandwich](https://blog.ploeh.dk/2017/02/02/dependency-rejection/)
+pattern where impure code gathers data, pure functions process it, and impure
+code performs effects with the result. Sync functions taking deps often
+indicate a design that could be improved — for example, a function taking
+[Random](/docs/api-reference/common/Random/interfaces/Random.mdx) could instead accept [RandomNumber](/docs/api-reference/common/Random/type-aliases/RandomNumber.mdx) as a value.
+
+Slow sync operations (parsing large JSON, sorting millions of items, complex
+cryptography) belong in workers. The async boundary to the worker is a
+[Task](/docs/api-reference/common/Task/type-aliases/Task.mdx) with full monitoring — timeout, cancellation, tracing. The sync
+code inside the worker needs no monitoring; the async call to the worker
+provides it.
+
+## FAQ
+
+### Where is fork and join?
+
+For those familiar with other structured concurrency implementations:
+
+- **Fork** — `run(task)` creates a [Fiber](/docs/api-reference/common/Task/classes/Fiber.mdx)
+- **Join** — `await fiber` waits for completion
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `T` | - |
+| `E` | `never` |
+| `D` | `unknown` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `run` | [`Runner`](/docs/api-reference/common/Task/interfaces/Runner.mdx)\<`D`\> |
+
+## Returns
+
+[`Awaitable`](/docs/api-reference/common/Types/type-aliases/Awaitable.mdx)\<[`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`T`, 
+  \| `E`
+  \| [`AbortError`](/docs/api-reference/common/Task/interfaces/AbortError.mdx)\>\>

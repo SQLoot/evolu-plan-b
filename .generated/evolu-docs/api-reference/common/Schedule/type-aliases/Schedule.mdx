@@ -1,0 +1,71 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Schedule](/docs/api-reference/common/Schedule/page.mdx) / Schedule
+
+```ts
+type Schedule<Output, Input> = (deps: ScheduleDeps) => (input: Input) => NextResult<readonly [Output, Millis]>;
+```
+
+Defined in: [packages/common/src/Schedule.ts:57](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Schedule.ts#L57)
+
+Composable scheduling strategies for [retry](/docs/api-reference/common/Task/functions/retry.mdx), [repeat](/docs/api-reference/common/Task/functions/repeat.mdx), rate
+limiting, and more.
+
+A Schedule uses the State pattern: calling `schedule(deps)` creates a step
+function with internal state captured in closures. Each call to `step(input)`
+advances that state and returns `Ok([Output, Millis])` or `Err(Done<void>)`
+to stop. Multiple calls to `schedule(deps)` create independent state
+instances.
+
+### Example
+
+```ts
+import {
+  exponential,
+  jitter,
+  maxDelay,
+  retry,
+  take,
+} from "@evolu/common";
+
+const fetchWithRetry = retry(
+  fetchData,
+  // A jittered, capped, limited exponential backoff.
+  jitter(1)(maxDelay("20s")(take(2)(exponential("100ms")))),
+);
+```
+
+Or use a preset:
+
+```ts
+import { retryStrategyAws, retry } from "@evolu/common";
+
+const fetchWithRetry = retry(fetchData, retryStrategyAws);
+```
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `Output` | - |
+| `Input` | `unknown` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `deps` | [`ScheduleDeps`](/docs/api-reference/common/Schedule/type-aliases/ScheduleDeps.mdx) |
+
+## Returns
+
+```ts
+(input: Input): NextResult<readonly [Output, Millis]>;
+```
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `input` | `Input` |
+
+### Returns
+
+[`NextResult`](/docs/api-reference/common/Result/type-aliases/NextResult.mdx)\<readonly \[`Output`, [`Millis`](/docs/api-reference/common/Time/type-aliases/Millis.mdx)\]\>

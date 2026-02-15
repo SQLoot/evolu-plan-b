@@ -1,0 +1,53 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / record
+
+```ts
+function record<KeyName, KeyT, KeyInput, KeyError, KeyParent, KeyParentError, Value>(keyType: Type<KeyName, KeyT, KeyInput, KeyError, KeyParent, KeyParentError>, valueType: Value): RecordType<KeyName, KeyT, KeyInput, KeyError, KeyParent, KeyParentError, Value>;
+```
+
+Defined in: [packages/common/src/Type.ts:2676](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L2676)
+
+Record of a key [Type](/docs/api-reference/common/Type/interfaces/Type.mdx) and value [Type](/docs/api-reference/common/Type/interfaces/Type.mdx).
+
+- The input must be a plain object (validated by [isPlainObject](/docs/api-reference/common/Object/functions/isPlainObject.mdx)).
+- Each key is validated/transformed by the `key` Type.
+- Each value is validated/transformed by the `value` Type.
+
+The resulting type is `Readonly<Record<KeyT, ValueT>>`.
+
+### Example
+
+```ts
+const StringToNumberRecord = record(String, Number);
+
+// ok({ "a": 1, "b": 2 })
+StringToNumberRecord.from({ a: 1, b: 2 });
+
+// err => "Key" because 42 is not a string key
+StringToNumberRecord.from({ 42: 1, b: 2 });
+
+// err => "Value" because "x" is not a number
+StringToNumberRecord.from({ a: "x", b: 2 });
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `KeyName` *extends* `string` |
+| `KeyT` *extends* `string` |
+| `KeyInput` *extends* `string` |
+| `KeyError` *extends* [`TypeError`](/docs/api-reference/common/Type/interfaces/TypeError.mdx)\<`Capitalize`\<`string`\>\> |
+| `KeyParent` *extends* `string` |
+| `KeyParentError` *extends* [`TypeError`](/docs/api-reference/common/Type/interfaces/TypeError.mdx)\<`Capitalize`\<`string`\>\> |
+| `Value` *extends* [`AnyType`](/docs/api-reference/common/Type/type-aliases/AnyType.mdx) |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `keyType` | [`Type`](/docs/api-reference/common/Type/interfaces/Type.mdx)\<`KeyName`, `KeyT`, `KeyInput`, `KeyError`, `KeyParent`, `KeyParentError`\> |
+| `valueType` | `Value` |
+
+## Returns
+
+[`RecordType`](/docs/api-reference/common/Type/interfaces/RecordType.mdx)\<`KeyName`, `KeyT`, `KeyInput`, `KeyError`, `KeyParent`, `KeyParentError`, `Value`\>

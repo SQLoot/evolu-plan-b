@@ -1,0 +1,44 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Types](/docs/api-reference/common/Types/page.mdx) / RefinementWithIndex
+
+```ts
+type RefinementWithIndex<A, B> = (a: A, index: number) => a is B;
+```
+
+Defined in: [packages/common/src/Types.ts:113](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Types.ts#L113)
+
+A type guard function that refines type `A` to a narrower type `B` at a given
+index.
+
+Useful for callbacks that need both the element and its position while
+maintaining type narrowing.
+
+### Example
+
+```ts
+type Item = { type: "number" | "string"; value: unknown };
+
+const isNumberItem: RefinementWithIndex<Item, Item & { type: "number" }> =
+  (item, index): item is Item & { type: "number" } =>
+    index > 0 && item.type === "number";
+
+const items: ReadonlyArray<Item> = [...];
+const [numbers, others] = partitionArray(items, isNumberItem);
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `A` |
+| `B` *extends* `A` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `a` | `A` |
+| `index` | `number` |
+
+## Returns
+
+`a is B`

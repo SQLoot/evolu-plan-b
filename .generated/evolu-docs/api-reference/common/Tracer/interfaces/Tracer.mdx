@@ -1,0 +1,80 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Tracer](/docs/api-reference/common/Tracer/page.mdx) / Tracer
+
+Defined in: [packages/common/src/Tracer.ts:30](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Tracer.ts#L30)
+
+Minimal tracer interface for observability.
+
+Tracer provides unified observability for both sync and async code. Use it
+directly for sync operations, or let [Runner](/docs/api-reference/common/Task/interfaces/Runner.mdx) use it automatically for
+async tasks.
+
+### Example
+
+```ts
+// Sync code — use tracer directly
+const result = deps.tracer?.span("parseData", () => parseData(input));
+
+// Async code — Runner traces automatically
+await using run = createRunner(deps);
+const result = await run(fetchUser(id)); // Traced if tracer provided
+```
+
+TODO: Complete implementation with OpenTelemetry adapter.
+
+## Properties
+
+<a id="event"></a>
+
+### event()
+
+```ts
+readonly event: (name: string, data?: unknown) => void;
+```
+
+Defined in: [packages/common/src/Tracer.ts:39](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Tracer.ts#L39)
+
+Records an event/fact (e.g., "user.purchased", "sync.completed").
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `name` | `string` |
+| `data?` | `unknown` |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="span"></a>
+
+### span()
+
+```ts
+readonly span: <T>(name: string, fn: () => T) => T;
+```
+
+Defined in: [packages/common/src/Tracer.ts:36](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Tracer.ts#L36)
+
+Wraps a sync function in a traced span.
+
+Records start time, end time, and success/failure status.
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `name` | `string` |
+| `fn` | () => `T` |
+
+#### Returns
+
+`T`

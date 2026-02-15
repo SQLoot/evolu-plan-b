@@ -1,0 +1,41 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Schedule](/docs/api-reference/common/Schedule/page.mdx) / sequenceSchedules
+
+```ts
+function sequenceSchedules<Output, Input>(...schedules: readonly Schedule<Output, Input>[]): Schedule<Output, Input>;
+```
+
+Defined in: [packages/common/src/Schedule.ts:1248](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Schedule.ts#L1248)
+
+Sequences schedules: runs each until it stops, then continues with the next.
+
+Useful for adaptive strategies that start aggressive and become more
+conservative over time.
+
+### Example
+
+```ts
+// Fast retries first, then slower, then final fallback
+const adaptive = sequenceSchedules(
+  take(3)(exponential("100ms")),
+  take(5)(fixed("500ms")),
+  fixed("1s"),
+);
+// Runs: 100ms, 200ms, 400ms, then 500ms×5, then 1s forever
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Output` |
+| `Input` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| ...`schedules` | readonly [`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`Output`, `Input`\>[] |
+
+## Returns
+
+[`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`Output`, `Input`\>

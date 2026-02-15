@@ -1,0 +1,41 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Types](/docs/api-reference/common/Types/page.mdx) / isPromiseLike
+
+```ts
+function isPromiseLike<T>(value: Awaitable<T>): value is PromiseLike<T>;
+```
+
+Defined in: [packages/common/src/Types.ts:256](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Types.ts#L256)
+
+Type guard to check if a value is a [PromiseLike](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables).
+
+Use with [Awaitable](/docs/api-reference/common/Types/type-aliases/Awaitable.mdx) to conditionally `await` only when necessary,
+avoiding microtask overhead for synchronous values.
+
+### Example
+
+```ts
+const validate = (id: string): Awaitable<boolean> => {
+  const cached = cache.get(id);
+  if (cached !== undefined) return cached; // Sync path
+  return fetchValidation(id); // Async path
+};
+
+const result = validate(id);
+const isValid = isPromiseLike(result) ? await result : result;
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `value` | [`Awaitable`](/docs/api-reference/common/Types/type-aliases/Awaitable.mdx)\<`T`\> |
+
+## Returns
+
+`value is PromiseLike<T>`

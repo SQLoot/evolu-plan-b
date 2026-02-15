@@ -1,0 +1,38 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Schedule](/docs/api-reference/common/Schedule/page.mdx) / repetitions
+
+```ts
+function repetitions<Output, Input>(schedule: Schedule<Output, Input>): Schedule<number, Input>;
+```
+
+Defined in: [packages/common/src/Schedule.ts:1095](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Schedule.ts#L1095)
+
+Wraps a schedule to output the number of repetitions instead of original
+output.
+
+Outputs 0, 1, 2, ... while preserving the underlying schedule's timing and
+termination behavior.
+
+### Example
+
+```ts
+// Track how many retries occurred
+const counted = repetitions(exponential("100ms"));
+// Outputs: 0, 1, 2, ... with exponential delays
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Output` |
+| `Input` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `schedule` | [`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`Output`, `Input`\> |
+
+## Returns
+
+[`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`number`, `Input`\>

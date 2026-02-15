@@ -1,0 +1,38 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Assert](/docs/api-reference/common/Assert/page.mdx) / assertType
+
+```ts
+const assertType: <T>(type: T, value: unknown, message?: string) => asserts value is InferType<T>;
+```
+
+Defined in: [packages/common/src/Assert.ts:98](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Assert.ts#L98)
+
+Ensures a value conforms to a [Type](/docs/api-reference/common/Type/interfaces/Type.mdx).
+
+Uses the Type name for the default error message.
+
+### Example
+
+```ts
+const length = buffer.getLength();
+
+// We know length is logically non-negative, but TypeScript doesn't.
+assertType(NonNegativeInt, length);
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` *extends* [`AnyType`](/docs/api-reference/common/Type/type-aliases/AnyType.mdx) |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `type` | `T` |
+| `value` | `unknown` |
+| `message?` | `string` |
+
+## Returns
+
+`asserts value is InferType<T>`

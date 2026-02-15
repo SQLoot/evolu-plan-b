@@ -1,0 +1,378 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Relation](/docs/api-reference/common/Relation/page.mdx) / Relation
+
+Defined in: [packages/common/src/Relation.ts:41](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Relation.ts#L41)
+
+Bidirectional relation between two types.
+
+Why useful:
+
+- Provides O(1) (amortized) lookup in both directions (A → B and B → A) without
+  maintaining two maps manually and risking them diverging.
+- Natural fit for symmetric associations such as ownerId ↔ WebSocket, tag ↔
+  item, user ↔ role, entity ↔ subscription where both directions are
+  frequently queried.
+- Supports fast membership tests via `has`, `hasA`, and `hasB`.
+- Iteration helpers (`forEach`, iterator) allow treating the structure as a set
+  of pairs when needed.
+
+Complexity:
+
+- `add` / `remove` / `has*` / `get*` each perform a constant number of Map/Set
+  operations (O(1) expected).
+- `deleteA` and `deleteB` are O(d) where d is the number of associated elements
+  (the degree). This is optimal because every associated pair must be touched
+  once.
+
+Object identity:
+
+- Elements are compared by reference (standard Map / Set semantics). Structural
+  hashing of objects in JavaScript is non-trivial, can be expensive, and
+  collision-prone if done naively. Prefer using stable primitive identifiers
+  (ids, strings) instead of attempting to hash full object structures.
+- If structural equivalence is truly required, wrap objects in an adapter that
+  supplies a canonical hash/id and stores/retrieves the original objects
+  separately. This is a rare need; avoid unless you have clear requirements.
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `A` |
+| `B` |
+
+## Properties
+
+<a id="iterator"></a>
+
+### \[iterator\]()
+
+```ts
+readonly [iterator]: () => IterableIterator<readonly [A, B]>;
+```
+
+Defined in: [packages/common/src/Relation.ts:70](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Relation.ts#L70)
+
+Iterator over all pairs enabling for..of and spread. Yields readonly [a, b]
+tuples.
+
+#### Returns
+
+`IterableIterator`\<readonly \[`A`, `B`\]\>
+
+***
+
+<a id="acount"></a>
+
+### aCount()
+
+```ts
+readonly aCount: () => number;
+```
+
+Defined in: [packages/common/src/Relation.ts:91](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Relation.ts#L91)
+
+Number of distinct A elements currently present.
+
+#### Returns
+
+`number`
+
+***
+
+<a id="add"></a>
+
+### add()
+
+```ts
+readonly add: (a: A, b: B) => boolean;
+```
+
+Defined in: [packages/common/src/Relation.ts:46](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Relation.ts#L46)
+
+Adds a pair to the relation. Returns true if the pair was newly added,
+false if it already existed.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `a` | `A` |
+| `b` | `B` |
+
+#### Returns
+
+`boolean`
+
+***
+
+<a id="bcount"></a>
+
+### bCount()
+
+```ts
+readonly bCount: () => number;
+```
+
+Defined in: [packages/common/src/Relation.ts:94](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Relation.ts#L94)
+
+Number of distinct B elements currently present.
+
+#### Returns
+
+`number`
+
+***
+
+<a id="clear"></a>
+
+### clear()
+
+```ts
+readonly clear: () => void;
+```
+
+Defined in: [packages/common/src/Relation.ts:88](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Relation.ts#L88)
+
+Clears all pairs from the relation.
+
+#### Returns
+
+`void`
+
+***
+
+<a id="deletea"></a>
+
+### deleteA()
+
+```ts
+readonly deleteA: (a: A) => boolean;
+```
+
+Defined in: [packages/common/src/Relation.ts:82](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Relation.ts#L82)
+
+Deletes all pairs containing the given A element.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `a` | `A` |
+
+#### Returns
+
+`boolean`
+
+***
+
+<a id="deleteb"></a>
+
+### deleteB()
+
+```ts
+readonly deleteB: (b: B) => boolean;
+```
+
+Defined in: [packages/common/src/Relation.ts:85](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Relation.ts#L85)
+
+Deletes all pairs containing the given B element.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `b` | `B` |
+
+#### Returns
+
+`boolean`
+
+***
+
+<a id="foreach"></a>
+
+### forEach()
+
+```ts
+readonly forEach: (callback: (a: A, b: B) => void) => void;
+```
+
+Defined in: [packages/common/src/Relation.ts:64](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Relation.ts#L64)
+
+Iterates over each pair in the relation (in insertion order of A elements,
+then B elements per A).
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `callback` | (`a`: `A`, `b`: `B`) => `void` |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="geta"></a>
+
+### getA()
+
+```ts
+readonly getA: (b: B) => ReadonlySet<A> | undefined;
+```
+
+Defined in: [packages/common/src/Relation.ts:58](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Relation.ts#L58)
+
+Gets all A elements related to a B element.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `b` | `B` |
+
+#### Returns
+
+`ReadonlySet`\<`A`\> \| `undefined`
+
+***
+
+<a id="getb"></a>
+
+### getB()
+
+```ts
+readonly getB: (a: A) => ReadonlySet<B> | undefined;
+```
+
+Defined in: [packages/common/src/Relation.ts:55](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Relation.ts#L55)
+
+Gets all B elements related to an A element.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `a` | `A` |
+
+#### Returns
+
+`ReadonlySet`\<`B`\> \| `undefined`
+
+***
+
+<a id="has"></a>
+
+### has()
+
+```ts
+readonly has: (a: A, b: B) => boolean;
+```
+
+Defined in: [packages/common/src/Relation.ts:73](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Relation.ts#L73)
+
+Checks if a specific pair exists in the relation.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `a` | `A` |
+| `b` | `B` |
+
+#### Returns
+
+`boolean`
+
+***
+
+<a id="hasa"></a>
+
+### hasA()
+
+```ts
+readonly hasA: (a: A) => boolean;
+```
+
+Defined in: [packages/common/src/Relation.ts:76](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Relation.ts#L76)
+
+Checks if an A element exists in the relation.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `a` | `A` |
+
+#### Returns
+
+`boolean`
+
+***
+
+<a id="hasb"></a>
+
+### hasB()
+
+```ts
+readonly hasB: (b: B) => boolean;
+```
+
+Defined in: [packages/common/src/Relation.ts:79](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Relation.ts#L79)
+
+Checks if a B element exists in the relation.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `b` | `B` |
+
+#### Returns
+
+`boolean`
+
+***
+
+<a id="remove"></a>
+
+### remove()
+
+```ts
+readonly remove: (a: A, b: B) => boolean;
+```
+
+Defined in: [packages/common/src/Relation.ts:52](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Relation.ts#L52)
+
+Removes a specific pair from the relation. Returns true if the pair existed
+and was removed, false if it was not present.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `a` | `A` |
+| `b` | `B` |
+
+#### Returns
+
+`boolean`
+
+***
+
+<a id="size"></a>
+
+### size()
+
+```ts
+readonly size: () => number;
+```
+
+Defined in: [packages/common/src/Relation.ts:97](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Relation.ts#L97)
+
+Number of pairs currently stored in the relation.
+
+#### Returns
+
+`number`

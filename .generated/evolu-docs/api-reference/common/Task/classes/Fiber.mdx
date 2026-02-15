@@ -1,0 +1,242 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Task](/docs/api-reference/common/Task/page.mdx) / Fiber
+
+Defined in: [packages/common/src/Task.ts:761](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L761)
+
+`Fiber` is a handle to a running [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx) that can be awaited, aborted, or
+disposed.
+
+### Example
+
+```ts
+await using run = createRunner();
+
+// Await to get Result
+const result = await run(fetchData);
+
+// Abort manually
+const fiber = run(longRunningTask);
+fiber.abort();
+const aborted = await fiber; // Result contains AbortError (unless unabortable)
+
+// Auto-abort with `using`
+{
+  using background = run(backgroundSync);
+  await someOtherWork();
+} // background.abort() called automatically here
+
+// Run child tasks in fiber's scope
+fiber.run(childTask);
+
+// Monitor via the Runner
+fiber.run.onEvent = (event) => {
+  // handle event
+};
+```
+
+Because `Fiber` is a [PromiseLike](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables) object, fibers can be composed with
+`Promise.all`, `Promise.race`, etc.
+
+Microtask timing: Runner wraps the task's promise with `.then` and
+`.finally`, which adds microtasks between task completion and fiber
+settlement. Do not write code that relies on a specific number of microtask
+yields between tasks. Use explicit synchronization primitives instead.
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `T` | `unknown` |
+| `E` | `unknown` |
+| `D` | `unknown` |
+
+## Implements
+
+- [`PromiseLike`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables)\<[`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`T`, 
+  \| `E`
+  \| [`AbortError`](/docs/api-reference/common/Task/interfaces/AbortError.mdx)\>\>
+- [`Disposable`](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-2.html#using-declarations-and-explicit-resource-management)
+
+## Constructors
+
+<a id="constructor"></a>
+
+### Constructor
+
+```ts
+new Fiber<T, E, D>(run: Runner<D>, promise: Promise<Result<T, E>>): Fiber<T, E, D>;
+```
+
+Defined in: [packages/common/src/Task.ts:787](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L787)
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `run` | [`Runner`](/docs/api-reference/common/Task/interfaces/Runner.mdx)\<`D`\> |
+| `promise` | `Promise`\<[`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`T`, `E`\>\> |
+
+#### Returns
+
+`Fiber`\<`T`, `E`, `D`\>
+
+## Methods
+
+<a id="dispose"></a>
+
+### \[dispose\]()
+
+```ts
+dispose: void;
+```
+
+Defined in: [packages/common/src/Task.ts:826](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L826)
+
+#### Returns
+
+`void`
+
+#### Implementation of
+
+```ts
+Disposable.[dispose]
+```
+
+***
+
+<a id="abort"></a>
+
+### abort()
+
+```ts
+abort(reason?: unknown): void;
+```
+
+Defined in: [packages/common/src/Task.ts:815](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L815)
+
+Requests abort for this fiber (and any child it started).
+
+### Example
+
+```ts
+const fiber = run(fetchData);
+fiber.abort();
+const result = await fiber; // err(AbortError)
+```
+
+When abort is requested, the fiber's result becomes [AbortError](/docs/api-reference/common/Task/variables/AbortError.mdx) even
+if the task completed successfully. This keeps behavior predictable —
+calling `abort()` always yields `AbortError`.
+
+The optional reason is stored in `AbortError.reason`. Since any value can
+be passed, abort reasons are `unknown` — use typed errors for business
+logic. To inspect the reason, use type guards like
+`RaceLostError.is(reason)`.
+
+Abort is idempotent — calling multiple times has no additional effect
+beyond the first call.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `reason?` | `unknown` |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="getstate"></a>
+
+### getState()
+
+```ts
+getState(): FiberState<T, E>;
+```
+
+Defined in: [packages/common/src/Task.ts:822](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L822)
+
+Returns the current [FiberState](/docs/api-reference/common/Task/type-aliases/FiberState.mdx).
+
+#### Returns
+
+[`FiberState`](/docs/api-reference/common/Task/type-aliases/FiberState.mdx)\<`T`, `E`\>
+
+## Properties
+
+<a id="run"></a>
+
+### run
+
+```ts
+readonly run: Runner<D>;
+```
+
+Defined in: [packages/common/src/Task.ts:785](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L785)
+
+A [Runner](/docs/api-reference/common/Task/interfaces/Runner.mdx) whose lifetime is tied to this fiber.
+
+Tasks run via this runner are aborted when the fiber ends.
+
+### Example
+
+```ts
+const fiber = run(longRunningTask);
+
+// helperTask is aborted when longRunningTask ends
+fiber.run(helperTask);
+
+// Monitor this fiber's runner
+fiber.run.onEvent = (event) => {
+  console.log(event);
+};
+```
+
+***
+
+<a id="then"></a>
+
+### then()
+
+```ts
+readonly then: <TResult1, TResult2>(onfulfilled?: 
+  | (value: Result) => 
+  | TResult1
+  | PromiseLike<TResult1>
+  | null, onrejected?: 
+  | (reason: any) => 
+  | TResult2
+  | PromiseLike<TResult2>
+| null) => PromiseLike<TResult1 | TResult2>;
+```
+
+Defined in: [packages/common/src/Task.ts:764](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L764)
+
+Attaches callbacks for the resolution and/or rejection of the Promise.
+
+#### Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `TResult1` | [`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`T`, \| [`AbortError`](/docs/api-reference/common/Task/interfaces/AbortError.mdx) \| `E`\> |
+| `TResult2` | `never` |
+
+#### Parameters
+
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `onfulfilled?` | \| (`value`: [`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)) => \| `TResult1` \| [`PromiseLike`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables)\<`TResult1`\> \| `null` | The callback to execute when the Promise is resolved. |
+| `onrejected?` | \| (`reason`: `any`) => \| `TResult2` \| [`PromiseLike`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables)\<`TResult2`\> \| `null` | The callback to execute when the Promise is rejected. |
+
+#### Returns
+
+[`PromiseLike`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables)\<`TResult1` \| `TResult2`\>
+
+A Promise for the completion of which ever callback is executed.
+
+#### Implementation of
+
+```ts
+PromiseLike.then
+```

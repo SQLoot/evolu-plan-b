@@ -1,0 +1,23 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / formatUnionError
+
+```ts
+function formatUnionError<Error>(formatTypeError: TypeErrorFormatter<Error>): TypeErrorFormatter<UnionError<Error>>;
+```
+
+Defined in: [packages/common/src/Type.ts:3615](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L3615)
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Error` *extends* [`TypeError`](/docs/api-reference/common/Type/interfaces/TypeError.mdx)\<`Capitalize`\<`string`\>\> |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `formatTypeError` | [`TypeErrorFormatter`](/docs/api-reference/common/Type/type-aliases/TypeErrorFormatter.mdx)\<`Error`\> |
+
+## Returns
+
+[`TypeErrorFormatter`](/docs/api-reference/common/Type/type-aliases/TypeErrorFormatter.mdx)\<[`UnionError`](/docs/api-reference/common/Type/interfaces/UnionError.mdx)\<`Error`\>\>

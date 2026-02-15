@@ -1,0 +1,38 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / minLength
+
+```ts
+const minLength: <Min>(min: Min) => BrandFactory<`MinLength${Min}`, {
+  length: number;
+}, MinLengthError<Min>>;
+```
+
+Defined in: [packages/common/src/Type.ts:1317](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L1317)
+
+Minimum length.
+
+Use numeric literal, not expression. See [BrandFactory](/docs/api-reference/common/Type/type-aliases/BrandFactory.mdx).
+
+### Example
+
+```ts
+// string & Brand<"MinLength1">
+const NonEmptyString = minLength(1)(String);
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Min` *extends* `number` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `min` | `Min` |
+
+## Returns
+
+[`BrandFactory`](/docs/api-reference/common/Type/type-aliases/BrandFactory.mdx)\<`` `MinLength${Min}` ``, \{
+  `length`: `number`;
+\}, [`MinLengthError`](/docs/api-reference/common/Type/interfaces/MinLengthError.mdx)\<`Min`\>\>

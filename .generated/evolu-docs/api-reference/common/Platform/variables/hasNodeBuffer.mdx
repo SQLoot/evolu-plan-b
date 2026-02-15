@@ -1,0 +1,19 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Platform](/docs/api-reference/common/Platform/page.mdx) / hasNodeBuffer
+
+```ts
+const hasNodeBuffer: boolean;
+```
+
+Defined in: [packages/common/src/Platform.ts:27](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Platform.ts#L27)
+
+Detects if Node.js Buffer is available and should be used.
+
+React Native apps often polyfill Node.js APIs like Buffer, but we want to use
+native methods when available for better performance.
+
+Returns false in React Native even if Buffer is polyfilled, as we prefer
+native methods in that environment.
+
+## See
+
+https://github.com/craftzdog/react-native-quick-base64#installation

@@ -1,0 +1,44 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Console](/docs/api-reference/common/Console/page.mdx) / createConsoleFormatter
+
+```ts
+function createConsoleFormatter(__namedParameters?: Partial<TimeDep>): (config: ConsoleFormatterConfig) => ConsoleFormatter;
+```
+
+Defined in: [packages/common/src/Console.ts:408](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L408)
+
+Creates a formatter for [ConsoleConfig.formatter](/docs/api-reference/common/Console/interfaces/ConsoleConfig.mdx#formatter).
+
+Prepends timestamps and path prefixes to entry args.
+
+### Example
+
+```ts
+const console = createConsole({
+  level: "info",
+  formatter: createConsoleFormatter()({
+    timestampFormat: "relative",
+  }),
+});
+```
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `__namedParameters` | `Partial`\<[`TimeDep`](/docs/api-reference/common/Time/interfaces/TimeDep.mdx)\> |
+
+## Returns
+
+```ts
+(config?: ConsoleFormatterConfig): ConsoleFormatter;
+```
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `config` | [`ConsoleFormatterConfig`](/docs/api-reference/common/Console/interfaces/ConsoleFormatterConfig.mdx) |
+
+### Returns
+
+[`ConsoleFormatter`](/docs/api-reference/common/Console/type-aliases/ConsoleFormatter.mdx)

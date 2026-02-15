@@ -1,0 +1,76 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Time](/docs/api-reference/common/Time/page.mdx) / Time
+
+Defined in: [packages/common/src/Time.ts:22](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Time.ts#L22)
+
+Time and timer operations.
+
+## Extended by
+
+- [`TestTime`](/docs/api-reference/common/Time/interfaces/TestTime.mdx)
+
+## Properties
+
+<a id="cleartimeout"></a>
+
+### clearTimeout()
+
+```ts
+readonly clearTimeout: (id: TimeoutId) => void;
+```
+
+Defined in: [packages/common/src/Time.ts:30](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Time.ts#L30)
+
+Cancels a timeout scheduled with [Time.setTimeout](/docs/api-reference/common/Time/interfaces/Time.mdx#settimeout).
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `id` | [`TimeoutId`](/docs/api-reference/common/Time/type-aliases/TimeoutId.mdx) |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="now"></a>
+
+### now()
+
+```ts
+readonly now: () => number & Brand<"Int"> & Brand<"NonNegative"> & Brand<"LessThan281474976710655"> & Brand<"Millis">;
+```
+
+Defined in: [packages/common/src/Time.ts:24](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Time.ts#L24)
+
+Returns current time in milliseconds.
+
+#### Returns
+
+`number` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Int"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"NonNegative"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"LessThan281474976710655"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Millis"`\>
+
+***
+
+<a id="settimeout"></a>
+
+### setTimeout()
+
+```ts
+readonly setTimeout: (fn: () => void, delay: Duration) => TimeoutId;
+```
+
+Defined in: [packages/common/src/Time.ts:27](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Time.ts#L27)
+
+Schedules a callback after the specified delay.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `fn` | () => `void` |
+| `delay` | [`Duration`](/docs/api-reference/common/Time/type-aliases/Duration.mdx) |
+
+#### Returns
+
+[`TimeoutId`](/docs/api-reference/common/Time/type-aliases/TimeoutId.mdx)

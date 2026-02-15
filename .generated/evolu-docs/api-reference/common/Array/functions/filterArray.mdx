@@ -1,0 +1,80 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Array](/docs/api-reference/common/Array/page.mdx) / filterArray
+
+## Call Signature
+
+```ts
+function filterArray<T, S>(array: readonly T[], refinement: RefinementWithIndex<T, S>): readonly S[];
+```
+
+Defined in: [packages/common/src/Array.ts:430](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Array.ts#L430)
+
+Filters an array using a predicate or refinement function, returning a new
+readonly array.
+
+When used with a refinement function (with `value is Type` syntax),
+TypeScript will narrow the result type to the narrowed type, making it useful
+for filtering with Evolu Types like `PositiveInt.is`.
+
+### Example
+
+### With predicate
+
+```ts
+filterArray([1, 2, 3, 4, 5], (x) => x % 2 === 0); // [2, 4]
+```
+
+### With refinement
+
+```ts
+const mixed: ReadonlyArray<NonEmptyString | PositiveInt> = [
+  NonEmptyString.orThrow("hello"),
+  PositiveInt.orThrow(42),
+];
+const positiveInts = filterArray(mixed, PositiveInt.is);
+// positiveInts: ReadonlyArray<PositiveInt> (narrowed type)
+```
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+| `S` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `array` | readonly `T`[] |
+| `refinement` | [`RefinementWithIndex`](/docs/api-reference/common/Types/type-aliases/RefinementWithIndex.mdx)\<`T`, `S`\> |
+
+### Returns
+
+readonly `S`[]
+
+## Call Signature
+
+```ts
+function filterArray<T>(array: readonly T[], predicate: PredicateWithIndex<T>): readonly T[];
+```
+
+Defined in: [packages/common/src/Array.ts:435](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Array.ts#L435)
+
+With predicate.
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `array` | readonly `T`[] |
+| `predicate` | [`PredicateWithIndex`](/docs/api-reference/common/Types/type-aliases/PredicateWithIndex.mdx)\<`T`\> |
+
+### Returns
+
+readonly `T`[]

@@ -1,0 +1,108 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Store](/docs/api-reference/common/Store/page.mdx) / ReadonlyStore
+
+Defined in: [packages/common/src/Store.ts:21](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Store.ts#L21)
+
+A read-only view of a [Store](/docs/api-reference/common/Store/interfaces/Store.mdx) that provides state access and change
+notifications without allowing modifications.
+
+Use [ReadonlyStore](/docs/api-reference/common/Store/interfaces/ReadonlyStore.mdx) in public APIs where consumers should observe state
+but not modify it directly.
+
+## Extends
+
+- [`Disposable`](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-2.html#using-declarations-and-explicit-resource-management)
+
+## Extended by
+
+- [`Store`](/docs/api-reference/common/Store/interfaces/Store.mdx)
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+
+## Methods
+
+<a id="dispose"></a>
+
+### \[dispose\]()
+
+#### Call Signature
+
+```ts
+dispose: void;
+```
+
+Defined in: node\_modules/.bun/typescript@5.9.3/node\_modules/typescript/lib/lib.esnext.disposable.d.ts:36
+
+##### Returns
+
+`void`
+
+##### Inherited from
+
+```ts
+Disposable.[dispose]
+```
+
+#### Call Signature
+
+```ts
+dispose: void;
+```
+
+Defined in: node\_modules/.bun/@types+node@22.19.11/node\_modules/@types/node/compatibility/disposable.d.ts:9
+
+##### Returns
+
+`void`
+
+##### Inherited from
+
+```ts
+Disposable.[dispose]
+```
+
+## Properties
+
+<a id="get"></a>
+
+### get()
+
+```ts
+readonly get: () => T;
+```
+
+Defined in: [packages/common/src/Store.ts:29](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Store.ts#L29)
+
+Returns the current state of the store.
+
+#### Returns
+
+`T`
+
+***
+
+<a id="subscribe"></a>
+
+### subscribe()
+
+```ts
+readonly subscribe: (listener: Listener) => Unsubscribe;
+```
+
+Defined in: [packages/common/src/Store.ts:26](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Store.ts#L26)
+
+Registers a listener to be called on state changes and returns a function
+to unsubscribe.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `listener` | [`Listener`](/docs/api-reference/common/Listeners/type-aliases/Listener.mdx) |
+
+#### Returns
+
+[`Unsubscribe`](/docs/api-reference/common/Listeners/type-aliases/Unsubscribe.mdx)

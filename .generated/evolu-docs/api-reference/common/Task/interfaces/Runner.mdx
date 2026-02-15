@@ -1,0 +1,510 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Task](/docs/api-reference/common/Task/page.mdx) / Runner
+
+Defined in: [packages/common/src/Task.ts:478](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L478)
+
+Runs a [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx) with
+[structured concurrency](https://en.wikipedia.org/wiki/Structured_concurrency)
+guarantees.
+
+- **Lifetime** — child tasks are bound to parent scope
+- **Cancellation** — abort propagates to all descendants
+- **Observable state** — inspect running tasks via snapshots and events
+
+`Runner` is a callable object — callable because it's convenient to run tasks
+as `run(task)`, and an object because it holds state for abortability and
+monitoring.
+
+Evolu's structured concurrency leverages native JavaScript APIs:
+
+- `PromiseLike` as the async primitive
+- `AbortSignal` for cancellation
+- `await using` for resource management
+
+This makes Runner idiomatic to JavaScript, tiny with minimal overhead, and
+easy to debug (native stack traces).
+
+## See
+
+ - [createRunner](/docs/api-reference/common/Task/variables/createRunner.mdx)
+ - [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx)
+
+## Extends
+
+- [`AsyncDisposable`](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-2.html#using-declarations-and-explicit-resource-management)
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `D` | `unknown` |
+
+```ts
+Runner<T, E>(task: Task<T, E, D>): Fiber<T, E, D>;
+```
+
+Defined in: [packages/common/src/Task.ts:480](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L480)
+
+Runs a [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx) and returns a [Fiber](/docs/api-reference/common/Task/classes/Fiber.mdx) handle.
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+| `E` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `task` | [`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T`, `E`, `D`\> |
+
+## Returns
+
+[`Fiber`](/docs/api-reference/common/Task/classes/Fiber.mdx)\<`T`, `E`, `D`\>
+
+## Methods
+
+<a id="asyncdispose"></a>
+
+### \[asyncDispose\]()
+
+#### Call Signature
+
+```ts
+asyncDispose: PromiseLike<void>;
+```
+
+Defined in: node\_modules/.bun/typescript@5.9.3/node\_modules/typescript/lib/lib.esnext.disposable.d.ts:40
+
+##### Returns
+
+[`PromiseLike`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables)\<`void`\>
+
+##### Inherited from
+
+```ts
+AsyncDisposable.[asyncDispose]
+```
+
+#### Call Signature
+
+```ts
+asyncDispose: PromiseLike<void>;
+```
+
+Defined in: node\_modules/.bun/@types+node@22.19.11/node\_modules/@types/node/compatibility/disposable.d.ts:13
+
+##### Returns
+
+[`PromiseLike`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables)\<`void`\>
+
+##### Inherited from
+
+```ts
+AsyncDisposable.[asyncDispose]
+```
+
+## Properties
+
+<a id="abortmask"></a>
+
+### abortMask
+
+```ts
+readonly abortMask: number & Brand<"Int"> & Brand<"NonNegative"> & Brand<"AbortMask">;
+```
+
+Defined in: [packages/common/src/Task.ts:492](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L492)
+
+The abort mask depth. `0` means abortable, `>= 1` means unabortable.
+
+***
+
+<a id="adddeps"></a>
+
+### addDeps()
+
+```ts
+readonly addDeps: <E>(extraDeps: E) => Runner<D & E>;
+```
+
+Defined in: [packages/common/src/Task.ts:677](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L677)
+
+Adds additional dependencies to this runner and returns it.
+
+Use for runtime-created dependencies — dependencies that cannot be created
+in the composition root (e.g., app start).
+
+### Example
+
+```ts
+// One-shot
+await run.addDeps({ db })(getUser(123));
+
+// Multiple deps at once
+await run.addDeps({ db, cache })(task);
+
+// Reusable — config comes from outside (message, file, etc.)
+type DbWorkerDeps = DbDep; // or DbDep & CacheDep & ...
+
+const init =
+  (config: Config): Task<void, InitError, CreateDbDep> =>
+  async (_run) => {
+    const { createDb } = _run.deps;
+    await using stack = _run.stack();
+
+    const db = await stack.use(createDb(config.connectionString));
+    if (!db.ok) return db;
+
+    const run = _run.addDeps({ db: db.value });
+
+    await run(getUser(123));
+    await run(insertUser(user));
+    return ok();
+  };
+```
+
+The `_run` naming convention reserves `run` for the extended runner.
+
+## FAQ
+
+### How does it work?
+
+This is the whole implementation:
+
+```ts
+run.addDeps = <E extends NewKeys<E, D>>(newDeps: E): Runner<D & E> => {
+  depsRef.modify((currentDeps) => {
+    const duplicate = Object.keys(newDeps).find(
+      (k) => k in currentDeps,
+    );
+    assert(!duplicate, `Dependency '${duplicate}' already added.`);
+    return { ...currentDeps, ...newDeps };
+  });
+  return self as unknown as Runner<D & E>;
+};
+```
+
+Dependencies are stored in a shared [Ref](/docs/api-reference/common/Ref/interfaces/Ref.mdx), so `addDeps` propagates to
+all runners. The runtime assertion ensures dependencies are created once —
+automatic deduplication would mask poor design (dependencies should have a
+single, clear point of creation).
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `E` *extends* [`NewKeys`](/docs/api-reference/common/Types/type-aliases/NewKeys.mdx)\<`E`, `D`\> |
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `extraDeps` | `E` |
+
+#### Returns
+
+`Runner`\<`D` & `E`\>
+
+***
+
+<a id="concurrency"></a>
+
+### concurrency
+
+```ts
+readonly concurrency: Concurrency;
+```
+
+Defined in: [packages/common/src/Task.ts:614](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L614)
+
+#### See
+
+ - [Concurrency](/docs/api-reference/common/Task/type-aliases/Concurrency.mdx)
+ - [parallel](/docs/api-reference/common/Task/functions/parallel.mdx)
+
+***
+
+<a id="daemon"></a>
+
+### daemon
+
+```ts
+readonly daemon: Run<D>;
+```
+
+Defined in: [packages/common/src/Task.ts:561](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L561)
+
+Runs a [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx) on the root runner instead of the current runner.
+
+### Example
+
+```ts
+const myTask: Task<void, never> = async (run) => {
+  // Aborted when myTask ends
+  run(helperTask);
+
+  // Outlives myTask, aborted when the root runner is disposed
+  run.daemon(backgroundSync);
+
+  return ok();
+};
+```
+
+***
+
+<a id="defer"></a>
+
+### defer()
+
+```ts
+readonly defer: (onDisposeAsync: Task<void, never, D>) => AsyncDisposable;
+```
+
+Defined in: [packages/common/src/Task.ts:592](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L592)
+
+Creates an [AsyncDisposable](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-2.html#using-declarations-and-explicit-resource-management) that runs the task when disposed.
+
+Use for one-off task; for multiple, use [Runner.stack](/docs/api-reference/common/Task/interfaces/Runner.mdx#stack) instead.
+
+### Example
+
+```ts
+// One-off task with defer
+await using _ = run.defer(task);
+
+// For more tasks, a stack is more practical
+await using stack = run.stack();
+stack.defer(taskA);
+stack.defer(taskB);
+
+// Spread to make any object disposable with Task
+const connection = {
+  send: (data: Data) => {
+    //
+  },
+  ...run.defer(async (run) => {
+    await run(notifyPeers);
+    return ok();
+  }),
+};
+// connection[Symbol.asyncDispose] is now defined
+```
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `onDisposeAsync` | [`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`void`, `never`, `D`\> |
+
+#### Returns
+
+[`AsyncDisposable`](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-2.html#using-declarations-and-explicit-resource-management)
+
+***
+
+<a id="deps"></a>
+
+### deps
+
+```ts
+readonly deps: ConsoleDep & RandomBytesDep & RandomDep & TimeDep & Partial<RunnerConfigDep> & Partial<TracerConfigDep> & Partial<TracerDep> & D;
+```
+
+Defined in: [packages/common/src/Task.ts:608](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L608)
+
+Returns the dependencies passed to [createRunner](/docs/api-reference/common/Task/variables/createRunner.mdx).
+
+***
+
+<a id="getchildren"></a>
+
+### getChildren()
+
+```ts
+readonly getChildren: () => ReadonlySet<Fiber<any, any, D>>;
+```
+
+Defined in: [packages/common/src/Task.ts:510](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L510)
+
+Returns the current child [Fiber](/docs/api-reference/common/Task/classes/Fiber.mdx)s.
+
+#### Returns
+
+`ReadonlySet`\<[`Fiber`](/docs/api-reference/common/Task/classes/Fiber.mdx)\<`any`, `any`, `D`\>\>
+
+***
+
+<a id="getstate"></a>
+
+### getState()
+
+```ts
+readonly getState: () => FiberState;
+```
+
+Defined in: [packages/common/src/Task.ts:507](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L507)
+
+Returns the current [FiberState](/docs/api-reference/common/Task/type-aliases/FiberState.mdx).
+
+#### Returns
+
+[`FiberState`](/docs/api-reference/common/Task/type-aliases/FiberState.mdx)
+
+***
+
+<a id="id"></a>
+
+### id
+
+```ts
+readonly id: string & Brand<"Id">;
+```
+
+Defined in: [packages/common/src/Task.ts:483](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L483)
+
+Unique [Id](/docs/api-reference/common/Type/variables/Id.mdx) for this runner.
+
+***
+
+<a id="onabort"></a>
+
+### onAbort()
+
+```ts
+readonly onAbort: (callback: Callback<unknown>) => void;
+```
+
+Defined in: [packages/common/src/Task.ts:504](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L504)
+
+Registers a callback to run when abort is requested.
+
+The callback receives the abort reason (extracted from [AbortError](/docs/api-reference/common/Task/variables/AbortError.mdx)).
+If already aborted, the callback is invoked immediately. For
+[unabortable](/docs/api-reference/common/Task/variables/unabortable.mdx) tasks, the callback is never invoked.
+
+Intentionally synchronous — abort is signal propagation, not cleanup. Use
+[Runner.defer](/docs/api-reference/common/Task/interfaces/Runner.mdx#defer) for async cleanup that must run regardless of abort.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `callback` | [`Callback`](/docs/api-reference/common/Types/type-aliases/Callback.mdx)\<`unknown`\> |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="onevent"></a>
+
+### onEvent
+
+```ts
+onEvent: 
+  | (event: RunnerEvent) => void
+  | undefined;
+```
+
+Defined in: [packages/common/src/Task.ts:542](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L542)
+
+Callback for monitoring runner events.
+
+Called when this runner or any descendant emits a [RunnerEvent](/docs/api-reference/common/Task/variables/RunnerEvent.mdx).
+Events bubble up through parent runners, enabling centralized monitoring.
+Only emitted when [RunnerConfig.eventsEnabled](/docs/api-reference/common/Task/interfaces/RunnerConfig.mdx#eventsenabled) is `true`.
+
+***
+
+<a id="parent"></a>
+
+### parent
+
+```ts
+readonly parent: Runner<D> | null;
+```
+
+Defined in: [packages/common/src/Task.ts:486](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L486)
+
+The parent [Runner](/docs/api-reference/common/Task/interfaces/Runner.mdx), if this runner was created as a child.
+
+***
+
+<a id="signal"></a>
+
+### signal
+
+```ts
+readonly signal: AbortSignal;
+```
+
+Defined in: [packages/common/src/Task.ts:489](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L489)
+
+#### See
+
+https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal
+
+***
+
+<a id="snapshot"></a>
+
+### snapshot()
+
+```ts
+readonly snapshot: () => FiberSnapshot;
+```
+
+Defined in: [packages/common/src/Task.ts:533](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L533)
+
+Creates a memoized [FiberSnapshot](/docs/api-reference/common/Task/interfaces/FiberSnapshot.mdx) of this runner.
+
+Use for monitoring, debugging, or building UI that visualizes task trees.
+
+### Example
+
+```ts
+// React integration with useSyncExternalStore
+const useFiberSnapshot = (runner: Runner) =>
+  useSyncExternalStore(
+    (callback) => {
+      runner.onEvent = callback;
+      return () => {
+        runner.onEvent = undefined;
+      };
+    },
+    () => runner.snapshot(),
+  );
+```
+
+#### Returns
+
+[`FiberSnapshot`](/docs/api-reference/common/Task/interfaces/FiberSnapshot.mdx)
+
+***
+
+<a id="stack"></a>
+
+### stack()
+
+```ts
+readonly stack: () => AsyncDisposableStack<D>;
+```
+
+Defined in: [packages/common/src/Task.ts:605](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L605)
+
+Creates an [AsyncDisposableStack](/docs/api-reference/common/Task/classes/AsyncDisposableStack.mdx) bound to the root runner.
+
+### Example
+
+```ts
+await using stack = run.stack();
+stack.defer(task);
+const conn = await stack.use(openConnection);
+```
+
+#### Returns
+
+[`AsyncDisposableStack`](/docs/api-reference/common/Task/classes/AsyncDisposableStack.mdx)\<`D`\>

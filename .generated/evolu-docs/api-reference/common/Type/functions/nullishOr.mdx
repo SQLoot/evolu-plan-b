@@ -1,0 +1,38 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / nullishOr
+
+```ts
+function nullishOr<T>(type: T): UnionType<[Type<"Undefined", undefined, undefined, UndefinedError, undefined, UndefinedError>, Type<"Null", null, null, NullError, null, NullError>, T]>;
+```
+
+Defined in: [packages/common/src/Type.ts:3871](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L3871)
+
+`union(undefined, null, T)` [Type](/docs/api-reference/common/Type/interfaces/Type.mdx).
+
+Learn more:
+https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-7.html#nullish-coalescing
+
+### Example
+
+```ts
+const NullishOrString = nullishOr(String);
+NullishOrString.from("test"); // ok("test")
+NullishOrString.from(null); // ok(null)
+NullishOrString.from(undefined); // ok()
+NullishOrString.from(42); // err(...)
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` *extends* [`AnyType`](/docs/api-reference/common/Type/type-aliases/AnyType.mdx) |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `type` | `T` |
+
+## Returns
+
+[`UnionType`](/docs/api-reference/common/Type/interfaces/UnionType.mdx)\<\[[`Type`](/docs/api-reference/common/Type/interfaces/Type.mdx)\<`"Undefined"`, `undefined`, `undefined`, [`UndefinedError`](/docs/api-reference/common/Type/interfaces/UndefinedError.mdx), `undefined`, [`UndefinedError`](/docs/api-reference/common/Type/interfaces/UndefinedError.mdx)\>, [`Type`](/docs/api-reference/common/Type/interfaces/Type.mdx)\<`"Null"`, `null`, `null`, [`NullError`](/docs/api-reference/common/Type/interfaces/NullError.mdx), `null`, [`NullError`](/docs/api-reference/common/Type/interfaces/NullError.mdx)\>, `T`\]\>

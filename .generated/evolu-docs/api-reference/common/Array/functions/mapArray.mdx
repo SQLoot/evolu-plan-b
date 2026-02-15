@@ -1,0 +1,65 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Array](/docs/api-reference/common/Array/page.mdx) / mapArray
+
+## Call Signature
+
+```ts
+function mapArray<T, U>(array: readonly [T, T] | [T, ...T[]], mapper: (item: T, index: number) => U): readonly [U, U];
+```
+
+Defined in: [packages/common/src/Array.ts:277](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Array.ts#L277)
+
+Maps an array using a mapper function, returning a new readonly array.
+
+Preserves non-empty type.
+
+### Example
+
+```ts
+mapArray([1, 2, 3], (x) => x * 2); // [2, 4, 6]
+```
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+| `U` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `array` | readonly \[`T`, `T`\] \| \[`T`, `...T[]`\] |
+| `mapper` | (`item`: `T`, `index`: `number`) => `U` |
+
+### Returns
+
+readonly \[`U`, `U`\]
+
+## Call Signature
+
+```ts
+function mapArray<T, U>(array: readonly T[] | T[], mapper: (item: T, index: number) => U): readonly U[];
+```
+
+Defined in: [packages/common/src/Array.ts:282](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Array.ts#L282)
+
+Possibly empty array.
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+| `U` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `array` | readonly `T`[] \| `T`[] |
+| `mapper` | (`item`: `T`, `index`: `number`) => `U` |
+
+### Returns
+
+readonly `U`[]

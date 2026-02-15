@@ -1,0 +1,28 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/nodejs](/docs/api-reference/nodejs/page.mdx) / createWorkerScope
+
+```ts
+function createWorkerScope<Input, Output>(nativeParentPort?: MessagePort | null): WorkerScope<Input, Output>;
+```
+
+Defined in: [nodejs/src/Worker.ts:72](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/nodejs/src/Worker.ts#L72)
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `Input` | - |
+| `Output` | `never` |
+
+## Parameters
+
+| Parameter | Type | Default value |
+| ------ | ------ | ------ |
+| `nativeParentPort` | `MessagePort` \| `null` | `workerParentPort` |
+
+## Returns
+
+[`WorkerScope`](/docs/api-reference/common/Worker/interfaces/WorkerScope.mdx)\<`Input`, `Output`\>
+
+## Deprecated
+
+Use [createWorkerSelf](/docs/api-reference/nodejs/functions/createWorkerSelf.mdx). Retained for backwards compatibility.

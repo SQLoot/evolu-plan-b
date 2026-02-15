@@ -1,0 +1,37 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / Object
+
+Object utilities.
+
+## Constants
+
+| Variable | Description |
+| ------ | ------ |
+| [emptyRecord](/docs/api-reference/common/Object/variables/emptyRecord.mdx) | An empty readonly record. |
+
+## Functions
+
+| Function | Description |
+| ------ | ------ |
+| [createObjectURL](/docs/api-reference/common/Object/functions/createObjectURL.mdx) | Creates a disposable [ObjectURL](/docs/api-reference/common/Object/interfaces/ObjectURL.mdx) for the given blob. |
+| [createRecord](/docs/api-reference/common/Object/functions/createRecord.mdx) | Creates a prototype-less object typed as `Record<K, V>`. |
+| [excludeProp](/docs/api-reference/common/Object/functions/excludeProp.mdx) | Conditionally excludes a property from an object. |
+| [getProperty](/docs/api-reference/common/Object/functions/getProperty.mdx) | Safely gets a property from a record, returning `undefined` if the key doesn't exist. |
+| [isFunction](/docs/api-reference/common/Object/functions/isFunction.mdx) | Checks if a value is a function. |
+| [isIterable](/docs/api-reference/common/Object/functions/isIterable.mdx) | Checks if a value is [Iterable](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols#the_iterable_protocol). |
+| [isPlainObject](/docs/api-reference/common/Object/functions/isPlainObject.mdx) | Checks if a value is a plain object (e.g., created with `{}` or `Object`). |
+| [mapObject](/docs/api-reference/common/Object/functions/mapObject.mdx) | Maps a `ReadonlyRecord<K, V>` to a new `ReadonlyRecord<K, U>`, preserving branded key types (e.g., `type Id = 'id' & string`) lost by `Object.entries`. Uses `K extends string` for precision. |
+| [objectFrom](/docs/api-reference/common/Object/functions/objectFrom.mdx) | Creates an object by mapping keys to values. |
+| [objectFromEntries](/docs/api-reference/common/Object/functions/objectFromEntries.mdx) | Creates an object from key-value pairs, preserving branded key types. |
+| [objectToEntries](/docs/api-reference/common/Object/functions/objectToEntries.mdx) | Like `Object.entries` but preserves branded keys. |
+
+## Interfaces
+
+| Interface | Description |
+| ------ | ------ |
+| [ObjectURL](/docs/api-reference/common/Object/interfaces/ObjectURL.mdx) | A disposable wrapper around `URL.createObjectURL` that automatically revokes the URL when disposed. Use with the `using` declaration for automatic cleanup. |
+
+## Type Aliases
+
+| Type Alias | Description |
+| ------ | ------ |
+| [ReadonlyRecord](/docs/api-reference/common/Object/type-aliases/ReadonlyRecord.mdx) | A read-only `Record<K, V>` with `K extends keyof any` to preserve branded key types (e.g., in [mapObject](/docs/api-reference/common/Object/functions/mapObject.mdx)). |

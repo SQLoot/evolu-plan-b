@@ -1,0 +1,27 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / Random
+
+Seeded random number generation.
+
+## Functions
+
+| Function | Description |
+| ------ | ------ |
+| [createRandom](/docs/api-reference/common/Random/functions/createRandom.mdx) | Creates a [Random](/docs/api-reference/common/Random/interfaces/Random.mdx) using Math.random(). |
+| [createRandomLib](/docs/api-reference/common/Random/functions/createRandomLib.mdx) | Creates a `RandomLib` using the NPM `random` package. |
+| [createRandomWithSeed](/docs/api-reference/common/Random/functions/createRandomWithSeed.mdx) | Creates [Random](/docs/api-reference/common/Random/interfaces/Random.mdx) using [RandomLibDep](/docs/api-reference/common/Random/interfaces/RandomLibDep.mdx) with a seed which is useful for tests. |
+| [testCreateRandom](/docs/api-reference/common/Random/functions/testCreateRandom.mdx) | Creates a seeded [Random](/docs/api-reference/common/Random/interfaces/Random.mdx) for deterministic tests. Default seed "evolu". |
+| [testCreateRandomLib](/docs/api-reference/common/Random/functions/testCreateRandomLib.mdx) | Creates a seeded `RandomLib` for deterministic tests. Default seed "evolu". |
+
+## Interfaces
+
+| Interface | Description |
+| ------ | ------ |
+| [Random](/docs/api-reference/common/Random/interfaces/Random.mdx) | A simple wrapper around Math.random(). |
+| [RandomDep](/docs/api-reference/common/Random/interfaces/RandomDep.mdx) | - |
+| [RandomLibDep](/docs/api-reference/common/Random/interfaces/RandomLibDep.mdx) | A random number generator using the NPM `random` package dependency. |
+
+## Type Aliases
+
+| Type Alias | Description |
+| ------ | ------ |
+| [RandomNumber](/docs/api-reference/common/Random/type-aliases/RandomNumber.mdx) | A random floating point number in [0, 1). |

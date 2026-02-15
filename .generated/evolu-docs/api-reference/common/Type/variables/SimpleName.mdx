@@ -1,0 +1,32 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / SimpleName
+
+```ts
+const SimpleName: brand(
+  "SimpleName",
+  UrlSafeString,
+  (value) =>
+    value.length >= 1 && value.length <= 64
+      ? ok(value)
+      : err<SimpleNameError>({ type: "SimpleName", value }),
+);
+```
+
+Defined in: [packages/common/src/Type.ts:1650](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L1650)
+
+Simple alphanumeric string for naming in file systems, URLs, and identifiers.
+
+Uses the same safe alphabet as [UrlSafeString](/docs/api-reference/common/Type/variables/UrlSafeString.mdx) (letters, digits, `-`,
+`_`). See `UrlSafeString` for details.
+
+The string must be between 1 and 64 characters.
+
+### Example
+
+```ts
+const result = SimpleName.from("data-report-123");
+if (result.ok) {
+  console.log("Valid SimpleName string:", result.value);
+} else {
+  console.error("Invalid SimpleName string:", result.error);
+}
+```

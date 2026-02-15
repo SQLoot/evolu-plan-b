@@ -1,0 +1,13 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Worker](/docs/api-reference/common/Worker/page.mdx) / NativeMessagePort
+
+```ts
+type NativeMessagePort = Brand<"NativeMessagePort">;
+```
+
+Defined in: [packages/common/src/Worker.ts:87](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Worker.ts#L87)
+
+Opaque type for platform-specific native MessagePort.
+
+Exists because `postMessage` transfer requires the native object itself, not
+a wrapper. Ensures type-safe wiring between [MessagePort.native](/docs/api-reference/common/Worker/interfaces/MessagePort.mdx#native) and
+[CreateMessagePort](/docs/api-reference/common/Worker/type-aliases/CreateMessagePort.mdx) without exposing platform details.

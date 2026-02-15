@@ -1,0 +1,25 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Crypto](/docs/api-reference/common/Crypto/page.mdx) / createSlip21
+
+```ts
+function createSlip21(seed: 
+  | Uint8Array<ArrayBufferLike> & Brand<"Entropy"> & Brand<"Length16">
+  | Uint8Array<ArrayBufferLike> & Brand<"Entropy"> & Brand<"Length32">
+| Uint8Array<ArrayBufferLike> & Brand<"Entropy"> & Brand<"Length64">, path: readonly (string | number)[]): Uint8Array<ArrayBufferLike> & Brand<"Entropy"> & Brand<"Length32">;
+```
+
+Defined in: [packages/common/src/Crypto.ts:100](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Crypto.ts#L100)
+
+SLIP21.
+
+https://github.com/satoshilabs/slips/blob/master/slip-0021.md
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `seed` | \| `Uint8Array`\<`ArrayBufferLike`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Entropy"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Length16"`\> \| `Uint8Array`\<`ArrayBufferLike`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Entropy"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Length32"`\> \| `Uint8Array`\<`ArrayBufferLike`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Entropy"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Length64"`\> |
+| `path` | readonly (`string` \| `number`)[] |
+
+## Returns
+
+`Uint8Array`\<`ArrayBufferLike`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Entropy"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Length32"`\>

@@ -1,0 +1,25 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / DateIso
+
+```ts
+type DateIso = string & Brand<"DateIso">;
+```
+
+Defined in: [packages/common/src/Type.ts:1176](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L1176)
+
+ISO 8601 date-time string.
+
+This [Type](/docs/api-reference/common/Type/interfaces/Type.mdx) represents a date-time string that follows the ISO 8601
+format and is compatible with SQLite, which lacks a native date type and
+relies on ISO 8601 strings for sorting. Enforcing a 24-character format
+ensures correct lexicographic ordering.
+
+It must be a valid JavaScript Date string that can be parsed.
+
+Valid range: `"0000-01-01T00:00:00.000Z"` to `"9999-12-31T23:59:59.999Z"`.
+
+### Example
+
+```ts
+const result = DateIso.from("2023-01-01T12:00:00.000Z"); // ok
+const error = DateIso.from("10000-01-01T00:00:00.000Z"); // err
+```

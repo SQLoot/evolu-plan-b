@@ -1,0 +1,15 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Task](/docs/api-reference/common/Task/page.mdx) / InferFiberDeps
+
+```ts
+type InferFiberDeps<F> = F extends Fiber<any, any, infer D> ? D : never;
+```
+
+Defined in: [packages/common/src/Task.ts:852](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L852)
+
+Extracts the deps type from a [Fiber](/docs/api-reference/common/Task/classes/Fiber.mdx).
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `F` *extends* [`Fiber`](/docs/api-reference/common/Task/classes/Fiber.mdx)\<`any`, `any`, `any`\> |

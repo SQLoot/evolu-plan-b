@@ -1,0 +1,41 @@
+[API Reference](/docs/api-reference/page.mdx) / @evolu/nodejs
+
+## Interfaces
+
+| Interface | Description |
+| ------ | ------ |
+| [NodeJsRelayConfig](/docs/api-reference/nodejs/interfaces/NodeJsRelayConfig.mdx) | - |
+| [ShutdownDep](/docs/api-reference/nodejs/interfaces/ShutdownDep.mdx) | - |
+
+## Type Aliases
+
+| Type Alias | Description |
+| ------ | ------ |
+| [RelayDeps](/docs/api-reference/nodejs/type-aliases/RelayDeps.mdx) | - |
+
+## Variables
+
+| Variable | Description |
+| ------ | ------ |
+| [createBetterSqliteDriver](/docs/api-reference/nodejs/variables/createBetterSqliteDriver.mdx) | - |
+| [createMessagePort](/docs/api-reference/nodejs/variables/createMessagePort.mdx) | Creates an Evolu [MessagePort](/docs/api-reference/common/Worker/interfaces/MessagePort.mdx) from Node.js native message port. |
+| [~~createRun~~](/docs/api-reference/nodejs/variables/createRun.mdx) | - |
+
+## Functions
+
+| Function | Description |
+| ------ | ------ |
+| [createMessageChannel](/docs/api-reference/nodejs/functions/createMessageChannel.mdx) | Creates a [MessageChannel](/docs/api-reference/common/Worker/interfaces/MessageChannel.mdx) from Node.js `worker_threads.MessageChannel`. |
+| [createRelayDeps](/docs/api-reference/nodejs/functions/createRelayDeps.mdx) | Dependencies for [startRelay](/docs/api-reference/nodejs/functions/startRelay.mdx) using better-sqlite3. |
+| [createTimingSafeEqual](/docs/api-reference/nodejs/functions/createTimingSafeEqual.mdx) | - |
+| [createWorker](/docs/api-reference/nodejs/functions/createWorker.mdx) | Creates an Evolu [Worker](/docs/api-reference/common/Worker/interfaces/Worker.mdx) from Node.js `worker_threads.Worker`. |
+| [~~createWorkerScope~~](/docs/api-reference/nodejs/functions/createWorkerScope.mdx) | - |
+| [createWorkerSelf](/docs/api-reference/nodejs/functions/createWorkerSelf.mdx) | Creates an Evolu [WorkerSelf](/docs/api-reference/common/Worker/interfaces/WorkerSelf.mdx) inside a Node.js worker thread. |
+| [startRelay](/docs/api-reference/nodejs/functions/startRelay.mdx) | Starts an Evolu relay server using Node.js. |
+
+## Node.js Runner
+
+| Name | Description |
+| ------ | ------ |
+| [Shutdown](/docs/api-reference/nodejs/type-aliases/Shutdown.mdx) | A promise that resolves when a termination signal is received. |
+| [createRunner](/docs/api-reference/nodejs/variables/createRunner.mdx) | Creates [Runner](/docs/api-reference/common/Task/interfaces/Runner.mdx) for Node.js with global error handling and graceful shutdown. |

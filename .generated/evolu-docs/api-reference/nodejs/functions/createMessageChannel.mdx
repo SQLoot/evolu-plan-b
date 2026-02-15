@@ -1,0 +1,20 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/nodejs](/docs/api-reference/nodejs/page.mdx) / createMessageChannel
+
+```ts
+function createMessageChannel<Input, Output>(): MessageChannel<Input, Output>;
+```
+
+Defined in: [nodejs/src/Worker.ts:34](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/nodejs/src/Worker.ts#L34)
+
+Creates a [MessageChannel](/docs/api-reference/common/Worker/interfaces/MessageChannel.mdx) from Node.js `worker_threads.MessageChannel`.
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `Input` | - |
+| `Output` | `never` |
+
+## Returns
+
+[`MessageChannel`](/docs/api-reference/common/Worker/interfaces/MessageChannel.mdx)\<`Input`, `Output`\>

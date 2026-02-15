@@ -1,0 +1,31 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / typeErrorToStandardSchemaIssues
+
+```ts
+function typeErrorToStandardSchemaIssues<ExtraErrors>(error: TypeErrors<ExtraErrors>, path?: readonly PropertyKey[]): readonly Issue[];
+```
+
+Defined in: [packages/common/src/Type.ts:4697](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L4697)
+
+Converts an Evolu [TypeError](/docs/api-reference/common/Type/interfaces/TypeError.mdx) to Standard Schema V1 issues format.
+
+This function recursively converts Evolu's typed errors into the Standard
+Schema issue format with proper path tracking for nested structures. The
+`message` field contains the JSON-serialized typed error, which users can
+deserialize and format using appropriate [TypeErrorFormatter](/docs/api-reference/common/Type/type-aliases/TypeErrorFormatter.mdx)s.
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `ExtraErrors` *extends* [`TypeError`](/docs/api-reference/common/Type/interfaces/TypeError.mdx)\<`Capitalize`\<`string`\>\> | `never` |
+
+## Parameters
+
+| Parameter | Type | Default value |
+| ------ | ------ | ------ |
+| `error` | [`TypeErrors`](/docs/api-reference/common/Type/type-aliases/TypeErrors.mdx)\<`ExtraErrors`\> | `undefined` |
+| `path` | readonly `PropertyKey`[] | `[]` |
+
+## Returns
+
+readonly [`Issue`](/docs/api-reference/common/Type/namespaces/StandardSchemaV1/interfaces/Issue.mdx)[]

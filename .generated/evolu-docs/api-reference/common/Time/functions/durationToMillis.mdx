@@ -1,0 +1,35 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Time](/docs/api-reference/common/Time/page.mdx) / durationToMillis
+
+```ts
+function durationToMillis(duration: Duration): number & Brand<"Int"> & Brand<"NonNegative"> & Brand<"LessThan281474976710655"> & Brand<"Millis">;
+```
+
+Defined in: [packages/common/src/Time.ts:281](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Time.ts#L281)
+
+Converts a duration to milliseconds.
+
+Accepts either a [DurationLiteral](/docs/api-reference/common/Time/type-aliases/DurationLiteral.mdx) (e.g., "5m", "1.5s") or
+[Millis](/docs/api-reference/common/Time/variables/Millis.mdx).
+
+### Example
+
+```ts
+durationToMillis("1ms"); // 1
+durationToMillis("500ms"); // 500
+durationToMillis("1.5s"); // 1500
+durationToMillis("30s"); // 30000
+durationToMillis("5m"); // 300000
+durationToMillis("12h"); // 43200000
+durationToMillis("7d"); // 604800000
+durationToMillis(Millis.orThrow(5000)); // 5000 (already Millis)
+```
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `duration` | [`Duration`](/docs/api-reference/common/Time/type-aliases/Duration.mdx) |
+
+## Returns
+
+`number` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Int"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"NonNegative"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"LessThan281474976710655"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Millis"`\>

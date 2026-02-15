@@ -1,0 +1,47 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / partial
+
+```ts
+function partial<Props>(props: Props): ObjectType<{ [K in string | number | symbol]: OptionalType<Props[K]> }>;
+```
+
+Defined in: [packages/common/src/Type.ts:4346](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L4346)
+
+Creates a partial object type where all properties are optional.
+
+This is useful when we want to validate an object in which none of the keys
+are required, but if they are present they must conform to their
+corresponding Types.
+
+### Example
+
+```ts
+const PartialUser = partial({
+  name: NonEmptyString,
+  age: PositiveNumber,
+});
+
+// Valid: an empty object is accepted
+PartialUser.from({});
+
+// Valid: when provided, the properties must validate correctly
+PartialUser.from({ name: "Alice" });
+
+// Invalid: if a property is present but fails validation it returns an error
+PartialUser.from({ age: -5 });
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Props` *extends* `Record`\<`string`, [`AnyType`](/docs/api-reference/common/Type/type-aliases/AnyType.mdx)\> |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `props` | `Props` |
+
+## Returns
+
+[`ObjectType`](/docs/api-reference/common/Type/interfaces/ObjectType.mdx)\<\{ \[K in string \| number \| symbol\]: OptionalType\<Props\[K\]\> \}\>

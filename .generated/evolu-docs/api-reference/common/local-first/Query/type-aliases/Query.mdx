@@ -1,0 +1,31 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [local-first/Query](/docs/api-reference/common/local-first/Query/page.mdx) / Query
+
+```ts
+type Query<R> = string & Brand<"Query"> & {
+  Row: R;
+};
+```
+
+Defined in: [packages/common/src/local-first/Query.ts:39](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Query.ts#L39)
+
+A type-safe SQL query.
+
+### Example
+
+```ts
+const createQuery = createQueryBuilder(Schema);
+const allTodos = createQuery((db) => db.selectFrom("todo").selectAll());
+type AllTodosRow = typeof allTodos.Row;
+```
+
+## Type Declaration
+
+| Name | Type | Description | Defined in |
+| ------ | ------ | ------ | ------ |
+| `Row` | `R` | A shorthand for [InferRow](/docs/api-reference/common/local-first/Query/type-aliases/InferRow.mdx). ### Example `const createQuery = createQueryBuilder(Schema); const allTodos = createQuery((db) => db.selectFrom("todo").selectAll(), ); type AllTodosRow = typeof allTodos.Row;` | [packages/common/src/local-first/Query.ts:54](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Query.ts#L54) |
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `R` *extends* [`Row`](/docs/api-reference/common/local-first/Query/interfaces/Row.mdx) | [`Row`](/docs/api-reference/common/local-first/Query/interfaces/Row.mdx) |

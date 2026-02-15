@@ -1,0 +1,16 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/web](/docs/api-reference/web/page.mdx) / createWorkerRun
+
+```ts
+function createWorkerRun(): Run<ConsoleDep & RandomBytesDep & RandomDep & TimeDep & Partial<RunnerConfigDep> & Partial<TracerConfigDep> & Partial<TracerDep> & ConsoleStoreOutputEntryDep & CreateMessagePortDep>;
+```
+
+Defined in: [Worker.ts:117](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/web/src/Worker.ts#L117)
+
+Creates [Run](/docs/api-reference/common/Task/type-aliases/Run.mdx) for a Web Worker or SharedWorker.
+
+Includes a console store output for forwarding worker logs and native output
+for local debugging.
+
+## Returns
+
+[`Run`](/docs/api-reference/common/Task/type-aliases/Run.mdx)\<[`ConsoleDep`](/docs/api-reference/common/Console/interfaces/ConsoleDep.mdx) & [`RandomBytesDep`](/docs/api-reference/common/Crypto/interfaces/RandomBytesDep.mdx) & [`RandomDep`](/docs/api-reference/common/Random/interfaces/RandomDep.mdx) & [`TimeDep`](/docs/api-reference/common/Time/interfaces/TimeDep.mdx) & `Partial`\<[`RunnerConfigDep`](/docs/api-reference/common/Task/interfaces/RunnerConfigDep.mdx)\> & `Partial`\<[`TracerConfigDep`](/docs/api-reference/common/Tracer/interfaces/TracerConfigDep.mdx)\> & `Partial`\<[`TracerDep`](/docs/api-reference/common/Tracer/interfaces/TracerDep.mdx)\> & [`ConsoleStoreOutputEntryDep`](/docs/api-reference/common/Console/interfaces/ConsoleStoreOutputEntryDep.mdx) & [`CreateMessagePortDep`](/docs/api-reference/common/Worker/interfaces/CreateMessagePortDep.mdx)\>

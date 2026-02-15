@@ -1,0 +1,21 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Time](/docs/api-reference/common/Time/page.mdx) / Millis
+
+```ts
+const Millis: brand(
+  "Millis",
+  lessThan(maxMillisWithInfinity)(NonNegativeInt),
+);
+```
+
+Defined in: [packages/common/src/Time.ts:144](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Time.ts#L144)
+
+Milliseconds timestamp, like `Date.now()`.
+
+The maximum value is 281474976710654 (281474976710655 - 1, reserved for
+infinity). This enables efficient binary serialization, saving 2 bytes
+compared to typical 8-byte (64-bit) timestamps.
+
+`new Date(281474976710654).toString()` = Tue Aug 02 10889 07:31:49
+
+If a system clock exceeds this range, operations will throw. This is
+intentional — there's no reasonable fallback for a misconfigured clock.

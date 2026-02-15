@@ -1,0 +1,52 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / local-first/Timestamp
+
+Hybrid logical clock timestamps for CRDT ordering.
+
+## Functions
+
+| Function | Description |
+| ------ | ------ |
+| [createInitialTimestamp](/docs/api-reference/common/local-first/Timestamp/functions/createInitialTimestamp.mdx) | - |
+| [createTimestamp](/docs/api-reference/common/local-first/Timestamp/functions/createTimestamp.mdx) | - |
+| [receiveTimestamp](/docs/api-reference/common/local-first/Timestamp/functions/receiveTimestamp.mdx) | - |
+| [sendTimestamp](/docs/api-reference/common/local-first/Timestamp/functions/sendTimestamp.mdx) | - |
+| [timestampBytesToTimestamp](/docs/api-reference/common/local-first/Timestamp/functions/timestampBytesToTimestamp.mdx) | - |
+| [timestampToDateIso](/docs/api-reference/common/local-first/Timestamp/functions/timestampToDateIso.mdx) | Convert a [Timestamp](/docs/api-reference/common/local-first/Timestamp/variables/Timestamp.mdx) to an ISO 8601 [DateIso](/docs/api-reference/common/Type/variables/DateIso.mdx) string. |
+| [timestampToTimestampBytes](/docs/api-reference/common/local-first/Timestamp/functions/timestampToTimestampBytes.mdx) | - |
+
+## Interfaces
+
+| Interface | Description |
+| ------ | ------ |
+| [Timestamp](/docs/api-reference/common/local-first/Timestamp/interfaces/Timestamp.mdx) | Hybrid Logical Clock timestamp. |
+| [TimestampConfig](/docs/api-reference/common/local-first/Timestamp/interfaces/TimestampConfig.mdx) | - |
+| [TimestampConfigDep](/docs/api-reference/common/local-first/Timestamp/interfaces/TimestampConfigDep.mdx) | - |
+| [TimestampCounterOverflowError](/docs/api-reference/common/local-first/Timestamp/interfaces/TimestampCounterOverflowError.mdx) | Base interface for objects with a discriminant `type` property. |
+| [TimestampDriftError](/docs/api-reference/common/local-first/Timestamp/interfaces/TimestampDriftError.mdx) | Base interface for objects with a discriminant `type` property. |
+| [TimestampTimeOutOfRangeError](/docs/api-reference/common/local-first/Timestamp/interfaces/TimestampTimeOutOfRangeError.mdx) | Base interface for objects with a discriminant `type` property. |
+
+## Type Aliases
+
+| Type Alias | Description |
+| ------ | ------ |
+| [Counter](/docs/api-reference/common/local-first/Timestamp/type-aliases/Counter.mdx) | - |
+| [NodeId](/docs/api-reference/common/local-first/Timestamp/type-aliases/NodeId.mdx) | A NodeId uniquely identifies an owner's device. Generated once per device using cryptographic randomness. |
+| [TimestampBytes](/docs/api-reference/common/local-first/Timestamp/type-aliases/TimestampBytes.mdx) | Sortable bytes representation of [Timestamp](/docs/api-reference/common/local-first/Timestamp/variables/Timestamp.mdx). |
+| [TimestampError](/docs/api-reference/common/local-first/Timestamp/type-aliases/TimestampError.mdx) | - |
+
+## Variables
+
+| Variable | Description |
+| ------ | ------ |
+| [Counter](/docs/api-reference/common/local-first/Timestamp/variables/Counter.mdx) | - |
+| [defaultTimestampMaxDrift](/docs/api-reference/common/local-first/Timestamp/variables/defaultTimestampMaxDrift.mdx) | Default value for [TimestampConfig.maxDrift](/docs/api-reference/common/local-first/Timestamp/interfaces/TimestampConfig.mdx#maxdrift). |
+| [eqTimestamp](/docs/api-reference/common/local-first/Timestamp/variables/eqTimestamp.mdx) | Equality function for comparing [Timestamp](/docs/api-reference/common/local-first/Timestamp/variables/Timestamp.mdx). |
+| [maxCounter](/docs/api-reference/common/local-first/Timestamp/variables/maxCounter.mdx) | - |
+| [maxNodeId](/docs/api-reference/common/local-first/Timestamp/variables/maxNodeId.mdx) | - |
+| [minCounter](/docs/api-reference/common/local-first/Timestamp/variables/minCounter.mdx) | - |
+| [minNodeId](/docs/api-reference/common/local-first/Timestamp/variables/minNodeId.mdx) | - |
+| [NodeId](/docs/api-reference/common/local-first/Timestamp/variables/NodeId.mdx) | A NodeId uniquely identifies an owner's device. Generated once per device using cryptographic randomness. |
+| [orderTimestampBytes](/docs/api-reference/common/local-first/Timestamp/variables/orderTimestampBytes.mdx) | An [Order](/docs/api-reference/common/Order/type-aliases/Order.mdx) for [TimestampBytes](/docs/api-reference/common/local-first/Timestamp/variables/TimestampBytes.mdx). |
+| [Timestamp](/docs/api-reference/common/local-first/Timestamp/variables/Timestamp.mdx) | Hybrid Logical Clock timestamp. |
+| [TimestampBytes](/docs/api-reference/common/local-first/Timestamp/variables/TimestampBytes.mdx) | Sortable bytes representation of [Timestamp](/docs/api-reference/common/local-first/Timestamp/variables/Timestamp.mdx). |
+| [timestampBytesLength](/docs/api-reference/common/local-first/Timestamp/variables/timestampBytesLength.mdx) | - |

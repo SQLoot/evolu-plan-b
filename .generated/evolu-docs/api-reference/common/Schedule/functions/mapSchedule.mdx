@@ -1,0 +1,57 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Schedule](/docs/api-reference/common/Schedule/page.mdx) / mapSchedule
+
+```ts
+function mapSchedule<A, B>(f: (a: A) => B): <Input>(schedule: Schedule<A, Input>) => Schedule<B, Input>;
+```
+
+Defined in: [packages/common/src/Schedule.ts:969](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Schedule.ts#L969)
+
+Transforms the output of a schedule.
+
+The delay (second tuple element) remains unchanged.
+
+### Example
+
+```ts
+import { exponential, mapSchedule } from "@evolu/common";
+
+const schedule = mapSchedule((delay) => ({
+  delay,
+  doubled: delay * 2,
+}))(exponential("100ms"));
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `A` |
+| `B` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `f` | (`a`: `A`) => `B` |
+
+## Returns
+
+```ts
+<Input>(schedule: Schedule<A, Input>): Schedule<B, Input>;
+```
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Input` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `schedule` | [`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`A`, `Input`\> |
+
+### Returns
+
+[`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`B`, `Input`\>

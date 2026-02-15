@@ -1,0 +1,30 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Ref](/docs/api-reference/common/Ref/page.mdx) / createRef
+
+```ts
+function createRef<T>(initialState: T, eq?: Eq<T>): Ref<T>;
+```
+
+Defined in: [packages/common/src/Ref.ts:60](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Ref.ts#L60)
+
+Creates a [Ref](/docs/api-reference/common/Ref/interfaces/Ref.mdx) with the given initial state.
+
+By default, state is always updated. We can provide an optional [Eq](/docs/api-reference/common/Eq/type-aliases/Eq.mdx)
+function as the second argument to skip updates when the new state equals the
+current state.
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `initialState` | `T` |
+| `eq?` | [`Eq`](/docs/api-reference/common/Eq/type-aliases/Eq.mdx)\<`T`\> |
+
+## Returns
+
+[`Ref`](/docs/api-reference/common/Ref/interfaces/Ref.mdx)\<`T`\>

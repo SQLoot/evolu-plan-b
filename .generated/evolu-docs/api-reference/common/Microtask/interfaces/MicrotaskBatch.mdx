@@ -1,0 +1,56 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Microtask](/docs/api-reference/common/Microtask/page.mdx) / MicrotaskBatch
+
+Defined in: [packages/common/src/Microtask.ts:15](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Microtask.ts#L15)
+
+Batches values and flushes them in a single microtask.
+
+Calls to [MicrotaskBatch.push](/docs/api-reference/common/Microtask/interfaces/MicrotaskBatch.mdx#push) within the same tick are coalesced into
+one flush.
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+
+## Properties
+
+<a id="flushnow"></a>
+
+### flushNow()
+
+```ts
+readonly flushNow: () => void;
+```
+
+Defined in: [packages/common/src/Microtask.ts:20](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Microtask.ts#L20)
+
+Flushes queued items immediately.
+
+#### Returns
+
+`void`
+
+***
+
+<a id="push"></a>
+
+### push()
+
+```ts
+readonly push: (item: T) => void;
+```
+
+Defined in: [packages/common/src/Microtask.ts:17](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Microtask.ts#L17)
+
+Enqueues one item and schedules a microtask flush if needed.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `item` | `T` |
+
+#### Returns
+
+`void`

@@ -1,0 +1,27 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Time](/docs/api-reference/common/Time/page.mdx) / setTimeout
+
+```ts
+function setTimeout(duration: Duration): Promise<void>;
+```
+
+Defined in: [packages/common/src/Time.ts:306](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Time.ts#L306)
+
+Returns a Promise that resolves after the specified duration.
+
+Uses [Duration](/docs/api-reference/common/Time/type-aliases/Duration.mdx) parsing and `globalThis.setTimeout`.
+
+### Example
+
+```ts
+await setTimeout("1ms");
+```
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `duration` | [`Duration`](/docs/api-reference/common/Time/type-aliases/Duration.mdx) |
+
+## Returns
+
+`Promise`\<`void`\>

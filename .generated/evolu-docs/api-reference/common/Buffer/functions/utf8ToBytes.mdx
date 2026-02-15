@@ -1,0 +1,25 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Buffer](/docs/api-reference/common/Buffer/page.mdx) / utf8ToBytes
+
+```ts
+function utf8ToBytes(str: string): Uint8Array;
+```
+
+Defined in: node\_modules/.bun/@noble+ciphers@2.1.1/node\_modules/@noble/ciphers/utils.d.ts:53
+
+Converts string to bytes using UTF8 encoding.
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `str` | `string` |
+
+## Returns
+
+`Uint8Array`
+
+## Example
+
+```ts
+utf8ToBytes('abc') // new Uint8Array([97, 98, 99])
+```

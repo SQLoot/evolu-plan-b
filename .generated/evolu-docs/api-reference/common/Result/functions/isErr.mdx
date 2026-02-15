@@ -1,0 +1,26 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Result](/docs/api-reference/common/Result/page.mdx) / isErr
+
+```ts
+function isErr<T, E>(result: Result<T, E>): result is Err<E>;
+```
+
+Defined in: [packages/common/src/Result.ts:330](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Result.ts#L330)
+
+Type guard for [Err](/docs/api-reference/common/Result/interfaces/Err.mdx) results.
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+| `E` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `result` | [`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`T`, `E`\> |
+
+## Returns
+
+`result is Err<E>`

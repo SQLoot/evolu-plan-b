@@ -1,0 +1,41 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Array](/docs/api-reference/common/Array/page.mdx) / spliceArray
+
+```ts
+function spliceArray<T>(
+   array: readonly T[], 
+   start: number, 
+   deleteCount: number, ...
+   items: readonly T[]): readonly T[];
+```
+
+Defined in: [packages/common/src/Array.ts:629](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Array.ts#L629)
+
+Returns a new readonly array with elements removed and/or replaced.
+
+Wraps native `toSpliced`.
+
+### Example
+
+```ts
+spliceArray([1, 2, 3, 4], 1, 2); // [1, 4]
+spliceArray([1, 2, 3], 1, 1, 10, 11); // [1, 10, 11, 3]
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `array` | readonly `T`[] |
+| `start` | `number` |
+| `deleteCount` | `number` |
+| ...`items` | readonly `T`[] |
+
+## Returns
+
+readonly `T`[]

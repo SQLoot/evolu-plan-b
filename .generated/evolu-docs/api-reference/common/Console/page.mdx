@@ -1,0 +1,49 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / Console
+
+Platform-agnostic console with structured logging.
+
+## Functions
+
+| Function | Description |
+| ------ | ------ |
+| [createConsole](/docs/api-reference/common/Console/functions/createConsole.mdx) | Creates a [Console](/docs/api-reference/common/Console/interfaces/Console.mdx). |
+| [createConsoleArrayOutput](/docs/api-reference/common/Console/functions/createConsoleArrayOutput.mdx) | Creates a [ConsoleOutput](/docs/api-reference/common/Console/interfaces/ConsoleOutput.mdx) that captures entries to an array. |
+| [createConsoleAsyncOutput](/docs/api-reference/common/Console/functions/createConsoleAsyncOutput.mdx) | Creates a [ConsoleOutput](/docs/api-reference/common/Console/interfaces/ConsoleOutput.mdx) that buffers entries for async writing. |
+| [~~createConsoleEntryFormatter~~](/docs/api-reference/common/Console/functions/createConsoleEntryFormatter.mdx) | - |
+| [createConsoleFormatter](/docs/api-reference/common/Console/functions/createConsoleFormatter.mdx) | Creates a formatter for [ConsoleConfig.formatter](/docs/api-reference/common/Console/interfaces/ConsoleConfig.mdx#formatter). |
+| [createConsoleStoreOutput](/docs/api-reference/common/Console/functions/createConsoleStoreOutput.mdx) | Creates a [ConsoleStoreOutput](/docs/api-reference/common/Console/interfaces/ConsoleStoreOutput.mdx). |
+| [createMultiOutput](/docs/api-reference/common/Console/functions/createMultiOutput.mdx) | Creates a [ConsoleOutput](/docs/api-reference/common/Console/interfaces/ConsoleOutput.mdx) that routes entries to multiple outputs. |
+| [createNativeConsoleOutput](/docs/api-reference/common/Console/functions/createNativeConsoleOutput.mdx) | Creates a [ConsoleOutput](/docs/api-reference/common/Console/interfaces/ConsoleOutput.mdx) that writes to `globalThis.console`. |
+| [testCreateConsole](/docs/api-reference/common/Console/functions/testCreateConsole.mdx) | Creates a [TestConsole](/docs/api-reference/common/Console/interfaces/TestConsole.mdx) that captures all output for testing. |
+
+## Interfaces
+
+| Interface | Description |
+| ------ | ------ |
+| [Console](/docs/api-reference/common/Console/interfaces/Console.mdx) | Platform-agnostic console with structured logging. |
+| [ConsoleConfig](/docs/api-reference/common/Console/interfaces/ConsoleConfig.mdx) | Configuration for [createConsole](/docs/api-reference/common/Console/functions/createConsole.mdx). |
+| [ConsoleDep](/docs/api-reference/common/Console/interfaces/ConsoleDep.mdx) | - |
+| [ConsoleEntry](/docs/api-reference/common/Console/interfaces/ConsoleEntry.mdx) | Structured log entry captured by [Console](/docs/api-reference/common/Console/interfaces/Console.mdx). |
+| [~~ConsoleEntryDep~~](/docs/api-reference/common/Console/interfaces/ConsoleEntryDep.mdx) | - |
+| [ConsoleFormatterConfig](/docs/api-reference/common/Console/interfaces/ConsoleFormatterConfig.mdx) | Configuration for [createConsoleFormatter](/docs/api-reference/common/Console/functions/createConsoleFormatter.mdx). |
+| [ConsoleOutput](/docs/api-reference/common/Console/interfaces/ConsoleOutput.mdx) | Output destination for [Console](/docs/api-reference/common/Console/interfaces/Console.mdx). |
+| [ConsoleStoreOutput](/docs/api-reference/common/Console/interfaces/ConsoleStoreOutput.mdx) | A [ConsoleOutput](/docs/api-reference/common/Console/interfaces/ConsoleOutput.mdx) that stores the latest entry in a [ReadonlyStore](/docs/api-reference/common/Store/interfaces/ReadonlyStore.mdx). |
+| [ConsoleStoreOutputEntryDep](/docs/api-reference/common/Console/interfaces/ConsoleStoreOutputEntryDep.mdx) | - |
+| [TestConsole](/docs/api-reference/common/Console/interfaces/TestConsole.mdx) | A test console that captures all output for assertions. |
+| [TestConsoleDep](/docs/api-reference/common/Console/interfaces/TestConsoleDep.mdx) | - |
+
+## Type Aliases
+
+| Type Alias | Description |
+| ------ | ------ |
+| [~~ConsoleEntryFormatterConfig~~](/docs/api-reference/common/Console/type-aliases/ConsoleEntryFormatterConfig.mdx) | - |
+| [ConsoleEntryTimestampFormat](/docs/api-reference/common/Console/type-aliases/ConsoleEntryTimestampFormat.mdx) | Timestamp format for [ConsoleFormatterConfig](/docs/api-reference/common/Console/interfaces/ConsoleFormatterConfig.mdx). |
+| [ConsoleFormatter](/docs/api-reference/common/Console/type-aliases/ConsoleFormatter.mdx) | Transforms a [ConsoleEntry](/docs/api-reference/common/Console/interfaces/ConsoleEntry.mdx) before output. |
+| [ConsoleLevel](/docs/api-reference/common/Console/type-aliases/ConsoleLevel.mdx) | Log level controlling which messages are output. |
+| [ConsoleMethod](/docs/api-reference/common/Console/type-aliases/ConsoleMethod.mdx) | Console method being called. |
+
+## Variables
+
+| Variable | Description |
+| ------ | ------ |
+| [~~createConsoleMultiOutput~~](/docs/api-reference/common/Console/variables/createConsoleMultiOutput.mdx) | - |
