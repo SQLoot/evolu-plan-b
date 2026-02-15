@@ -1,10 +1,12 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 // Force rebuild
 import { testCreateConsole } from "../../src/Console.js";
 import { createUnknownError } from "../../src/Error.js";
 import { lazyVoid } from "../../src/Function.js";
 import type {
   DbWorkerInput,
+  DbWorkerLeaderInput,
+  DbWorkerLeaderOutput,
   DbWorkerOutput,
 } from "../../src/local-first/DbWorkerProtocol.js";
 import {
@@ -17,7 +19,12 @@ import { createQueryBuilder } from "../../src/local-first/Schema.js";
 import type { EvoluTabOutput } from "../../src/local-first/Worker.js";
 import { SqliteBoolean } from "../../src/Sqlite.js";
 import { testCreateRun } from "../../src/Test.js";
-import { id, NonEmptyString100, nullOr } from "../../src/Type.js";
+import {
+  id,
+  NonEmptyString100,
+  nullOr,
+  type SimpleName,
+} from "../../src/Type.js";
 import { testSimpleName } from "../_deps.js";
 import { testAppOwner } from "./_fixtures.js";
 
@@ -97,6 +104,7 @@ const createMockDeps = () => {
   let mutateCount = 0;
   let closeCount = 0;
   let tabPort: MockPort<EvoluTabOutput, never> | null = null;
+  const brokerInputs: Array<DbWorkerLeaderInput> = [];
 
   const deps = {
     reloadApp: () => {
@@ -106,7 +114,14 @@ const createMockDeps = () => {
     evoluWorker: {
       port: {
         postMessage: (
-          message: { type: "InitTab" | "InitEvolu"; port: unknown },
+          message:
+            | { type: "InitTab"; port: unknown }
+            | {
+                type: "InitEvolu";
+                name: SimpleName;
+                port: unknown;
+                brokerPort: unknown;
+              },
           _transfer?: ReadonlyArray<unknown>,
         ) => {
           if (message.type === "InitTab") {
@@ -119,6 +134,14 @@ const createMockDeps = () => {
             DbWorkerOutput,
             DbWorkerInput
           >;
+          const brokerPort = message.brokerPort as MockPort<
+            DbWorkerLeaderOutput,
+            DbWorkerLeaderInput
+          >;
+
+          brokerPort.onMessage = (brokerInput) => {
+            brokerInputs.push(brokerInput);
+          };
 
           dbPort.onMessage = (dbMessage) => {
             switch (dbMessage.type) {
@@ -231,6 +254,7 @@ const createMockDeps = () => {
       mutateCount,
       closeCount,
       hasTabPort: tabPort !== null,
+      brokerInputs: [...brokerInputs],
       rows: [...rows],
     }),
   };
@@ -273,7 +297,37 @@ test("createEvoluDeps wraps console error entry into UnknownError", () => {
     },
   });
 
-  expect(evoluDeps.evoluError.get()).toEqual(createUnknownError(["boom"]));
+  expect(evoluDeps.evoluError.get()).toEqual(
+    createUnknownError([
+      "Worker console.error without typed EvoluError payload",
+      { argCount: 1, argKinds: ["string(4)"] },
+    ]),
+  );
+});
+
+test("createEvoluDeps sends leader heartbeats and stops after dispose", async () => {
+  vi.useFakeTimers();
+  try {
+    const { deps, getState } = createMockDeps();
+    const evoluDeps = createEvoluDeps(deps as any);
+    const evolu = createEvolu(evoluDeps)(Schema, { name: testSimpleName });
+
+    await evolu.appOwner;
+    expect(getState().brokerInputs).toContainEqual({
+      type: "LeaderHeartbeat",
+      name: testSimpleName,
+    });
+
+    await vi.advanceTimersByTimeAsync(10_200);
+    const heartbeatCountBeforeDispose = getState().brokerInputs.length;
+    expect(heartbeatCountBeforeDispose).toBeGreaterThanOrEqual(3);
+
+    await evolu[Symbol.asyncDispose]();
+    await vi.advanceTimersByTimeAsync(10_200);
+    expect(getState().brokerInputs).toHaveLength(heartbeatCountBeforeDispose);
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 describe("createEvolu", () => {

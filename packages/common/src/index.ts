@@ -77,6 +77,7 @@ export {
   timestampBytesToTimestamp,
   timestampToTimestampBytes,
 } from "./local-first/Timestamp.js";
+export * from "./Microtask.js";
 export * from "./Number.js";
 export * from "./Object.js";
 export * from "./Option.js";
@@ -86,6 +87,7 @@ export * from "./Polyfills.js";
 export * from "./Random.js";
 export * from "./Redacted.js";
 export * from "./Ref.js";
+export * from "./RefCount.js";
 export * from "./Relation.js";
 export * from "./Resources.js";
 export * from "./Result.js";

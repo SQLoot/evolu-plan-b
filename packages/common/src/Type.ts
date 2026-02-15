@@ -1588,10 +1588,8 @@ export const uint8ArrayToBase64Url: (bytes: Uint8Array) => Base64Url =
   hasNodeBuffer
     ? (bytes: Uint8Array) =>
         globalThis.Buffer.from(bytes).toString("base64url") as Base64Url
-    : // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      typeof (globalThis.Uint8Array.prototype as any)?.toBase64 !== "undefined"
+    : typeof (globalThis.Uint8Array.prototype as any)?.toBase64 !== "undefined"
       ? (bytes: Uint8Array) =>
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           (bytes as any).toBase64(base64UrlOptions) as Base64Url
       : (bytes: Uint8Array) => {
           const binaryString = Array.from(bytes, (byte) =>
@@ -1611,10 +1609,8 @@ export const base64UrlToUint8Array: (str: Base64Url) => Uint8Array =
         const nodeBuffer = globalThis.Buffer.from(str, "base64url");
         return new globalThis.Uint8Array(nodeBuffer);
       }
-    : // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      typeof (globalThis.Uint8Array as any)?.fromBase64 !== "undefined"
+    : typeof (globalThis.Uint8Array as any)?.fromBase64 !== "undefined"
       ? (str: Base64Url) =>
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           (globalThis.Uint8Array as any).fromBase64(
             str,
             base64UrlOptions,
@@ -1661,6 +1657,8 @@ export const SimpleName = /*#__PURE__*/ brand(
 );
 export type SimpleName = typeof SimpleName.Type;
 export interface SimpleNameError extends TypeError<"SimpleName"> {}
+
+export const testName = /*#__PURE__*/ SimpleName.orThrow("Name");
 
 /**
  * Trimmed string between 8 and 64 characters, branded as `SimplePassword`.
@@ -3004,7 +3002,6 @@ export function object(
   props: Record<string, AnyType>,
   record?: RecordType<any, any, any, any, any, any>,
 ): any {
-  /* eslint-disable */
   const propKeys = Object.keys(props);
 
   const fromUnknown = (
@@ -3149,7 +3146,6 @@ export function object(
     props,
     ...(record ? { record } : {}),
   };
-  /* eslint-enable */
 }
 
 /**
@@ -4421,7 +4417,6 @@ export const omit = <T extends ObjectType<any>, Keys extends keyof T["props"]>(
 
   for (const key in objectType.props) {
     if (!keys.includes(key as Keys)) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       newProps[key as keyof typeof newProps] = objectType.props[key];
     }
   }
@@ -4824,7 +4819,6 @@ export interface StandardSchemaV1<Input = unknown, Output = Input> {
   readonly "~standard": StandardSchemaV1.Props<Input, Output>;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-namespace
 export declare namespace StandardSchemaV1 {
   /** The Standard Schema properties interface. */
   export interface Props<Input = unknown, Output = Input> {

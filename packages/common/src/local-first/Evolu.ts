@@ -36,7 +36,13 @@ import {
   UrlSafeString,
 } from "../Type.js";
 import type { CreateMessageChannelDep } from "../Worker.js";
-import type { DbWorkerInput, DbWorkerOutput } from "./DbWorkerProtocol.js";
+import type {
+  DbWorkerInput,
+  DbWorkerLeaderInput,
+  DbWorkerLeaderOutput,
+  DbWorkerOutput,
+} from "./DbWorkerProtocol.js";
+import { dbWorkerLeaderHeartbeatIntervalMs } from "./DbWorkerProtocol.js";
 import type { EvoluError } from "./Error.js";
 import type { AppOwner, OwnerId, OwnerTransport } from "./Owner.js";
 import {
@@ -251,6 +257,8 @@ export const AppName = /*#__PURE__*/ brand("AppName", UrlSafeString, (value) =>
 );
 export type AppName = typeof AppName.Type;
 export interface AppNameError extends TypeError<"AppName"> {}
+
+export const testAppName = /*#__PURE__*/ AppName.orThrow("AppName");
 
 /** Local-first SQL database with typed queries, mutations, and sync. */
 export interface Evolu<S extends EvoluSchema = EvoluSchema>
@@ -584,6 +592,31 @@ const writeConsoleEntry = (console: Console, entry: ConsoleEntry): void => {
   method(...entry.args);
 };
 
+const summarizeConsoleArg = (value: unknown): string => {
+  if (value === null) return "null";
+  if (value === undefined) return "undefined";
+  if (typeof value === "string") return `string(${value.length})`;
+  if (typeof value === "number") return "number";
+  if (typeof value === "boolean") return "boolean";
+  if (typeof value === "bigint") return "bigint";
+  if (typeof value === "symbol") return "symbol";
+  if (typeof value === "function") return "function";
+  if (value instanceof Error) return `Error(${value.name})`;
+  if (value instanceof globalThis.Uint8Array)
+    return `Uint8Array(${value.byteLength})`;
+  if (Array.isArray(value)) return `Array(${value.length})`;
+  return "object";
+};
+
+const createConsoleFallbackError = (args: ReadonlyArray<unknown>): EvoluError =>
+  createUnknownError([
+    "Worker console.error without typed EvoluError payload",
+    {
+      argCount: args.length,
+      argKinds: args.map(summarizeConsoleArg),
+    },
+  ]);
+
 /** Creates Evolu dependencies from platform-specific dependencies. */
 export const createEvoluDeps = <D extends EvoluPlatformDeps>(
   deps: D,
@@ -606,7 +639,7 @@ export const createEvoluDeps = <D extends EvoluPlatformDeps>(
         writeConsoleEntry(console, output.entry);
         if (output.entry.method === "error") {
           // Fallback when an error was logged without typed EvoluError payload.
-          evoluError.set(createUnknownError(output.entry.args));
+          evoluError.set(createConsoleFallbackError(output.entry.args));
         }
         break;
       }
@@ -734,7 +767,7 @@ export const createEvolu =
     };
 
     const dbSchema = evoluSchemaToDbSchema(schema as EvoluSchema, _indexes);
-    const dbWorker = createDbWorkerClient(deps, setUnknownError);
+    const dbWorker = createDbWorkerClient(deps, name, setUnknownError);
 
     const storeAppOwner = async (nextAppOwner: AppOwner): Promise<void> => {
       await dbWorker.mutate(
@@ -1102,16 +1135,23 @@ type DbWorkerResponseWithRequestId = Extract<
 
 const createDbWorkerClient = (
   deps: CreateMessageChannelDep & EvoluWorkerDep & DisposableStackDep,
+  name: SimpleName,
   onError: (error: unknown) => void,
 ): DbWorkerClient => {
   const channel = deps.disposableStack.use(
     deps.createMessageChannel<DbWorkerOutput, DbWorkerInput>(),
   );
+  const brokerChannel = deps.disposableStack.use(
+    deps.createMessageChannel<DbWorkerLeaderOutput, DbWorkerLeaderInput>(),
+  );
   const port = channel.port2;
+  const brokerPort = brokerChannel.port2;
 
   let requestIdCounter = 1;
   let isDisposed = false;
   let closePromise: Promise<void> | null = null;
+  let heartbeatIntervalId: ReturnType<typeof globalThis.setInterval> | null =
+    null;
 
   const pendingRequests = new Map<
     number,
@@ -1139,12 +1179,34 @@ const createDbWorkerClient = (
     while (appOwnerWaiters.length > 0) appOwnerWaiters.shift()?.reject(error);
   };
 
+  const stopLeaderHeartbeat = (): void => {
+    if (!heartbeatIntervalId) return;
+    globalThis.clearInterval(heartbeatIntervalId);
+    heartbeatIntervalId = null;
+  };
+
+  const sendLeaderHeartbeat = (): void => {
+    brokerPort.postMessage({ type: "LeaderHeartbeat", name });
+  };
+
+  const startLeaderHeartbeat = (): void => {
+    if (heartbeatIntervalId) return;
+    sendLeaderHeartbeat();
+    heartbeatIntervalId = globalThis.setInterval(
+      sendLeaderHeartbeat,
+      dbWorkerLeaderHeartbeatIntervalMs,
+    );
+  };
+
   const disposeNow = (error: unknown): void => {
     if (isDisposed) return;
     isDisposed = true;
+    stopLeaderHeartbeat();
     rejectAllPending(error);
     port.onMessage = null;
+    brokerPort.onMessage = null;
     channel[Symbol.dispose]();
+    brokerChannel[Symbol.dispose]();
   };
 
   port.onMessage = (message) => {
@@ -1168,8 +1230,12 @@ const createDbWorkerClient = (
         onError(new Error("Received unexpected DbWorkerInitResponse"));
         return;
       }
-      if (message.success) waiter.resolve();
-      else waiter.reject(new Error(message.error ?? "DbWorker init failed"));
+      if (message.success) {
+        startLeaderHeartbeat();
+        waiter.resolve();
+      } else {
+        waiter.reject(new Error(message.error ?? "DbWorker init failed"));
+      }
       return;
     }
 
@@ -1205,9 +1271,24 @@ const createDbWorkerClient = (
     pending.resolve(message);
   };
 
+  brokerPort.onMessage = (output) => {
+    if (output.type === "LeaderAcquired" && output.name !== name) {
+      onError(
+        new Error(
+          `Unexpected LeaderAcquired for '${output.name}' in '${name}' channel`,
+        ),
+      );
+    }
+  };
+
   deps.evoluWorker.port.postMessage(
-    { type: "InitEvolu", port: channel.port1.native },
-    [channel.port1.native],
+    {
+      type: "InitEvolu",
+      name,
+      port: channel.port1.native,
+      brokerPort: brokerChannel.port1.native,
+    },
+    [channel.port1.native, brokerChannel.port1.native],
   );
 
   const request = <TExpected extends DbWorkerResponseWithRequestId["type"]>(

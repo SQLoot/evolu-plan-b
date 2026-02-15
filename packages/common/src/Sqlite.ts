@@ -295,7 +295,6 @@ const drawSqliteQueryPlan = (rows: Array<SqliteQueryPlanRow>): string =>
         if (!parent) break;
         parentId = parent.parent;
         indent++;
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, no-constant-condition
       } while (true);
 
       return `${"  ".repeat(indent)}${row.detail}`;
@@ -398,9 +397,8 @@ export type SqlTemplateParam = SqliteValue | SqlIdentifier | RawSql;
  *
  * ## TIP
  *
- * Use `prettier-plugin-sql-cst` for SQL formatting. Like Prettier for
- * JavaScript, this plugin formats SQL expressions differently depending on
- * their length.
+ * Use a dedicated SQL formatter for long queries to keep statements readable
+ * and consistent.
  */
 export const sql = (
   strings: TemplateStringsArray,
