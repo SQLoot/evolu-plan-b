@@ -31,7 +31,7 @@ const waitForOutput = (
   });
 
 const waitForLeader = (
-  port: MessagePort<never, DbWorkerLeaderOutput>,
+  port: MessagePort<DbWorkerLeaderInput, DbWorkerLeaderOutput>,
   timeoutMs = 500,
 ): Promise<DbWorkerLeaderOutput | null> =>
   new Promise((resolve) => {
