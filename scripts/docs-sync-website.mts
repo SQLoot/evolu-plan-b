@@ -1,7 +1,10 @@
 import { existsSync } from "node:fs";
+import { spawn } from "node:child_process";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const websiteRoot = resolve(import.meta.dir, "../../website");
+const scriptDir = fileURLToPath(new URL(".", import.meta.url));
+const websiteRoot = resolve(scriptDir, "../../website");
 const websitePackageJsonPath = resolve(websiteRoot, "package.json");
 
 if (!existsSync(websitePackageJsonPath)) {
@@ -11,11 +14,14 @@ if (!existsSync(websitePackageJsonPath)) {
   process.exit(0);
 }
 
-const processHandle = Bun.spawn({
-  cmd: ["bun", "run", "--cwd", websiteRoot, "docs:sync:evolu"],
-  stdout: "inherit",
-  stderr: "inherit",
+const child = spawn("bun", ["run", "--cwd", websiteRoot, "docs:sync:evolu"], {
+  stdio: "inherit",
+  shell: process.platform === "win32",
 });
 
-const exitCode = await processHandle.exited;
+const exitCode = await new Promise<number>((resolve) => {
+  child.on("close", (code) => resolve(code ?? 1));
+  child.on("error", () => resolve(1));
+});
+
 if (exitCode !== 0) process.exit(exitCode);
