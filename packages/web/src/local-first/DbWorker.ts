@@ -9,6 +9,7 @@ import { SimpleName as SimpleNameType } from "@evolu/common";
 import type {
   AppOwner,
   DbWorkerInput,
+  DbWorkerLeaderOutput,
   DbWorkerOutput,
   Row,
 } from "@evolu/common/local-first";
@@ -58,9 +59,12 @@ const createDriver = async (dbName: string): Promise<SqliteDriver> => {
   return result.value;
 };
 
-export const runWebDbWorkerPort = (
-  port: MessagePort<DbWorkerOutput, DbWorkerInput>,
-): void => {
+export const runWebDbWorkerPort = (config: {
+  readonly name: SimpleName;
+  readonly port: MessagePort<DbWorkerOutput, DbWorkerInput>;
+  readonly brokerPort: MessagePort<DbWorkerLeaderOutput>;
+}): void => {
+  const { name, port, brokerPort } = config;
   let db: SqliteDriver | null = null;
   let releaseDbLock: (() => void) | null = null;
 
@@ -129,6 +133,7 @@ export const runWebDbWorkerPort = (
             [String(message.schemaVersion)],
           );
 
+          brokerPort.postMessage({ type: "LeaderAcquired", name });
           postMessage({ type: "DbWorkerInitResponse", success: true });
         } catch (error) {
           postMessage({
