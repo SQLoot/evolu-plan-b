@@ -1,0 +1,40 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / Types
+
+TypeScript utility types.
+
+## Functions
+
+| Function | Description |
+| ------ | ------ |
+| [isPromiseLike](/docs/api-reference/common/Types/functions/isPromiseLike.mdx) | Type guard to check if a value is a [PromiseLike](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables). |
+
+## Type Aliases
+
+| Type Alias | Description |
+| ------ | ------ |
+| [Awaitable](/docs/api-reference/common/Types/type-aliases/Awaitable.mdx) | A value that can be awaited. |
+| [Callback](/docs/api-reference/common/Types/type-aliases/Callback.mdx) | A function that receives a value and returns nothing. |
+| [CallbackWithCleanup](/docs/api-reference/common/Types/type-aliases/CallbackWithCleanup.mdx) | A function that receives a value and optionally returns a cleanup function. |
+| [Digit](/docs/api-reference/common/Types/type-aliases/Digit.mdx) | Single digit 0-9. Useful for template literal type validation. |
+| [Digit1To23](/docs/api-reference/common/Types/type-aliases/Digit1To23.mdx) | Numeric string 1-23. Useful for hours validation. |
+| [Digit1To51](/docs/api-reference/common/Types/type-aliases/Digit1To51.mdx) | Numeric string 1-51. Useful for weeks validation. |
+| [Digit1To59](/docs/api-reference/common/Types/type-aliases/Digit1To59.mdx) | Numeric string 1-59. Useful for minutes, seconds validation. |
+| [Digit1To6](/docs/api-reference/common/Types/type-aliases/Digit1To6.mdx) | Numeric string 1-6. Useful for days validation. |
+| [Digit1To9](/docs/api-reference/common/Types/type-aliases/Digit1To9.mdx) | Digit 1-9. Useful for template literal type validation. |
+| [Digit1To99](/docs/api-reference/common/Types/type-aliases/Digit1To99.mdx) | Numeric string 1-99. Useful for years validation. |
+| [DistributiveOmit](/docs/api-reference/common/Types/type-aliases/DistributiveOmit.mdx) | Removes keys from each member of a union. |
+| [Int1To100](/docs/api-reference/common/Types/type-aliases/Int1To100.mdx) | Numeric literal 1-100. |
+| [Int1To99](/docs/api-reference/common/Types/type-aliases/Int1To99.mdx) | Numeric literal 1-99. |
+| [Literal](/docs/api-reference/common/Types/type-aliases/Literal.mdx) | String, number, bigint, boolean, undefined, null |
+| [Mutable](/docs/api-reference/common/Types/type-aliases/Mutable.mdx) | Removes `readonly` modifier from all properties of a type. |
+| [NewKeys](/docs/api-reference/common/Types/type-aliases/NewKeys.mdx) | Constrains `T` to only contain keys not present in `Existing`. |
+| [NullablePartial](/docs/api-reference/common/Types/type-aliases/NullablePartial.mdx) | Makes properties optional if they accept `null` as a value. |
+| [NumberFromString](/docs/api-reference/common/Types/type-aliases/NumberFromString.mdx) | Parses a numeric literal type from a string literal. |
+| [PartialProp](/docs/api-reference/common/Types/type-aliases/PartialProp.mdx) | Makes a specific property of an object optional while keeping others unchanged. |
+| [Predicate](/docs/api-reference/common/Types/type-aliases/Predicate.mdx) | Checks a condition on a value and returns a boolean. |
+| [PredicateWithIndex](/docs/api-reference/common/Types/type-aliases/PredicateWithIndex.mdx) | Checks a condition on a value at a given index and returns a boolean. |
+| [Refinement](/docs/api-reference/common/Types/type-aliases/Refinement.mdx) | A type guard function that refines type `A` to a narrower type `B`. |
+| [RefinementWithIndex](/docs/api-reference/common/Types/type-aliases/RefinementWithIndex.mdx) | A type guard function that refines type `A` to a narrower type `B` at a given index. |
+| [Simplify](/docs/api-reference/common/Types/type-aliases/Simplify.mdx) | Simplify an intersection type into a single mapped type. |
+| [UnionToIntersection](/docs/api-reference/common/Types/type-aliases/UnionToIntersection.mdx) | Converts a union to an intersection. |
+| [WidenLiteral](/docs/api-reference/common/Types/type-aliases/WidenLiteral.mdx) | Infers a broader type from a specific literal value type. |

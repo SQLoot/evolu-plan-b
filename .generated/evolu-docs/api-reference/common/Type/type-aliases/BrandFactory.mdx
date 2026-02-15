@@ -1,0 +1,62 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / BrandFactory
+
+```ts
+type BrandFactory<Name, Input, RefineError> = <PName, P, PInput, PParent, PError, PParentError>(parent: Type<PName, P, PInput, PError, PParent, PParentError>) => BrandType<Type<PName, P, PInput, PError, PParent, PParentError>, Name, RefineError, PError | PParentError>;
+```
+
+Defined in: [packages/common/src/Type.ts:1236](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L1236)
+
+Helper type for Type Factory that creates a branded Type.
+
+### Example
+
+```ts
+const trimmed: BrandFactory<"Trimmed", string, TrimmedError> = (
+  parent,
+) =>
+  brand("Trimmed", parent, (value) =>
+    value.trim().length === value.length
+      ? ok(value)
+      : err<TrimmedError>({ type: "Trimmed", value }),
+  );
+```
+
+### Numeric literal inference
+
+When using factories with numeric parameters (like `lessThan`, `maxLength`,
+`between`), use numeric literals instead of expressions. TypeScript widens
+expressions to `number`, losing the literal type in the brand name:
+
+```ts
+lessThan(100)(Number); // Brand<"LessThan100"> ✓
+lessThan(100 - 1)(Number); // Brand<"LessThan" + number> ✗
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Name` *extends* [`TypeName`](/docs/api-reference/common/Type/type-aliases/TypeName.mdx) |
+| `Input` |
+| `RefineError` *extends* [`TypeError`](/docs/api-reference/common/Type/interfaces/TypeError.mdx) |
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `PName` *extends* [`TypeName`](/docs/api-reference/common/Type/type-aliases/TypeName.mdx) | - |
+| `P` *extends* `Input` | - |
+| `PInput` | - |
+| `PParent` | - |
+| `PError` *extends* [`TypeError`](/docs/api-reference/common/Type/interfaces/TypeError.mdx) | `never` |
+| `PParentError` *extends* [`TypeError`](/docs/api-reference/common/Type/interfaces/TypeError.mdx) | `never` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `parent` | [`Type`](/docs/api-reference/common/Type/interfaces/Type.mdx)\<`PName`, `P`, `PInput`, `PError`, `PParent`, `PParentError`\> |
+
+## Returns
+
+[`BrandType`](/docs/api-reference/common/Type/interfaces/BrandType.mdx)\<[`Type`](/docs/api-reference/common/Type/interfaces/Type.mdx)\<`PName`, `P`, `PInput`, `PError`, `PParent`, `PParentError`\>, `Name`, `RefineError`, `PError` \| `PParentError`\>

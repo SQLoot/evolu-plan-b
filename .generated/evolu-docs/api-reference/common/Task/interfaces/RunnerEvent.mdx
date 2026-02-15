@@ -1,0 +1,90 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Task](/docs/api-reference/common/Task/page.mdx) / RunnerEvent
+
+Defined in: [packages/common/src/Task.ts:950](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L950)
+
+Events emitted by a [Runner](/docs/api-reference/common/Task/interfaces/Runner.mdx) for monitoring and debugging.
+
+Events bubble up through parent runners, enabling centralized monitoring at
+the root. Use with [Runner.onEvent](/docs/api-reference/common/Task/interfaces/Runner.mdx#onevent) to track task lifecycle.
+
+## Extends
+
+- [`InferType`](/docs/api-reference/common/Type/type-aliases/InferType.mdx)\<*typeof* [`RunnerEvent`](/docs/api-reference/common/Task/variables/RunnerEvent.mdx)\>
+
+## Properties
+
+<a id="data"></a>
+
+### data
+
+```ts
+data: 
+  | Readonly<{
+  childId: string & Brand<"Id">;
+  type: "ChildAdded";
+}>
+  | Readonly<{
+  childId: string & Brand<"Id">;
+  type: "ChildRemoved";
+}>
+  | Readonly<{
+  state:   | Readonly<{
+     type: "Running";
+   }>
+     | Readonly<{
+     type: "Completing";
+   }>
+     | Readonly<{
+     outcome:   | Readonly<{
+        ok: true;
+        value: unknown;
+      }>
+        | Readonly<{
+        error: unknown;
+        ok: false;
+      }>;
+     result:   | Readonly<{
+        ok: true;
+        value: unknown;
+      }>
+        | Readonly<{
+        error: unknown;
+        ok: false;
+      }>;
+     type: "Completed";
+   }>;
+  type: "StateChanged";
+}>;
+```
+
+#### Inherited from
+
+[`RunnerEvent`](/docs/api-reference/common/Task/interfaces/RunnerEvent.mdx).[`data`](/docs/api-reference/common/Task/interfaces/RunnerEvent.mdx#data)
+
+***
+
+<a id="id"></a>
+
+### id
+
+```ts
+id: string & Brand<"Id">;
+```
+
+#### Inherited from
+
+[`RunnerEvent`](/docs/api-reference/common/Task/interfaces/RunnerEvent.mdx).[`id`](/docs/api-reference/common/Task/interfaces/RunnerEvent.mdx#id)
+
+***
+
+<a id="timestamp"></a>
+
+### timestamp
+
+```ts
+timestamp: number & Brand<"Int"> & Brand<"NonNegative"> & Brand<"LessThan281474976710655"> & Brand<"Millis">;
+```
+
+#### Inherited from
+
+[`RunnerEvent`](/docs/api-reference/common/Task/interfaces/RunnerEvent.mdx).[`timestamp`](/docs/api-reference/common/Task/interfaces/RunnerEvent.mdx#timestamp)

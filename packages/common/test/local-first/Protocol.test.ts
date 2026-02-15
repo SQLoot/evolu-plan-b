@@ -1075,7 +1075,6 @@ describe("E2E sync", () => {
     let syncSteps = 0;
     const syncSizes: Array<number> = [message.length];
 
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     while (message) {
       syncSteps++;
 

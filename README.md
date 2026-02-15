@@ -40,18 +40,9 @@ bun install
 Build scripts
 
 - `bun run build` - Build packages
-- `bun run build:web` - Build docs and web
-
-Web build notes
-
-- Uses webpack (`next build --webpack`) because SharedWorker is required.
-- Uses `NODE_OPTIONS=--max-old-space-size-percentage=75` to avoid V8 heap OOM on large docs builds.
-- On macOS Tahoe, you may need to raise Launch Services limits too (shell `ulimit -n` is not enough):
-  - `sudo launchctl limit maxfiles 262144 262144`
-
 Start dev
 
-- `bun run dev` - Start development mode (builds packages, starts web and relay)
+- `bun run dev` - Start development mode for relay
 - `bun run ios` - Run iOS example (requires `bun run dev` running)
 - `bun run android` - Run Android example (requires `bun run dev` running)
 

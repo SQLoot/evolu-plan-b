@@ -1,0 +1,191 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / brand
+
+## Call Signature
+
+```ts
+function brand<Name, ParentType, Parent, RefineError>(
+   name: Name, 
+   parent: ParentType, 
+refine: (value: Parent) => Result<Parent, RefineError>): BrandType<ParentType, Name, RefineError, InferErrors<ParentType>>;
+```
+
+Defined in: [packages/common/src/Type.ts:1050](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L1050)
+
+Branded [Type](/docs/api-reference/common/Type/interfaces/Type.mdx).
+
+Branding is the recommended way to define types in Evolu. Instead of using
+primitive types like `string` or `number` directly, wrap them with `brand` to
+create semantically meaningful types. See [Brand](/docs/api-reference/common/Brand/interfaces/Brand.mdx) for why this matters.
+
+The `brand` Type Factory takes the name of a new [Brand](/docs/api-reference/common/Brand/interfaces/Brand.mdx), a parent Type
+to be branded, and the optional `refine` function for additional constraint.
+
+The `refine` function can be omitted if we only want to add a brand.
+
+### Example
+
+A simple `CurrencyCode` Type:
+
+```ts
+const CurrencyCode = brand("CurrencyCode", String, (value) =>
+  /^[A-Z]{3}$/.test(value)
+    ? ok(value)
+    : err<CurrencyCodeError>({ type: "CurrencyCode", value }),
+);
+
+// string & Brand<"CurrencyCode">
+type CurrencyCode = typeof CurrencyCode.Type;
+
+interface CurrencyCodeError extends TypeError<"CurrencyCode"> {}
+
+const formatCurrencyCodeError =
+  createTypeErrorFormatter<CurrencyCodeError>(
+    (error) => `Invalid currency code: ${error.value}`,
+  );
+
+// Usage
+const result = CurrencyCode.from("USD");
+if (result.ok) {
+  console.log("Valid currency code:", result.value);
+} else {
+  console.error(formatCurrencyCodeError(result.error));
+}
+```
+
+Often, we want to make a branded Type reusable. For example, instead of
+`TrimmedString`, we want the `trimmed` Type Factory:
+
+```ts
+const trimmed: BrandFactory<"Trimmed", string, TrimmedError> = (
+  parent,
+) =>
+  brand("Trimmed", parent, (value) =>
+    value.trim().length === value.length
+      ? ok(value)
+      : err<TrimmedError>({ type: "Trimmed", value }),
+  );
+
+interface TrimmedError extends TypeError<"Trimmed"> {}
+
+const formatTrimmedError = createTypeErrorFormatter<TrimmedError>(
+  (error) => `A value ${error.value} is not trimmed`,
+);
+
+const TrimmedString = trimmed(String);
+
+// string & Brand<"Trimmed">
+type TrimmedString = typeof TrimmedString.Type;
+
+const TrimmedNote = trimmed(Note);
+```
+
+As noted earlier, the `refine` function is optional. That's useful to add
+semantic meaning to the existing Type without altering its functionality:
+
+```ts
+const SimplePassword = brand(
+  "SimplePassword",
+  minLength(8)(maxLength(64)(TrimmedString)),
+);
+// string & Brand<"Trimmed"> & Brand<"MinLength8"> & Brand<"MaxLength64"> & Brand<"SimplePassword">
+type SimplePassword = typeof SimplePassword.Type;
+```
+
+We can use `brand` to enforce valid object as well:
+
+```ts
+const Form = object({
+  password: SimplePassword,
+  confirmPassword: SimplePassword,
+});
+
+const ValidForm = brand("ValidForm", Form, (value) => {
+  if (value.password !== value.confirmPassword)
+    return err<ValidFormError>({
+      type: "ValidForm",
+      value,
+      reason: { kind: "PasswordMismatch" },
+    });
+  return ok(value);
+});
+type ValidForm = typeof ValidForm.Type;
+
+interface ValidFormError extends TypeError<"ValidForm"> {
+  readonly reason: { kind: "PasswordMismatch" };
+}
+
+const result = ValidForm.from({
+  password: "abcde123",
+  confirmPassword: "bbcde123",
+});
+
+const safeForm = (_form: ValidForm) => {
+  //
+};
+
+if (result.ok) {
+  safeForm(result.value);
+}
+
+expect(result).toEqual(
+  err({
+    type: "ValidForm",
+    value: {
+      confirmPassword: "bbcde123",
+      password: "abcde123",
+    },
+    reason: {
+      kind: "PasswordMismatch",
+    },
+  }),
+);
+```
+
+### Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `Name` *extends* `string` | - |
+| `ParentType` *extends* [`AnyType`](/docs/api-reference/common/Type/type-aliases/AnyType.mdx) | - |
+| `Parent` | [`InferType`](/docs/api-reference/common/Type/type-aliases/InferType.mdx)\<`ParentType`\> |
+| `RefineError` *extends* [`TypeError`](/docs/api-reference/common/Type/interfaces/TypeError.mdx)\<`Capitalize`\<`string`\>\> | `never` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `name` | `Name` |
+| `parent` | `ParentType` |
+| `refine` | (`value`: `Parent`) => [`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`Parent`, `RefineError`\> |
+
+### Returns
+
+[`BrandType`](/docs/api-reference/common/Type/interfaces/BrandType.mdx)\<`ParentType`, `Name`, `RefineError`, [`InferErrors`](/docs/api-reference/common/Type/type-aliases/InferErrors.mdx)\<`ParentType`\>\>
+
+## Call Signature
+
+```ts
+function brand<Name, ParentType>(name: Name, parent: ParentType): BrandType<ParentType, Name, BrandWithoutRefineError<Name, InferErrors<ParentType>>>;
+```
+
+Defined in: [packages/common/src/Type.ts:1062](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L1062)
+
+Without refine function.
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Name` *extends* `string` |
+| `ParentType` *extends* [`AnyType`](/docs/api-reference/common/Type/type-aliases/AnyType.mdx) |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `name` | `Name` |
+| `parent` | `ParentType` |
+
+### Returns
+
+[`BrandType`](/docs/api-reference/common/Type/interfaces/BrandType.mdx)\<`ParentType`, `Name`, [`BrandWithoutRefineError`](/docs/api-reference/common/Type/interfaces/BrandWithoutRefineError.mdx)\<`Name`, [`InferErrors`](/docs/api-reference/common/Type/type-aliases/InferErrors.mdx)\<`ParentType`\>\>\>

@@ -1,0 +1,24 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/vue](/docs/api-reference/vue/page.mdx) / useOwner
+
+```ts
+function useOwner(owner: 
+  | SyncOwner
+  | null): void;
+```
+
+Defined in: [useOwner.ts:10](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/vue/src/useOwner.ts#L10)
+
+Vue composable for Evolu `useOwner` method.
+
+Using an owner means syncing it with its transports, or the transports
+defined in Evolu config if the owner has no transports defined.
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `owner` | \| [`SyncOwner`](/docs/api-reference/common/local-first/Sync/interfaces/SyncOwner.mdx) \| `null` |
+
+## Returns
+
+`void`

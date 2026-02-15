@@ -1,0 +1,148 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [local-first/Protocol](/docs/api-reference/common/local-first/Protocol/page.mdx) / ProtocolMessageBuffer
+
+Defined in: [packages/common/src/local-first/Protocol.ts:567](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L567)
+
+Mutable builder for constructing [ProtocolMessage](/docs/api-reference/common/local-first/Protocol/type-aliases/ProtocolMessage.mdx) respecting size
+limits.
+
+## Properties
+
+<a id="addmessage"></a>
+
+### addMessage()
+
+```ts
+readonly addMessage: (message: EncryptedCrdtMessage) => void;
+```
+
+Defined in: [packages/common/src/local-first/Protocol.ts:570](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L570)
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `message` | [`EncryptedCrdtMessage`](/docs/api-reference/common/local-first/Storage/interfaces/EncryptedCrdtMessage.mdx) |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="addrange"></a>
+
+### addRange()
+
+```ts
+readonly addRange: (range: 
+  | FingerprintRange
+  | SkipRange
+  | TimestampsRangeWithTimestampsBuffer) => void;
+```
+
+Defined in: [packages/common/src/local-first/Protocol.ts:579](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L579)
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `range` | \| [`FingerprintRange`](/docs/api-reference/common/local-first/Storage/interfaces/FingerprintRange.mdx) \| [`SkipRange`](/docs/api-reference/common/local-first/Storage/interfaces/SkipRange.mdx) \| [`TimestampsRangeWithTimestampsBuffer`](/docs/api-reference/common/local-first/Protocol/interfaces/TimestampsRangeWithTimestampsBuffer.mdx) |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="canaddmessage"></a>
+
+### canAddMessage()
+
+```ts
+readonly canAddMessage: (message: EncryptedCrdtMessage) => boolean;
+```
+
+Defined in: [packages/common/src/local-first/Protocol.ts:568](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L568)
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `message` | [`EncryptedCrdtMessage`](/docs/api-reference/common/local-first/Storage/interfaces/EncryptedCrdtMessage.mdx) |
+
+#### Returns
+
+`boolean`
+
+***
+
+<a id="canaddtimestampsrangeandmessage"></a>
+
+### canAddTimestampsRangeAndMessage()
+
+```ts
+readonly canAddTimestampsRangeAndMessage: (timestamps: TimestampsBuffer, message: 
+  | EncryptedCrdtMessage
+  | null) => boolean;
+```
+
+Defined in: [packages/common/src/local-first/Protocol.ts:574](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L574)
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `timestamps` | [`TimestampsBuffer`](/docs/api-reference/common/local-first/Protocol/interfaces/TimestampsBuffer.mdx) |
+| `message` | \| [`EncryptedCrdtMessage`](/docs/api-reference/common/local-first/Storage/interfaces/EncryptedCrdtMessage.mdx) \| `null` |
+
+#### Returns
+
+`boolean`
+
+***
+
+<a id="cansplitrange"></a>
+
+### canSplitRange()
+
+```ts
+readonly canSplitRange: () => boolean;
+```
+
+Defined in: [packages/common/src/local-first/Protocol.ts:572](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L572)
+
+#### Returns
+
+`boolean`
+
+***
+
+<a id="getsize"></a>
+
+### getSize()
+
+```ts
+readonly getSize: () => number & Brand<"Int"> & Brand<"NonNegative"> & Brand<"Positive">;
+```
+
+Defined in: [packages/common/src/local-first/Protocol.ts:584](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L584)
+
+#### Returns
+
+`number` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Int"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"NonNegative"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Positive"`\>
+
+***
+
+<a id="unwrap"></a>
+
+### unwrap()
+
+```ts
+readonly unwrap: () => ProtocolMessage;
+```
+
+Defined in: [packages/common/src/local-first/Protocol.ts:583](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L583)
+
+#### Returns
+
+[`ProtocolMessage`](/docs/api-reference/common/local-first/Protocol/type-aliases/ProtocolMessage.mdx)

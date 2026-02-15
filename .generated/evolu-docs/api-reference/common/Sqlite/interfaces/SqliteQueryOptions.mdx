@@ -1,0 +1,56 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Sqlite](/docs/api-reference/common/Sqlite/page.mdx) / SqliteQueryOptions
+
+Defined in: [packages/common/src/Sqlite.ts:77](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Sqlite.ts#L77)
+
+Options for configuring [SqliteQuery](/docs/api-reference/common/Sqlite/interfaces/SqliteQuery.mdx) execution behavior.
+
+## Properties
+
+<a id="logexplainqueryplan"></a>
+
+### logExplainQueryPlan?
+
+```ts
+readonly optional logExplainQueryPlan: boolean;
+```
+
+Defined in: [packages/common/src/Sqlite.ts:91](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Sqlite.ts#L91)
+
+If set to `true`, logs the SQLite Explain Query Plan (EQP) for the query.
+This can help analyze how SQLite plans to execute the query and identify
+potential optimizations.
+
+See: [https://www.sqlite.org/eqp.html](https://www.sqlite.org/eqp.html).
+
+***
+
+<a id="logqueryexecutiontime"></a>
+
+### logQueryExecutionTime?
+
+```ts
+readonly optional logQueryExecutionTime: boolean;
+```
+
+Defined in: [packages/common/src/Sqlite.ts:82](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Sqlite.ts#L82)
+
+If set to `true`, logs the time taken to execute the SQL query. Useful for
+performance monitoring and identifying slow queries.
+
+***
+
+<a id="prepare"></a>
+
+### prepare?
+
+```ts
+readonly optional prepare: boolean;
+```
+
+Defined in: [packages/common/src/Sqlite.ts:100](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Sqlite.ts#L100)
+
+If set to `true`, explicitly prepares the query before execution. Prepared
+statements can improve performance for repeated queries by reusing the
+compiled query.
+
+See: [https://sqlite.org/wasm/doc/trunk/api-oo1.md#db-prepare](https://sqlite.org/wasm/doc/trunk/api-oo1.md#db-prepare).

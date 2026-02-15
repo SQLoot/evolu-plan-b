@@ -1,0 +1,134 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Worker](/docs/api-reference/common/Worker/page.mdx) / WorkerSelf
+
+Defined in: [packages/common/src/Worker.ts:169](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Worker.ts#L169)
+
+Typed `self` for code running inside a dedicated worker.
+
+This is the worker-side counterpart to [Worker](/docs/api-reference/common/Worker/interfaces/Worker.mdx) — a typed
+[MessagePort](/docs/api-reference/common/Worker/interfaces/MessagePort.mdx) that wraps `self` inside the worker.
+
+## Extends
+
+- [`MessagePort`](/docs/api-reference/common/Worker/interfaces/MessagePort.mdx)\<`Output`, `Input`\>
+
+## Extended by
+
+- [`WorkerScope`](/docs/api-reference/common/Worker/interfaces/WorkerScope.mdx)
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `Input` | - |
+| `Output` | `never` |
+
+## Methods
+
+<a id="dispose"></a>
+
+### \[dispose\]()
+
+#### Call Signature
+
+```ts
+dispose: void;
+```
+
+Defined in: node\_modules/.bun/typescript@5.9.3/node\_modules/typescript/lib/lib.esnext.disposable.d.ts:36
+
+##### Returns
+
+`void`
+
+##### Inherited from
+
+[`MessagePort`](/docs/api-reference/common/Worker/interfaces/MessagePort.mdx).[`[dispose]`](/docs/api-reference/common/Worker/interfaces/MessagePort.mdx#dispose)
+
+#### Call Signature
+
+```ts
+dispose: void;
+```
+
+Defined in: node\_modules/.bun/@types+node@22.19.11/node\_modules/@types/node/compatibility/disposable.d.ts:9
+
+##### Returns
+
+`void`
+
+##### Inherited from
+
+[`MessagePort`](/docs/api-reference/common/Worker/interfaces/MessagePort.mdx).[`[dispose]`](/docs/api-reference/common/Worker/interfaces/MessagePort.mdx#dispose)
+
+## Properties
+
+<a id="native"></a>
+
+### native
+
+```ts
+readonly native: NativeMessagePort;
+```
+
+Defined in: [packages/common/src/Worker.ts:75](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Worker.ts#L75)
+
+The native underlying port. Use this only for transferring via postMessage.
+
+#### Inherited from
+
+[`MessagePort`](/docs/api-reference/common/Worker/interfaces/MessagePort.mdx).[`native`](/docs/api-reference/common/Worker/interfaces/MessagePort.mdx#native)
+
+***
+
+<a id="onmessage"></a>
+
+### onMessage
+
+```ts
+onMessage: (message: Input) => void | null;
+```
+
+Defined in: [packages/common/src/Worker.ts:72](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Worker.ts#L72)
+
+Callback for messages from the port (like `onmessage` on MessagePort).
+
+#### See
+
+https://developer.mozilla.org/en-US/docs/Web/API/MessagePort/message_event
+
+#### Inherited from
+
+[`MessagePort`](/docs/api-reference/common/Worker/interfaces/MessagePort.mdx).[`onMessage`](/docs/api-reference/common/Worker/interfaces/MessagePort.mdx#onmessage)
+
+***
+
+<a id="postmessage"></a>
+
+### postMessage()
+
+```ts
+readonly postMessage: (message: Output, transfer?: readonly Transferable[]) => void;
+```
+
+Defined in: [packages/common/src/Worker.ts:62](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Worker.ts#L62)
+
+Sends a message.
+
+Transferable objects in the optional transfer array will have their
+ownership transferred to the receiver, making them unusable in the sender.
+The transferable objects must be reachable from the message object.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `message` | `Output` |
+| `transfer?` | readonly [`Transferable`](/docs/api-reference/common/Worker/type-aliases/Transferable.mdx)[] |
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`MessagePort`](/docs/api-reference/common/Worker/interfaces/MessagePort.mdx).[`postMessage`](/docs/api-reference/common/Worker/interfaces/MessagePort.mdx#postmessage)

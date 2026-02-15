@@ -1,0 +1,17 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Types](/docs/api-reference/common/Types/page.mdx) / PartialProp
+
+```ts
+type PartialProp<T, K> = Omit<T, K> & Partial<Pick<T, K>>;
+```
+
+Defined in: [packages/common/src/Types.ts:209](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Types.ts#L209)
+
+Makes a specific property of an object optional while keeping others
+unchanged.
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+| `K` *extends* keyof `T` |

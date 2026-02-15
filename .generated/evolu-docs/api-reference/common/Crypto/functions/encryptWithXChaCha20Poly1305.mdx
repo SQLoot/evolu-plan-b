@@ -1,0 +1,49 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Crypto](/docs/api-reference/common/Crypto/page.mdx) / encryptWithXChaCha20Poly1305
+
+```ts
+function encryptWithXChaCha20Poly1305(deps: RandomBytesDep): (plaintext: Uint8Array, encryptionKey: Uint8Array<ArrayBufferLike> & Brand<"Entropy"> & Brand<"Length32"> & Brand<"EncryptionKey">) => [Uint8Array<ArrayBufferLike> & Brand<"XChaCha20Poly1305Ciphertext">, Uint8Array<ArrayBufferLike> & Brand<"Entropy"> & Brand<"Length24">];
+```
+
+Defined in: [packages/common/src/Crypto.ts:172](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Crypto.ts#L172)
+
+Encrypts plaintext with XChaCha20-Poly1305.
+
+Generates a random nonce internally and returns both the ciphertext and
+nonce. The nonce must be stored alongside the ciphertext for decryption.
+
+### Example
+
+```ts
+const deps = { randomBytes: createRandomBytes() };
+const [ciphertext, nonce] = encryptWithXChaCha20Poly1305(deps)(
+  utf8ToBytes("secret message"),
+  encryptionKey,
+);
+```
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `deps` | [`RandomBytesDep`](/docs/api-reference/common/Crypto/interfaces/RandomBytesDep.mdx) |
+
+## Returns
+
+```ts
+(plaintext: Uint8Array, encryptionKey: Uint8Array<ArrayBufferLike> & Brand<"Entropy"> & Brand<"Length32"> & Brand<"EncryptionKey">): [Uint8Array<ArrayBufferLike> & Brand<"XChaCha20Poly1305Ciphertext">, Uint8Array<ArrayBufferLike> & Brand<"Entropy"> & Brand<"Length24">];
+```
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `plaintext` | `Uint8Array` |
+| `encryptionKey` | `Uint8Array`\<`ArrayBufferLike`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Entropy"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Length32"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"EncryptionKey"`\> |
+
+### Returns
+
+\[`Uint8Array`\<`ArrayBufferLike`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"XChaCha20Poly1305Ciphertext"`\>, `Uint8Array`\<`ArrayBufferLike`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Entropy"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Length24"`\>\]
+
+## See
+
+https://github.com/paulmillr/noble-ciphers

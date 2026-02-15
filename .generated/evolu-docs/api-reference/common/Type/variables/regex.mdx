@@ -1,0 +1,32 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / regex
+
+```ts
+const regex: <Name>(name: Name, pattern: RegExp) => BrandFactory<Name, string, RegexError<Name>>;
+```
+
+Defined in: [packages/common/src/Type.ts:1485](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L1485)
+
+String matching a regular expression.
+
+### Example
+
+```ts
+const Alphanumeric = regex("Alphanumeric", /^[a-z0-9]+$/i)(String);
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Name` *extends* [`TypeName`](/docs/api-reference/common/Type/type-aliases/TypeName.mdx) |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `name` | `Name` |
+| `pattern` | `RegExp` |
+
+## Returns
+
+[`BrandFactory`](/docs/api-reference/common/Type/type-aliases/BrandFactory.mdx)\<`Name`, `string`, [`RegexError`](/docs/api-reference/common/Type/interfaces/RegexError.mdx)\<`Name`\>\>

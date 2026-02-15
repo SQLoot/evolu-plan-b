@@ -1,0 +1,17 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Polyfills](/docs/api-reference/common/Polyfills/page.mdx) / installPolyfills
+
+```ts
+const installPolyfills: Lazy<void> = lazyVoid;
+```
+
+Defined in: [packages/common/src/Polyfills.ts:19](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Polyfills.ts#L19)
+
+Installs polyfills for resource management.
+
+Polyfills `Symbol.dispose`, `Symbol.asyncDispose`, `DisposableStack`,
+`AsyncDisposableStack`, and `SuppressedError`.
+
+## See
+
+ - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Resource_management
+ - https://github.com/es-shims/DisposableStack

@@ -558,7 +558,7 @@ export interface Runner<D = unknown> extends AsyncDisposable {
    * };
    * ```
    */
-  readonly daemon: <T, E>(task: Task<T, E, D>) => Fiber<T, E, D>;
+  readonly daemon: Run<D>;
 
   /**
    * Creates an {@link AsyncDisposable} that runs the task when disposed.
@@ -1431,8 +1431,7 @@ const createRunnerInternal =
         return snapshot;
       };
 
-      run.daemon = <T, E>(task: Task<T, E, D>): Fiber<T, E, D> =>
-        (daemon ?? (self as Runner<D>))(task);
+      run.daemon = daemon ?? self;
       run.defer = (task: Task<void, any, D>) => ({
         [Symbol.asyncDispose]: () =>
           run.daemon(unabortable(task)).then(lazyVoid),

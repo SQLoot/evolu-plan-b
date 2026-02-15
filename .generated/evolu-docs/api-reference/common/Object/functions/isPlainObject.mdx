@@ -1,0 +1,28 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Object](/docs/api-reference/common/Object/page.mdx) / isPlainObject
+
+```ts
+function isPlainObject(value: unknown): value is Record<string, unknown>;
+```
+
+Defined in: [packages/common/src/Object.ts:25](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Object.ts#L25)
+
+Checks if a value is a plain object (e.g., created with `{}` or `Object`).
+
+### Example
+
+```ts
+isPlainObject({}); // true
+isPlainObject(new Date()); // false
+isPlainObject([]); // false
+isPlainObject(null); // false
+```
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `value` | `unknown` |
+
+## Returns
+
+`value is Record<string, unknown>`

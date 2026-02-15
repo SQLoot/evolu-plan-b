@@ -1,0 +1,55 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Result](/docs/api-reference/common/Result/page.mdx) / ok
+
+## Call Signature
+
+```ts
+function ok(): Result<void>;
+```
+
+Defined in: [packages/common/src/Result.ts:312](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Result.ts#L312)
+
+Creates an [Ok](/docs/api-reference/common/Result/interfaces/Ok.mdx) result.
+
+- `ok()` creates a `Result<void, never>` for operations that succeed without
+  producing a value.
+- `ok(value)` creates a `Result<T, never>` containing the specified value.
+
+### Example
+
+```ts
+const noValue = ok();
+console.log(noValue); // { ok: true, value: undefined }
+
+const success = ok(42);
+console.log(success); // { ok: true, value: 42 }
+```
+
+### Returns
+
+[`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`void`\>
+
+## Call Signature
+
+```ts
+function ok<T>(value: T): Result<T>;
+```
+
+Defined in: [packages/common/src/Result.ts:314](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Result.ts#L314)
+
+Creates an [Ok](/docs/api-reference/common/Result/interfaces/Ok.mdx) result with a specified value.
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `value` | `T` |
+
+### Returns
+
+[`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`T`\>

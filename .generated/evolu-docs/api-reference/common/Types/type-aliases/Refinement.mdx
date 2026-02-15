@@ -1,0 +1,41 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Types](/docs/api-reference/common/Types/page.mdx) / Refinement
+
+```ts
+type Refinement<A, B> = (a: A) => a is B;
+```
+
+Defined in: [packages/common/src/Types.ts:91](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Types.ts#L91)
+
+A type guard function that refines type `A` to a narrower type `B`.
+
+### Example
+
+```ts
+type Animal = { name: string };
+type Dog = Animal & { breed: string };
+
+const isDog: Refinement<Animal, Dog> = (animal): animal is Dog =>
+  "breed" in animal;
+
+const animal: Animal = { name: "Dog", breed: "Beagle" };
+if (isDog(animal)) {
+  console.log(animal.breed); // Safe access to `breed`
+}
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `A` |
+| `B` *extends* `A` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `a` | `A` |
+
+## Returns
+
+`a is B`

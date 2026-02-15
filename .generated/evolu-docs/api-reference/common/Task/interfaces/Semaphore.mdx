@@ -1,0 +1,90 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Task](/docs/api-reference/common/Task/page.mdx) / Semaphore
+
+Defined in: [packages/common/src/Task.ts:2425](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L2425)
+
+A semaphore that limits the number of concurrent [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx)s.
+
+For mutual exclusion (limiting to exactly one [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx)), use [Mutex](/docs/api-reference/common/Task/interfaces/Mutex.mdx)
+instead.
+
+## Extends
+
+- [`Disposable`](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-2.html#using-declarations-and-explicit-resource-management)
+
+## Methods
+
+<a id="dispose"></a>
+
+### \[dispose\]()
+
+#### Call Signature
+
+```ts
+dispose: void;
+```
+
+Defined in: node\_modules/.bun/typescript@5.9.3/node\_modules/typescript/lib/lib.esnext.disposable.d.ts:36
+
+##### Returns
+
+`void`
+
+##### Inherited from
+
+```ts
+Disposable.[dispose]
+```
+
+#### Call Signature
+
+```ts
+dispose: void;
+```
+
+Defined in: node\_modules/.bun/@types+node@22.19.11/node\_modules/@types/node/compatibility/disposable.d.ts:9
+
+##### Returns
+
+`void`
+
+##### Inherited from
+
+```ts
+Disposable.[dispose]
+```
+
+## Properties
+
+<a id="withpermit"></a>
+
+### withPermit()
+
+```ts
+readonly withPermit: <T, E, D>(task: Task<T, E, D>) => Task<T, E, D>;
+```
+
+Defined in: [packages/common/src/Task.ts:2433](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L2433)
+
+Executes a [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx) while holding a semaphore permit.
+
+The task waits until a permit is available. If the semaphore is disposed
+while waiting or running, the task is aborted with an [AbortError](/docs/api-reference/common/Task/variables/AbortError.mdx)
+whose reason is [semaphoreDisposedError](/docs/api-reference/common/Task/variables/semaphoreDisposedError.mdx).
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+| `E` |
+| `D` |
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `task` | [`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T`, `E`, `D`\> |
+
+#### Returns
+
+[`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T`, `E`, `D`\>

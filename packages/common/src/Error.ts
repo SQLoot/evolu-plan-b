@@ -118,7 +118,6 @@ export const handleGlobalError = (
   error: unknown,
 ): void => {
   if (scope.onError == null) {
-    // eslint-disable-next-line no-console
     console.error("Unhandled global error:", error);
     assert(false, "onError must be set before global errors occur");
   }

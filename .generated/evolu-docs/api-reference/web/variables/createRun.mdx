@@ -1,0 +1,27 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/web](/docs/api-reference/web/page.mdx) / createRun
+
+```ts
+const createRun: CreateRunner<RunDeps>;
+```
+
+Defined in: [Task.ts:38](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/web/src/Task.ts#L38)
+
+Creates [Run](/docs/api-reference/common/Task/type-aliases/Run.mdx) for the browser with global error handling.
+
+Registers `error` and `unhandledrejection` handlers that log errors to the
+console. Handlers are removed when the run is disposed.
+
+### Example
+
+```ts
+const console = createConsole({
+  formatter: createConsoleFormatter()({
+    timestampFormat: "relative",
+  }),
+});
+
+await using run = createRun({ console });
+await using stack = run.stack();
+
+await stack.use(startApp());
+```

@@ -1,0 +1,31 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Store](/docs/api-reference/common/Store/page.mdx) / createStore
+
+```ts
+function createStore<T>(initialState: T, eq?: Eq<T>): Store<T>;
+```
+
+Defined in: [packages/common/src/Store.ts:50](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Store.ts#L50)
+
+Creates a store with the given initial state. The store encapsulates its
+state, which can be read with `get` and updated with `set` or `modify`. All
+changes are broadcast to subscribers.
+
+By default, state changes are detected using `===` (shallow equality). You
+can provide a custom equality function as the second argument.
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+
+## Parameters
+
+| Parameter | Type | Default value |
+| ------ | ------ | ------ |
+| `initialState` | `T` | `undefined` |
+| `eq` | [`Eq`](/docs/api-reference/common/Eq/type-aliases/Eq.mdx)\<`T`\> | `eqStrict` |
+
+## Returns
+
+[`Store`](/docs/api-reference/common/Store/interfaces/Store.mdx)\<`T`\>

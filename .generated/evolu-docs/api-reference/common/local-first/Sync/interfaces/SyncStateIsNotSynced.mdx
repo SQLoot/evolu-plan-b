@@ -1,0 +1,160 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [local-first/Sync](/docs/api-reference/common/local-first/Sync/page.mdx) / SyncStateIsNotSynced
+
+Defined in: [packages/common/src/local-first/Sync.ts:934](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Sync.ts#L934)
+
+Base interface for objects with a discriminant `type` property.
+
+This enables
+[discriminated unions](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#discriminated-unions)
+(also known as tagged unions) — a pattern where TypeScript uses a literal
+`type` field to narrow union types automatically.
+
+## Why Discriminated Unions?
+
+Discriminated unions model states that are **mutually exclusive**. Instead of
+optional fields and boolean flags that can combine into invalid
+configurations, each variant is a distinct type. This makes illegal states
+unrepresentable — invalid combinations cannot exist, so bugs cannot create
+them.
+
+Benefits:
+
+- **Self-documenting** — Union cases immediately show all possible states
+- **Compile-time safety** — TypeScript enforces handling all cases
+- **Refactoring-friendly** — Adding a new state breaks code that doesn't handle
+  it
+
+### Example
+
+```ts
+// Bad: optional fields allow invalid states (no contact info at all)
+interface Contact {
+  readonly email?: Email;
+  readonly phone?: Phone;
+}
+
+// Good: discriminated union makes "at least one" explicit
+interface EmailOnly extends Typed<"EmailOnly"> {
+  readonly email: Email;
+}
+interface PhoneOnly extends Typed<"PhoneOnly"> {
+  readonly phone: Phone;
+}
+interface EmailAndPhone extends Typed<"EmailAndPhone"> {
+  readonly email: Email;
+  readonly phone: Phone;
+}
+
+type ContactInfo = EmailOnly | PhoneOnly | EmailAndPhone;
+```
+
+```ts
+interface Pending extends Typed<"Pending"> {
+  readonly createdAt: DateIso;
+}
+interface Shipped extends Typed<"Shipped"> {
+  readonly trackingNumber: TrackingNumber;
+}
+interface Delivered extends Typed<"Delivered"> {
+  readonly deliveredAt: DateIso;
+}
+interface Cancelled extends Typed<"Cancelled"> {
+  readonly reason: CancellationReason;
+}
+
+type OrderState = Pending | Shipped | Delivered | Cancelled;
+
+// TypeScript enforces exhaustiveness via return type
+const getStatusMessage = (state: OrderState): string => {
+  switch (state.type) {
+    case "Pending":
+      return "Order placed";
+    case "Shipped":
+      return `Shipped: ${state.trackingNumber}`;
+    case "Delivered":
+      return `Delivered on ${state.deliveredAt.toLocaleDateString()}`;
+    case "Cancelled":
+      return `Cancelled: ${state.reason}`;
+  }
+};
+
+// For void functions, use exhaustiveCheck to ensure all cases are handled
+const logState = (state: OrderState): void => {
+  switch (state.type) {
+    case "Pending":
+      console.log("Order placed");
+      break;
+    case "Shipped":
+      console.log(`Shipped: ${state.trackingNumber}`);
+      break;
+    case "Delivered":
+      console.log(
+        `Delivered on ${state.deliveredAt.toLocaleDateString()}`,
+      );
+      break;
+    case "Cancelled":
+      console.log(`Cancelled: ${state.reason}`);
+      break;
+    default:
+      exhaustiveCheck(state);
+  }
+};
+```
+
+## Why `type` (and not e.g. `_tag`)?
+
+Underscore-prefixing is meant to avoid clashing with domain properties, but
+proper discriminated union design means the discriminant IS the domain
+concept — there's no clash to avoid. The `type` prop name also aligns with
+[Type](/docs/api-reference/common/Type/interfaces/Type.mdx)'s name. If an entity has a meaningful "type" (like product
+category), model it as the discriminant itself:
+
+```ts
+interface Electronics extends Typed<"Electronics"> {
+  voltage: Voltage;
+}
+interface Clothing extends Typed<"Clothing"> {
+  size: Size;
+}
+type Product = Electronics | Clothing;
+```
+
+## See
+
+ - [exhaustiveCheck](/docs/api-reference/common/Function/functions/exhaustiveCheck.mdx) to ensure all cases are handled in void functions.
+ - [typed](/docs/api-reference/common/Type/functions/typed.mdx) for runtime-validated typed objects.
+
+## Extends
+
+- [`Typed`](/docs/api-reference/common/Type/interfaces/Typed.mdx)\<`"SyncStateIsNotSynced"`\>
+
+## Properties
+
+<a id="error"></a>
+
+### error
+
+```ts
+readonly error: 
+  | NetworkError
+  | ServerError
+  | PaymentRequiredError;
+```
+
+Defined in: [packages/common/src/local-first/Sync.ts:935](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Sync.ts#L935)
+
+***
+
+<a id="type"></a>
+
+### type
+
+```ts
+readonly type: "SyncStateIsNotSynced";
+```
+
+Defined in: [packages/common/src/Type.ts:3456](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L3456)
+
+#### Inherited from
+
+[`Typed`](/docs/api-reference/common/Type/interfaces/Typed.mdx).[`type`](/docs/api-reference/common/Type/interfaces/Typed.mdx#type)

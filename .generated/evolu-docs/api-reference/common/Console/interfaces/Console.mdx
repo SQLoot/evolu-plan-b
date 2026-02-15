@@ -1,0 +1,492 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Console](/docs/api-reference/common/Console/page.mdx) / Console
+
+Defined in: [packages/common/src/Console.ts:67](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L67)
+
+Platform-agnostic console with structured logging.
+
+Captures structured log entries and routes them to configurable outputs.
+Provides methods guaranteed to be available across browsers, Node.js, and
+React Native.
+
+Key features:
+
+- Structured entries — logs are captured as [ConsoleEntry](/docs/api-reference/common/Console/interfaces/ConsoleEntry.mdx) objects with
+  method, path, and args
+- Pluggable outputs — route logs to console, files, arrays, or custom
+  destinations via [ConsoleOutput](/docs/api-reference/common/Console/interfaces/ConsoleOutput.mdx)
+- Child consoles — use [Console.child](/docs/api-reference/common/Console/interfaces/Console.mdx#child) to create derived consoles
+- Async support — buffer logs for high-throughput scenarios
+
+See [ConsoleLevel](/docs/api-reference/common/Console/type-aliases/ConsoleLevel.mdx) for available log levels and severity ordering.
+
+### Example
+
+```ts
+// Basic usage - defaults to "log"
+const console = createConsole();
+
+// With formatting (timestamps and path prefixes)
+const console = createConsole({
+  level: "info",
+  formatEntry: createConsoleEntryFormatter()({
+    timestampFormat: "relative",
+  }),
+});
+
+// Children inherit level at creation, then are independent
+const console = run.deps.console.child("relay");
+console.setLevel("silent");
+
+// Batch update via children
+const setLevelRecursive = (c: Console, level: ConsoleLevel): void => {
+  c.setLevel(level);
+  for (const child of c.children) setLevelRecursive(child, level);
+};
+```
+
+Console intentionally does not use [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx). Logging must be as fast as
+possible and always work, even during error handling or shutdown.
+
+## See
+
+[createConsole](/docs/api-reference/common/Console/functions/createConsole.mdx)
+
+## Extended by
+
+- [`TestConsole`](/docs/api-reference/common/Console/interfaces/TestConsole.mdx)
+
+## Properties
+
+<a id="child"></a>
+
+### child()
+
+```ts
+readonly child: (name: string) => Console;
+```
+
+Defined in: [packages/common/src/Console.ts:99](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L99)
+
+Creates a child console with the given name added to the path.
+
+Child inherits the parent's configured level (not any runtime override).
+Use [Console.children](/docs/api-reference/common/Console/interfaces/Console.mdx#children) to access all children for batch operations.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `name` | `string` |
+
+#### Returns
+
+`Console`
+
+***
+
+<a id="children"></a>
+
+### children
+
+```ts
+readonly children: ReadonlySet<Console>;
+```
+
+Defined in: [packages/common/src/Console.ts:72](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L72)
+
+Child consoles created via [Console.child](/docs/api-reference/common/Console/interfaces/Console.mdx#child).
+
+***
+
+<a id="count"></a>
+
+### count()
+
+```ts
+readonly count: (label?: string) => void;
+```
+
+Defined in: [packages/common/src/Console.ts:123](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L123)
+
+Increments and logs a counter. Level: debug.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `label?` | `string` |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="countreset"></a>
+
+### countReset()
+
+```ts
+readonly countReset: (label?: string) => void;
+```
+
+Defined in: [packages/common/src/Console.ts:126](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L126)
+
+Resets a counter. Level: debug.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `label?` | `string` |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="debug"></a>
+
+### debug()
+
+```ts
+readonly debug: (...args: readonly unknown[]) => void;
+```
+
+Defined in: [packages/common/src/Console.ts:105](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L105)
+
+Development diagnostics.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| ...`args` | readonly `unknown`[] |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="dir"></a>
+
+### dir()
+
+```ts
+readonly dir: (item: unknown) => void;
+```
+
+Defined in: [packages/common/src/Console.ts:117](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L117)
+
+Displays an object with expandable properties. Level: debug.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `item` | `unknown` |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="error"></a>
+
+### error()
+
+```ts
+readonly error: (...args: readonly unknown[]) => void;
+```
+
+Defined in: [packages/common/src/Console.ts:138](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L138)
+
+Failures requiring immediate attention.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| ...`args` | readonly `unknown`[] |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="getlevel"></a>
+
+### getLevel()
+
+```ts
+readonly getLevel: () => ConsoleLevel;
+```
+
+Defined in: [packages/common/src/Console.ts:80](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L80)
+
+Returns the effective log level.
+
+If this console has its own level set via [Console.setLevel](/docs/api-reference/common/Console/interfaces/Console.mdx#setlevel), returns
+that. Otherwise returns the inherited level from creation time.
+
+#### Returns
+
+[`ConsoleLevel`](/docs/api-reference/common/Console/type-aliases/ConsoleLevel.mdx)
+
+***
+
+<a id="hasownlevel"></a>
+
+### hasOwnLevel()
+
+```ts
+readonly hasOwnLevel: () => boolean;
+```
+
+Defined in: [packages/common/src/Console.ts:91](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L91)
+
+Returns true if this console has its own level set (not inherited).
+
+#### Returns
+
+`boolean`
+
+***
+
+<a id="info"></a>
+
+### info()
+
+```ts
+readonly info: (...args: readonly unknown[]) => void;
+```
+
+Defined in: [packages/common/src/Console.ts:132](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L132)
+
+Operational milestones (startup, shutdown).
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| ...`args` | readonly `unknown`[] |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="log"></a>
+
+### log()
+
+```ts
+readonly log: (...args: readonly unknown[]) => void;
+```
+
+Defined in: [packages/common/src/Console.ts:129](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L129)
+
+General-purpose messages.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| ...`args` | readonly `unknown`[] |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="name"></a>
+
+### name
+
+```ts
+readonly name: string;
+```
+
+Defined in: [packages/common/src/Console.ts:69](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L69)
+
+Name of this console. Empty for root.
+
+***
+
+<a id="setlevel"></a>
+
+### setLevel()
+
+```ts
+readonly setLevel: (level: 
+  | ConsoleLevel
+  | null) => void;
+```
+
+Defined in: [packages/common/src/Console.ts:88](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L88)
+
+Sets the log level for this console.
+
+Pass a level to override the inherited level, or `null` to revert to the
+inherited level.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `level` | \| [`ConsoleLevel`](/docs/api-reference/common/Console/type-aliases/ConsoleLevel.mdx) \| `null` |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="table"></a>
+
+### table()
+
+```ts
+readonly table: (data: unknown) => void;
+```
+
+Defined in: [packages/common/src/Console.ts:120](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L120)
+
+Displays tabular data. Level: debug.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `data` | `unknown` |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="time"></a>
+
+### time()
+
+```ts
+readonly time: (label: string) => void;
+```
+
+Defined in: [packages/common/src/Console.ts:108](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L108)
+
+Starts a timer with the given label. Level: debug.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `label` | `string` |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="timeend"></a>
+
+### timeEnd()
+
+```ts
+readonly timeEnd: (label: string) => void;
+```
+
+Defined in: [packages/common/src/Console.ts:114](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L114)
+
+Ends a timer and logs elapsed time. Level: debug.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `label` | `string` |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="timelog"></a>
+
+### timeLog()
+
+```ts
+readonly timeLog: (label: string, ...args: readonly unknown[]) => void;
+```
+
+Defined in: [packages/common/src/Console.ts:111](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L111)
+
+Logs elapsed time for a timer. Level: debug.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `label` | `string` |
+| ...`args` | readonly `unknown`[] |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="trace"></a>
+
+### trace()
+
+```ts
+readonly trace: (...args: readonly unknown[]) => void;
+```
+
+Defined in: [packages/common/src/Console.ts:102](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L102)
+
+Outputs a stack trace.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| ...`args` | readonly `unknown`[] |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="warn"></a>
+
+### warn()
+
+```ts
+readonly warn: (...args: readonly unknown[]) => void;
+```
+
+Defined in: [packages/common/src/Console.ts:135](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L135)
+
+Recoverable issues that may need attention.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| ...`args` | readonly `unknown`[] |
+
+#### Returns
+
+`void`

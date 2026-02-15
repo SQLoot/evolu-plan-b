@@ -1,0 +1,39 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Function](/docs/api-reference/common/Function/page.mdx) / todo
+
+```ts
+function todo<T>(): T;
+```
+
+Defined in: [packages/common/src/Function.ts:231](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Function.ts#L231)
+
+Development placeholder that always throws.
+
+Use to sketch function bodies before implementing them. TypeScript infers the
+return type from context, so surrounding code still type-checks. Use an
+explicit generic when there is no return type annotation.
+
+### Example
+
+```ts
+// Type inferred from return type annotation
+const fetchUser = (id: UserId): Result<User, FetchError> => todo();
+
+expectTypeOf(fetchUser).returns.toEqualTypeOf<
+  Result<User, FetchError>
+>();
+
+// Explicit generic when no return type
+const getConfig = () => todo<Config>();
+
+expectTypeOf(getConfig).returns.toEqualTypeOf<Config>();
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+
+## Returns
+
+`T`

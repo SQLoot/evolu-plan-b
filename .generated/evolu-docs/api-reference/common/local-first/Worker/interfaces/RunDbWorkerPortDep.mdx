@@ -1,0 +1,32 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [local-first/Worker](/docs/api-reference/common/local-first/Worker/page.mdx) / RunDbWorkerPortDep
+
+Defined in: [packages/common/src/local-first/Worker.ts:55](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Worker.ts#L55)
+
+## Properties
+
+<a id="rundbworkerport"></a>
+
+### runDbWorkerPort()
+
+```ts
+readonly runDbWorkerPort: (config: {
+  brokerPort: MessagePort<DbWorkerLeaderOutput, DbWorkerLeaderInput>;
+  name: string & Brand<"UrlSafeString"> & Brand<"SimpleName">;
+  port: MessagePort<DbWorkerOutput, DbWorkerInput>;
+}) => void;
+```
+
+Defined in: [packages/common/src/local-first/Worker.ts:56](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Worker.ts#L56)
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `config` | \{ `brokerPort`: [`MessagePort`](/docs/api-reference/common/Worker/interfaces/MessagePort.mdx)\<[`DbWorkerLeaderOutput`](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerLeaderOutput.mdx), [`DbWorkerLeaderInput`](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerLeaderInput.mdx)\>; `name`: `string` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"UrlSafeString"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"SimpleName"`\>; `port`: [`MessagePort`](/docs/api-reference/common/Worker/interfaces/MessagePort.mdx)\<[`DbWorkerOutput`](/docs/api-reference/common/local-first/DbWorkerProtocol/type-aliases/DbWorkerOutput.mdx), [`DbWorkerInput`](/docs/api-reference/common/local-first/DbWorkerProtocol/type-aliases/DbWorkerInput.mdx)\>; \} |
+| `config.brokerPort` | [`MessagePort`](/docs/api-reference/common/Worker/interfaces/MessagePort.mdx)\<[`DbWorkerLeaderOutput`](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerLeaderOutput.mdx), [`DbWorkerLeaderInput`](/docs/api-reference/common/local-first/DbWorkerProtocol/interfaces/DbWorkerLeaderInput.mdx)\> |
+| `config.name` | `string` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"UrlSafeString"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"SimpleName"`\> |
+| `config.port` | [`MessagePort`](/docs/api-reference/common/Worker/interfaces/MessagePort.mdx)\<[`DbWorkerOutput`](/docs/api-reference/common/local-first/DbWorkerProtocol/type-aliases/DbWorkerOutput.mdx), [`DbWorkerInput`](/docs/api-reference/common/local-first/DbWorkerProtocol/type-aliases/DbWorkerInput.mdx)\> |
+
+#### Returns
+
+`void`

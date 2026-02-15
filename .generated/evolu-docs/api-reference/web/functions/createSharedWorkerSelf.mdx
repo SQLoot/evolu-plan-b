@@ -1,0 +1,27 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/web](/docs/api-reference/web/page.mdx) / createSharedWorkerSelf
+
+```ts
+function createSharedWorkerSelf<Input, Output>(nativeSelf: SharedWorkerGlobalScope): SharedWorkerSelf<Input, Output>;
+```
+
+Defined in: [Worker.ts:89](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/web/src/Worker.ts#L89)
+
+Creates an Evolu [SharedWorkerSelf](/docs/api-reference/common/Worker/interfaces/SharedWorkerSelf.mdx) from a Web `SharedWorkerGlobalScope`
+(`self` inside a shared worker).
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `Input` | - |
+| `Output` | `never` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `nativeSelf` | `SharedWorkerGlobalScope` |
+
+## Returns
+
+[`SharedWorkerSelf`](/docs/api-reference/common/Worker/interfaces/SharedWorkerSelf.mdx)\<`Input`, `Output`\>

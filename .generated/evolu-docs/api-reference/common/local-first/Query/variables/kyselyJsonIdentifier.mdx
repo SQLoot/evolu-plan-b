@@ -1,0 +1,22 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [local-first/Query](/docs/api-reference/common/local-first/Query/page.mdx) / kyselyJsonIdentifier
+
+```ts
+const kyselyJsonIdentifier: string & Brand<"Id">;
+```
+
+Defined in: [packages/common/src/local-first/Query.ts:324](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Query.ts#L324)
+
+A unique identifier prepended to JSON-encoded strings. This allows safe
+detection and parsing of only those columns that require JSON.parse.
+
+The identifier is a cryptographically random Evolu Id, ensuring uniqueness
+and preventing malicious actors from inserting fake data that could be
+misinterpreted as JSON by the application.
+
+Note: The same queries created by different browser tabs will have different
+identifiers and thus be considered different and cached separately. This is
+usually not a big deal, but if needed, the DB cache can be optimized by
+passing the kyselyJsonIdentifier into the DB worker during initialization,
+allowing queries to be grouped and recognized across tabs or sessions.
+
+See: https://github.com/kysely-org/kysely/issues/1372#issuecomment-2702773948

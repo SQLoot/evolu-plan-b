@@ -1,0 +1,72 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / union
+
+## Call Signature
+
+```ts
+function union<Members>(...members: Members): UnionType<Members>;
+```
+
+Defined in: [packages/common/src/Type.ts:3539](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L3539)
+
+Union [Type](/docs/api-reference/common/Type/interfaces/Type.mdx).
+
+`UnionType` represents a union of multiple member Types. Accepts both
+[Type](/docs/api-reference/common/Type/interfaces/Type.mdx) and literal values as arguments.
+
+Note that the `union` Type Factory delegates `fromParent` to `fromUnknown`.
+That's because the union members can have different `Parent` types, and at
+runtime, it is impossible to determine which member should process a given
+`Parent` value.
+
+### Example
+
+```ts
+const AorB = union("a", "b");
+const result1 = AorB.from("a"); // ok("a")
+const result2 = AorB.from("c"); // err
+
+const StringOrNumber = union(String, Number);
+const result3 = StringOrNumber.from(42); // ok(42)
+```
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Members` *extends* \[[`AnyType`](/docs/api-reference/common/Type/type-aliases/AnyType.mdx), [`AnyType`](/docs/api-reference/common/Type/type-aliases/AnyType.mdx), `...AnyType[]`\] |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| ...`members` | `Members` |
+
+### Returns
+
+[`UnionType`](/docs/api-reference/common/Type/interfaces/UnionType.mdx)\<`Members`\>
+
+## Call Signature
+
+```ts
+function union<Literals>(...literals: Literals): UnionType<{ [K in string | number | symbol]: LiteralType<Literals[K]> }>;
+```
+
+Defined in: [packages/common/src/Type.ts:3544](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L3544)
+
+With literal values.
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Literals` *extends* \[[`Literal`](/docs/api-reference/common/Types/type-aliases/Literal.mdx), [`Literal`](/docs/api-reference/common/Types/type-aliases/Literal.mdx), `...Literal[]`\] |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| ...`literals` | `Literals` |
+
+### Returns
+
+[`UnionType`](/docs/api-reference/common/Type/interfaces/UnionType.mdx)\<\{ \[K in string \| number \| symbol\]: LiteralType\<Literals\[K\]\> \}\>

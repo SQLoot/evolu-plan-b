@@ -1,0 +1,23 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [local-first/Owner](/docs/api-reference/common/local-first/Owner/page.mdx) / createSharedOwner
+
+```ts
+function createSharedOwner(secret: Uint8Array<ArrayBufferLike> & Brand<"Entropy"> & Brand<"Length32"> & Brand<"OwnerSecret">): SharedOwner;
+```
+
+Defined in: [packages/common/src/local-first/Owner.ts:273](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Owner.ts#L273)
+
+Creates a [SharedOwner](/docs/api-reference/common/local-first/Owner/interfaces/SharedOwner.mdx) from an [OwnerSecret](/docs/api-reference/common/local-first/Owner/variables/OwnerSecret.mdx) for collaborative
+write access.
+
+Use [createSharedReadonlyOwner](/docs/api-reference/common/local-first/Owner/functions/createSharedReadonlyOwner.mdx) to create a read-only version for
+sharing.
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `secret` | `Uint8Array`\<`ArrayBufferLike`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Entropy"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Length32"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"OwnerSecret"`\> |
+
+## Returns
+
+[`SharedOwner`](/docs/api-reference/common/local-first/Owner/interfaces/SharedOwner.mdx)

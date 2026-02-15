@@ -1,0 +1,27 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / Platform
+
+Runtime platform detection utilities.
+
+## Interfaces
+
+| Interface | Description |
+| ------ | ------ |
+| [FlushSyncDep](/docs/api-reference/common/Platform/interfaces/FlushSyncDep.mdx) | - |
+| [LeaderLock](/docs/api-reference/common/Platform/interfaces/LeaderLock.mdx) | Cross-platform leader lock abstraction. |
+| [LeaderLockDep](/docs/api-reference/common/Platform/interfaces/LeaderLockDep.mdx) | - |
+| [ReloadAppDep](/docs/api-reference/common/Platform/interfaces/ReloadAppDep.mdx) | - |
+
+## Type Aliases
+
+| Type Alias | Description |
+| ------ | ------ |
+| [FlushSync](/docs/api-reference/common/Platform/type-aliases/FlushSync.mdx) | FlushSync is for libraries like React to flush updates synchronously inside the provided callback to ensure the DOM is updated immediately. |
+| [ReloadApp](/docs/api-reference/common/Platform/type-aliases/ReloadApp.mdx) | Reload the app in a platform-specific way. |
+
+## Variables
+
+| Variable | Description |
+| ------ | ------ |
+| [hasNodeBuffer](/docs/api-reference/common/Platform/variables/hasNodeBuffer.mdx) | Detects if Node.js Buffer is available and should be used. |
+| [isHermes](/docs/api-reference/common/Platform/variables/isHermes.mdx) | Returns true if running in React Native with Hermes engine. |
+| [isServer](/docs/api-reference/common/Platform/variables/isServer.mdx) | Returns true if running in a server environment (no DOM). |

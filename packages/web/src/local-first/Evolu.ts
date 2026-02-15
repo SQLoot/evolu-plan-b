@@ -5,7 +5,6 @@ import { reloadApp } from "../Platform.js";
 import { createMessageChannel, createSharedWorker } from "../Worker.js";
 
 // // TODO: Redesign.
-// // eslint-disable-next-line evolu/require-pure-annotation
 // export const localAuth = createLocalAuth({
 //   randomBytes: createRandomBytes(),
 //   secureStorage: createWebAuthnStore({ randomBytes: createRandomBytes() }),

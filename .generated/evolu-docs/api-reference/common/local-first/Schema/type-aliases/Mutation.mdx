@@ -1,0 +1,61 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [local-first/Schema](/docs/api-reference/common/local-first/Schema/page.mdx) / Mutation
+
+```ts
+type Mutation<S, Kind> = <TableName>(table: TableName, values: MutationValues<S[TableName], Kind>, options?: MutationOptions) => {
+  id: InferOutput<S[TableName]["id"]>;
+};
+```
+
+Defined in: [packages/common/src/local-first/Schema.ts:193](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Schema.ts#L193)
+
+Mutation function type. Accepts already-validated values — validation is the
+caller's responsibility using any Standard Schema library (Evolu Type, Zod,
+Valibot, ArkType, etc.).
+
+Evolu does not use SQL for mutations to ensure data can be deterministically
+merged without conflicts. Explicit mutations also allow Evolu to
+automatically update [SystemColumns](/docs/api-reference/common/local-first/Schema/variables/SystemColumns-1.mdx) and encourage developers to
+consider the number of changes produced, unlike SQL where a single query can
+inadvertently generate a large volume of CRDT messages. Each mutation
+produces exactly one [CrdtMessage](/docs/api-reference/common/local-first/Storage/interfaces/CrdtMessage.mdx) containing all provided columns.
+
+Mutations never fail — values are already validated by the caller, and
+changes are stored locally in SQLite.
+
+- **insert**: all non-nullable columns required, nullable columns optional,
+  `id` omitted (auto-generated)
+- **update**: only `id` required, everything else optional
+- **upsert**: like insert but `id` required too
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `S` *extends* [`EvoluSchema`](/docs/api-reference/common/local-first/Schema/type-aliases/EvoluSchema.mdx) |
+| `Kind` *extends* [`MutationKind`](/docs/api-reference/common/local-first/Schema/type-aliases/MutationKind.mdx) |
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `TableName` *extends* keyof `S` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `table` | `TableName` |
+| `values` | [`MutationValues`](/docs/api-reference/common/local-first/Schema/type-aliases/MutationValues.mdx)\<`S`\[`TableName`\], `Kind`\> |
+| `options?` | [`MutationOptions`](/docs/api-reference/common/local-first/Schema/interfaces/MutationOptions.mdx) |
+
+## Returns
+
+```ts
+{
+  id: InferOutput<S[TableName]["id"]>;
+}
+```
+
+| Name | Type | Defined in |
+| ------ | ------ | ------ |
+| `id` | [`InferOutput`](/docs/api-reference/common/Type/namespaces/StandardSchemaV1/type-aliases/InferOutput.mdx)\<`S`\[`TableName`\]\[`"id"`\]\> | [packages/common/src/local-first/Schema.ts:199](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Schema.ts#L199) |

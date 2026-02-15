@@ -42,7 +42,7 @@
   "outputs": [
     {
       "name": "markdown",
-      "path": "./apps/web/src/app/(docs)/docs/api-reference"
+      "path": "./.generated/evolu-docs/api-reference"
     }
   ],
   "externalSymbolLinkMappings": {

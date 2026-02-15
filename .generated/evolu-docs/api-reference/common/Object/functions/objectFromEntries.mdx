@@ -1,0 +1,39 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Object](/docs/api-reference/common/Object/page.mdx) / objectFromEntries
+
+```ts
+function objectFromEntries<K, V>(entries: Iterable<readonly [K, V]>): ReadonlyRecord<K, V>;
+```
+
+Defined in: [packages/common/src/Object.ts:96](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Object.ts#L96)
+
+Creates an object from key-value pairs, preserving branded key types.
+
+The inverse of [objectToEntries](/docs/api-reference/common/Object/functions/objectToEntries.mdx). Use when you need type-safe
+reconstruction of objects with branded keys.
+
+### Example
+
+```ts
+type UserId = string & { readonly __brand: "UserId" };
+const entries: ReadonlyArray<[UserId, string]> = [
+  ["u1" as UserId, "Alice"],
+];
+const users = objectFromEntries(entries); // ReadonlyRecord<UserId, string>
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `K` *extends* `string` |
+| `V` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `entries` | [`Iterable`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols#the_iterable_protocol)\<readonly \[`K`, `V`\]\> |
+
+## Returns
+
+[`ReadonlyRecord`](/docs/api-reference/common/Object/type-aliases/ReadonlyRecord.mdx)\<`K`, `V`\>

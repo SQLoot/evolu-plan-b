@@ -1,0 +1,95 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [local-first/Protocol](/docs/api-reference/common/local-first/Protocol/page.mdx) / TimestampsBuffer
+
+Defined in: [packages/common/src/local-first/Protocol.ts:795](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L795)
+
+## Properties
+
+<a id="add"></a>
+
+### add()
+
+```ts
+readonly add: (timestamp: Timestamp) => void;
+```
+
+Defined in: [packages/common/src/local-first/Protocol.ts:796](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L796)
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `timestamp` | [`Timestamp`](/docs/api-reference/common/local-first/Timestamp/interfaces/Timestamp.mdx) |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="addinfinite"></a>
+
+### addInfinite()
+
+```ts
+readonly addInfinite: () => void;
+```
+
+Defined in: [packages/common/src/local-first/Protocol.ts:797](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L797)
+
+#### Returns
+
+`void`
+
+***
+
+<a id="append"></a>
+
+### append()
+
+```ts
+readonly append: (buffer: Buffer) => void;
+```
+
+Defined in: [packages/common/src/local-first/Protocol.ts:800](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L800)
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `buffer` | [`Buffer`](/docs/api-reference/common/Buffer/interfaces/Buffer.mdx) |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="getcount"></a>
+
+### getCount()
+
+```ts
+readonly getCount: () => number & Brand<"Int"> & Brand<"NonNegative">;
+```
+
+Defined in: [packages/common/src/local-first/Protocol.ts:798](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L798)
+
+#### Returns
+
+`number` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Int"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"NonNegative"`\>
+
+***
+
+<a id="getlength"></a>
+
+### getLength()
+
+```ts
+readonly getLength: () => number;
+```
+
+Defined in: [packages/common/src/local-first/Protocol.ts:799](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L799)
+
+#### Returns
+
+`number`

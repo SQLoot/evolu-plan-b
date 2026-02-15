@@ -1,0 +1,38 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/vue](/docs/api-reference/vue/page.mdx) / createUseEvolu
+
+```ts
+function createUseEvolu<S>(evolu: Evolu<S>): () => Evolu<S>;
+```
+
+Defined in: [createUseEvolu.ts:14](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/vue/src/createUseEvolu.ts#L14)
+
+Creates a helper function returning a type-aware instance of [Evolu](/docs/api-reference/common/local-first/Evolu/interfaces/Evolu.mdx).
+
+### Example
+
+```ts
+const useEvolu = createUseEvolu(evolu);
+const { insert, update } = useEvolu();
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `S` *extends* `Readonly`\<`Record`\<`string`, `Readonly`\<`Record`\<`string`, [`AnyStandardSchemaV1`](/docs/api-reference/common/local-first/Schema/type-aliases/AnyStandardSchemaV1.mdx)\>\>\>\> |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `evolu` | [`Evolu`](/docs/api-reference/common/local-first/Evolu/interfaces/Evolu.mdx)\<`S`\> |
+
+## Returns
+
+```ts
+(): Evolu<S>;
+```
+
+### Returns
+
+[`Evolu`](/docs/api-reference/common/local-first/Evolu/interfaces/Evolu.mdx)\<`S`\>

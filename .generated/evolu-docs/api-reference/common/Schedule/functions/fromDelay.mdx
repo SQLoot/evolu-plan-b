@@ -1,0 +1,28 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Schedule](/docs/api-reference/common/Schedule/page.mdx) / fromDelay
+
+```ts
+function fromDelay(delay: Duration): Schedule<number & Brand<"Int"> & Brand<"NonNegative"> & Brand<"LessThan281474976710655"> & Brand<"Millis">>;
+```
+
+Defined in: [packages/common/src/Schedule.ts:409](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Schedule.ts#L409)
+
+A schedule that runs once with a single delay.
+
+Convenience for `take(1)(spaced(delay))`. Useful for simple one-shot delays.
+
+### Example
+
+```ts
+// Wait 1 second then stop
+const oneShot = fromDelay("1s");
+```
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `delay` | [`Duration`](/docs/api-reference/common/Time/type-aliases/Duration.mdx) |
+
+## Returns
+
+[`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`number` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Int"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"NonNegative"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"LessThan281474976710655"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Millis"`\>\>

@@ -1,0 +1,22 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/bun](/docs/api-reference/bun/page.mdx) / runBunDbWorkerScope
+
+```ts
+function runBunDbWorkerScope(self: BunDbWorkerScope): void;
+```
+
+Defined in: [BunDbWorker.ts:43](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/bun/src/BunDbWorker.ts#L43)
+
+Database Worker scope for Bun.
+
+This is the entry point for the worker. It handles all incoming messages
+and routes them to appropriate handlers.
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `self` | [`BunDbWorkerScope`](/docs/api-reference/bun/interfaces/BunDbWorkerScope.mdx) |
+
+## Returns
+
+`void`

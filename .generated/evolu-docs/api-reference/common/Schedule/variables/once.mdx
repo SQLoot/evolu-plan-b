@@ -1,0 +1,18 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Schedule](/docs/api-reference/common/Schedule/page.mdx) / once
+
+```ts
+const once: Schedule<number>;
+```
+
+Defined in: [packages/common/src/Schedule.ts:160](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Schedule.ts#L160)
+
+A schedule that runs exactly once with no delay.
+
+Convenience for `take(1)(forever)`. Useful for one-shot operations.
+
+### Example
+
+```ts
+// Execute once, no retry
+const oneShot = once;
+```

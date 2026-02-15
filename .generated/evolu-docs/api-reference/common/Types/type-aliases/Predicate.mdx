@@ -1,0 +1,36 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Types](/docs/api-reference/common/Types/page.mdx) / Predicate
+
+```ts
+type Predicate<T> = (value: T) => boolean;
+```
+
+Defined in: [packages/common/src/Types.ts:54](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Types.ts#L54)
+
+Checks a condition on a value and returns a boolean.
+
+A predicate starts with an 'is' prefix, e.g., `isEven`.
+
+### Example
+
+```ts
+const isEven: Predicate<number> = (n) => n % 2 === 0;
+
+const numbers = [1, 2, 3, 4];
+const evenNumbers = numbers.filter(isEven); // [2, 4]
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `value` | `T` |
+
+## Returns
+
+`boolean`

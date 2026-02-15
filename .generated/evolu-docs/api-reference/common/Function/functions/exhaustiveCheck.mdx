@@ -1,0 +1,64 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Function](/docs/api-reference/common/Function/page.mdx) / exhaustiveCheck
+
+```ts
+function exhaustiveCheck(value: never): never;
+```
+
+Defined in: [packages/common/src/Function.ts:58](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Function.ts#L58)
+
+Helper function to ensure exhaustive matching in a switch statement. Throws
+an error if an unhandled case is encountered.
+
+### Example
+
+```ts
+type Color = "red" | "green" | "blue";
+
+const handleColor = (color: Color): void => {
+  switch (color) {
+    case "red":
+      console.log("Handling red");
+      break;
+    case "green":
+      console.log("Handling green");
+      break;
+    case "blue":
+      console.log("Handling blue");
+      break;
+    default:
+      exhaustiveCheck(color); // Ensures all cases are handled
+  }
+};
+```
+
+Useful only when the switch returns `void`; if it returns a value, the
+function return type enforces exhaustiveness.
+
+### Example
+
+Use a return type when the switch returns a value.
+
+```ts
+type Color = "red" | "green" | "blue";
+
+const colorToHex = (color: Color): string => {
+  switch (color) {
+    case "red":
+      return "#ff0000";
+    case "green":
+      return "#00ff00";
+    case "blue":
+      return "#0000ff";
+  }
+};
+```
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `value` | `never` |
+
+## Returns
+
+`never`

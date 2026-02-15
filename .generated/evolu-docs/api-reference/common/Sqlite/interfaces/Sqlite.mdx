@@ -1,0 +1,139 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Sqlite](/docs/api-reference/common/Sqlite/page.mdx) / Sqlite
+
+Defined in: [packages/common/src/Sqlite.ts:26](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Sqlite.ts#L26)
+
+Platform-agnostic SQLite wrapping a [SqliteDriver](/docs/api-reference/common/Sqlite/interfaces/SqliteDriver.mdx).
+
+API is synchronous because it provides
+[better concurrency](https://github.com/WiseLibs/better-sqlite3/issues/262)
+for SQLite.
+
+## Extends
+
+- [`Disposable`](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-2.html#using-declarations-and-explicit-resource-management)
+
+## Methods
+
+<a id="dispose"></a>
+
+### \[dispose\]()
+
+#### Call Signature
+
+```ts
+dispose: void;
+```
+
+Defined in: node\_modules/.bun/typescript@5.9.3/node\_modules/typescript/lib/lib.esnext.disposable.d.ts:36
+
+##### Returns
+
+`void`
+
+##### Inherited from
+
+```ts
+Disposable.[dispose]
+```
+
+#### Call Signature
+
+```ts
+dispose: void;
+```
+
+Defined in: node\_modules/.bun/@types+node@22.19.11/node\_modules/@types/node/compatibility/disposable.d.ts:9
+
+##### Returns
+
+`void`
+
+##### Inherited from
+
+```ts
+Disposable.[dispose]
+```
+
+## Properties
+
+<a id="exec"></a>
+
+### exec()
+
+```ts
+readonly exec: <R>(query: SqliteQuery) => Result<SqliteExecResult<R>, SqliteError>;
+```
+
+Defined in: [packages/common/src/Sqlite.ts:27](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Sqlite.ts#L27)
+
+#### Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `R` *extends* [`SqliteRow`](/docs/api-reference/common/Sqlite/type-aliases/SqliteRow.mdx) | [`SqliteRow`](/docs/api-reference/common/Sqlite/type-aliases/SqliteRow.mdx) |
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `query` | [`SqliteQuery`](/docs/api-reference/common/Sqlite/interfaces/SqliteQuery.mdx) |
+
+#### Returns
+
+[`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<[`SqliteExecResult`](/docs/api-reference/common/Sqlite/interfaces/SqliteExecResult.mdx)\<`R`\>, [`SqliteError`](/docs/api-reference/common/Sqlite/interfaces/SqliteError.mdx)\>
+
+***
+
+<a id="export"></a>
+
+### export()
+
+```ts
+readonly export: () => Result<Uint8Array<ArrayBufferLike>, SqliteError>;
+```
+
+Defined in: [packages/common/src/Sqlite.ts:41](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Sqlite.ts#L41)
+
+#### Returns
+
+[`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`Uint8Array`\<`ArrayBufferLike`\>, [`SqliteError`](/docs/api-reference/common/Sqlite/interfaces/SqliteError.mdx)\>
+
+***
+
+<a id="transaction"></a>
+
+### transaction()
+
+```ts
+readonly transaction: <T, E>(callback: () => Result<T, 
+  | SqliteError
+  | E>) => Result<T, 
+  | SqliteError
+| E>;
+```
+
+Defined in: [packages/common/src/Sqlite.ts:37](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Sqlite.ts#L37)
+
+Executes a transaction, running the provided callback within a begin/commit
+block. If the callback returns an error, the transaction is rolled back. If
+the rollback fails, a [SqliteError](/docs/api-reference/common/Sqlite/interfaces/SqliteError.mdx) is returned with both the original
+error and rollbackError.
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+| `E` |
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `callback` | () => [`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`T`, \| [`SqliteError`](/docs/api-reference/common/Sqlite/interfaces/SqliteError.mdx) \| `E`\> |
+
+#### Returns
+
+[`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`T`, 
+  \| [`SqliteError`](/docs/api-reference/common/Sqlite/interfaces/SqliteError.mdx)
+  \| `E`\>

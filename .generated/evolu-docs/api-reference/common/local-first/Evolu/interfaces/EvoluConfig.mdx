@@ -1,0 +1,243 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [local-first/Evolu](/docs/api-reference/common/local-first/Evolu/page.mdx) / EvoluConfig
+
+Defined in: [packages/common/src/local-first/Evolu.ts:82](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L82)
+
+## Properties
+
+<a id="appname"></a>
+
+### ~~appName?~~
+
+```ts
+readonly optional appName: string & Brand<"UrlSafeString"> & Brand<"AppName">;
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:103](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L103)
+
+#### Deprecated
+
+Use [EvoluConfig.name](/docs/api-reference/common/local-first/Evolu/interfaces/EvoluConfig.mdx#name). Compatibility alias for
+`upstream/common-v8`.
+
+***
+
+<a id="appowner"></a>
+
+### appOwner?
+
+```ts
+readonly optional appOwner: AppOwner;
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:141](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L141)
+
+External AppOwner to use when creating Evolu instance. Use this when you
+want to manage AppOwner creation and persistence externally (e.g., with
+your own authentication system). If omitted, Evolu will automatically
+create and persist an AppOwner locally.
+
+For device-specific settings and account management state, we can use a
+separate local-only Evolu instance via `transports: []`.
+
+### Example
+
+```ts
+const ConfigId = id("Config");
+type ConfigId = typeof ConfigId.Type;
+
+const DeviceSchema = {
+  config: {
+    id: ConfigId,
+    key: NonEmptyString50,
+    value: NonEmptyString50,
+  },
+};
+
+// Local-only instance for device settings (no sync)
+const deviceEvolu = createEvolu(evoluReactWebDeps)(DeviceSchema, {
+  name: SimpleName.orThrow("MyApp-Device"),
+  transports: [], // No sync - stays local to device
+});
+
+// Main synced instance for user data
+const evolu = createEvolu(evoluReactWebDeps)(MainSchema, {
+  name: SimpleName.orThrow("MyApp"),
+  // Default transports for sync
+});
+```
+
+***
+
+<a id="encryptionkey"></a>
+
+### encryptionKey?
+
+```ts
+readonly optional encryptionKey: Uint8Array<ArrayBufferLike> & Brand<"Entropy"> & Brand<"Length32"> & Brand<"EncryptionKey">;
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:246](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L246)
+
+Encryption key for the SQLite database.
+
+Note: If an unencrypted SQLite database already exists and you provide an
+encryptionKey, SQLite will throw an error.
+
+***
+
+<a id="externalappowner"></a>
+
+### ~~externalAppOwner?~~
+
+```ts
+readonly optional externalAppOwner: AppOwner;
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:147](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L147)
+
+#### Deprecated
+
+Use [EvoluConfig.appOwner](/docs/api-reference/common/local-first/Evolu/interfaces/EvoluConfig.mdx#appowner). Kept for transitional
+backward compatibility in downstream apps.
+
+***
+
+<a id="indexes"></a>
+
+### indexes?
+
+```ts
+readonly optional indexes: IndexesConfig;
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:237](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L237)
+
+Use the `indexes` option to define SQLite indexes.
+
+Table and column names are not typed because Kysely doesn't support it.
+
+https://medium.com/@JasonWyatt/squeezing-performance-from-sqlite-indexes-indexes-c4e175f3c346
+
+### Example
+
+```ts
+const evolu = createEvolu(evoluReactDeps)(Schema, {
+  indexes: (create) => [
+    create("todoCreatedAt").on("todo").column("createdAt"),
+    create("todoCategoryCreatedAt")
+      .on("todoCategory")
+      .column("createdAt"),
+  ],
+});
+```
+
+***
+
+<a id="inmemory"></a>
+
+### inMemory?
+
+```ts
+readonly optional inMemory: boolean;
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:215](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L215)
+
+Use in-memory SQLite database instead of persistent storage. Useful for
+testing or temporary data that doesn't need persistence.
+
+In-memory databases exist only in RAM and are completely destroyed when the
+process ends, making them forensically safe for sensitive data.
+
+The default value is: `false`.
+
+***
+
+<a id="name"></a>
+
+### name?
+
+```ts
+readonly optional name: string & Brand<"UrlSafeString"> & Brand<"SimpleName">;
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:97](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L97)
+
+The name of the Evolu instance. Evolu is multitenant - it can run multiple
+instances concurrently. Each instance must have a unique name.
+
+The instance name is used as the SQLite database filename for persistent
+storage, ensuring that database files are separated and invisible to each
+other.
+
+### Example
+
+```ts
+// name: SimpleName.orThrow("MyApp")
+```
+
+***
+
+<a id="transports"></a>
+
+### transports?
+
+```ts
+readonly optional transports: readonly OwnerWebSocketTransport[];
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:204](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L204)
+
+Transport configuration for data sync and backup. Supports single transport
+or multiple transports simultaneously for redundancy.
+
+**Redundancy:** The ideal setup uses at least two completely independent
+relays - for example, a home relay and a geographically separate relay.
+Data is sent to both relays simultaneously, providing true redundancy
+similar to using two independent clouds. This eliminates vendor lock-in and
+ensures your app continues working regardless of circumstances - whether
+home relay hardware is stolen or a remote relay provider shuts down.
+
+Currently supports:
+
+- WebSocket: Real-time bidirectional communication with relay servers
+
+Empty transports create local-only instances. Transports can be dynamically
+added and removed for any owner (including [AppOwner](/docs/api-reference/common/local-first/Owner/interfaces/AppOwner.mdx)) via
+[Evolu.useOwner](/docs/api-reference/common/local-first/Evolu/interfaces/Evolu.mdx#useowner).
+
+Use `createOwnerWebSocketTransport` to create WebSocket transport
+configurations with proper URL formatting and [OwnerId](/docs/api-reference/common/local-first/Owner/variables/OwnerId.mdx) inclusion. The
+[OwnerId](/docs/api-reference/common/local-first/Owner/variables/OwnerId.mdx) in the URL enables relay authentication, allowing relay
+servers to control access (e.g., for paid tiers or private instances).
+
+The default value is:
+
+`{ type: "WebSocket", url: "wss://free.evoluhq.com" }`.
+
+### Example
+
+```ts
+// Single WebSocket relay
+transports: [{ type: "WebSocket", url: "wss://relay1.example.com" }];
+
+// Multiple WebSocket relays for redundancy
+transports: [
+  { type: "WebSocket", url: "wss://relay1.example.com" },
+  { type: "WebSocket", url: "wss://relay2.example.com" },
+  { type: "WebSocket", url: "wss://relay3.example.com" },
+];
+
+// Local-only instance (no sync) - useful for device settings or when relay
+// URL will be provided later (e.g., after authentication), allowing users
+// to work offline before the app connects
+transports: [];
+
+// Using createOwnerWebSocketTransport helper for relay authentication
+transports: [
+  createOwnerWebSocketTransport({
+    url: "ws://localhost:4000",
+    ownerId,
+  }),
+];
+```

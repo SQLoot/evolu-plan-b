@@ -1,0 +1,43 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [local-first/Protocol](/docs/api-reference/common/local-first/Protocol/page.mdx) / ApplyProtocolMessageAsRelayResult
+
+Defined in: [packages/common/src/local-first/Protocol.ts:1068](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L1068)
+
+Result type for [applyProtocolMessageAsRelay](/docs/api-reference/common/local-first/Protocol/functions/applyProtocolMessageAsRelay.mdx).
+
+Unlike [ApplyProtocolMessageAsClientResult](/docs/api-reference/common/local-first/Protocol/type-aliases/ApplyProtocolMessageAsClientResult.mdx), relays always respond with
+a message to provide sync completion feedback. This ensures the initiator can
+reliably detect when synchronization is complete, even when there's nothing
+to sync. Clients may choose not to respond in certain cases (like when they
+receive broadcast messages or when they lack a write key for syncing).
+
+## Extends
+
+- [`Typed`](/docs/api-reference/common/Type/interfaces/Typed.mdx)\<`"Response"`\>
+
+## Properties
+
+<a id="message"></a>
+
+### message
+
+```ts
+readonly message: ProtocolMessage;
+```
+
+Defined in: [packages/common/src/local-first/Protocol.ts:1069](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L1069)
+
+***
+
+<a id="type"></a>
+
+### type
+
+```ts
+readonly type: "Response";
+```
+
+Defined in: [packages/common/src/Type.ts:3456](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L3456)
+
+#### Inherited from
+
+[`Typed`](/docs/api-reference/common/Type/interfaces/Typed.mdx).[`type`](/docs/api-reference/common/Type/interfaces/Typed.mdx#type)

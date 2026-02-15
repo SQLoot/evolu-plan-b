@@ -1,0 +1,15 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Types](/docs/api-reference/common/Types/page.mdx) / Digit1To59
+
+```ts
+type Digit1To59 = 
+  | Digit1To9
+  | `1${Digit}`
+  | `2${Digit}`
+  | `3${Digit}`
+  | `4${Digit}`
+  | `5${Digit}`;
+```
+
+Defined in: [packages/common/src/Types.ts:288](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Types.ts#L288)
+
+Numeric string 1-59. Useful for minutes, seconds validation.

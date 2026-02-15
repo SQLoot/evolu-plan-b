@@ -1,0 +1,37 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [local-first/Protocol](/docs/api-reference/common/local-first/Protocol/page.mdx) / encodeAndEncryptDbChange
+
+```ts
+function encodeAndEncryptDbChange(deps: RandomBytesDep): (message: CrdtMessage, key: Uint8Array<ArrayBufferLike> & Brand<"Entropy"> & Brand<"Length32"> & Brand<"EncryptionKey">) => EncryptedDbChange;
+```
+
+Defined in: [packages/common/src/local-first/Protocol.ts:1762](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L1762)
+
+Encodes and encrypts a [DbChange](/docs/api-reference/common/local-first/Storage/variables/DbChange.mdx) using the provided owner's encryption
+key. Returns an encrypted binary representation as [EncryptedDbChange](/docs/api-reference/common/local-first/Storage/type-aliases/EncryptedDbChange.mdx).
+
+The format includes the protocol version for backward compatibility and the
+timestamp for tamper-proof verification that the timestamp matches the change
+data.
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `deps` | [`RandomBytesDep`](/docs/api-reference/common/Crypto/interfaces/RandomBytesDep.mdx) |
+
+## Returns
+
+```ts
+(message: CrdtMessage, key: Uint8Array<ArrayBufferLike> & Brand<"Entropy"> & Brand<"Length32"> & Brand<"EncryptionKey">): EncryptedDbChange;
+```
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `message` | [`CrdtMessage`](/docs/api-reference/common/local-first/Storage/interfaces/CrdtMessage.mdx) |
+| `key` | `Uint8Array`\<`ArrayBufferLike`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Entropy"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Length32"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"EncryptionKey"`\> |
+
+### Returns
+
+[`EncryptedDbChange`](/docs/api-reference/common/local-first/Storage/type-aliases/EncryptedDbChange.mdx)

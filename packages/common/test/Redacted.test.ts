@@ -13,7 +13,6 @@ import {
 describe("createRedacted hides value", () => {
   test("from toString", () => {
     const secret = createRedacted("my-secret-key");
-    // eslint-disable-next-line @typescript-eslint/no-base-to-string
     expect(secret.toString()).toBe("<redacted>");
   });
 
@@ -39,7 +38,6 @@ describe("createRedacted hides value", () => {
 
   test("in string interpolation", () => {
     const secret = createRedacted("my-secret-key");
-    // eslint-disable-next-line @typescript-eslint/no-base-to-string
     expect(`API key: ${secret}`).toBe("API key: <redacted>");
   });
 });
@@ -70,7 +68,6 @@ describe("revealRedacted", () => {
   });
 
   test("retrieves undefined", () => {
-    // eslint-disable-next-line @typescript-eslint/no-confusing-void-expression
     expect(revealRedacted(createRedacted(undefined))).toBe(undefined);
   });
 });
@@ -158,7 +155,6 @@ test("Redacted JSDoc example", () => {
   const apiKey: ApiKey = "secret-123" as ApiKey;
   const redactedKey: RedactedApiKey = createRedacted(apiKey);
 
-  // eslint-disable-next-line @typescript-eslint/no-base-to-string
   expect(String(redactedKey)).toBe("<redacted>");
   expect(revealRedacted(redactedKey)).toBe("secret-123");
 

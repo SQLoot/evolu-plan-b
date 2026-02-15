@@ -228,7 +228,6 @@ export const lazyVoid: Lazy<void> = lazyUndefined;
  * expectTypeOf(getConfig).returns.toEqualTypeOf<Config>();
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
 export const todo = <T>(): T => {
   throw new Error("not yet implemented");
 };

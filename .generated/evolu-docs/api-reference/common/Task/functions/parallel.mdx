@@ -1,0 +1,93 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Task](/docs/api-reference/common/Task/page.mdx) / parallel
+
+## Call Signature
+
+```ts
+function parallel<T, E, D>(concurrency: Concurrency, task: Task<T, E, D>): Task<T, E, D>;
+```
+
+Defined in: [packages/common/src/Task.ts:1663](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L1663)
+
+Runs tasks in parallel instead of sequentially.
+
+Sets the [Concurrency](/docs/api-reference/common/Task/type-aliases/Concurrency.mdx) level for a [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx), which helpers like
+[all](/docs/api-reference/common/Task/functions/all.mdx), [map](/docs/api-reference/common/Task/functions/map.mdx), etc. use to control how many tasks run at once.
+
+By default, tasks run sequentially (one at a time) to encourage thinking
+about concurrency explicitly — unlike `Promise.all` which runs everything in
+parallel.
+
+For tuple-based calls like `all([taskA, taskB, taskC])` with a known small
+number of tasks, omit the limit (runs unlimited). For arrays of unknown
+length, always specify a limit.
+
+Concurrency is inherited by child tasks and can be overridden at any level.
+Composition helpers should respect inherited concurrency — they should not
+override it with a fixed number unless semantically required (like
+[race](/docs/api-reference/common/Task/functions/race.mdx)). Helpers with a recommended concurrency should export it for use
+with `parallel`.
+
+### Example
+
+```ts
+// Unlimited (omit the limit)
+run(parallel(all([fetchA, fetchB, fetchC])));
+
+// Limited — at most 5 tasks run at a time
+run(parallel(5, all(tasks)));
+run(parallel(5, map(userIds, fetchUser)));
+
+// Inherited — inner all() uses parent's limit
+const pipeline = parallel(5, async (run) => {
+  const users = await run(map(userIds, fetchUser)); // uses 5
+  if (!users.ok) return users;
+  return run(map(users.value, enrichUser)); // also uses 5
+});
+```
+
+### Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `T` | - |
+| `E` | - |
+| `D` | `unknown` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `concurrency` | [`Concurrency`](/docs/api-reference/common/Task/type-aliases/Concurrency.mdx) |
+| `task` | [`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T`, `E`, `D`\> |
+
+### Returns
+
+[`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T`, `E`, `D`\>
+
+## Call Signature
+
+```ts
+function parallel<T, E, D>(task: Task<T, E, D>): Task<T, E, D>;
+```
+
+Defined in: [packages/common/src/Task.ts:1668](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L1668)
+
+Unlimited.
+
+### Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `T` | - |
+| `E` | - |
+| `D` | `unknown` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `task` | [`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T`, `E`, `D`\> |
+
+### Returns
+
+[`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T`, `E`, `D`\>

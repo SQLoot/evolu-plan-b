@@ -1,0 +1,237 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / local-first/Protocol
+
+Evolu Protocol
+
+Evolu Protocol is a local-first, end-to-end encrypted binary synchronization
+protocol optimized for minimal size and maximum speed. It enables data sync
+between a client and a relay. In the future, direct peer-to-peer (P2P) sync
+between clients will be possible without a relay.
+
+Relays don't need to sync with each other—clients using those relays will
+sync them eventually. If a relay is offline (e.g., for maintenance), it will
+sync automatically later via client sync logic. For relay backup using
+SQLite, see https://sqlite.org/rsync.html (uses a similar algorithm to Evolu
+RBSR).
+
+Evolu Protocol is designed for SQLite but can be extended to any database. It
+implements [Range-Based Set
+Reconciliation](https://arxiv.org/abs/2212.13567). To learn how RBSR works,
+check [Negentropy](https://logperiodic.com/rbsr.html). Evolu Protocol is
+similar to Negentropy but uses different encoding and also provides data
+transfer, ownership, real-time broadcasting, request-response semantics, and
+error handling.
+
+## Message structure
+
+| Field                          | Notes                     |
+| :----------------------------- | :------------------------ |
+| **Header**                     |                           |
+| - [protocolVersion](/docs/api-reference/common/local-first/Protocol/variables/protocolVersion.mdx)      |                           |
+| - [OwnerId](/docs/api-reference/common/local-first/Owner/variables/OwnerId.mdx)              | [Owner](/docs/api-reference/common/local-first/Owner/interfaces/Owner.mdx)             |
+| - messageType                  | [MessageType](/docs/api-reference/common/local-first/Protocol/variables/MessageType.mdx)       |
+| **Request (messageType=0)**    |                           |
+| - hasWriteKey                  | 0 = no, 1 = yes           |
+| - [OwnerWriteKey](/docs/api-reference/common/local-first/Owner/variables/OwnerWriteKey.mdx)        | If hasWriteKey = 1        |
+| - subscriptionFlag             | [SubscriptionFlags](/docs/api-reference/common/local-first/Protocol/variables/SubscriptionFlags.mdx) |
+| **Response (messageType=1)**   |                           |
+| - [ProtocolErrorCode](/docs/api-reference/common/local-first/Protocol/variables/ProtocolErrorCode.mdx)    |                           |
+| **Broadcast (messageType=2)**  |                           |
+| - (no additional fields)       |                           |
+| **Messages**                   |                           |
+| - [NonNegativeInt](/docs/api-reference/common/Type/variables/NonNegativeInt.mdx)       | A number of messages.     |
+| - [EncryptedCrdtMessage](/docs/api-reference/common/local-first/Storage/interfaces/EncryptedCrdtMessage.mdx) |                           |
+| **Ranges**                     |                           |
+| - [NonNegativeInt](/docs/api-reference/common/Type/variables/NonNegativeInt.mdx)       | Number of ranges.         |
+| - [Range](/docs/api-reference/common/local-first/Storage/type-aliases/Range.mdx)                |                           |
+
+## WriteKey validation
+
+The initiator sends a hasWriteKey flag and optionally a WriteKey. The
+WriteKey is required when sending messages as a secure token proving the
+initiator can write changes. It's ok to not send a WriteKey if the initiator
+is only syncing (read-only) and not sending messages. The non-initiator
+validates the WriteKey immediately after parsing the initiator header, before
+processing any messages or ranges.
+
+## Synchronization
+
+- **Messages**: Sends [EncryptedCrdtMessage](/docs/api-reference/common/local-first/Storage/interfaces/EncryptedCrdtMessage.mdx)s in either direction.
+- **Ranges**: Determines messages to sync. Usage varies by transport—e.g., sent
+  only on WebSocket connection open or with every fetch request.
+
+Synchronization involves an initiator and a non-initiator. The **initiator**
+is typically a client, and the **non-initiator** is typically a relay. Each
+side processes the received message and responds with a new `ProtocolMessage`
+if further sync is needed or possible, continuing until both sides are
+synchronized.
+
+The **non-initiator always responds** to provide sync completion feedback,
+even with empty messages containing only the header and no error. This allows
+the initiator to detect when synchronization is complete.
+
+Both **Messages** and **Ranges** are optional, allowing each side to send,
+sync, or only subscribe data as needed.
+
+When the initiator sends data, the [OwnerWriteKey](/docs/api-reference/common/local-first/Owner/variables/OwnerWriteKey.mdx) is required as a
+secure token proving the initiator can write changes. The non-initiator
+responds without a [OwnerWriteKey](/docs/api-reference/common/local-first/Owner/variables/OwnerWriteKey.mdx), since the initiator’s request
+already signals it wants data. If the non-initiator detects an issue, it
+sends an error code via the `Error` field in the header back to the
+initiator. In relay-to-relay or P2P sync, both sides may require the
+[OwnerWriteKey](/docs/api-reference/common/local-first/Owner/variables/OwnerWriteKey.mdx) depending on who is the initiator.
+
+## Protocol errors
+
+The protocol uses error codes in the header to signal issues:
+
+- [ProtocolWriteKeyError](/docs/api-reference/common/local-first/Protocol/interfaces/ProtocolWriteKeyError.mdx): The provided WriteKey is invalid or missing.
+- [ProtocolWriteError](/docs/api-reference/common/local-first/Protocol/interfaces/ProtocolWriteError.mdx): A serious relay-side write failure occurred.
+- [ProtocolQuotaError](/docs/api-reference/common/local-first/Protocol/interfaces/ProtocolQuotaError.mdx): Storage or billing quota exceeded.
+- [ProtocolSyncError](/docs/api-reference/common/local-first/Protocol/interfaces/ProtocolSyncError.mdx): A serious relay-side synchronization failure
+  occurred.
+- [ProtocolVersionError](/docs/api-reference/common/local-first/Protocol/interfaces/ProtocolVersionError.mdx): Protocol version mismatch.
+- [ProtocolInvalidDataError](/docs/api-reference/common/local-first/Protocol/interfaces/ProtocolInvalidDataError.mdx): The message is malformed or corrupted.
+
+All protocol errors except `ProtocolInvalidDataError` include the `OwnerId`
+to allow clients to associate errors with the correct owner.
+
+## Message size limit
+
+The protocol enforces a strict maximum size for all messages, defined by
+[ProtocolMessageMaxSize](/docs/api-reference/common/local-first/Protocol/variables/ProtocolMessageMaxSize.mdx). This ensures every [ProtocolMessage](/docs/api-reference/common/local-first/Protocol/type-aliases/ProtocolMessage.mdx) is
+less than or equal to this limit, enabling stateless transports, simplified
+relay implementation, and predictable memory usage. When all messages don't
+fit within the limit, the protocol automatically continues synchronization in
+subsequent rounds using range-based reconciliation.
+
+Database mutations are limited to 640KB, which is smaller than the protocol
+message limit to ensure efficient sync with
+[defaultProtocolMessageRangesMaxSize](/docs/api-reference/common/local-first/Protocol/variables/defaultProtocolMessageRangesMaxSize.mdx).
+
+## Why Binary?
+
+The protocol avoids JSON because:
+
+- Encrypted data doesn’t compress well, unlike plain JSON.
+- Message size must be controlled during creation.
+- Sequential byte reading is faster than parsing and avoids conversions.
+
+It uses structure-aware encoding, significantly outperforming generic binary
+serialization formats with the following optimizations:
+
+- **NonNegativeInt:** Up to 33% smaller than MessagePack.
+- **DateIso:** Up to 75% smaller.
+- **Timestamp Encoding:** Delta encoding for milliseconds and run-length
+  encoding (RLE) for counters and NodeIds.
+- **Small Integers (0 to 19):** Reduces size by 1 byte per integer.
+
+To avoid reinventing serialization where it’s unnecessary—like for JSON and
+certain numbers—the Evolu Protocol relies on MessagePack.
+
+## Versioning
+
+Evolu Protocol uses explicit versioning to ensure compatibility between
+clients and relays (or peers). Each protocol message begins with a version
+number and an `ownerId` in its header.
+
+**How version negotiation works:**
+
+- The initiator (usually a client) sends a `ProtocolMessage` that includes its
+  protocol version and the `ownerId`.
+- The non-initiator (usually a relay or peer) checks the version.
+
+  - If the versions match, synchronization proceeds as normal.
+  - If the versions do not match, the non-initiator responds with a message
+      containing **its own protocol version and the same `ownerId`**.
+- The initiator can then detect the version mismatch for that specific owner
+  and handle it appropriately (e.g., prompt for an update or halt sync).
+
+Version negotiation is per-owner, allowing Evolu Protocol to evolve safely
+over time and provide clear feedback about version mismatches.
+
+## Credible exit
+
+The protocol specification is intentionally non-configurable to ensure
+universal compatibility. This design allows applications (users) to switch
+between any compliant relay without negotiation or compatibility checks
+beyond version matching. Relays are generic infrastructure that any
+application can use interchangeably making exit from any single provider
+technically feasible and economically viable.
+
+## Functions
+
+| Function | Description |
+| ------ | ------ |
+| [applyProtocolMessageAsClient](/docs/api-reference/common/local-first/Protocol/functions/applyProtocolMessageAsClient.mdx) | - |
+| [applyProtocolMessageAsRelay](/docs/api-reference/common/local-first/Protocol/functions/applyProtocolMessageAsRelay.mdx) | - |
+| [createProtocolMessageBuffer](/docs/api-reference/common/local-first/Protocol/functions/createProtocolMessageBuffer.mdx) | - |
+| [createProtocolMessageForSync](/docs/api-reference/common/local-first/Protocol/functions/createProtocolMessageForSync.mdx) | Creates a [ProtocolMessage](/docs/api-reference/common/local-first/Protocol/type-aliases/ProtocolMessage.mdx) for sync. |
+| [createProtocolMessageForUnsubscribe](/docs/api-reference/common/local-first/Protocol/functions/createProtocolMessageForUnsubscribe.mdx) | - |
+| [createProtocolMessageFromCrdtMessages](/docs/api-reference/common/local-first/Protocol/functions/createProtocolMessageFromCrdtMessages.mdx) | Creates a [ProtocolMessage](/docs/api-reference/common/local-first/Protocol/type-aliases/ProtocolMessage.mdx) from CRDT messages. |
+| [createTimestampsBuffer](/docs/api-reference/common/local-first/Protocol/functions/createTimestampsBuffer.mdx) | - |
+| [decodeFlags](/docs/api-reference/common/local-first/Protocol/functions/decodeFlags.mdx) | Decodes a byte into an array of boolean flags. |
+| [decodeNodeId](/docs/api-reference/common/local-first/Protocol/functions/decodeNodeId.mdx) | - |
+| [decodeNonNegativeInt](/docs/api-reference/common/local-first/Protocol/functions/decodeNonNegativeInt.mdx) | Decodes a non-negative integer from a variable-length integer format. |
+| [decodeNumber](/docs/api-reference/common/local-first/Protocol/functions/decodeNumber.mdx) | - |
+| [decodeProtocolMessageToJson](/docs/api-reference/common/local-first/Protocol/functions/decodeProtocolMessageToJson.mdx) | Decodes a ProtocolMessage into a readable JSON object for debugging. |
+| [decodeRle](/docs/api-reference/common/local-first/Protocol/functions/decodeRle.mdx) | - |
+| [decodeSqliteValue](/docs/api-reference/common/local-first/Protocol/functions/decodeSqliteValue.mdx) | - |
+| [decodeString](/docs/api-reference/common/local-first/Protocol/functions/decodeString.mdx) | - |
+| [decryptAndDecodeDbChange](/docs/api-reference/common/local-first/Protocol/functions/decryptAndDecodeDbChange.mdx) | Decrypts and decodes an [EncryptedCrdtMessage](/docs/api-reference/common/local-first/Storage/interfaces/EncryptedCrdtMessage.mdx) using the provided owner's encryption key. Verifies that the embedded timestamp matches the expected timestamp to ensure message integrity. |
+| [encodeAndEncryptDbChange](/docs/api-reference/common/local-first/Protocol/functions/encodeAndEncryptDbChange.mdx) | Encodes and encrypts a [DbChange](/docs/api-reference/common/local-first/Storage/variables/DbChange.mdx) using the provided owner's encryption key. Returns an encrypted binary representation as [EncryptedDbChange](/docs/api-reference/common/local-first/Storage/type-aliases/EncryptedDbChange.mdx). |
+| [encodeFlags](/docs/api-reference/common/local-first/Protocol/functions/encodeFlags.mdx) | Encodes an array of boolean flags into a single byte. |
+| [encodeLength](/docs/api-reference/common/local-first/Protocol/functions/encodeLength.mdx) | - |
+| [encodeNodeId](/docs/api-reference/common/local-first/Protocol/functions/encodeNodeId.mdx) | - |
+| [encodeNonNegativeInt](/docs/api-reference/common/local-first/Protocol/functions/encodeNonNegativeInt.mdx) | Encodes a non-negative integer into a variable-length integer format. It's more efficient than encoding via [encodeNumber](/docs/api-reference/common/local-first/Protocol/functions/encodeNumber.mdx). |
+| [encodeNumber](/docs/api-reference/common/local-first/Protocol/functions/encodeNumber.mdx) | Evolu uses MessagePack to handle all number variants except for NonNegativeInt. For NonNegativeInt, Evolu provides more efficient encoding. |
+| [encodeSqliteValue](/docs/api-reference/common/local-first/Protocol/functions/encodeSqliteValue.mdx) | - |
+| [encodeString](/docs/api-reference/common/local-first/Protocol/functions/encodeString.mdx) | - |
+| [pack](/docs/api-reference/common/local-first/Protocol/functions/pack.mdx) | - |
+
+## Interfaces
+
+| Interface | Description |
+| ------ | ------ |
+| [ApplyProtocolMessageAsClientBroadcast](/docs/api-reference/common/local-first/Protocol/interfaces/ApplyProtocolMessageAsClientBroadcast.mdx) | Base interface for objects with a discriminant `type` property. |
+| [ApplyProtocolMessageAsClientNoResponse](/docs/api-reference/common/local-first/Protocol/interfaces/ApplyProtocolMessageAsClientNoResponse.mdx) | Base interface for objects with a discriminant `type` property. |
+| [ApplyProtocolMessageAsClientOptions](/docs/api-reference/common/local-first/Protocol/interfaces/ApplyProtocolMessageAsClientOptions.mdx) | - |
+| [ApplyProtocolMessageAsClientResponse](/docs/api-reference/common/local-first/Protocol/interfaces/ApplyProtocolMessageAsClientResponse.mdx) | Result type for [applyProtocolMessageAsClient](/docs/api-reference/common/local-first/Protocol/functions/applyProtocolMessageAsClient.mdx) that distinguishes between responses to client requests and broadcast messages. |
+| [ApplyProtocolMessageAsRelayOptions](/docs/api-reference/common/local-first/Protocol/interfaces/ApplyProtocolMessageAsRelayOptions.mdx) | - |
+| [ApplyProtocolMessageAsRelayResult](/docs/api-reference/common/local-first/Protocol/interfaces/ApplyProtocolMessageAsRelayResult.mdx) | Result type for [applyProtocolMessageAsRelay](/docs/api-reference/common/local-first/Protocol/functions/applyProtocolMessageAsRelay.mdx). |
+| [ProtocolInvalidDataError](/docs/api-reference/common/local-first/Protocol/interfaces/ProtocolInvalidDataError.mdx) | Error for invalid or corrupted protocol message data. |
+| [ProtocolMessageBuffer](/docs/api-reference/common/local-first/Protocol/interfaces/ProtocolMessageBuffer.mdx) | Mutable builder for constructing [ProtocolMessage](/docs/api-reference/common/local-first/Protocol/type-aliases/ProtocolMessage.mdx) respecting size limits. |
+| [ProtocolQuotaError](/docs/api-reference/common/local-first/Protocol/interfaces/ProtocolQuotaError.mdx) | Error when storage or billing quota is exceeded. |
+| [ProtocolSyncError](/docs/api-reference/common/local-first/Protocol/interfaces/ProtocolSyncError.mdx) | Error indicating a serious relay-side synchronization failure. Clients should log this error and show a generic sync error to the user. |
+| [ProtocolTimestampMismatchError](/docs/api-reference/common/local-first/Protocol/interfaces/ProtocolTimestampMismatchError.mdx) | Error when embedded timestamp doesn't match expected timestamp in EncryptedDbChange. Indicates potential tampering or corruption of CRDT messages. |
+| [ProtocolVersionError](/docs/api-reference/common/local-first/Protocol/interfaces/ProtocolVersionError.mdx) | Represents a version mismatch in the Evolu Protocol. Occurs when the initiator and non-initiator are using incompatible protocol versions. |
+| [ProtocolWriteError](/docs/api-reference/common/local-first/Protocol/interfaces/ProtocolWriteError.mdx) | Error indicating a serious relay-side write failure. Clients should log this error and show a generic sync error to the user. |
+| [ProtocolWriteKeyError](/docs/api-reference/common/local-first/Protocol/interfaces/ProtocolWriteKeyError.mdx) | Error when a [OwnerWriteKey](/docs/api-reference/common/local-first/Owner/variables/OwnerWriteKey.mdx) is invalid, missing, or fails validation. |
+| [TimestampsBuffer](/docs/api-reference/common/local-first/Protocol/interfaces/TimestampsBuffer.mdx) | - |
+| [TimestampsRangeWithTimestampsBuffer](/docs/api-reference/common/local-first/Protocol/interfaces/TimestampsRangeWithTimestampsBuffer.mdx) | - |
+
+## Type Aliases
+
+| Type Alias | Description |
+| ------ | ------ |
+| [ApplyProtocolMessageAsClientResult](/docs/api-reference/common/local-first/Protocol/type-aliases/ApplyProtocolMessageAsClientResult.mdx) | - |
+| [MessageType](/docs/api-reference/common/local-first/Protocol/type-aliases/MessageType.mdx) | - |
+| [ProtocolError](/docs/api-reference/common/local-first/Protocol/type-aliases/ProtocolError.mdx) | - |
+| [ProtocolMessage](/docs/api-reference/common/local-first/Protocol/type-aliases/ProtocolMessage.mdx) | Evolu Protocol Message. |
+| [ProtocolMessageMaxSize](/docs/api-reference/common/local-first/Protocol/type-aliases/ProtocolMessageMaxSize.mdx) | Protocol message maximum size. |
+| [ProtocolMessageRangesMaxSize](/docs/api-reference/common/local-first/Protocol/type-aliases/ProtocolMessageRangesMaxSize.mdx) | Protocol message ranges maximum size. |
+| [SubscriptionFlag](/docs/api-reference/common/local-first/Protocol/type-aliases/SubscriptionFlag.mdx) | - |
+
+## Variables
+
+| Variable | Description |
+| ------ | ------ |
+| [decodeLength](/docs/api-reference/common/local-first/Protocol/variables/decodeLength.mdx) | - |
+| [defaultProtocolMessageMaxSize](/docs/api-reference/common/local-first/Protocol/variables/defaultProtocolMessageMaxSize.mdx) | Default [ProtocolMessageMaxSize](/docs/api-reference/common/local-first/Protocol/variables/ProtocolMessageMaxSize.mdx) (1MB). |
+| [defaultProtocolMessageRangesMaxSize](/docs/api-reference/common/local-first/Protocol/variables/defaultProtocolMessageRangesMaxSize.mdx) | Default [ProtocolMessageRangesMaxSize](/docs/api-reference/common/local-first/Protocol/variables/ProtocolMessageRangesMaxSize.mdx) (30KB). |
+| [MessageType](/docs/api-reference/common/local-first/Protocol/variables/MessageType.mdx) | - |
+| [ProtocolErrorCode](/docs/api-reference/common/local-first/Protocol/variables/ProtocolErrorCode.mdx) | - |
+| [ProtocolMessageMaxSize](/docs/api-reference/common/local-first/Protocol/variables/ProtocolMessageMaxSize.mdx) | Protocol message maximum size. |
+| [ProtocolMessageRangesMaxSize](/docs/api-reference/common/local-first/Protocol/variables/ProtocolMessageRangesMaxSize.mdx) | Protocol message ranges maximum size. |
+| [ProtocolValueType](/docs/api-reference/common/local-first/Protocol/variables/ProtocolValueType.mdx) | - |
+| [protocolVersion](/docs/api-reference/common/local-first/Protocol/variables/protocolVersion.mdx) | Evolu Protocol version. |
+| [SubscriptionFlags](/docs/api-reference/common/local-first/Protocol/variables/SubscriptionFlags.mdx) | - |

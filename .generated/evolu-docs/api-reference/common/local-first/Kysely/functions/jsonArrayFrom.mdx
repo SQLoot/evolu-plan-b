@@ -1,0 +1,69 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [local-first/Kysely](/docs/api-reference/common/local-first/Kysely/page.mdx) / jsonArrayFrom
+
+```ts
+function jsonArrayFrom<O>(expr: SelectQueryBuilderExpression<O>): RawBuilder<Simplify<O>[]>;
+```
+
+Defined in: [packages/common/src/local-first/Kysely.ts:77](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Kysely.ts#L77)
+
+A SQLite helper for aggregating a subquery into a JSON array.
+
+### Example
+
+```ts
+import { kysely } from "@evolu/common";
+
+// TODO: Update for Evolu
+const result = await db
+  .selectFrom("person")
+  .select((eb) => [
+    "id",
+    kysely
+      .jsonArrayFrom(
+        eb
+          .selectFrom("pet")
+          .select(["pet.id as pet_id", "pet.name"])
+          .whereRef("pet.owner_id", "=", "person.id")
+          .orderBy("pet.name"),
+      )
+      .as("pets"),
+  ])
+  .execute();
+
+result[0]?.id;
+result[0]?.pets[0].pet_id;
+result[0]?.pets[0].name;
+```
+
+The generated SQL (SQLite):
+
+```sql
+select "id", (
+  select coalesce(json_group_array(json_object(
+    'pet_id', "agg"."pet_id",
+    'name', "agg"."name"
+  )), '[]') from (
+    select "pet"."id" as "pet_id", "pet"."name"
+    from "pet"
+    where "pet"."owner_id" = "person"."id"
+    order by "pet"."name"
+  ) as "agg"
+) as "pets"
+from "person"
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `O` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `expr` | `SelectQueryBuilderExpression`\<`O`\> |
+
+## Returns
+
+`RawBuilder`\<`Simplify`\<`O`\>[]\>

@@ -1,0 +1,25 @@
+[API Reference](/docs/api-reference/page.mdx) / @evolu/bun
+
+Bun-specific Database Worker implementation.
+
+Uses bun:sqlite for synchronous SQLite operations inside a worker.
+The worker receives messages from the main thread and executes
+database operations.
+
+## Interfaces
+
+| Interface | Description |
+| ------ | ------ |
+| [BunDbWorkerScope](/docs/api-reference/bun/interfaces/BunDbWorkerScope.mdx) | Minimal worker scope shape used by [runBunDbWorkerScope](/docs/api-reference/bun/functions/runBunDbWorkerScope.mdx). |
+
+## Variables
+
+| Variable | Description |
+| ------ | ------ |
+| [bunDbWorkerCode](/docs/api-reference/bun/variables/bunDbWorkerCode.mdx) | Worker code as a string for creating blob URLs. |
+
+## Functions
+
+| Function | Description |
+| ------ | ------ |
+| [runBunDbWorkerScope](/docs/api-reference/bun/functions/runBunDbWorkerScope.mdx) | Database Worker scope for Bun. |

@@ -1,0 +1,75 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Console](/docs/api-reference/common/Console/page.mdx) / ConsoleStoreOutput
+
+Defined in: [packages/common/src/Console.ts:454](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L454)
+
+A [ConsoleOutput](/docs/api-reference/common/Console/interfaces/ConsoleOutput.mdx) that stores the latest entry in a
+[ReadonlyStore](/docs/api-reference/common/Store/interfaces/ReadonlyStore.mdx).
+
+## Extends
+
+- [`ConsoleOutput`](/docs/api-reference/common/Console/interfaces/ConsoleOutput.mdx)
+
+## Properties
+
+<a id="entry"></a>
+
+### entry
+
+```ts
+readonly entry: ReadonlyStore<
+  | ConsoleEntry
+| null>;
+```
+
+Defined in: [packages/common/src/Console.ts:455](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L455)
+
+***
+
+<a id="flush"></a>
+
+### flush()?
+
+```ts
+readonly optional flush: () => Promise<void>;
+```
+
+Defined in: [packages/common/src/Console.ts:294](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L294)
+
+Flush buffered entries. For async outputs that buffer for performance.
+
+#### Returns
+
+`Promise`\<`void`\>
+
+#### Inherited from
+
+[`ConsoleOutput`](/docs/api-reference/common/Console/interfaces/ConsoleOutput.mdx).[`flush`](/docs/api-reference/common/Console/interfaces/ConsoleOutput.mdx#flush)
+
+***
+
+<a id="write"></a>
+
+### write()
+
+```ts
+readonly write: (entry: ConsoleEntry, formatter?: ConsoleFormatter) => void;
+```
+
+Defined in: [packages/common/src/Console.ts:291](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L291)
+
+Write a log entry to this output.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `entry` | [`ConsoleEntry`](/docs/api-reference/common/Console/interfaces/ConsoleEntry.mdx) |
+| `formatter?` | [`ConsoleFormatter`](/docs/api-reference/common/Console/type-aliases/ConsoleFormatter.mdx) |
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`ConsoleOutput`](/docs/api-reference/common/Console/interfaces/ConsoleOutput.mdx).[`write`](/docs/api-reference/common/Console/interfaces/ConsoleOutput.mdx#write)

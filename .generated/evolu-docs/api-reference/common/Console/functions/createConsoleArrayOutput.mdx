@@ -1,0 +1,31 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Console](/docs/api-reference/common/Console/page.mdx) / createConsoleArrayOutput
+
+```ts
+function createConsoleArrayOutput(entries: ConsoleEntry[]): ConsoleOutput;
+```
+
+Defined in: [packages/common/src/Console.ts:620](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Console.ts#L620)
+
+Creates a [ConsoleOutput](/docs/api-reference/common/Console/interfaces/ConsoleOutput.mdx) that captures entries to an array.
+
+Useful for testing. Pass your own array to inspect captured entries.
+
+### Example
+
+```ts
+const entries: Array<ConsoleEntry> = [];
+const output = createConsoleArrayOutput(entries);
+
+// After logging...
+expect(entries).toMatchInlineSnapshot();
+```
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `entries` | [`ConsoleEntry`](/docs/api-reference/common/Console/interfaces/ConsoleEntry.mdx)[] |
+
+## Returns
+
+[`ConsoleOutput`](/docs/api-reference/common/Console/interfaces/ConsoleOutput.mdx)

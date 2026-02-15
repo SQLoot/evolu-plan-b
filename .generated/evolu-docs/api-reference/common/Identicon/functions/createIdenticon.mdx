@@ -1,0 +1,41 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Identicon](/docs/api-reference/common/Identicon/page.mdx) / createIdenticon
+
+```ts
+function createIdenticon(id: string & Brand<"Id">, style?: IdenticonStyle): Identicon;
+```
+
+Defined in: [packages/common/src/Identicon.ts:44](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Identicon.ts#L44)
+
+Creates a deterministic identicon SVG from an [Id](/docs/api-reference/common/Type/variables/Id.mdx).
+
+Works with any [Id](/docs/api-reference/common/Type/variables/Id.mdx) including branded IDs like `OwnerId`, etc.
+
+Available styles:
+
+- `"github"` (default): 5x5 grid with horizontal mirroring (GitHub-style)
+- `"quadrant"`: 2x2 grid with direct RGB color mapping from bytes
+- `"gradient"`: Diagonal stripes with smooth color gradients
+- `"sutnar"`: Three compositional variants with adaptive colors
+
+### Example
+
+```ts
+const svg = createIdenticon(id);
+const quadrantStyle = createIdenticon(id, "quadrant");
+const gradientStyle = createIdenticon(id, "gradient");
+const sutnarStyle = createIdenticon(id, "sutnar");
+
+// Works with branded IDs
+const ownerSvg = createIdenticon(ownerId);
+```
+
+## Parameters
+
+| Parameter | Type | Default value |
+| ------ | ------ | ------ |
+| `id` | `string` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Id"`\> | `undefined` |
+| `style` | [`IdenticonStyle`](/docs/api-reference/common/Identicon/type-aliases/IdenticonStyle.mdx) | `"github"` |
+
+## Returns
+
+[`Identicon`](/docs/api-reference/common/Identicon/type-aliases/Identicon.mdx)

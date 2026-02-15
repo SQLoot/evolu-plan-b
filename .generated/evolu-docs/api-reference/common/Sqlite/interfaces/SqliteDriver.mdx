@@ -1,0 +1,91 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Sqlite](/docs/api-reference/common/Sqlite/page.mdx) / SqliteDriver
+
+Defined in: [packages/common/src/Sqlite.ts:126](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Sqlite.ts#L126)
+
+SQLite driver interface.
+
+Platform-specific drivers must implement this interface.
+
+## Extends
+
+- [`Disposable`](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-2.html#using-declarations-and-explicit-resource-management)
+
+## Methods
+
+<a id="dispose"></a>
+
+### \[dispose\]()
+
+#### Call Signature
+
+```ts
+dispose: void;
+```
+
+Defined in: node\_modules/.bun/typescript@5.9.3/node\_modules/typescript/lib/lib.esnext.disposable.d.ts:36
+
+##### Returns
+
+`void`
+
+##### Inherited from
+
+```ts
+Disposable.[dispose]
+```
+
+#### Call Signature
+
+```ts
+dispose: void;
+```
+
+Defined in: node\_modules/.bun/@types+node@22.19.11/node\_modules/@types/node/compatibility/disposable.d.ts:9
+
+##### Returns
+
+`void`
+
+##### Inherited from
+
+```ts
+Disposable.[dispose]
+```
+
+## Properties
+
+<a id="exec"></a>
+
+### exec()
+
+```ts
+readonly exec: (query: SqliteQuery) => SqliteExecResult;
+```
+
+Defined in: [packages/common/src/Sqlite.ts:127](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Sqlite.ts#L127)
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `query` | [`SqliteQuery`](/docs/api-reference/common/Sqlite/interfaces/SqliteQuery.mdx) |
+
+#### Returns
+
+[`SqliteExecResult`](/docs/api-reference/common/Sqlite/interfaces/SqliteExecResult.mdx)
+
+***
+
+<a id="export"></a>
+
+### export()
+
+```ts
+readonly export: () => Uint8Array;
+```
+
+Defined in: [packages/common/src/Sqlite.ts:128](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Sqlite.ts#L128)
+
+#### Returns
+
+`Uint8Array`

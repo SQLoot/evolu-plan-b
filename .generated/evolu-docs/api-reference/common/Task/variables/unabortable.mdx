@@ -1,0 +1,68 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Task](/docs/api-reference/common/Task/page.mdx) / unabortable
+
+```ts
+const unabortable: <T, E, D>(task: Task<T, E, D>) => Task<T, E, D>;
+```
+
+Defined in: [packages/common/src/Task.ts:1594](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L1594)
+
+Makes a [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx) unabortable.
+
+Once started, an unabortable task always completes — abort requests are
+ignored and `signal.aborted` remains `false`.
+
+### Example
+
+```ts
+await using run = createRunner();
+
+const events: Array<string> = [];
+const canComplete = Promise.withResolvers<void>();
+let signalAbortedInAnalytics = true;
+
+// Simulate async analytics API (abortable by default)
+const sendToAnalytics =
+  (event: number): Task<void, never> =>
+  async ({ signal }) => {
+    await canComplete.promise;
+    signalAbortedInAnalytics = signal.aborted;
+    events.push(`sent ${event}`);
+    return ok();
+  };
+
+// Important events must be sent even if the user navigates away
+const trackImportantEvent = (event: number) =>
+  unabortable(sendToAnalytics(event));
+
+// User clicks, we start tracking (task runs until first await)
+const fiber = run(trackImportantEvent(123));
+
+// User navigates away (abort requested while task is running)
+fiber.abort();
+canComplete.resolve();
+
+const result = await fiber;
+
+expect(signalAbortedInAnalytics).toBe(false);
+// Analytics was sent despite abort
+expect(events).toEqual(["sent 123"]);
+expect(result).toEqual(ok());
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+| `E` |
+| `D` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `task` | [`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T`, `E`, `D`\> |
+
+## Returns
+
+[`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T`, `E`, `D`\>
