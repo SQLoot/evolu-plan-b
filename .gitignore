@@ -20,3 +20,4 @@ coverage
 tmp
 __screenshots__
 *.tsBuildInfo
+.generated
