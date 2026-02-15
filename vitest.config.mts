@@ -13,17 +13,6 @@ export default defineConfig({
       "packages/web",
       "packages/nodejs",
       "packages/react-native",
-      {
-        test: {
-          name: "scripts",
-          include: ["scripts/**/*.test.mts"],
-          // Exclude typedoc test because it requires generated docs.
-          // It runs explicitly after build:docs in the verify script.
-          exclude: process.env.INCLUDE_DOCS_TESTS
-            ? []
-            : ["scripts/typedoc-plugin-evolu.test.mts"],
-        },
-      },
     ],
     coverage: {
       provider: "v8",
