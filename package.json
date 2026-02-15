@@ -17,6 +17,7 @@
     "build:web": "bun run build:docs && turbo --filter web build",
     "build:docs": "bun run docs:generate:api",
     "test": "vitest run",
+    "test:docs": "vitest run scripts/typedoc-plugin-evolu.test.mts",
     "test:coverage": "bun run test:coverage:vitest && bun run test:coverage:bun",
     "test:coverage:vitest": "vitest run --coverage",
     "test:coverage:bun": "bun test ./packages/bun/test --coverage --coverage-reporter=text --coverage-reporter=lcov --coverage-dir=coverage/bun",
@@ -42,7 +43,7 @@
     "examples:svelte-vite-pwa:dev": "turbo --filter @example/svelte-vite-pwa dev",
     "examples:vue-vite-pwa:dev": "turbo --filter @example/vue-vite-pwa dev",
     "docs:generate:api": "typedoc",
-    "docs:sync:website": "bun run docs:generate:api && bun run --cwd ../website docs:sync:evolu"
+    "docs:sync:website": "bun run docs:generate:api && bun ./scripts/docs-sync-website.mts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.15",

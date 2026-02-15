@@ -111,8 +111,7 @@ export const createSharedWorkerSelf = <Input, Output = never>(
 /**
  * Creates {@link Run} for a Web Worker or SharedWorker.
  *
- * Includes a console store output for forwarding worker logs and native output
- * for local debugging.
+ * Includes console store output for forwarding worker logs.
  */
 export const createWorkerRun = (): Run<
   RunDeps & ConsoleStoreOutputEntryDep & CreateMessagePortDep
