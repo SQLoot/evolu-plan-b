@@ -1,0 +1,57 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Schedule](/docs/api-reference/common/Schedule/page.mdx) / untilScheduleInput
+
+```ts
+function untilScheduleInput<Input>(predicate: Predicate<Input>): <Output>(schedule: Schedule<Output, Input>) => Schedule<Output, Input>;
+```
+
+Defined in: [packages/common/src/Schedule.ts:846](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Schedule.ts#L846)
+
+Continues until the input satisfies a predicate.
+
+Stops (returns `Err(Done<void>)`) when [Predicate](/docs/api-reference/common/Types/type-aliases/Predicate.mdx) returns `true`.
+Useful for stopping retry on specific error conditions.
+
+### Example
+
+```ts
+interface MyError extends Typed<"Transient" | "Fatal"> {}
+
+// Stop retrying on fatal errors
+const stopOnFatal = untilScheduleInput(
+  (error: MyError) => error.type === "Fatal",
+)(exponential("100ms"));
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Input` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `predicate` | [`Predicate`](/docs/api-reference/common/Types/type-aliases/Predicate.mdx)\<`Input`\> |
+
+## Returns
+
+```ts
+<Output>(schedule: Schedule<Output, Input>): Schedule<Output, Input>;
+```
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Output` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `schedule` | [`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`Output`, `Input`\> |
+
+### Returns
+
+[`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`Output`, `Input`\>

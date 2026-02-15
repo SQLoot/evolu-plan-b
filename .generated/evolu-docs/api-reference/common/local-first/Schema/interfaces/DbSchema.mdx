@@ -1,0 +1,53 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [local-first/Schema](/docs/api-reference/common/local-first/Schema/page.mdx) / DbSchema
+
+Defined in: [packages/common/src/local-first/Schema.ts:296](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Schema.ts#L296)
+
+Extracts the type from a [Type](/docs/api-reference/common/Type/interfaces/Type.mdx).
+
+### Example
+
+```ts
+const User = object({
+  name: NonEmptyTrimmedString100,
+  age: optional(PositiveInt),
+});
+
+// Use interface for objects. TypeScript displays the interface name
+// instead of expanding all properties.
+interface User extends InferType<typeof User> {}
+```
+
+## Extends
+
+- [`InferType`](/docs/api-reference/common/Type/type-aliases/InferType.mdx)\<*typeof* [`DbSchema`](/docs/api-reference/common/local-first/Schema/variables/DbSchema.mdx)\>
+
+## Properties
+
+<a id="indexes"></a>
+
+### indexes
+
+```ts
+indexes: readonly Readonly<{
+  name: string;
+  sql: string;
+}>[];
+```
+
+#### Inherited from
+
+[`DbSchema`](/docs/api-reference/common/local-first/Schema/interfaces/DbSchema.mdx).[`indexes`](/docs/api-reference/common/local-first/Schema/interfaces/DbSchema.mdx#indexes)
+
+***
+
+<a id="tables"></a>
+
+### tables
+
+```ts
+tables: Readonly<Record<string, ReadonlySet<string>>>;
+```
+
+#### Inherited from
+
+[`DbSchema`](/docs/api-reference/common/local-first/Schema/interfaces/DbSchema.mdx).[`tables`](/docs/api-reference/common/local-first/Schema/interfaces/DbSchema.mdx#tables)

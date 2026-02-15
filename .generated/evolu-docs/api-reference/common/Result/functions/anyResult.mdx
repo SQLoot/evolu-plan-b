@@ -1,0 +1,52 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Result](/docs/api-reference/common/Result/page.mdx) / anyResult
+
+```ts
+function anyResult<T>(results: T): Result<InferOk<T[number]>, InferErr<T[number]>>;
+```
+
+Defined in: [packages/common/src/Result.ts:734](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Result.ts#L734)
+
+Returns the first successful [Result](/docs/api-reference/common/Result/type-aliases/Result.mdx).
+
+If all results fail, returns the last error.
+
+Requires a non-empty array — there's no "first success" with zero
+participants. Use [isNonEmptyArray](/docs/api-reference/common/Array/functions/isNonEmptyArray.mdx) to guard:
+
+```ts
+if (isNonEmptyArray(results)) {
+  const result = anyResult(results);
+}
+```
+
+### Example
+
+```ts
+const results = [err("fail1"), ok(42), err("fail2")];
+if (isNonEmptyArray(results)) {
+  const result = anyResult(results);
+  // ok(42)
+}
+
+const allFailed = [err("a"), err("b"), err("c")];
+if (isNonEmptyArray(allFailed)) {
+  const result = anyResult(allFailed);
+  // err("c") — last error
+}
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` *extends* readonly \[[`AnyResult`](/docs/api-reference/common/Result/type-aliases/AnyResult.mdx), [`AnyResult`](/docs/api-reference/common/Result/type-aliases/AnyResult.mdx)\] |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `results` | `T` |
+
+## Returns
+
+[`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<[`InferOk`](/docs/api-reference/common/Result/type-aliases/InferOk.mdx)\<`T`\[`number`\]\>, [`InferErr`](/docs/api-reference/common/Result/type-aliases/InferErr.mdx)\<`T`\[`number`\]\>\>

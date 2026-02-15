@@ -1,0 +1,28 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Result](/docs/api-reference/common/Result/page.mdx) / NextResult
+
+```ts
+type NextResult<A, E, D> = Result<A, 
+  | E
+| Done<D>>;
+```
+
+Defined in: [packages/common/src/Result.ts:444](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Result.ts#L444)
+
+A result for a pull-based protocol with three outcomes.
+
+The consumer requests the next value (e.g. via `next()`), and the producer
+responds with one of:
+
+- `Ok<A>` — produced a value
+- `Err<Done<D>>` — completed normally with a done value
+- `Err<E>` — failed with an error
+
+Inspired by JavaScript's `Iterator.next()`, which returns `{ value, done }`.
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `A` | - |
+| `E` | `never` |
+| `D` | `void` |

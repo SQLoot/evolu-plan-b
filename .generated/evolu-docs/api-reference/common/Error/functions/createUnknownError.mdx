@@ -1,0 +1,23 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Error](/docs/api-reference/common/Error/page.mdx) / createUnknownError
+
+```ts
+function createUnknownError(error: unknown): UnknownError;
+```
+
+Defined in: [packages/common/src/Error.ts:34](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Error.ts#L34)
+
+Creates an [UnknownError](/docs/api-reference/common/Error/interfaces/UnknownError.mdx) from an unknown error.
+
+Error objects cannot be directly structured-cloned (for worker messaging) or
+JSON-serialized because their properties (`message`, `stack`, `cause`) are
+non-enumerable. This function extracts those properties into a plain object.
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `error` | `unknown` |
+
+## Returns
+
+[`UnknownError`](/docs/api-reference/common/Error/interfaces/UnknownError.mdx)

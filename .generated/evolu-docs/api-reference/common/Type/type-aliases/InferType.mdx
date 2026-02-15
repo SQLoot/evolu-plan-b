@@ -1,0 +1,28 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / InferType
+
+```ts
+type InferType<A> = A extends Type<any, infer T, any, any, any, any> ? T : never;
+```
+
+Defined in: [packages/common/src/Type.ts:529](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L529)
+
+Extracts the type from a [Type](/docs/api-reference/common/Type/interfaces/Type.mdx).
+
+### Example
+
+```ts
+const User = object({
+  name: NonEmptyTrimmedString100,
+  age: optional(PositiveInt),
+});
+
+// Use interface for objects. TypeScript displays the interface name
+// instead of expanding all properties.
+interface User extends InferType<typeof User> {}
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `A` *extends* [`AnyType`](/docs/api-reference/common/Type/type-aliases/AnyType.mdx) |

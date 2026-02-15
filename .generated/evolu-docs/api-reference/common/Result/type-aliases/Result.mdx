@@ -1,0 +1,235 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Result](/docs/api-reference/common/Result/page.mdx) / Result
+
+```ts
+type Result<T, E> = 
+  | Ok<T>
+| Err<E>;
+```
+
+Defined in: [packages/common/src/Result.ts:239](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Result.ts#L239)
+
+The problem with `throw` in JavaScript is that the caught value is always of
+unknown type. We can't be sure all errors have been handled because the
+TypeScript compiler can't tell us what was thrown — we can't use
+[exhaustiveCheck](/docs/api-reference/common/Function/functions/exhaustiveCheck.mdx).
+
+Languages like Rust and Haskell solve this with types like `Result` or
+`Either` where errors are part of the return type. TypeScript can do the
+same.
+
+```ts
+// With throw - caught value is unknown, can't use exhaustiveCheck
+try {
+  doSomething();
+} catch (error) {
+  // error is unknown - TypeScript can't help us here
+}
+
+// With Result - error type is known, exhaustiveCheck works
+const result = doSomething();
+if (!result.ok) {
+  switch (result.error.type) {
+    case "NotFound":
+      // handle not found
+      break;
+    case "InvalidInput":
+      // handle invalid input
+      break;
+    default:
+      exhaustiveCheck(result.error); // TypeScript ensures all cases handled
+  }
+}
+```
+
+A `Result` is either [Ok](/docs/api-reference/common/Result/interfaces/Ok.mdx) (success with a value) or [Err](/docs/api-reference/common/Result/interfaces/Err.mdx) (failure
+with an error). Create them with [ok](/docs/api-reference/common/Result/functions/ok.mdx) and [err](/docs/api-reference/common/Result/functions/err.mdx).
+
+```ts
+type Result<T, E = never> = Ok<T> | Err<E>;
+
+interface Ok<T> {
+  readonly ok: true;
+  readonly value: T;
+}
+
+interface Err<E> {
+  readonly ok: false;
+  readonly error: E;
+}
+```
+
+## Example
+
+```ts
+// Typed<T> adds { type: T } for discriminated unions
+interface ParseJsonError extends Typed<"ParseJsonError"> {
+  readonly message: string;
+}
+
+const parseJson = (value: string): Result<unknown, ParseJsonError> => {
+  try {
+    return ok(JSON.parse(value));
+  } catch (error) {
+    return err({ type: "ParseJsonError", message: String(error) });
+  }
+};
+
+const json = parseJson('{"name": "Alice"}');
+if (!json.ok) return json; // short-circuit on error
+
+// Now we have access to json.value (type: unknown)
+console.log(json.value);
+```
+
+The caller doesn't need `try/catch`, just `if (!json.ok)`, and the error is
+`ParseJsonError`, not `unknown`.
+
+To avoid `try/catch` inside `parseJson` too, use [trySync](/docs/api-reference/common/Result/functions/trySync.mdx):
+
+```ts
+const parseJson = (value: string): Result<unknown, ParseJsonError> =>
+  trySync(
+    () => JSON.parse(value) as unknown,
+    (error) => ({ type: "ParseJsonError", message: String(error) }),
+  );
+```
+
+`trySync` makes synchronous code that can throw safe. For asynchronous code,
+use [tryAsync](/docs/api-reference/common/Result/functions/tryAsync.mdx).
+
+Since `Result` is a plain object, imperative code works naturally:
+
+### Stop on error, map on success
+
+```ts
+const users = getActiveUsers();
+if (!users.ok) return users;
+const usernames = mapArray(users.value, (u) => u.username);
+```
+
+### Iterate array, stop on first error
+
+```ts
+for (const user of users) {
+  const result = validateUser(user); // Result<ValidUser, ValidateUserError>
+  if (!result.ok) return result;
+}
+```
+
+## Composition
+
+Some patterns are common enough that deserve helpers. The previous example
+can be written with [mapResult](/docs/api-reference/common/Result/functions/mapResult.mdx):
+
+```ts
+const result = mapResult(users, validateUser);
+// Result<ValidUser[], ValidateUserError>
+```
+
+For an array of results, [allResult](/docs/api-reference/common/Result/functions/allResult.mdx) extracts all values or returns the
+first error:
+
+```ts
+const result = allResult(validationResults);
+```
+
+For the first success, [anyResult](/docs/api-reference/common/Result/functions/anyResult.mdx) returns the first Ok or the last
+error if all fail:
+
+```ts
+const result = anyResult(parserResults);
+```
+
+## Naming convention
+
+- Result with a value: name it after the value (`user`, `config`)
+- Result without a value: name it `result`
+
+```ts
+const processUser = (): Result<
+  void,
+  GetUserError | SaveToDatabaseError | SendWelcomeEmailError
+> => {
+  const user = getUser();
+  if (!user.ok) return user;
+
+  const result = saveToDatabase(user.value);
+  if (!result.ok) return result;
+
+  // To avoid a clash with the previous `result`, use a block scope.
+  {
+    const result = sendWelcomeEmail(user.value);
+    if (!result.ok) return result;
+  }
+
+  return ok();
+};
+```
+
+## Unrecoverable errors
+
+Some errors can't be handled locally — they must propagate to the top level.
+These are unrecoverable errors: expected (you know they can happen) but only
+handleable at the app level. Group them in a union type like `AppError`:
+
+```ts
+type AppError = SqliteError | SyncError | UnknownError;
+
+interface SqliteError extends Typed<"SqliteError"> {
+  readonly error: UnknownError;
+}
+```
+
+[UnknownError](/docs/api-reference/common/Error/interfaces/UnknownError.mdx) wraps `unknown` so it can be part of a union (`unknown`
+absorbs all other types).
+
+Handle unrecoverable errors at the top level:
+
+```ts
+const handleAppError = (error: AppError): void => {
+  switch (error.type) {
+    case "SqliteError":
+      console.error(error.error.stack); // Log preserved stack trace
+      showToast("Database error. Please restart the app.");
+      break;
+    case "SyncError":
+      showToast("Sync failed. Retrying...");
+      break;
+    case "UnknownError":
+      console.error(error.stack);
+      showToast("An unexpected error occurred.");
+      break;
+    default:
+      exhaustiveCheck(error);
+  }
+};
+```
+
+## Unexpected errors
+
+Wrapping all unsafe code with [trySync](/docs/api-reference/common/Result/functions/trySync.mdx) or [tryAsync](/docs/api-reference/common/Result/functions/tryAsync.mdx) doesn't
+prevent all errors — bugs can still throw. Catch them with global handlers:
+
+```ts
+// Worker
+scope.onError = (error) => {
+  errorPort.postMessage(error);
+};
+```
+
+TODO: Window and Node.js
+
+## FAQ
+
+### What if a function doesn't return a value on success?
+
+Use `Result<void, E>` and return `ok()` (no argument). Don't return
+`ok(true)`, `ok("success")`, or `ok("done")` — `ok()` already signals
+success; redundant values add noise.
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `T` | - |
+| `E` | `never` |

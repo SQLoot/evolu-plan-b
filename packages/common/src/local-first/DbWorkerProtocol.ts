@@ -7,7 +7,7 @@
  * @module
  */
 
-import type { Typed } from "../Type.js";
+import type { SimpleName, Typed } from "../Type.js";
 import type { AppOwner } from "./Owner.js";
 import type { Row } from "./Query.js";
 
@@ -113,6 +113,26 @@ export interface DbWorkerErrorMessage extends Typed<"DbWorkerError"> {
   readonly requestId: number | undefined;
   readonly error: string;
 }
+
+/**
+ * Leader lock lifecycle event emitted by the DB worker channel.
+ *
+ * This uses a dedicated broker channel, not the request/response DB channel.
+ */
+export interface DbWorkerLeaderOutput extends Typed<"LeaderAcquired"> {
+  readonly name: SimpleName;
+}
+
+/** Heartbeat sent by an Evolu client over the broker channel. */
+export interface DbWorkerLeaderInput extends Typed<"LeaderHeartbeat"> {
+  readonly name: SimpleName;
+}
+
+/** Default heartbeat interval for broker liveness checks. */
+export const dbWorkerLeaderHeartbeatIntervalMs = 5_000;
+
+/** Timeout after which missing heartbeats mark a worker port as stale. */
+export const dbWorkerLeaderHeartbeatTimeoutMs = 30_000;
 
 export type DbWorkerOutput =
   | DbWorkerInitResponseMessage

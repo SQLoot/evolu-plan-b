@@ -1,0 +1,51 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Task](/docs/api-reference/common/Task/page.mdx) / RetryOptions
+
+Defined in: [packages/common/src/Task.ts:1971](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L1971)
+
+Options for [retry](/docs/api-reference/common/Task/functions/retry.mdx).
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `E` |
+| `Output` |
+
+## Properties
+
+<a id="onretry"></a>
+
+### onRetry()?
+
+```ts
+readonly optional onRetry: (attempt: RetryAttempt<E, Output>) => void;
+```
+
+Defined in: [packages/common/src/Task.ts:1979](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L1979)
+
+Callback invoked before each retry attempt with error, retry attempt
+number, schedule output, and delay.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `attempt` | [`RetryAttempt`](/docs/api-reference/common/Task/interfaces/RetryAttempt.mdx)\<`E`, `Output`\> |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="retryable"></a>
+
+### retryable?
+
+```ts
+readonly optional retryable: Predicate<E>;
+```
+
+Defined in: [packages/common/src/Task.ts:1973](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L1973)
+
+Predicate to determine if error is retryable. Defaults to all errors.

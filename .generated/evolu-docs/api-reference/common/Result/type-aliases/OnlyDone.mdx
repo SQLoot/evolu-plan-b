@@ -1,0 +1,18 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Result](/docs/api-reference/common/Result/page.mdx) / OnlyDone
+
+```ts
+type OnlyDone<E> = Extract<E, Done<any>>;
+```
+
+Defined in: [packages/common/src/Result.ts:493](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Result.ts#L493)
+
+Extracts only [Done](/docs/api-reference/common/Result/interfaces/Done.mdx) from an error union.
+
+Useful for pull-based protocols where completion is encoded in the error
+channel (for example [NextResult](/docs/api-reference/common/Result/type-aliases/NextResult.mdx)).
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `E` |

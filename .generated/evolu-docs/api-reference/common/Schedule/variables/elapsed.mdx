@@ -1,0 +1,25 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Schedule](/docs/api-reference/common/Schedule/page.mdx) / elapsed
+
+```ts
+const elapsed: Schedule<Millis>;
+```
+
+Defined in: [packages/common/src/Schedule.ts:452](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Schedule.ts#L452)
+
+A schedule that outputs the total elapsed time since the schedule started.
+
+Never stops — combine with [take](/docs/api-reference/common/Schedule/functions/take.mdx) or [maxElapsed](/docs/api-reference/common/Schedule/functions/maxElapsed.mdx) to limit. Useful
+for tracking how long a retry sequence has been running.
+
+### Example
+
+```ts
+// Track elapsed time alongside retries
+const withTiming = intersectSchedules(exponential("100ms"), elapsed);
+// Outputs: [[100, 0], [200, ~100], [400, ~300], ...]
+
+// Stop after 30 seconds of elapsed time
+const timeLimited = whileScheduleOutput((ms: Millis) => ms < 30000)(
+  elapsed,
+);
+```

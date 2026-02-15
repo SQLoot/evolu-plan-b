@@ -19,9 +19,6 @@
       "persistent": true,
       "interruptible": true
     },
-    "web#dev": {
-      "persistent": true
-    },
     "start": {
       "cache": false,
       "persistent": true

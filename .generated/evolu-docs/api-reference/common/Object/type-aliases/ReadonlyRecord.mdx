@@ -1,0 +1,17 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Object](/docs/api-reference/common/Object/page.mdx) / ReadonlyRecord
+
+```ts
+type ReadonlyRecord<K, V> = Readonly<Record<K, V>>;
+```
+
+Defined in: [packages/common/src/Object.ts:11](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Object.ts#L11)
+
+A read-only `Record<K, V>` with `K extends keyof any` to preserve branded key
+types (e.g., in [mapObject](/docs/api-reference/common/Object/functions/mapObject.mdx)).
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `K` *extends* keyof `any` |
+| `V` |

@@ -1,0 +1,50 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Schedule](/docs/api-reference/common/Schedule/page.mdx) / modifyDelay
+
+```ts
+function modifyDelay(f: (delay: number & Brand<"Int"> & Brand<"NonNegative"> & Brand<"LessThan281474976710655"> & Brand<"Millis">) => number): <Output, Input>(schedule: Schedule<Output, Input>) => Schedule<Output, Input>;
+```
+
+Defined in: [packages/common/src/Schedule.ts:750](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Schedule.ts#L750)
+
+Transforms the delay of a schedule.
+
+More flexible than [maxDelay](/docs/api-reference/common/Schedule/functions/maxDelay.mdx) — can implement any delay transformation.
+
+### Example
+
+```ts
+// Double all delays
+const slower = modifyDelay((d) => d * 2)(exponential("100ms"));
+
+// Cap at 10s (equivalent to maxDelay)
+const capped = modifyDelay((d) => Math.min(d, 10000))(exponential("1s"));
+```
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `f` | (`delay`: `number` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Int"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"NonNegative"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"LessThan281474976710655"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Millis"`\>) => `number` |
+
+## Returns
+
+```ts
+<Output, Input>(schedule: Schedule<Output, Input>): Schedule<Output, Input>;
+```
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Output` |
+| `Input` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `schedule` | [`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`Output`, `Input`\> |
+
+### Returns
+
+[`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`Output`, `Input`\>

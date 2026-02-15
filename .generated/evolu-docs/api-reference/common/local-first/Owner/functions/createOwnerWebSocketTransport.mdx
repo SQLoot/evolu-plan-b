@@ -1,0 +1,44 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [local-first/Owner](/docs/api-reference/common/local-first/Owner/page.mdx) / createOwnerWebSocketTransport
+
+```ts
+function createOwnerWebSocketTransport(config: {
+  ownerId: string & Brand<"Id"> & Brand<"OwnerId">;
+  url: string;
+}): OwnerWebSocketTransport;
+```
+
+Defined in: [packages/common/src/local-first/Owner.ts:357](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Owner.ts#L357)
+
+Creates an [OwnerWebSocketTransport](/docs/api-reference/common/local-first/Owner/interfaces/OwnerWebSocketTransport.mdx) for the given relay URL and
+[OwnerId](/docs/api-reference/common/local-first/Owner/variables/OwnerId.mdx).
+
+The URL must be a WebSocket base URL without query parameters or fragments
+(e.g., `wss://relay.evolu.dev`, not `wss://relay.evolu.dev?foo=bar`). The
+function appends the `ownerId` as a query parameter.
+
+### Example
+
+```ts
+// Create transport "wss://relay.evolu.dev?ownerId=..."
+const transport = createOwnerWebSocketTransport({
+  url: "wss://relay.evolu.dev",
+  ownerId: owner.id,
+});
+
+// Use with createEvolu
+const evolu = createEvolu(deps)(Schema, {
+  transports: [transport],
+});
+```
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `config` | \{ `ownerId`: `string` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Id"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"OwnerId"`\>; `url`: `string`; \} |
+| `config.ownerId` | `string` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Id"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"OwnerId"`\> |
+| `config.url` | `string` |
+
+## Returns
+
+[`OwnerWebSocketTransport`](/docs/api-reference/common/local-first/Owner/interfaces/OwnerWebSocketTransport.mdx)

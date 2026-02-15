@@ -1,0 +1,26 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / Buffer
+
+Binary data handling and byte array utilities.
+
+## Classes
+
+| Class | Description |
+| ------ | ------ |
+| [BufferError](/docs/api-reference/common/Buffer/classes/BufferError.mdx) | Custom error for [Buffer](/docs/api-reference/common/Buffer/interfaces/Buffer.mdx)-related failures like premature end of data. Provides better stack traces for debugging binary protocol issues. |
+
+## Functions
+
+| Function | Description |
+| ------ | ------ |
+| [bytesToHex](/docs/api-reference/common/Buffer/functions/bytesToHex.mdx) | Convert byte array to hex string. Uses built-in function, when available. |
+| [bytesToUtf8](/docs/api-reference/common/Buffer/functions/bytesToUtf8.mdx) | Converts bytes to string using UTF8 encoding. |
+| [concatBytes](/docs/api-reference/common/Buffer/functions/concatBytes.mdx) | Copies several Uint8Arrays into one. |
+| [createBuffer](/docs/api-reference/common/Buffer/functions/createBuffer.mdx) | Creates a [Buffer](/docs/api-reference/common/Buffer/interfaces/Buffer.mdx) for efficient byte operations. |
+| [hexToBytes](/docs/api-reference/common/Buffer/functions/hexToBytes.mdx) | Convert hex string to byte array. Uses built-in function, when available. |
+| [utf8ToBytes](/docs/api-reference/common/Buffer/functions/utf8ToBytes.mdx) | Converts string to bytes using UTF8 encoding. |
+
+## Interfaces
+
+| Interface | Description |
+| ------ | ------ |
+| [Buffer](/docs/api-reference/common/Buffer/interfaces/Buffer.mdx) | A Buffer is a dynamic, resizable container for binary data, optimized for scenarios where the final size is unknown. It grows exponentially (doubling its capacity) to minimize memory reallocations and uses `subarray` for efficient, copy-free data access in methods like `unwrap` and `shift`. |

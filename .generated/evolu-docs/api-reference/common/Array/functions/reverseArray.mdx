@@ -1,0 +1,61 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Array](/docs/api-reference/common/Array/page.mdx) / reverseArray
+
+## Call Signature
+
+```ts
+function reverseArray<T>(array: readonly [T, T]): readonly [T, T];
+```
+
+Defined in: [packages/common/src/Array.ts:606](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Array.ts#L606)
+
+Returns a new reversed readonly array.
+
+Wraps native `toReversed`. Preserves non-empty type.
+
+### Example
+
+```ts
+reverseArray([1, 2, 3]); // [3, 2, 1]
+```
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `array` | readonly \[`T`, `T`\] |
+
+### Returns
+
+readonly \[`T`, `T`\]
+
+## Call Signature
+
+```ts
+function reverseArray<T>(array: readonly T[]): readonly T[];
+```
+
+Defined in: [packages/common/src/Array.ts:610](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Array.ts#L610)
+
+Possibly empty array.
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `array` | readonly `T`[] |
+
+### Returns
+
+readonly `T`[]

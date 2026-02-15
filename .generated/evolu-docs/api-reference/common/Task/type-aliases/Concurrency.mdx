@@ -1,0 +1,19 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Task](/docs/api-reference/common/Task/page.mdx) / Concurrency
+
+```ts
+type Concurrency = 
+  | Int1To100
+  | PositiveInt;
+```
+
+Defined in: [packages/common/src/Task.ts:717](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L717)
+
+Maximum number of concurrent tasks.
+
+Default is 1 (sequential). Use 1-100 as a literal or [PositiveInt](/docs/api-reference/common/Type/variables/PositiveInt.mdx) for
+larger values.
+
+## See
+
+ - [parallel](/docs/api-reference/common/Task/functions/parallel.mdx)
+ - [createSemaphore](/docs/api-reference/common/Task/functions/createSemaphore.mdx)

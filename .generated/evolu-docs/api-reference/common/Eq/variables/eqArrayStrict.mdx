@@ -1,0 +1,37 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Eq](/docs/api-reference/common/Eq/page.mdx) / eqArrayStrict
+
+```ts
+const eqArrayStrict: <A>(x: ArrayLike, y: ArrayLike) => boolean;
+```
+
+Defined in: [packages/common/src/Eq.ts:79](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Eq.ts#L79)
+
+Compares two array-like structures by strict reference equality (`===`).
+
+Useful for structural sharing checks where elements are compared by identity.
+
+### Example
+
+```ts
+const a = { x: 1 };
+const b = { x: 1 };
+eqArrayStrict([a, a], [a, a]); // true (same references)
+eqArrayStrict([a], [b]); // false (different references, even if equal values)
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `A` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `x` | `ArrayLike` |
+| `y` | `ArrayLike` |
+
+## Returns
+
+`boolean`

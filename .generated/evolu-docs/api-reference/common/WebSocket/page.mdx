@@ -1,0 +1,30 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / WebSocket
+
+WebSocket with auto-reconnect.
+
+## Interfaces
+
+| Interface | Description |
+| ------ | ------ |
+| [CreateWebSocketDep](/docs/api-reference/common/WebSocket/interfaces/CreateWebSocketDep.mdx) | - |
+| [WebSocket](/docs/api-reference/common/WebSocket/interfaces/WebSocket.mdx) | WebSocket with auto-reconnect. |
+| [WebSocketConnectError](/docs/api-reference/common/WebSocket/interfaces/WebSocketConnectError.mdx) | An error that occurs when a connection cannot be established due to a network error. Fires before `onclose`. |
+| [WebSocketConnectionCloseError](/docs/api-reference/common/WebSocket/interfaces/WebSocketConnectionCloseError.mdx) | An error that occurs when the connection is closed by the server. |
+| [WebSocketConnectionError](/docs/api-reference/common/WebSocket/interfaces/WebSocketConnectionError.mdx) | An error that occurs when an established connection encounters an issue (e.g., failure to send data). Fires before `onclose`. |
+| [WebSocketOptions](/docs/api-reference/common/WebSocket/interfaces/WebSocketOptions.mdx) | Options for creating [WebSocket](/docs/api-reference/common/WebSocket/interfaces/WebSocket.mdx). |
+| [WebSocketSendError](/docs/api-reference/common/WebSocket/interfaces/WebSocketSendError.mdx) | An error that occurs when trying to send data but WebSocket is not available or is in the CONNECTING state. |
+
+## Type Aliases
+
+| Type Alias | Description |
+| ------ | ------ |
+| [CreateWebSocket](/docs/api-reference/common/WebSocket/type-aliases/CreateWebSocket.mdx) | [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx) that creates a [WebSocket](/docs/api-reference/common/WebSocket/interfaces/WebSocket.mdx). |
+| [WebSocketError](/docs/api-reference/common/WebSocket/type-aliases/WebSocketError.mdx) | - |
+| [WebSocketReadyState](/docs/api-reference/common/WebSocket/type-aliases/WebSocketReadyState.mdx) | WebSocket connection states. |
+| [WebSocketRetryError](/docs/api-reference/common/WebSocket/type-aliases/WebSocketRetryError.mdx) | - |
+
+## Variables
+
+| Variable | Description |
+| ------ | ------ |
+| [createWebSocket](/docs/api-reference/common/WebSocket/variables/createWebSocket.mdx) | Create a new [WebSocket](/docs/api-reference/common/WebSocket/interfaces/WebSocket.mdx). |

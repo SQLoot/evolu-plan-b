@@ -1,0 +1,155 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [WebSocket](/docs/api-reference/common/WebSocket/page.mdx) / WebSocket
+
+Defined in: [packages/common/src/WebSocket.ts:65](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/WebSocket.ts#L65)
+
+WebSocket with auto-reconnect.
+
+The API mirrors native
+[WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket)
+but retries connections indefinitely by default. This design accounts for the
+fact that browser and React Native online/offline detection APIs are
+unreliable — they may report online status incorrectly, so the only reliable
+approach is to keep attempting reconnection.
+
+Created via [createWebSocket](/docs/api-reference/common/WebSocket/variables/createWebSocket.mdx) which returns a [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx).
+
+Disposing the WebSocket closes the connection.
+
+## How Binary Messages Work
+
+The Server Chooses the Message Type:
+
+- Text (0x1) → Sent as UTF-8 encoded text (always received as a string in the
+  browser).
+- Binary (0x2) → Sent as raw binary data (received as a Blob or ArrayBuffer,
+  depending on binaryType).
+
+The Client's binaryType Controls How Binary Data is Processed:
+
+- If the server sends a text frame (0x1), the browser always delivers
+  event.data as a string, regardless of binaryType.
+- If the server sends a binary frame (0x2), the browser delivers event.data as:
+
+  - A Blob (default: "blob")
+  - An ArrayBuffer ("arraybuffer")
+
+### Example
+
+```ts
+const ws = await run(
+  createWebSocket("wss://example.com", {
+    onMessage: (data) => console.log("Received:", data),
+    onOpen: () => console.log("Connected"),
+    onClose: () => console.log("Disconnected"),
+  }),
+);
+if (ws.ok) {
+  ws.value.send("Hello");
+  // Later: ws.value[Symbol.dispose]();
+}
+```
+
+## Extends
+
+- [`Disposable`](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-2.html#using-declarations-and-explicit-resource-management)
+
+## Methods
+
+<a id="dispose"></a>
+
+### \[dispose\]()
+
+#### Call Signature
+
+```ts
+dispose: void;
+```
+
+Defined in: node\_modules/.bun/typescript@5.9.3/node\_modules/typescript/lib/lib.esnext.disposable.d.ts:36
+
+##### Returns
+
+`void`
+
+##### Inherited from
+
+```ts
+Disposable.[dispose]
+```
+
+#### Call Signature
+
+```ts
+dispose: void;
+```
+
+Defined in: node\_modules/.bun/@types+node@22.19.11/node\_modules/@types/node/compatibility/disposable.d.ts:9
+
+##### Returns
+
+`void`
+
+##### Inherited from
+
+```ts
+Disposable.[dispose]
+```
+
+## Properties
+
+<a id="getreadystate"></a>
+
+### getReadyState()
+
+```ts
+readonly getReadyState: () => WebSocketReadyState;
+```
+
+Defined in: [packages/common/src/WebSocket.ts:74](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/WebSocket.ts#L74)
+
+#### Returns
+
+[`WebSocketReadyState`](/docs/api-reference/common/WebSocket/type-aliases/WebSocketReadyState.mdx)
+
+***
+
+<a id="isopen"></a>
+
+### isOpen()
+
+```ts
+readonly isOpen: () => boolean;
+```
+
+Defined in: [packages/common/src/WebSocket.ts:77](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/WebSocket.ts#L77)
+
+Returns true if the WebSocket is open and ready to send data.
+
+#### Returns
+
+`boolean`
+
+***
+
+<a id="send"></a>
+
+### send()
+
+```ts
+send: (data: string | Blob | ArrayBufferLike | ArrayBufferView<ArrayBufferLike>) => Result<void, WebSocketSendError>;
+```
+
+Defined in: [packages/common/src/WebSocket.ts:70](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/WebSocket.ts#L70)
+
+Send data through the WebSocket connection. Returns [Result](/docs/api-reference/common/Result/type-aliases/Result.mdx) with an
+error if the data couldn't be sent.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `data` | `string` \| `Blob` \| `ArrayBufferLike` \| `ArrayBufferView`\<`ArrayBufferLike`\> |
+
+#### Returns
+
+[`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`void`, [`WebSocketSendError`](/docs/api-reference/common/WebSocket/interfaces/WebSocketSendError.mdx)\>

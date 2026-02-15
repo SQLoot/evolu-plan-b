@@ -1,0 +1,18 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Types](/docs/api-reference/common/Types/page.mdx) / Mutable
+
+```ts
+type Mutable<T> = { -readonly [P in keyof T]: T[P] };
+```
+
+Defined in: [packages/common/src/Types.ts:181](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Types.ts#L181)
+
+Removes `readonly` modifier from all properties of a type.
+
+Useful for constructing immutable objects step-by-step (e.g. builder pattern)
+before casting them back to the readonly type.
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |

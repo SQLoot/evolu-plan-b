@@ -1,0 +1,68 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [local-first/Protocol](/docs/api-reference/common/local-first/Protocol/page.mdx) / ProtocolVersionError
+
+Defined in: [packages/common/src/local-first/Protocol.ts:396](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L396)
+
+Represents a version mismatch in the Evolu Protocol. Occurs when the
+initiator and non-initiator are using incompatible protocol versions.
+
+## Extends
+
+- [`OwnerError`](/docs/api-reference/common/local-first/Owner/interfaces/OwnerError.mdx).[`Typed`](/docs/api-reference/common/Type/interfaces/Typed.mdx)\<`"ProtocolVersionError"`\>
+
+## Properties
+
+<a id="isinitiator"></a>
+
+### isInitiator
+
+```ts
+readonly isInitiator: boolean;
+```
+
+Defined in: [packages/common/src/local-first/Protocol.ts:401](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L401)
+
+Indicates which side is obsolete and should update.
+
+***
+
+<a id="ownerid"></a>
+
+### ownerId
+
+```ts
+readonly ownerId: string & Brand<"Id"> & Brand<"OwnerId">;
+```
+
+Defined in: [packages/common/src/local-first/Owner.ts:387](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Owner.ts#L387)
+
+#### Inherited from
+
+[`OwnerError`](/docs/api-reference/common/local-first/Owner/interfaces/OwnerError.mdx).[`ownerId`](/docs/api-reference/common/local-first/Owner/interfaces/OwnerError.mdx#ownerid)
+
+***
+
+<a id="type"></a>
+
+### type
+
+```ts
+readonly type: "ProtocolVersionError";
+```
+
+Defined in: [packages/common/src/Type.ts:3456](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L3456)
+
+#### Inherited from
+
+[`Typed`](/docs/api-reference/common/Type/interfaces/Typed.mdx).[`type`](/docs/api-reference/common/Type/interfaces/Typed.mdx#type)
+
+***
+
+<a id="version"></a>
+
+### version
+
+```ts
+readonly version: number & Brand<"Int"> & Brand<"NonNegative">;
+```
+
+Defined in: [packages/common/src/local-first/Protocol.ts:399](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Protocol.ts#L399)

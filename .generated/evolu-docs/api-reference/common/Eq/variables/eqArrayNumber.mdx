@@ -1,0 +1,17 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Eq](/docs/api-reference/common/Eq/page.mdx) / eqArrayNumber
+
+```ts
+const eqArrayNumber: Eq<ArrayLike<number>>;
+```
+
+Defined in: [packages/common/src/Eq.ts:92](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Eq.ts#L92)
+
+Compares two array-like structures of numbers for equality.
+
+### Example
+
+```ts
+eqArrayNumber([1, 2, 3], [1, 2, 3]); // true (works with regular arrays)
+eqArrayNumber(new Uint8Array([1, 2, 3]), new Uint8Array([1, 2, 3])); // true (works with Uint8Array)
+eqArrayNumber([1, 2, 3], [1, 2, 4]); // false
+```

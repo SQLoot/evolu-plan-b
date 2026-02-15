@@ -1,0 +1,17 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / Error
+
+Error types and utilities for safe error handling.
+
+## Functions
+
+| Function | Description |
+| ------ | ------ |
+| [createUnknownError](/docs/api-reference/common/Error/functions/createUnknownError.mdx) | Creates an [UnknownError](/docs/api-reference/common/Error/interfaces/UnknownError.mdx) from an unknown error. |
+| [handleGlobalError](/docs/api-reference/common/Error/functions/handleGlobalError.mdx) | Forwards an error to a [GlobalErrorScope](/docs/api-reference/common/Error/interfaces/GlobalErrorScope.mdx)'s `onError` callback. |
+
+## Interfaces
+
+| Interface | Description |
+| ------ | ------ |
+| [GlobalErrorScope](/docs/api-reference/common/Error/interfaces/GlobalErrorScope.mdx) | Platform-agnostic scope for capturing global errors. |
+| [UnknownError](/docs/api-reference/common/Error/interfaces/UnknownError.mdx) | A wrapper for unknown errors caught at runtime. |

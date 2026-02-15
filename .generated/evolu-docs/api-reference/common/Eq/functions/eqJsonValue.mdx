@@ -1,0 +1,35 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Eq](/docs/api-reference/common/Eq/page.mdx) / eqJsonValue
+
+```ts
+function eqJsonValue(a: JsonValue, b: JsonValue): boolean;
+```
+
+Defined in: [packages/common/src/Eq.ts:140](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Eq.ts#L140)
+
+Deeply compares two [JsonValue](/docs/api-reference/common/Type/variables/JsonValue.mdx) values for equality.
+
+- Uses an iterative approach with a stack to handle large or deeply nested
+  objects without risking stack overflow.
+- Handles circular references with a WeakMap to prevent infinite loops.
+- Unlike JSON.stringify, this function directly compares values, avoiding
+  serialization overhead and leveraging short-circuit evaluation for faster
+  failure on mismatched structures.
+
+### Example
+
+```ts
+const obj1: Json = { name: "Alice", hobbies: ["reading", "hiking"] };
+const obj2: Json = { name: "Alice", hobbies: ["reading", "hiking"] };
+console.log(eqJson(obj1, obj2)); // true
+```
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `a` | [`JsonValue`](/docs/api-reference/common/Type/type-aliases/JsonValue.mdx) |
+| `b` | [`JsonValue`](/docs/api-reference/common/Type/type-aliases/JsonValue.mdx) |
+
+## Returns
+
+`boolean`

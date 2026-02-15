@@ -1,4 +1,3 @@
-/* eslint-disable func-style */
 /**
  * Kysely query builder extensions for Evolu.
  *
@@ -75,7 +74,6 @@ export { sql } from "kysely";
  * ```
  */
 // Kysely expects strict AST.
-// prettier-ignore
 export function jsonArrayFrom<O>(
   expr: SelectQueryBuilderExpression<O>,
 ): RawBuilder<Array<Simplify<O>>> {
@@ -132,7 +130,6 @@ export function jsonArrayFrom<O>(
  * ```
  */
 // Kysely expects strict AST.
-// prettier-ignore
 export function jsonObjectFrom<O>(
   expr: SelectQueryBuilderExpression<O>,
 ): RawBuilder<Simplify<O> | null> {
@@ -182,7 +179,6 @@ export function jsonObjectFrom<O>(
  * ```
  */
 // Kysely expects strict AST.
-// prettier-ignore
 export function jsonBuildObject<O extends Record<string, Expression<unknown>>>(
   obj: O,
 ): RawBuilder<

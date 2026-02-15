@@ -1,0 +1,79 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Worker](/docs/api-reference/common/Worker/page.mdx) / SharedWorkerSelf
+
+Defined in: [packages/common/src/Worker.ts:178](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Worker.ts#L178)
+
+Typed `self` for code running inside a shared worker.
+
+This is the worker-side counterpart to [SharedWorker](/docs/api-reference/common/Worker/interfaces/SharedWorker.mdx). It wraps `self`
+inside the shared worker, providing typed `onConnect` callbacks.
+
+## Extends
+
+- [`Disposable`](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-2.html#using-declarations-and-explicit-resource-management)
+
+## Extended by
+
+- [`SharedWorkerScope`](/docs/api-reference/common/Worker/interfaces/SharedWorkerScope.mdx)
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `Input` | - |
+| `Output` | `never` |
+
+## Methods
+
+<a id="dispose"></a>
+
+### \[dispose\]()
+
+#### Call Signature
+
+```ts
+dispose: void;
+```
+
+Defined in: node\_modules/.bun/typescript@5.9.3/node\_modules/typescript/lib/lib.esnext.disposable.d.ts:36
+
+##### Returns
+
+`void`
+
+##### Inherited from
+
+```ts
+Disposable.[dispose]
+```
+
+#### Call Signature
+
+```ts
+dispose: void;
+```
+
+Defined in: node\_modules/.bun/@types+node@22.19.11/node\_modules/@types/node/compatibility/disposable.d.ts:9
+
+##### Returns
+
+`void`
+
+##### Inherited from
+
+```ts
+Disposable.[dispose]
+```
+
+## Properties
+
+<a id="onconnect"></a>
+
+### onConnect
+
+```ts
+onConnect: 
+  | (port: MessagePort<Output, Input>) => void
+  | null;
+```
+
+Defined in: [packages/common/src/Worker.ts:179](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Worker.ts#L179)

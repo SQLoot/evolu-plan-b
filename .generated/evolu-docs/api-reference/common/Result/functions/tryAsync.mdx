@@ -1,0 +1,41 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Result](/docs/api-reference/common/Result/page.mdx) / tryAsync
+
+```ts
+function tryAsync<T, E>(lazyPromise: Lazy<Promise<T>>, mapError: (error: unknown) => E): Promise<Result<T, E>>;
+```
+
+Defined in: [packages/common/src/Result.ts:423](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Result.ts#L423)
+
+Wraps an async function that may throw, returning a [Result](/docs/api-reference/common/Result/type-aliases/Result.mdx).
+
+### Example
+
+```ts
+const fetchJson = (url: string): Promise<Result<unknown, FetchError>> =>
+  tryAsync(
+    async () => {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Status ${response.status}`);
+      return response.json();
+    },
+    (error) => ({ type: "FetchError", message: String(error) }),
+  );
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+| `E` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `lazyPromise` | [`Lazy`](/docs/api-reference/common/Function/type-aliases/Lazy.mdx)\<`Promise`\<`T`\>\> |
+| `mapError` | (`error`: `unknown`) => `E` |
+
+## Returns
+
+`Promise`\<[`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`T`, `E`\>\>

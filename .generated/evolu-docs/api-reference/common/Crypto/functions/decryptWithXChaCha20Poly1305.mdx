@@ -1,0 +1,43 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Crypto](/docs/api-reference/common/Crypto/page.mdx) / decryptWithXChaCha20Poly1305
+
+```ts
+function decryptWithXChaCha20Poly1305(
+   ciphertext: Uint8Array<ArrayBufferLike> & Brand<"XChaCha20Poly1305Ciphertext">, 
+   nonce: Uint8Array<ArrayBufferLike> & Brand<"Entropy"> & Brand<"Length24">, 
+encryptionKey: Uint8Array<ArrayBufferLike> & Brand<"Entropy"> & Brand<"Length32"> & Brand<"EncryptionKey">): Result<Uint8Array<ArrayBufferLike>, DecryptWithXChaCha20Poly1305Error>;
+```
+
+Defined in: [packages/common/src/Crypto.ts:211](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Crypto.ts#L211)
+
+Decrypts ciphertext with XChaCha20-Poly1305.
+
+Requires the same nonce that was used during encryption. Returns a
+[Result](/docs/api-reference/common/Result/type-aliases/Result.mdx) that may contain a decryption error if the ciphertext was
+tampered with or the wrong key/nonce was used.
+
+### Example
+
+```ts
+const result = decryptWithXChaCha20Poly1305(
+  ciphertext,
+  nonce,
+  encryptionKey,
+);
+if (!result.ok) {
+  // Handle decryption error
+  return result;
+}
+const plaintext = result.value;
+```
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `ciphertext` | `Uint8Array`\<`ArrayBufferLike`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"XChaCha20Poly1305Ciphertext"`\> |
+| `nonce` | `Uint8Array`\<`ArrayBufferLike`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Entropy"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Length24"`\> |
+| `encryptionKey` | `Uint8Array`\<`ArrayBufferLike`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Entropy"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Length32"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"EncryptionKey"`\> |
+
+## Returns
+
+[`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`Uint8Array`\<`ArrayBufferLike`\>, [`DecryptWithXChaCha20Poly1305Error`](/docs/api-reference/common/Crypto/interfaces/DecryptWithXChaCha20Poly1305Error.mdx)\>

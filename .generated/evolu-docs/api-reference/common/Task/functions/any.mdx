@@ -1,0 +1,53 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Task](/docs/api-reference/common/Task/page.mdx) / any
+
+```ts
+function any<T, E, D>(tasks: readonly [Task<T, E, D>, Task<T, E, D>], options?: {
+  allFailed?: AnyAllFailed;
+}): Task<T, E, D>;
+```
+
+Defined in: [packages/common/src/Task.ts:3117](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L3117)
+
+Returns the first [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx) that succeeds.
+
+Like
+[Promise.any](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/any),
+the first task to succeed wins. All other tasks are aborted. If all tasks
+fail, returns the last error (by input order).
+
+Sequential by default. Use [parallel](/docs/api-reference/common/Task/functions/parallel.mdx) for parallel execution.
+
+Think of it like `Array.prototype.some()` — it stops on the first success.
+This is in contrast to [race](/docs/api-reference/common/Task/functions/race.mdx), which returns the first task to complete
+(whether success or failure).
+
+### Example
+
+```ts
+// Try multiple endpoints concurrently, first success wins
+const result = await run(
+  parallel(
+    any([fetchFromPrimary, fetchFromSecondary, fetchFromTertiary]),
+  ),
+);
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+| `E` |
+| `D` |
+
+## Parameters
+
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `tasks` | readonly \[[`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T`, `E`, `D`\>, [`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T`, `E`, `D`\>\] | - |
+| `options?` | \{ `allFailed?`: [`AnyAllFailed`](/docs/api-reference/common/Task/type-aliases/AnyAllFailed.mdx); \} | - |
+| `options.allFailed?` | [`AnyAllFailed`](/docs/api-reference/common/Task/type-aliases/AnyAllFailed.mdx) | How to choose an error if all tasks fail. |
+
+## Returns
+
+[`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T`, `E`, `D`\>

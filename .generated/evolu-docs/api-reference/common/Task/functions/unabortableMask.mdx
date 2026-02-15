@@ -1,0 +1,33 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Task](/docs/api-reference/common/Task/page.mdx) / unabortableMask
+
+```ts
+function unabortableMask<T, E, D>(fn: (restore: <T2, E2>(task: Task<T2, E2, D>) => Task<T2, E2, D>) => Task<T, E, D>): Task<T, E, D>;
+```
+
+Defined in: [packages/common/src/Task.ts:1607](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L1607)
+
+Like [unabortable](/docs/api-reference/common/Task/variables/unabortable.mdx), but provides `restore` to restore abortability for
+specific tasks.
+
+Tasks inherit abort masking from their parent. This means:
+
+- Tasks run inside `unabortableMask` are unabortable by default
+- Tasks wrapped with `restore()` restore the previous abortability
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `T` | - |
+| `E` | - |
+| `D` | `unknown` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `fn` | (`restore`: \<`T2`, `E2`\>(`task`: [`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T2`, `E2`, `D`\>) => [`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T2`, `E2`, `D`\>) => [`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T`, `E`, `D`\> |
+
+## Returns
+
+[`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T`, `E`, `D`\>

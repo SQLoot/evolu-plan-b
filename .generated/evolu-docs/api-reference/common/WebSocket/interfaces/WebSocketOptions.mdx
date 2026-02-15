@@ -1,0 +1,212 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [WebSocket](/docs/api-reference/common/WebSocket/page.mdx) / WebSocketOptions
+
+Defined in: [packages/common/src/WebSocket.ts:102](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/WebSocket.ts#L102)
+
+Options for creating [WebSocket](/docs/api-reference/common/WebSocket/interfaces/WebSocket.mdx).
+
+## Properties
+
+<a id="binarytype"></a>
+
+### binaryType?
+
+```ts
+readonly optional binaryType: "blob" | "arraybuffer";
+```
+
+Defined in: [packages/common/src/WebSocket.ts:107](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/WebSocket.ts#L107)
+
+Sets the binary type for the data being received.
+
+***
+
+<a id="onclose"></a>
+
+### onClose()?
+
+```ts
+readonly optional onClose: (event: CloseEvent) => void;
+```
+
+Defined in: [packages/common/src/WebSocket.ts:116](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/WebSocket.ts#L116)
+
+Callback when the connection is closed.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `event` | `CloseEvent` |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="onerror"></a>
+
+### onError()?
+
+```ts
+readonly optional onError: (error: WebSocketError) => void;
+```
+
+Defined in: [packages/common/src/WebSocket.ts:113](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/WebSocket.ts#L113)
+
+Callback when an error occurs.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `error` | [`WebSocketError`](/docs/api-reference/common/WebSocket/type-aliases/WebSocketError.mdx) |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="onmessage"></a>
+
+### onMessage()?
+
+```ts
+readonly optional onMessage: (data: string | Blob | ArrayBuffer) => void;
+```
+
+Defined in: [packages/common/src/WebSocket.ts:126](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/WebSocket.ts#L126)
+
+Callback when message data is received.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `data` | `string` \| `Blob` \| `ArrayBuffer` |
+
+#### Returns
+
+`void`
+
+***
+
+<a id="onopen"></a>
+
+### onOpen()?
+
+```ts
+readonly optional onOpen: () => void;
+```
+
+Defined in: [packages/common/src/WebSocket.ts:110](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/WebSocket.ts#L110)
+
+Callback when the connection is established.
+
+#### Returns
+
+`void`
+
+***
+
+<a id="protocols"></a>
+
+### protocols?
+
+```ts
+readonly optional protocols: string | readonly string[];
+```
+
+Defined in: [packages/common/src/WebSocket.ts:104](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/WebSocket.ts#L104)
+
+Protocol(s) to use with the WebSocket connection.
+
+***
+
+<a id="schedule"></a>
+
+### schedule?
+
+```ts
+readonly optional schedule: Schedule<number & Brand<"Int"> & Brand<"NonNegative"> & Brand<"LessThan281474976710655"> & Brand<"Millis">, WebSocketRetryError>;
+```
+
+Defined in: [packages/common/src/WebSocket.ts:136](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/WebSocket.ts#L136)
+
+Retry schedule for reconnection. Defaults to:
+
+```ts
+// A jittered, capped, unlimited exponential backoff.
+jitter(1)(maxDelay("30s")(exponential("100ms")));
+```
+
+***
+
+<a id="shouldretryonclose"></a>
+
+### shouldRetryOnClose()?
+
+```ts
+readonly optional shouldRetryOnClose: (event: CloseEvent) => boolean;
+```
+
+Defined in: [packages/common/src/WebSocket.ts:123](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/WebSocket.ts#L123)
+
+Determines whether a closed connection should trigger a retry.
+
+Return false to stop retrying, for example on auth errors or maintenance.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `event` | `CloseEvent` |
+
+#### Returns
+
+`boolean`
+
+***
+
+<a id="websocketconstructor"></a>
+
+### WebSocketConstructor?
+
+```ts
+readonly optional WebSocketConstructor: {
+(url: string | URL, protocols?: string | string[]): WebSocket;
+  CLOSED: 3;
+  CLOSING: 2;
+  CONNECTING: 0;
+  OPEN: 1;
+  prototype: WebSocket;
+};
+```
+
+Defined in: [packages/common/src/WebSocket.ts:145](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/WebSocket.ts#L145)
+
+For custom WebSocket implementations.
+
+This supports blob:
+
+https://github.com/callstackincubator/react-native-fast-io
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `url` | `string` \| `URL` |
+| `protocols?` | `string` \| `string`[] |
+
+#### Returns
+
+`WebSocket`
+
+| Name | Type | Defined in |
+| ------ | ------ | ------ |
+| `CLOSED` | `3` | node\_modules/.bun/typescript@5.9.3/node\_modules/typescript/lib/lib.dom.d.ts:36131 |
+| `CLOSING` | `2` | node\_modules/.bun/typescript@5.9.3/node\_modules/typescript/lib/lib.dom.d.ts:36130 |
+| `CONNECTING` | `0` | node\_modules/.bun/typescript@5.9.3/node\_modules/typescript/lib/lib.dom.d.ts:36128 |
+| `OPEN` | `1` | node\_modules/.bun/typescript@5.9.3/node\_modules/typescript/lib/lib.dom.d.ts:36129 |
+| `prototype` | `WebSocket` | node\_modules/.bun/typescript@5.9.3/node\_modules/typescript/lib/lib.dom.d.ts:36126 |

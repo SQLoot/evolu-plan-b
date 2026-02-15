@@ -1,0 +1,15 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Result](/docs/api-reference/common/Result/page.mdx) / InferDone
+
+```ts
+type InferDone<R> = InferErr<R> extends infer Errors ? Errors extends Done<infer D> ? D : never : never;
+```
+
+Defined in: [packages/common/src/Result.ts:500](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Result.ts#L500)
+
+Extracts the done value type from a [NextResult](/docs/api-reference/common/Result/type-aliases/NextResult.mdx).
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `R` *extends* [`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<`any`, `any`\> |

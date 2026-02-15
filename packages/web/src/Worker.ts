@@ -19,8 +19,6 @@ import {
   assert,
   createConsole,
   createConsoleStoreOutput,
-  createMultiOutput,
-  createNativeConsoleOutput,
   handleGlobalError,
 } from "@evolu/common";
 import { createRun } from "./Task.js";
@@ -113,20 +111,13 @@ export const createSharedWorkerSelf = <Input, Output = never>(
 /**
  * Creates {@link Run} for a Web Worker or SharedWorker.
  *
- * Includes a console store output for forwarding worker logs and native output
- * for local debugging.
+ * Includes console store output for forwarding worker logs.
  */
 export const createWorkerRun = (): Run<
   RunDeps & ConsoleStoreOutputEntryDep & CreateMessagePortDep
 > => {
   const consoleStoreOutput = createConsoleStoreOutput();
-
-  const console = createConsole({
-    output: createMultiOutput([
-      createNativeConsoleOutput(),
-      consoleStoreOutput,
-    ]),
-  });
+  const console = createConsole({ output: consoleStoreOutput });
 
   return createRun({
     console,

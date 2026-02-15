@@ -1,0 +1,30 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Task](/docs/api-reference/common/Task/page.mdx) / sleep
+
+```ts
+function sleep(duration: Duration): Task<void>;
+```
+
+Defined in: [packages/common/src/Task.ts:1837](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L1837)
+
+Pauses execution for a specified duration.
+
+### Example
+
+```ts
+const task: Task<void> = async (run) => {
+  console.log("Starting...");
+  await run(sleep("1s"));
+  console.log("Done after 1 second");
+  return ok();
+};
+```
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `duration` | [`Duration`](/docs/api-reference/common/Time/type-aliases/Duration.mdx) |
+
+## Returns
+
+[`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`void`\>

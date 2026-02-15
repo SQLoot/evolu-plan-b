@@ -1,0 +1,27 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / lessThanOrEqualTo
+
+```ts
+const lessThanOrEqualTo: <Max>(max: Max) => BrandFactory<`LessThanOrEqualTo${Max}`, number, LessThanOrEqualToError<Max>>;
+```
+
+Defined in: [packages/common/src/Type.ts:2215](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L2215)
+
+Number ≤ a specified value.
+
+Use numeric literal, not expression. See [BrandFactory](/docs/api-reference/common/Type/type-aliases/BrandFactory.mdx).
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Max` *extends* `number` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `max` | `Max` |
+
+## Returns
+
+[`BrandFactory`](/docs/api-reference/common/Type/type-aliases/BrandFactory.mdx)\<`` `LessThanOrEqualTo${Max}` ``, `number`, [`LessThanOrEqualToError`](/docs/api-reference/common/Type/interfaces/LessThanOrEqualToError.mdx)\<`Max`\>\>

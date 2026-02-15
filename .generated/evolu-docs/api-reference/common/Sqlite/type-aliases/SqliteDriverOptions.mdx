@@ -1,0 +1,19 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Sqlite](/docs/api-reference/common/Sqlite/page.mdx) / SqliteDriverOptions
+
+```ts
+type SqliteDriverOptions = 
+  | {
+  mode: "memory";
+}
+  | {
+  encryptionKey: EncryptionKey;
+  mode: "encrypted";
+};
+```
+
+Defined in: [packages/common/src/Sqlite.ts:147](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Sqlite.ts#L147)
+
+Options for creating a [CreateSqliteDriver](/docs/api-reference/common/Sqlite/type-aliases/CreateSqliteDriver.mdx).
+
+Three mutually exclusive modes: in-memory (for testing), encrypted persistent
+(OPFS/file with encryption key), or persistent (default when omitted).

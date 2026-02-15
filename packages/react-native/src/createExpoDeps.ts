@@ -133,7 +133,6 @@ const convertKeychainAccessible = (
 ): SecureStore.KeychainAccessibilityConstant => {
   switch (accessControl) {
     case "none":
-      // eslint-disable-next-line @typescript-eslint/no-deprecated
       return SecureStore.ALWAYS;
     case "biometryCurrentSet":
       return SecureStore.AFTER_FIRST_UNLOCK;

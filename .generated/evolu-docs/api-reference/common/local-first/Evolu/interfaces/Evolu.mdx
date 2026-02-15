@@ -1,0 +1,631 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [local-first/Evolu](/docs/api-reference/common/local-first/Evolu/page.mdx) / Evolu
+
+Defined in: [packages/common/src/local-first/Evolu.ts:264](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L264)
+
+Local-first SQL database with typed queries, mutations, and sync.
+
+## Extends
+
+- [`AsyncDisposable`](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-2.html#using-declarations-and-explicit-resource-management)
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `S` *extends* [`EvoluSchema`](/docs/api-reference/common/local-first/Schema/type-aliases/EvoluSchema.mdx) | [`EvoluSchema`](/docs/api-reference/common/local-first/Schema/type-aliases/EvoluSchema.mdx) |
+
+## Methods
+
+<a id="asyncdispose"></a>
+
+### \[asyncDispose\]()
+
+#### Call Signature
+
+```ts
+asyncDispose: PromiseLike<void>;
+```
+
+Defined in: node\_modules/.bun/typescript@5.9.3/node\_modules/typescript/lib/lib.esnext.disposable.d.ts:40
+
+##### Returns
+
+[`PromiseLike`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables)\<`void`\>
+
+##### Inherited from
+
+```ts
+AsyncDisposable.[asyncDispose]
+```
+
+#### Call Signature
+
+```ts
+asyncDispose: PromiseLike<void>;
+```
+
+Defined in: node\_modules/.bun/@types+node@22.19.11/node\_modules/@types/node/compatibility/disposable.d.ts:13
+
+##### Returns
+
+[`PromiseLike`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables)\<`void`\>
+
+##### Inherited from
+
+```ts
+AsyncDisposable.[asyncDispose]
+```
+
+## Properties
+
+<a id="appowner"></a>
+
+### appOwner
+
+```ts
+readonly appOwner: Promise<AppOwner>;
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:270](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L270)
+
+[AppOwner](/docs/api-reference/common/local-first/Owner/interfaces/AppOwner.mdx).
+
+***
+
+<a id="exportdatabase"></a>
+
+### exportDatabase()
+
+```ts
+readonly exportDatabase: () => Promise<Uint8Array<ArrayBufferLike>>;
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:543](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L543)
+
+Export SQLite database file as Uint8Array.
+
+In the future, it will be possible to import a database and export/import
+history for 1:1 migrations across owners.
+
+#### Returns
+
+`Promise`\<`Uint8Array`\<`ArrayBufferLike`\>\>
+
+***
+
+<a id="geterror"></a>
+
+### getError()
+
+```ts
+readonly getError: () => 
+  | EvoluError
+  | null;
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:281](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L281)
+
+Transitional compatibility API. Returns `null` in Task-based stub mode.
+
+#### Returns
+
+  \| [`EvoluError`](/docs/api-reference/common/local-first/Error/type-aliases/EvoluError.mdx)
+  \| `null`
+
+***
+
+<a id="getqueryrows"></a>
+
+### getQueryRows()
+
+```ts
+readonly getQueryRows: <R>(query: Query<R>) => QueryRows<R>;
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:352](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L352)
+
+Get [QueryRows](/docs/api-reference/common/local-first/Query/type-aliases/QueryRows.mdx).
+
+### Example
+
+```ts
+const unsubscribe = evolu.subscribeQuery(allTodos)(() => {
+  const rows = evolu.getQueryRows(allTodos);
+});
+```
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `R` *extends* [`Row`](/docs/api-reference/common/local-first/Query/interfaces/Row.mdx) |
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `query` | [`Query`](/docs/api-reference/common/local-first/Query/type-aliases/Query.mdx)\<`R`\> |
+
+#### Returns
+
+[`QueryRows`](/docs/api-reference/common/local-first/Query/type-aliases/QueryRows.mdx)\<`R`\>
+
+***
+
+<a id="insert"></a>
+
+### insert
+
+```ts
+insert: Mutation<S, "insert">;
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:396](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L396)
+
+Inserts a row into the database and returns a [Result](/docs/api-reference/common/Result/page.mdx) with the new
+[Id](/docs/api-reference/common/Type/variables/Id.mdx).
+
+The first argument is the table name, and the second is an object
+containing the row data. An optional third argument provides mutation
+options including `onComplete` callback and custom `ownerId`.
+
+Returns a Result type - use `.ok` to check if the insertion succeeded, and
+`.value.id` to access the generated ID on success, or `.error` to handle
+validation errors.
+
+Evolu does not use SQL for mutations to ensure data can be safely and
+predictably merged without conflicts. Explicit mutations also allow Evolu
+to automatically update [SystemColumns](/docs/api-reference/common/local-first/Schema/variables/SystemColumns-1.mdx).
+
+### Example
+
+```ts
+const result = evolu.insert("todo", {
+  title: "Learn Evolu",
+  isCompleted: false,
+});
+
+if (result.ok) {
+  console.log("Todo created with ID:", result.value.id);
+} else {
+  console.error("Validation error:", result.error);
+}
+
+// With onComplete callback
+evolu.insert(
+  "todo",
+  { title: "Another todo" },
+  {
+    onComplete: () => {
+      console.log("Insert completed");
+    },
+  },
+);
+```
+
+***
+
+<a id="loadqueries"></a>
+
+### loadQueries()
+
+```ts
+readonly loadQueries: <R, Q>(queries: [...Q[]]) => [...QueriesToQueryRowsPromises<Q>[]];
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:322](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L322)
+
+Load an array of [Query](/docs/api-reference/common/local-first/Query/type-aliases/Query.mdx) queries and return an array of
+[QueryRows](/docs/api-reference/common/local-first/Query/type-aliases/QueryRows.mdx) promises. It's like `queries.map(loadQuery)` but with
+proper types for returned promises.
+
+### Example
+
+```ts
+evolu.loadQueries([allTodos, todoById(1)]);
+```
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `R` *extends* [`Row`](/docs/api-reference/common/local-first/Query/interfaces/Row.mdx) |
+| `Q` *extends* [`Queries`](/docs/api-reference/common/local-first/Query/type-aliases/Queries.mdx)\<`R`\> |
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `queries` | \[`...Q[]`\] |
+
+#### Returns
+
+\[`...QueriesToQueryRowsPromises<Q>[]`\]
+
+***
+
+<a id="loadquery"></a>
+
+### loadQuery()
+
+```ts
+readonly loadQuery: <R>(query: Query<R>) => Promise<QueryRows<R>>;
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:309](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L309)
+
+Load [Query](/docs/api-reference/common/local-first/Query/type-aliases/Query.mdx) and return a promise with [QueryRows](/docs/api-reference/common/local-first/Query/type-aliases/QueryRows.mdx).
+
+The returned promise always resolves successfully because there is no
+reason why loading should fail. All data are local, and the query is
+typed.
+
+Loading is batched, and returned promises are cached until resolved to
+prevent redundant database queries and to support React Suspense (which
+requires stable promise references while pending).
+
+To subscribe a query for automatic updates, use
+[Evolu.subscribeQuery](/docs/api-reference/common/local-first/Evolu/interfaces/Evolu.mdx#subscribequery).
+
+### Example
+
+```ts
+const createQuery = createQueryBuilder(Schema);
+const allTodos = createQuery((db) =>
+  db.selectFrom("todo").selectAll(),
+);
+evolu.loadQuery(allTodos).then((rows) => {
+  console.log(rows);
+});
+```
+
+#### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `R` *extends* [`Row`](/docs/api-reference/common/local-first/Query/interfaces/Row.mdx) |
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `query` | [`Query`](/docs/api-reference/common/local-first/Query/type-aliases/Query.mdx)\<`R`\> |
+
+#### Returns
+
+`Promise`\<[`QueryRows`](/docs/api-reference/common/local-first/Query/type-aliases/QueryRows.mdx)\<`R`\>\>
+
+***
+
+<a id="name"></a>
+
+### name
+
+```ts
+readonly name: string & Brand<"UrlSafeString"> & Brand<"SimpleName">;
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:267](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L267)
+
+The name of the Evolu instance from [EvoluConfig](/docs/api-reference/common/local-first/Evolu/interfaces/EvoluConfig.mdx).
+
+***
+
+<a id="reloadapp"></a>
+
+### reloadApp()
+
+```ts
+readonly reloadApp: () => void;
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:535](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L535)
+
+Reload the app in a platform-specific way. For browsers, this will reload
+all tabs using Evolu. For native apps, it will restart the app.
+
+#### Returns
+
+`void`
+
+***
+
+<a id="resetappowner"></a>
+
+### resetAppOwner()
+
+```ts
+readonly resetAppOwner: (options?: {
+  reload?: boolean;
+}) => Promise<void>;
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:516](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L516)
+
+Delete [AppOwner](/docs/api-reference/common/local-first/Owner/interfaces/AppOwner.mdx) and all their data from the current device. After
+the deletion, Evolu will purge the application state. For browsers, this
+will reload all tabs using Evolu. For native apps, it will restart the
+app.
+
+Reloading can be turned off via options if you want to provide a different
+UX.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `options?` | \{ `reload?`: `boolean`; \} |
+| `options.reload?` | `boolean` |
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
+<a id="restoreappowner"></a>
+
+### restoreAppOwner()
+
+```ts
+readonly restoreAppOwner: (mnemonic: string & Brand<"Trimmed"> & Brand<"MinLength1"> & Brand<"Mnemonic">, options?: {
+  reload?: boolean;
+}) => Promise<void>;
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:524](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L524)
+
+Restore [AppOwner](/docs/api-reference/common/local-first/Owner/interfaces/AppOwner.mdx) with all their synced data. It uses
+[Evolu.resetAppOwner](/docs/api-reference/common/local-first/Evolu/interfaces/Evolu.mdx#resetappowner), so be careful.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `mnemonic` | `string` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Trimmed"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"MinLength1"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Mnemonic"`\> |
+| `options?` | \{ `reload?`: `boolean`; \} |
+| `options.reload?` | `boolean` |
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
+<a id="subscribeerror"></a>
+
+### subscribeError()
+
+```ts
+readonly subscribeError: (listener: Listener) => Unsubscribe;
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:276](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L276)
+
+Transitional compatibility API. Will be removed once downstream packages
+migrate to Task-native error handling.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `listener` | [`Listener`](/docs/api-reference/common/Listeners/type-aliases/Listener.mdx) |
+
+#### Returns
+
+[`Unsubscribe`](/docs/api-reference/common/Listeners/type-aliases/Unsubscribe.mdx)
+
+***
+
+<a id="subscribequery"></a>
+
+### subscribeQuery()
+
+```ts
+readonly subscribeQuery: (query: Query) => (listener: Listener) => Unsubscribe;
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:337](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L337)
+
+Subscribe to [Query](/docs/api-reference/common/local-first/Query/type-aliases/Query.mdx) [QueryRows](/docs/api-reference/common/local-first/Query/type-aliases/QueryRows.mdx) changes.
+
+### Example
+
+```ts
+const unsubscribe = evolu.subscribeQuery(allTodos)(() => {
+  const rows = evolu.getQueryRows(allTodos);
+});
+```
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `query` | [`Query`](/docs/api-reference/common/local-first/Query/type-aliases/Query.mdx) |
+
+#### Returns
+
+```ts
+(listener: Listener): Unsubscribe;
+```
+
+##### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `listener` | [`Listener`](/docs/api-reference/common/Listeners/type-aliases/Listener.mdx) |
+
+##### Returns
+
+[`Unsubscribe`](/docs/api-reference/common/Listeners/type-aliases/Unsubscribe.mdx)
+
+***
+
+<a id="update"></a>
+
+### update
+
+```ts
+update: Mutation<S, "update">;
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:445](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L445)
+
+Updates a row in the database and returns a [Result](/docs/api-reference/common/Result/page.mdx) with the existing
+[Id](/docs/api-reference/common/Type/variables/Id.mdx).
+
+The first argument is the table name, and the second is an object
+containing the row data including the required `id` field. An optional
+third argument provides mutation options including `onComplete` callback
+and custom `ownerId`.
+
+Returns a Result type - use `.ok` to check if the update succeeded, and
+`.value.id` to access the ID on success, or `.error` to handle validation
+errors.
+
+Evolu does not use SQL for mutations to ensure data can be safely and
+predictably merged without conflicts. Explicit mutations also allow Evolu
+to automatically update [SystemColumns](/docs/api-reference/common/local-first/Schema/variables/SystemColumns-1.mdx).
+
+### Example
+
+```ts
+const result = evolu.update("todo", {
+  id: todoId,
+  title: "Updated title",
+  isCompleted: true,
+});
+
+if (result.ok) {
+  console.log("Todo updated with ID:", result.value.id);
+} else {
+  console.error("Validation error:", result.error);
+}
+
+// To delete a row, set isDeleted to true
+evolu.update("todo", { id: todoId, isDeleted: true });
+
+// With onComplete callback
+evolu.update(
+  "todo",
+  { id: todoId, title: "New title" },
+  {
+    onComplete: () => {
+      console.log("Update completed");
+    },
+  },
+);
+```
+
+***
+
+<a id="upsert"></a>
+
+### upsert
+
+```ts
+upsert: Mutation<S, "upsert">;
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:505](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L505)
+
+Upserts a row in the database and returns a [Result](/docs/api-reference/common/Result/page.mdx) with the existing
+[Id](/docs/api-reference/common/Type/variables/Id.mdx).
+
+The first argument is the table name, and the second is an object
+containing the row data including the required `id` field. An optional
+third argument provides mutation options including `onComplete` callback
+and custom `ownerId`.
+
+This function allows you to use custom IDs and optionally set `createdAt`,
+which is useful for external systems, data migrations, or when the same row
+may already be created on a different device.
+
+Returns a Result type - use `.ok` to check if the upsert succeeded, and
+`.value.id` to access the ID on success, or `.error` to handle validation
+errors.
+
+Evolu does not use SQL for mutations to ensure data can be safely and
+predictably merged without conflicts. Explicit mutations also allow Evolu
+to automatically update [SystemColumns](/docs/api-reference/common/local-first/Schema/variables/SystemColumns-1.mdx).
+
+### Example
+
+```ts
+// Use deterministic ID for stable upserts across devices
+const stableId = createIdFromString("my-todo-1");
+
+const result = evolu.upsert("todo", {
+  id: stableId,
+  title: "Learn Evolu",
+  isCompleted: false,
+});
+
+if (result.ok) {
+  console.log("Todo upserted with ID:", result.value.id);
+} else {
+  console.error("Validation error:", result.error);
+}
+
+// Data migration with custom createdAt
+evolu.upsert("todo", {
+  id: externalId,
+  title: "Migrated todo",
+  createdAt: new Date("2023-01-01"), // Preserve original timestamp
+});
+
+// With onComplete callback
+evolu.upsert(
+  "todo",
+  { id: stableId, title: "Updated title" },
+  {
+    onComplete: () => {
+      console.log("Upsert completed");
+    },
+  },
+);
+```
+
+***
+
+<a id="useowner"></a>
+
+### useOwner()
+
+```ts
+readonly useOwner: (owner: SyncOwner) => UnuseOwner;
+```
+
+Defined in: [packages/common/src/local-first/Evolu.ts:568](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/local-first/Evolu.ts#L568)
+
+Use a [SyncOwner](/docs/api-reference/common/local-first/Sync/interfaces/SyncOwner.mdx). Returns a [UnuseOwner](/docs/api-reference/common/local-first/Evolu/type-aliases/UnuseOwner.mdx).
+
+Using an owner means syncing it with its transports, or the transports
+defined in Evolu config if the owner has no transports defined.
+
+Transport are automatically deduplicated and reference-counted, so multiple
+owners using the same transport will share a single connection.
+
+### Example
+
+```ts
+// Use an owner (starts syncing).
+const unuseOwner = evolu.useOwner(shardOwner);
+
+// Later, stop using the owner.
+unuseOwner();
+
+// Bulk operations.
+const unuseOwners = owners.map((owner) => evolu.useOwner(owner));
+// Later: for (const unuse of unuseOwners) unuse();
+```
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `owner` | [`SyncOwner`](/docs/api-reference/common/local-first/Sync/interfaces/SyncOwner.mdx) |
+
+#### Returns
+
+[`UnuseOwner`](/docs/api-reference/common/local-first/Evolu/type-aliases/UnuseOwner.mdx)

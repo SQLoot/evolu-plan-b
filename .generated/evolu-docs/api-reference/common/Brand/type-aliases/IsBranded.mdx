@@ -1,0 +1,22 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Brand](/docs/api-reference/common/Brand/page.mdx) / IsBranded
+
+```ts
+type IsBranded<T> = T extends Brand<string> ? true : false;
+```
+
+Defined in: [packages/common/src/Brand.ts:104](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Brand.ts#L104)
+
+Determines whether a type `T` is a branded type.
+
+Works with any base type intersected with a `Brand`.
+
+### Example
+
+- `IsBranded<string>` -> false
+- `IsBranded<string & Brand<"X">>` -> true
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |

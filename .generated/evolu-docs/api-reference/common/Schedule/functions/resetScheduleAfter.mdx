@@ -1,0 +1,51 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Schedule](/docs/api-reference/common/Schedule/page.mdx) / resetScheduleAfter
+
+```ts
+function resetScheduleAfter(duration: Duration): <Output, Input>(schedule: Schedule<Output, Input>) => Schedule<Output, Input>;
+```
+
+Defined in: [packages/common/src/Schedule.ts:932](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Schedule.ts#L932)
+
+Resets the schedule after a period of inactivity.
+
+If `elapsedSincePrevious` is greater than or equal to `duration`, creates a
+fresh state. Useful for circuit breakers that should "forget" failures after
+idle time.
+
+### Example
+
+```ts
+// Reset retry count after 1 minute of success
+const circuitBreaker = resetScheduleAfter("1m")(
+  take(5)(exponential("1s")),
+);
+```
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `duration` | [`Duration`](/docs/api-reference/common/Time/type-aliases/Duration.mdx) |
+
+## Returns
+
+```ts
+<Output, Input>(schedule: Schedule<Output, Input>): Schedule<Output, Input>;
+```
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Output` |
+| `Input` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `schedule` | [`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`Output`, `Input`\> |
+
+### Returns
+
+[`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`Output`, `Input`\>

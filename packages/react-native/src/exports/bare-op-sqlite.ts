@@ -19,8 +19,6 @@ const reloadApp: ReloadApp = () => {
   }
 };
 
-// eslint-disable-next-line evolu/require-pure-annotation
 export const evoluReactNativeDeps = createEvoluDeps({ reloadApp });
 
-// eslint-disable-next-line evolu/require-pure-annotation
 export const localAuth = createSharedLocalAuth(SensitiveInfo);

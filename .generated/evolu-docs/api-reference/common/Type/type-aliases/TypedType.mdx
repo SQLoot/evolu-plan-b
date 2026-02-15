@@ -1,0 +1,18 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Type](/docs/api-reference/common/Type/page.mdx) / TypedType
+
+```ts
+type TypedType<Tag, Props> = ObjectType<{
+  type: LiteralType<Tag>;
+} & Props>;
+```
+
+Defined in: [packages/common/src/Type.ts:3508](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Type.ts#L3508)
+
+Return type of [typed](/docs/api-reference/common/Type/functions/typed.mdx).
+
+## Type Parameters
+
+| Type Parameter | Default type |
+| ------ | ------ |
+| `Tag` *extends* `Capitalize`\<`string`\> | - |
+| `Props` *extends* `Record`\<`string`, [`AnyType`](/docs/api-reference/common/Type/type-aliases/AnyType.mdx)\> | `Record`\<`never`, `never`\> |

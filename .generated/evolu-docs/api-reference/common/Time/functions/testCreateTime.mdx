@@ -1,0 +1,32 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Time](/docs/api-reference/common/Time/page.mdx) / testCreateTime
+
+```ts
+function testCreateTime(options?: {
+  autoIncrement?: boolean;
+  startAt?: number & Brand<"Int"> & Brand<"NonNegative"> & Brand<"LessThan281474976710655"> & Brand<"Millis">;
+}): TestTime;
+```
+
+Defined in: [packages/common/src/Time.ts:85](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Time.ts#L85)
+
+Creates a [TestTime](/docs/api-reference/common/Time/interfaces/TestTime.mdx) with controllable timers for testing.
+
+Time starts at `startAt` (default 0) and only advances when `advance()` is
+called. Timeouts scheduled via `setTimeout` fire when time is advanced past
+their deadline.
+
+Set `autoIncrement` to automatically increment time by 1ms after each `now()`
+call via microtask (useful for tests that need monotonically increasing
+values without explicit `advance()` calls).
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `options?` | \{ `autoIncrement?`: `boolean`; `startAt?`: `number` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Int"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"NonNegative"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"LessThan281474976710655"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Millis"`\>; \} |
+| `options.autoIncrement?` | `boolean` |
+| `options.startAt?` | `number` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Int"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"NonNegative"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"LessThan281474976710655"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Millis"`\> |
+
+## Returns
+
+[`TestTime`](/docs/api-reference/common/Time/interfaces/TestTime.mdx)

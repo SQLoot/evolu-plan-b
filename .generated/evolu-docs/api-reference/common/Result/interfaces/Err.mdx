@@ -1,0 +1,52 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Result](/docs/api-reference/common/Result/page.mdx) / Err
+
+Defined in: [packages/common/src/Result.ts:274](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Result.ts#L274)
+
+An error [Result](/docs/api-reference/common/Result/type-aliases/Result.mdx).
+
+The `error` property can be any type that describes the error. For domain
+errors, use a plain object with a `type` field for discrimination.
+
+### Example
+
+```ts
+interface NotFoundError extends Typed<"NotFoundError"> {
+  readonly id: string;
+}
+
+const findUser = (id: string): Result<User, NotFoundError> => {
+  const user = users.get(id);
+  if (user == null) return err({ type: "NotFoundError", id });
+  return ok(user);
+};
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `E` |
+
+## Properties
+
+<a id="error"></a>
+
+### error
+
+```ts
+readonly error: E;
+```
+
+Defined in: [packages/common/src/Result.ts:276](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Result.ts#L276)
+
+***
+
+<a id="ok"></a>
+
+### ok
+
+```ts
+readonly ok: false;
+```
+
+Defined in: [packages/common/src/Result.ts:275](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Result.ts#L275)

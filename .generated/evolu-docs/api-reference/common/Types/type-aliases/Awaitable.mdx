@@ -1,0 +1,37 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Types](/docs/api-reference/common/Types/page.mdx) / Awaitable
+
+```ts
+type Awaitable<T> = 
+  | T
+| PromiseLike<T>;
+```
+
+Defined in: [packages/common/src/Types.ts:235](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Types.ts#L235)
+
+A value that can be awaited.
+
+Use when a function may complete synchronously or asynchronously depending on
+runtime conditions (e.g., cache hit vs network fetch).
+
+### Example
+
+```ts
+const getData = (id: string): Awaitable<Data> => {
+  const cached = cache.get(id);
+  if (cached) return cached; // Sync path
+  return fetchData(id); // Async path
+};
+
+// Always works
+const data = await getData(id);
+
+// Or optimize for sync path
+const result = getData(id);
+const data = isPromiseLike(result) ? await result : result;
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |

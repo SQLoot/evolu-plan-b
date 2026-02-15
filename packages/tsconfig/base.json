@@ -17,7 +17,6 @@
     "strict": true,
     "exactOptionalPropertyTypes": true,
     "noErrorTruncation": false,
-    "erasableSyntaxOnly": true,
     "typeRoots": ["node_modules/@types", "../../node_modules/@types"]
   }
 }

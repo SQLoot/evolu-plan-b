@@ -1,0 +1,38 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/react-native](/docs/api-reference/react-native/page.mdx) / [web](/docs/api-reference/react-native/web/page.mdx) / createUseEvolu
+
+```ts
+const createUseEvolu: <S>(evolu: Evolu<S>) => () => Evolu<S>;
+```
+
+Defined in: react/dist/createUseEvolu.d.ts:12
+
+Creates a typed React Hook returning an instance of [Evolu](/docs/api-reference/common/local-first/Evolu/interfaces/Evolu.mdx).
+
+### Example
+
+```ts
+const useEvolu = createUseEvolu(evolu);
+const { insert, update } = useEvolu();
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `S` *extends* [`EvoluSchema`](/docs/api-reference/common/local-first/Schema/type-aliases/EvoluSchema.mdx) |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `evolu` | [`Evolu`](/docs/api-reference/common/local-first/Evolu/interfaces/Evolu.mdx)\<`S`\> |
+
+## Returns
+
+```ts
+(): Evolu<S>;
+```
+
+### Returns
+
+[`Evolu`](/docs/api-reference/common/local-first/Evolu/interfaces/Evolu.mdx)\<`S`\>

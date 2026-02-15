@@ -1,0 +1,64 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / Set
+
+Set helpers.
+
+All helpers return readonly sets for safety. Native Set methods like `add()`
+and `delete()` mutate the original — use [addToSet](/docs/api-reference/common/Set/functions/addToSet.mdx) and
+[deleteFromSet](/docs/api-reference/common/Set/functions/deleteFromSet.mdx) instead for immutable operations that return new sets.
+
+Use [isNonEmptySet](/docs/api-reference/common/Set/functions/isNonEmptySet.mdx) to narrow to [NonEmptyReadonlySet](/docs/api-reference/common/Set/type-aliases/NonEmptyReadonlySet.mdx) before
+calling functions like [firstInSet](/docs/api-reference/common/Set/functions/firstInSet.mdx) that require a non-empty set.
+
+### Example
+
+```ts
+// Type guards
+const set: ReadonlySet<number> = new Set([1, 2, 3]);
+if (isNonEmptySet(set)) {
+  firstInSet(set);
+}
+
+// Immutable transformations
+const added = addToSet(new Set([1, 2]), 3); // Set {1, 2, 3}
+const removed = deleteFromSet(new Set([1, 2, 3]), 2); // Set {1, 3}
+const mapped = mapSet(new Set([1, 2, 3]), (x) => x * 2); // Set {2, 4, 6}
+const filtered = filterSet(new Set([1, 2, 3, 4]), (x) => x % 2 === 0); // Set {2, 4}
+
+// Set operations
+const union = unionSets(new Set([1, 2]), new Set([2, 3])); // Set {1, 2, 3}
+const intersection = intersectSets(new Set([1, 2]), new Set([2, 3])); // Set {2}
+const difference = differenceSets(new Set([1, 2, 3]), new Set([2])); // Set {1, 3}
+```
+
+## Types
+
+| Type Alias | Description |
+| ------ | ------ |
+| [NonEmptyReadonlySet](/docs/api-reference/common/Set/type-aliases/NonEmptyReadonlySet.mdx) | A readonly set with at least one element (branded for type safety). |
+
+## Constants
+
+| Variable | Description |
+| ------ | ------ |
+| [emptySet](/docs/api-reference/common/Set/variables/emptySet.mdx) | An empty readonly set. |
+
+## Type Guards
+
+| Function | Description |
+| ------ | ------ |
+| [isNonEmptySet](/docs/api-reference/common/Set/functions/isNonEmptySet.mdx) | Checks if a set is non-empty and narrows its type to [NonEmptyReadonlySet](/docs/api-reference/common/Set/type-aliases/NonEmptyReadonlySet.mdx). |
+
+## Transformations
+
+| Function | Description |
+| ------ | ------ |
+| [addToSet](/docs/api-reference/common/Set/functions/addToSet.mdx) | Returns a new readonly set with an item added. |
+| [deleteFromSet](/docs/api-reference/common/Set/functions/deleteFromSet.mdx) | Returns a new readonly set with an item removed. |
+| [filterSet](/docs/api-reference/common/Set/functions/filterSet.mdx) | Filters a set using a predicate or refinement function, returning a new readonly set. |
+| [mapSet](/docs/api-reference/common/Set/functions/mapSet.mdx) | Maps a set using a mapper function, returning a new readonly set. |
+
+## Accessors
+
+| Function | Description |
+| ------ | ------ |
+| [firstInSet](/docs/api-reference/common/Set/functions/firstInSet.mdx) | Returns the first element of a non-empty set (by insertion order). |

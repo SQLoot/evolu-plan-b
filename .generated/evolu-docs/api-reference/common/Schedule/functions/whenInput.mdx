@@ -1,0 +1,54 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Schedule](/docs/api-reference/common/Schedule/page.mdx) / whenInput
+
+```ts
+function whenInput<Input, Output>(predicate: Predicate<Input>, altSchedule: Schedule<Output, Input>): (schedule: Schedule<Output, Input>) => Schedule<Output, Input>;
+```
+
+Defined in: [packages/common/src/Schedule.ts:1369](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Schedule.ts#L1369)
+
+Selects between two schedules based on input.
+
+If [Predicate](/docs/api-reference/common/Types/type-aliases/Predicate.mdx) returns `true`, uses `altSchedule`; otherwise uses the
+base schedule. Useful for implementing error-aware backoff where certain
+errors (e.g., throttling) use different delays.
+
+### Example
+
+```ts
+interface MyError extends Typed<"Throttled" | "NetworkError"> {}
+
+const awsWithThrottling = whenInput<MyError, Millis>(
+  (error) => error.type === "Throttled",
+  exponential("1s"), // throttled: 1s base
+)(exponential("100ms")); // normal: 100ms base
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Input` |
+| `Output` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `predicate` | [`Predicate`](/docs/api-reference/common/Types/type-aliases/Predicate.mdx)\<`Input`\> |
+| `altSchedule` | [`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`Output`, `Input`\> |
+
+## Returns
+
+```ts
+(schedule: Schedule<Output, Input>): Schedule<Output, Input>;
+```
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `schedule` | [`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`Output`, `Input`\> |
+
+### Returns
+
+[`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`Output`, `Input`\>

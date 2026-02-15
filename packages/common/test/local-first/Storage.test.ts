@@ -273,7 +273,6 @@ const benchmarkTimestamps = async (
     const timestampsTime = (now - insertBeginTime).toFixed(1);
     const bucketsTime = (now - bucketsBeginTime).toFixed(1);
 
-    // eslint-disable-next-line no-console
     console.log(
       `${Math.min(batchStart + batchSize, timestamps.length)} timestamps ${
         strategy

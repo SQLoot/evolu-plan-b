@@ -1,0 +1,65 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Schedule](/docs/api-reference/common/Schedule/page.mdx) / tapScheduleInput
+
+```ts
+function tapScheduleInput<Input>(f: (input: Input) => void): <Output>(schedule: Schedule<Output, Input>) => Schedule<Output, Input>;
+```
+
+Defined in: [packages/common/src/Schedule.ts:1447](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Schedule.ts#L1447)
+
+Executes a side effect for every input without altering the schedule.
+
+Useful for logging errors during retry or monitoring what values are being
+processed.
+
+### Example
+
+```ts
+interface MyError extends Typed<string> {}
+
+const retrySchedule: Schedule<Millis, MyError> = exponential("100ms");
+
+// Log each error during retry
+const logged = tapScheduleInput((error: MyError) => {
+  console.log(`Retrying after error: ${error.type}`);
+})(retrySchedule);
+
+// Track retry reasons
+const reasons: Array<string> = [];
+const tracked = tapScheduleInput((error: MyError) => {
+  reasons.push(error.type);
+})(retrySchedule);
+```
+
+## Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Input` |
+
+## Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `f` | (`input`: `Input`) => `void` |
+
+## Returns
+
+```ts
+<Output>(schedule: Schedule<Output, Input>): Schedule<Output, Input>;
+```
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `Output` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `schedule` | [`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`Output`, `Input`\> |
+
+### Returns
+
+[`Schedule`](/docs/api-reference/common/Schedule/type-aliases/Schedule.mdx)\<`Output`, `Input`\>

@@ -12,7 +12,6 @@ interface ErrorUtils {
 }
 
 declare global {
-  // eslint-disable-next-line no-var
   var ErrorUtils: ErrorUtils | undefined;
 }
 

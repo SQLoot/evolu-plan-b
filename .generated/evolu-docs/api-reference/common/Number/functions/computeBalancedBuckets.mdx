@@ -1,0 +1,33 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Number](/docs/api-reference/common/Number/page.mdx) / computeBalancedBuckets
+
+```ts
+function computeBalancedBuckets(
+   numberOfItems: number & Brand<"Int"> & Brand<"NonNegative">, 
+   numberOfBuckets?: number & Brand<"Int"> & Brand<"NonNegative"> & Brand<"Positive">, 
+minNumberOfItemsPerBucket?: number & Brand<"Int"> & Brand<"NonNegative"> & Brand<"Positive">): Result<readonly [number & Brand<"Int"> & Brand<"NonNegative"> & Brand<"Positive">, number & Brand<"Int"> & Brand<"NonNegative"> & Brand<"Positive">], number & Brand<"Int"> & Brand<"NonNegative"> & Brand<"Positive">>;
+```
+
+Defined in: [packages/common/src/Number.ts:71](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Number.ts#L71)
+
+Divides items into buckets as evenly as possible, ensuring each bucket has at
+least the minimum number of items. Returns a success result if the minimum is
+met, or an error result with the required number of items if not.
+
+### Example
+
+```ts
+computeBalancedBuckets(10, 3, 2); // Returns ok([4, 7, 10])
+computeBalancedBuckets(5, 3, 2); // Returns err(6)
+```
+
+## Parameters
+
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `numberOfItems` | `number` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Int"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"NonNegative"`\> | - |
+| `numberOfBuckets` | `number` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Int"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"NonNegative"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Positive"`\> | Default: 16 |
+| `minNumberOfItemsPerBucket` | `number` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Int"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"NonNegative"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Positive"`\> | Default: 2 |
+
+## Returns
+
+[`Result`](/docs/api-reference/common/Result/type-aliases/Result.mdx)\<readonly \[`number` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Int"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"NonNegative"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Positive"`\>, `number` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Int"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"NonNegative"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Positive"`\>\], `number` & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Int"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"NonNegative"`\> & [`Brand`](/docs/api-reference/common/Brand/interfaces/Brand.mdx)\<`"Positive"`\>\>

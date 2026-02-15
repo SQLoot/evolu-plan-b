@@ -1,0 +1,186 @@
+[API Reference](/docs/api-reference/page.mdx) / [@evolu/common](/docs/api-reference/common/page.mdx) / [Task](/docs/api-reference/common/Task/page.mdx) / all
+
+## Call Signature
+
+```ts
+function all<T>(tasks: T, options?: CollectOptions<true>): Task<{ [K in string | number | symbol]: InferTaskOk<T[K]> }, InferTaskErr<T[number]>, InferTaskDeps<T[number]>>;
+```
+
+Defined in: [packages/common/src/Task.ts:2667](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L2667)
+
+Fails fast on first error across multiple [Task](/docs/api-reference/common/Task/type-aliases/Task.mdx)s.
+
+Sequential by default — use [parallel](/docs/api-reference/common/Task/functions/parallel.mdx) to run concurrently.
+
+### Example
+
+```ts
+const result = await run(all([fetchUser, fetchPosts, fetchComments]));
+if (!result.ok) return result;
+const [user, posts, comments] = result.value;
+```
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` *extends* readonly \[[`AnyTask`](/docs/api-reference/common/Task/type-aliases/AnyTask.mdx), [`AnyTask`](/docs/api-reference/common/Task/type-aliases/AnyTask.mdx)\] |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `tasks` | `T` |
+| `options?` | [`CollectOptions`](/docs/api-reference/common/Task/interfaces/CollectOptions.mdx)\<`true`\> |
+
+### Returns
+
+[`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<\{ \[K in string \| number \| symbol\]: InferTaskOk\<T\[K\]\> \}, [`InferTaskErr`](/docs/api-reference/common/Task/type-aliases/InferTaskErr.mdx)\<`T`\[`number`\]\>, [`InferTaskDeps`](/docs/api-reference/common/Task/type-aliases/InferTaskDeps.mdx)\<`T`\[`number`\]\>\>
+
+### See
+
+[CollectOptions](/docs/api-reference/common/Task/interfaces/CollectOptions.mdx)
+
+## Call Signature
+
+```ts
+function all<T>(tasks: T, options?: CollectOptions<true>): Task<{ [P in string | number | symbol]: InferTaskOk<T[P]> }, [keyof T] extends [never] ? never : InferTaskErr<T[keyof T]>, [keyof T] extends [never] ? unknown : InferTaskDeps<T[keyof T]>>;
+```
+
+Defined in: [packages/common/src/Task.ts:2687](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L2687)
+
+Returns object with same keys.
+
+```ts
+const result = await run(all({ user: fetchUser, posts: fetchPosts }));
+if (!result.ok) return result;
+const { user, posts } = result.value;
+```
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` *extends* `Readonly`\<`Record`\<`string`, [`AnyTask`](/docs/api-reference/common/Task/type-aliases/AnyTask.mdx)\>\> |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `tasks` | `T` |
+| `options?` | [`CollectOptions`](/docs/api-reference/common/Task/interfaces/CollectOptions.mdx)\<`true`\> |
+
+### Returns
+
+[`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<\{ \[P in string \| number \| symbol\]: InferTaskOk\<T\[P\]\> \}, \[keyof `T`\] *extends* \[`never`\] ? `never` : [`InferTaskErr`](/docs/api-reference/common/Task/type-aliases/InferTaskErr.mdx)\<`T`\[keyof `T`\]\>, \[keyof `T`\] *extends* \[`never`\] ? `unknown` : [`InferTaskDeps`](/docs/api-reference/common/Task/type-aliases/InferTaskDeps.mdx)\<`T`\[keyof `T`\]\>\>
+
+## Call Signature
+
+```ts
+function all<T, E, D>(tasks: Iterable<Task<T, E, D>>, options?: CollectOptions<true>): Task<readonly T[], E, D>;
+```
+
+Defined in: [packages/common/src/Task.ts:2706](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L2706)
+
+For dynamic or generated task lists.
+
+```ts
+const urls: ReadonlyArray<string> = getUrls();
+const result = await run(map(urls, fetchUrl));
+if (!result.ok) return result;
+// result.value: ReadonlyArray<Response>
+```
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+| `E` |
+| `D` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `tasks` | [`Iterable`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols#the_iterable_protocol)\<[`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T`, `E`, `D`\>\> |
+| `options?` | [`CollectOptions`](/docs/api-reference/common/Task/interfaces/CollectOptions.mdx)\<`true`\> |
+
+### Returns
+
+[`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<readonly `T`[], `E`, `D`\>
+
+## Call Signature
+
+```ts
+function all<T, E, D>(tasks: readonly [Task<T, E, D>, Task<T, E, D>], options?: CollectOptions<true>): Task<readonly [T, T], E, D>;
+```
+
+Defined in: [packages/common/src/Task.ts:2724](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L2724)
+
+Guarantees non-empty result.
+
+```ts
+const tasks: NonEmptyReadonlyArray<Task<Response, FetchError>> = [
+  fetchUrl("/a"),
+  fetchUrl("/b"),
+];
+const result = await run(all(tasks));
+if (!result.ok) return result;
+// result.value: NonEmptyReadonlyArray<Response>
+```
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+| `E` |
+| `D` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `tasks` | readonly \[[`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T`, `E`, `D`\>, [`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T`, `E`, `D`\>\] |
+| `options?` | [`CollectOptions`](/docs/api-reference/common/Task/interfaces/CollectOptions.mdx)\<`true`\> |
+
+### Returns
+
+[`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<readonly \[`T`, `T`\], `E`, `D`\>
+
+## Call Signature
+
+```ts
+function all<T, E, D>(tasks: 
+  | Iterable<Task<T, E, D>, any, any>
+| Readonly<Record<string, Task<T, E, D>>>, options: CollectOptions<false>): Task<void, E, D>;
+```
+
+Defined in: [packages/common/src/Task.ts:2737](https://github.com/SQLoot/EvoLoot/blob/d86280a21ced8e9f86b70217b1c345b37bea4ce2/packages/common/src/Task.ts#L2737)
+
+Run for side effects only.
+
+```ts
+const result = await run(all(tasks, { collect: false }));
+// result.value: void
+```
+
+### Type Parameters
+
+| Type Parameter |
+| ------ |
+| `T` |
+| `E` |
+| `D` |
+
+### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `tasks` | \| [`Iterable`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols#the_iterable_protocol)\<[`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T`, `E`, `D`\>, `any`, `any`\> \| `Readonly`\<`Record`\<`string`, [`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`T`, `E`, `D`\>\>\> |
+| `options` | [`CollectOptions`](/docs/api-reference/common/Task/interfaces/CollectOptions.mdx)\<`false`\> |
+
+### Returns
+
+[`Task`](/docs/api-reference/common/Task/type-aliases/Task.mdx)\<`void`, `E`, `D`\>
