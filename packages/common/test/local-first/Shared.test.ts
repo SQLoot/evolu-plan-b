@@ -66,6 +66,7 @@ describe("initSharedWorker", () => {
 
     worker.port.postMessage({
       type: "InitTab",
+      consoleLevel: "debug",
       port: consoleChannel.port1.native,
     });
 
@@ -96,6 +97,7 @@ describe("initSharedWorker", () => {
 
     worker.port.postMessage({
       type: "InitTab",
+      consoleLevel: "debug",
       port: consoleChannel.port1.native,
     });
 
@@ -125,6 +127,7 @@ describe("initSharedWorker", () => {
 
     worker.port.postMessage({
       type: "InitTab",
+      consoleLevel: "debug",
       port: consoleChannel.port1.native,
     });
 
@@ -153,6 +156,7 @@ describe("initSharedWorker", () => {
 
     worker.port.postMessage({
       type: "InitTab",
+      consoleLevel: "debug",
       port: consoleChannel.port1.native,
     });
 
@@ -181,6 +185,7 @@ describe("initSharedWorker", () => {
 
     worker.port.postMessage({
       type: "InitTab",
+      consoleLevel: "debug",
       port: consoleChannel.port1.native,
     });
 
@@ -208,6 +213,7 @@ describe("initSharedWorker", () => {
 
     worker.port.postMessage({
       type: "InitTab",
+      consoleLevel: "debug",
       port: consoleChannel.port1.native,
     });
 
@@ -235,6 +241,7 @@ describe("initSharedWorker", () => {
 
     worker.port.postMessage({
       type: "InitTab",
+      consoleLevel: "debug",
       port: consoleChannel.port1.native,
     });
 
@@ -281,6 +288,7 @@ describe("initSharedWorker", () => {
 
     worker.port.postMessage({
       type: "InitTab",
+      consoleLevel: "debug",
       port: tabChannel.port1.native,
     });
 
@@ -293,8 +301,8 @@ describe("initSharedWorker", () => {
     worker.port.postMessage({
       type: "InitEvolu",
       name: testName,
-      port1: evoluChannel.port1.native,
-      port2: leaderChannel.port1.native,
+      port: evoluChannel.port1.native,
+      brokerPort: leaderChannel.port1.native,
     });
 
     const entry: ConsoleEntry = {
@@ -321,8 +329,8 @@ describe("initSharedWorker", () => {
     worker.port.postMessage({
       type: "InitEvolu",
       name: testName,
-      port1: evoluChannel.port1.native,
-      port2: leaderChannel.port1.native,
+      port: evoluChannel.port1.native,
+      brokerPort: leaderChannel.port1.native,
     });
 
     expect(() => {
@@ -346,8 +354,8 @@ describe("initSharedWorker", () => {
     worker.port.postMessage({
       type: "InitEvolu",
       name: testName,
-      port1: evoluChannel.port1.native,
-      port2: leaderChannel.port1.native,
+      port: evoluChannel.port1.native,
+      brokerPort: leaderChannel.port1.native,
     });
 
     expect(() => {
@@ -373,8 +381,8 @@ describe("initSharedWorker", () => {
     worker.port.postMessage({
       type: "InitEvolu",
       name: testName,
-      port1: evoluChannel.port1.native,
-      port2: leaderChannel.port1.native,
+      port: evoluChannel.port1.native,
+      brokerPort: leaderChannel.port1.native,
     });
 
     expect(() => {
