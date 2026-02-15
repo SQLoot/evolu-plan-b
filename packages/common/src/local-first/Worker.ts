@@ -8,6 +8,7 @@ import type { ConsoleEntry } from "../Console.js";
 import { exhaustiveCheck } from "../Function.js";
 import { ok } from "../Result.js";
 import type { Task } from "../Task.js";
+import type { SimpleName } from "../Type.js";
 import type {
   SharedWorker as CommonSharedWorker,
   CreateMessagePortDep,
@@ -15,7 +16,11 @@ import type {
   MessagePort,
   NativeMessagePort,
 } from "../Worker.js";
-import type { DbWorkerInput, DbWorkerOutput } from "./DbWorkerProtocol.js";
+import type {
+  DbWorkerInput,
+  DbWorkerLeaderOutput,
+  DbWorkerOutput,
+} from "./DbWorkerProtocol.js";
 import type { EvoluError } from "./Error.js";
 
 export type EvoluWorker = CommonSharedWorker<EvoluWorkerInput>;
@@ -31,7 +36,9 @@ export type EvoluWorkerInput =
     }
   | {
       readonly type: "InitEvolu";
+      readonly name: SimpleName;
       readonly port: NativeMessagePort;
+      readonly brokerPort: NativeMessagePort;
     };
 
 export type EvoluTabOutput =
@@ -45,9 +52,11 @@ export type EvoluTabOutput =
     };
 
 export interface RunDbWorkerPortDep {
-  readonly runDbWorkerPort: (
-    port: MessagePort<DbWorkerOutput, DbWorkerInput>,
-  ) => void;
+  readonly runDbWorkerPort: (config: {
+    readonly name: SimpleName;
+    readonly port: MessagePort<DbWorkerOutput, DbWorkerInput>;
+    readonly brokerPort: MessagePort<DbWorkerLeaderOutput>;
+  }) => void;
 }
 
 export const runEvoluWorkerScope =
@@ -85,11 +94,13 @@ export const runEvoluWorkerScope =
             break;
           }
           case "InitEvolu": {
-            deps.runDbWorkerPort(
-              deps.createMessagePort<DbWorkerOutput, DbWorkerInput>(
-                message.port,
-              ),
+            const port = deps.createMessagePort<DbWorkerOutput, DbWorkerInput>(
+              message.port,
             );
+            const brokerPort = deps.createMessagePort<DbWorkerLeaderOutput>(
+              message.brokerPort,
+            );
+            deps.runDbWorkerPort({ name: message.name, port, brokerPort });
             break;
           }
           default:

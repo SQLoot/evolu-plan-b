@@ -2,6 +2,7 @@ import { expect, test, vi } from "vitest";
 import { createUnknownError } from "../../src/Error.js";
 import type {
   DbWorkerInput,
+  DbWorkerLeaderOutput,
   DbWorkerOutput,
 } from "../../src/local-first/DbWorkerProtocol.js";
 import {
@@ -9,6 +10,7 @@ import {
   type EvoluWorkerInput,
   runEvoluWorkerScope,
 } from "../../src/local-first/Worker.js";
+import { SimpleName } from "../../src/Type.js";
 import type {
   CreateMessagePort,
   MessagePort,
@@ -87,6 +89,7 @@ test("runEvoluWorkerScope routes InitEvolu port to db worker runner", () => {
   const workerScope = createWorkerScope();
   const workerConnection = createTrackedPort<never, EvoluWorkerInput>();
   const dbPort = createTrackedPort<DbWorkerOutput, DbWorkerInput>();
+  const brokerPort = createTrackedPort<DbWorkerLeaderOutput, never>();
   const runDbWorkerPort = vi.fn();
 
   const createMessagePort: CreateMessagePort = <Input, Output = never>(
@@ -94,6 +97,8 @@ test("runEvoluWorkerScope routes InitEvolu port to db worker runner", () => {
   ): MessagePort<Input, Output> => {
     if (nativePort === dbPort.native)
       return dbPort.port as unknown as MessagePort<Input, Output>;
+    if (nativePort === brokerPort.native)
+      return brokerPort.port as unknown as MessagePort<Input, Output>;
     throw new Error("Unexpected native port");
   };
 
@@ -103,11 +108,18 @@ test("runEvoluWorkerScope routes InitEvolu port to db worker runner", () => {
   })(workerScope);
 
   workerScope.onConnect?.(workerConnection.port);
+  const name = SimpleName.orThrow("TestName");
   workerConnection.emit({
     type: "InitEvolu",
+    name,
     port: dbPort.native,
+    brokerPort: brokerPort.native,
   });
 
   expect(runDbWorkerPort).toHaveBeenCalledTimes(1);
-  expect(runDbWorkerPort).toHaveBeenCalledWith(dbPort.port);
+  expect(runDbWorkerPort).toHaveBeenCalledWith({
+    name,
+    port: dbPort.port,
+    brokerPort: brokerPort.port,
+  });
 });

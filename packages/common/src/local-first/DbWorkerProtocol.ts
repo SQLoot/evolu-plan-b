@@ -7,7 +7,7 @@
  * @module
  */
 
-import type { Typed } from "../Type.js";
+import type { SimpleName, Typed } from "../Type.js";
 import type { AppOwner } from "./Owner.js";
 import type { Row } from "./Query.js";
 
@@ -112,6 +112,15 @@ export interface DbWorkerCloseResponseMessage
 export interface DbWorkerErrorMessage extends Typed<"DbWorkerError"> {
   readonly requestId: number | undefined;
   readonly error: string;
+}
+
+/**
+ * Leader lock lifecycle event emitted by the DB worker channel.
+ *
+ * This uses a dedicated broker channel, not the request/response DB channel.
+ */
+export interface DbWorkerLeaderOutput extends Typed<"LeaderAcquired"> {
+  readonly name: SimpleName;
 }
 
 export type DbWorkerOutput =

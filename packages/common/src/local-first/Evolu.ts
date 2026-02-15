@@ -36,7 +36,11 @@ import {
   UrlSafeString,
 } from "../Type.js";
 import type { CreateMessageChannelDep } from "../Worker.js";
-import type { DbWorkerInput, DbWorkerOutput } from "./DbWorkerProtocol.js";
+import type {
+  DbWorkerInput,
+  DbWorkerLeaderOutput,
+  DbWorkerOutput,
+} from "./DbWorkerProtocol.js";
 import type { EvoluError } from "./Error.js";
 import type { AppOwner, OwnerId, OwnerTransport } from "./Owner.js";
 import {
@@ -761,7 +765,7 @@ export const createEvolu =
     };
 
     const dbSchema = evoluSchemaToDbSchema(schema as EvoluSchema, _indexes);
-    const dbWorker = createDbWorkerClient(deps, setUnknownError);
+    const dbWorker = createDbWorkerClient(deps, name, setUnknownError);
 
     const storeAppOwner = async (nextAppOwner: AppOwner): Promise<void> => {
       await dbWorker.mutate(
@@ -1129,12 +1133,17 @@ type DbWorkerResponseWithRequestId = Extract<
 
 const createDbWorkerClient = (
   deps: CreateMessageChannelDep & EvoluWorkerDep & DisposableStackDep,
+  name: SimpleName,
   onError: (error: unknown) => void,
 ): DbWorkerClient => {
   const channel = deps.disposableStack.use(
     deps.createMessageChannel<DbWorkerOutput, DbWorkerInput>(),
   );
+  const brokerChannel = deps.disposableStack.use(
+    deps.createMessageChannel<DbWorkerLeaderOutput>(),
+  );
   const port = channel.port2;
+  const brokerPort = brokerChannel.port2;
 
   let requestIdCounter = 1;
   let isDisposed = false;
@@ -1171,7 +1180,9 @@ const createDbWorkerClient = (
     isDisposed = true;
     rejectAllPending(error);
     port.onMessage = null;
+    brokerPort.onMessage = null;
     channel[Symbol.dispose]();
+    brokerChannel[Symbol.dispose]();
   };
 
   port.onMessage = (message) => {
@@ -1233,9 +1244,24 @@ const createDbWorkerClient = (
   };
 
   deps.evoluWorker.port.postMessage(
-    { type: "InitEvolu", port: channel.port1.native },
-    [channel.port1.native],
+    {
+      type: "InitEvolu",
+      name,
+      port: channel.port1.native,
+      brokerPort: brokerChannel.port1.native,
+    },
+    [channel.port1.native, brokerChannel.port1.native],
   );
+
+  brokerPort.onMessage = (output) => {
+    if (output.type === "LeaderAcquired" && output.name !== name) {
+      onError(
+        new Error(
+          `Unexpected LeaderAcquired for '${output.name}' in '${name}' channel`,
+        ),
+      );
+    }
+  };
 
   const request = <TExpected extends DbWorkerResponseWithRequestId["type"]>(
     message: DbWorkerInput,

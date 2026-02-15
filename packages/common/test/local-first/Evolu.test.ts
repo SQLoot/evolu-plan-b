@@ -17,7 +17,12 @@ import { createQueryBuilder } from "../../src/local-first/Schema.js";
 import type { EvoluTabOutput } from "../../src/local-first/Worker.js";
 import { SqliteBoolean } from "../../src/Sqlite.js";
 import { testCreateRun } from "../../src/Test.js";
-import { id, NonEmptyString100, nullOr } from "../../src/Type.js";
+import {
+  id,
+  NonEmptyString100,
+  nullOr,
+  type SimpleName,
+} from "../../src/Type.js";
 import { testSimpleName } from "../_deps.js";
 import { testAppOwner } from "./_fixtures.js";
 
@@ -106,7 +111,14 @@ const createMockDeps = () => {
     evoluWorker: {
       port: {
         postMessage: (
-          message: { type: "InitTab" | "InitEvolu"; port: unknown },
+          message:
+            | { type: "InitTab"; port: unknown }
+            | {
+                type: "InitEvolu";
+                name: SimpleName;
+                port: unknown;
+                brokerPort: unknown;
+              },
           _transfer?: ReadonlyArray<unknown>,
         ) => {
           if (message.type === "InitTab") {
