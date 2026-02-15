@@ -1062,7 +1062,7 @@ describe("E2E sync", () => {
     relayStorage: Storage,
     rangesMaxSize = defaultProtocolMessageRangesMaxSize,
   ) => {
-    const clientStorageDep = { storage: clientStorage };
+    const clientStorageDep = { storage: clientStorage, console: deps.console };
     const relayStorageDep = { storage: relayStorage };
 
     let message = createProtocolMessageForSync(clientStorageDep)(
@@ -1112,7 +1112,7 @@ describe("E2E sync", () => {
             testAppOwnerIdBytes,
             timestampToTimestampBytes(message.timestamp),
           )
-          ?.join(),
+          .join(),
       ).toBe(message.change.join());
 
       expect(
@@ -1121,7 +1121,7 @@ describe("E2E sync", () => {
             testAppOwnerIdBytes,
             timestampToTimestampBytes(message.timestamp),
           )
-          ?.join(),
+          .join(),
       ).toBe(message.change.join());
     }
 
