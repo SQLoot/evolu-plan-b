@@ -77,6 +77,7 @@ test("runEvoluWorkerScope forwards global errors to registered tab port", () => 
   workerScope.onConnect?.(workerConnection.port);
   workerConnection.emit({
     type: "InitTab",
+    consoleLevel: "debug",
     port: tabPort.native,
   });
 

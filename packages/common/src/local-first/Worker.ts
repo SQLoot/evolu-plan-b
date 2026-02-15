@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { ConsoleEntry } from "../Console.js";
+import type { ConsoleEntry, ConsoleLevel } from "../Console.js";
 import { exhaustiveCheck } from "../Function.js";
 import { ok } from "../Result.js";
 import type { Task } from "../Task.js";
@@ -33,6 +33,7 @@ export interface EvoluWorkerDep {
 export type EvoluWorkerInput =
   | {
       readonly type: "InitTab";
+      readonly consoleLevel: ConsoleLevel;
       readonly port: NativeMessagePort<EvoluTabOutput>;
     }
   | {
