@@ -15,7 +15,7 @@ import { describe, expect, it } from "vitest";
 
 const docsPath = join(
   import.meta.dirname,
-  "../apps/web/src/app/(docs)/docs/api-reference",
+  "../.generated/evolu-docs/api-reference",
 );
 
 describe("typedoc-plugin-evolu-type", () => {
