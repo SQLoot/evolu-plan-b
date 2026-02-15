@@ -8,17 +8,18 @@
 import type { EvoluDeps } from "@evolu/common/local-first";
 import * as Expo from "expo";
 import { createEvoluDeps as createSharedEvoluDeps } from "../shared.js";
+import { createExpoSqliteDriver } from "../sqlite-drivers/createExpoSqliteDriver.js";
 
 /** Creates Evolu dependencies for Expo. */
 export const createEvoluDeps = (): EvoluDeps =>
   createSharedEvoluDeps({
+    createSqliteDriver: createExpoSqliteDriver,
     reloadApp: () => {
       void Expo.reloadAppAsync();
     },
   });
 
 import { createExpoDeps } from "../createExpoDeps.js";
-import { createExpoSqliteDriver } from "../sqlite-drivers/createExpoSqliteDriver.js";
 
 export const { evoluReactNativeDeps, localAuth } = createExpoDeps({
   createSqliteDriver: createExpoSqliteDriver,
