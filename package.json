@@ -11,11 +11,9 @@
     "examples/*"
   ],
   "scripts": {
-    "dev": "turbo --filter @evolu/relay --filter web dev",
+    "dev": "turbo --filter @evolu/relay dev",
     "relay": "turbo --filter @evolu/relay dev",
     "build": "turbo --filter @evolu/* build",
-    "build:web": "bun run build:docs && turbo --filter web build",
-    "build:docs": "typedoc && bun --filter=web run fix:docs",
     "test": "vitest run",
     "test:coverage": "bun run test:coverage:vitest && bun run test:coverage:bun",
     "test:coverage:vitest": "vitest run --coverage",
@@ -28,7 +26,7 @@
     "sync:guard:common-v8": "SYNC_GUARD_MAIN_REF=${SYNC_GUARD_MAIN_REF:-bun-first} bun ./scripts/sync-guard-common-v8.mts",
     "sync:guard:common-v8:strict": "SYNC_GUARD_MAIN_REF=${SYNC_GUARD_MAIN_REF:-bun-first} bun ./scripts/sync-guard-common-v8.mts --strict",
     "verify:fast": "bun run build && bun run test && bun run lint && bun run lint-monorepo",
-    "verify": "bun run format && bun run build && bun run test && bun run test:coverage && bun run lint && bun run lint-monorepo && bun run build:docs && INCLUDE_DOCS_TESTS=true bunx vitest run scripts/typedoc-plugin-evolu.test.mts",
+    "verify": "bun run format && bun run build && bun run test && bun run test:coverage && bun run lint && bun run lint-monorepo",
     "clean": "turbo clean && rimraf node_modules bun.lock .turbo out",
     "version": "changeset version",
     "release": "bun run build && changeset publish",
@@ -40,7 +38,9 @@
     "examples:react-nextjs:dev": "turbo --filter @example/react-nextjs dev",
     "examples:react-vite-pwa:dev": "turbo --filter @example/react-vite-pwa dev",
     "examples:svelte-vite-pwa:dev": "turbo --filter @example/svelte-vite-pwa dev",
-    "examples:vue-vite-pwa:dev": "turbo --filter @example/vue-vite-pwa dev"
+    "examples:vue-vite-pwa:dev": "turbo --filter @example/vue-vite-pwa dev",
+    "docs:generate:api": "typedoc",
+    "docs:sync:website": "bun run docs:generate:api && bun run --cwd ../website docs:sync:evolu"
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.15",
