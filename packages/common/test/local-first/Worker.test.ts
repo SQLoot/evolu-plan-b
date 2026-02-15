@@ -2,6 +2,7 @@ import { expect, test, vi } from "vitest";
 import { createUnknownError } from "../../src/Error.js";
 import type {
   DbWorkerInput,
+  DbWorkerLeaderInput,
   DbWorkerLeaderOutput,
   DbWorkerOutput,
 } from "../../src/local-first/DbWorkerProtocol.js";
@@ -89,7 +90,10 @@ test("runEvoluWorkerScope routes InitEvolu port to db worker runner", () => {
   const workerScope = createWorkerScope();
   const workerConnection = createTrackedPort<never, EvoluWorkerInput>();
   const dbPort = createTrackedPort<DbWorkerOutput, DbWorkerInput>();
-  const brokerPort = createTrackedPort<DbWorkerLeaderOutput, never>();
+  const brokerPort = createTrackedPort<
+    DbWorkerLeaderOutput,
+    DbWorkerLeaderInput
+  >();
   const runDbWorkerPort = vi.fn();
 
   const createMessagePort: CreateMessagePort = <Input, Output = never>(

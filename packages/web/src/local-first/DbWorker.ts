@@ -9,10 +9,12 @@ import { SimpleName as SimpleNameType } from "@evolu/common";
 import type {
   AppOwner,
   DbWorkerInput,
+  DbWorkerLeaderInput,
   DbWorkerLeaderOutput,
   DbWorkerOutput,
   Row,
 } from "@evolu/common/local-first";
+import { dbWorkerLeaderHeartbeatTimeoutMs as defaultHeartbeatTimeoutMs } from "@evolu/common/local-first";
 import { createWasmSqliteDriver } from "../Sqlite.js";
 import { createRun } from "../Task.js";
 
@@ -143,21 +145,91 @@ const releaseSharedDb = (dbName: string): void => {
 export const runWebDbWorkerPort = (config: {
   readonly name: SimpleName;
   readonly port: MessagePort<DbWorkerOutput, DbWorkerInput>;
-  readonly brokerPort: MessagePort<DbWorkerLeaderOutput>;
+  readonly brokerPort: MessagePort<DbWorkerLeaderOutput, DbWorkerLeaderInput>;
 }): void => {
+  runWebDbWorkerPortWithOptions(config);
+};
+
+export const runWebDbWorkerPortWithOptions = (
+  config: {
+    readonly name: SimpleName;
+    readonly port: MessagePort<DbWorkerOutput, DbWorkerInput>;
+    readonly brokerPort: MessagePort<DbWorkerLeaderOutput, DbWorkerLeaderInput>;
+  },
+  options?: {
+    readonly heartbeatTimeoutMs?: number;
+    readonly heartbeatCheckIntervalMs?: number;
+  },
+): void => {
+  const heartbeatTimeoutMs =
+    options?.heartbeatTimeoutMs ?? defaultHeartbeatTimeoutMs;
+  const heartbeatCheckIntervalMs =
+    options?.heartbeatCheckIntervalMs ??
+    Math.max(1_000, heartbeatTimeoutMs / 3);
   const { name, port, brokerPort } = config;
   let db: SqliteDriver | null = null;
   let dbName: string | null = null;
+  let schemaVersion: number | null = null;
+  let hasDbRef = false;
+  let heartbeatWatchdogId: ReturnType<typeof globalThis.setInterval> | null =
+    null;
+  let lastHeartbeatAt = Date.now();
+
+  const markAlive = (): void => {
+    lastHeartbeatAt = Date.now();
+  };
+
+  const stopHeartbeatWatchdog = (): void => {
+    if (!heartbeatWatchdogId) return;
+    globalThis.clearInterval(heartbeatWatchdogId);
+    heartbeatWatchdogId = null;
+  };
+
+  const startHeartbeatWatchdog = (): void => {
+    if (heartbeatWatchdogId) return;
+    heartbeatWatchdogId = globalThis.setInterval(() => {
+      if (!dbName) return;
+      if (Date.now() - lastHeartbeatAt > heartbeatTimeoutMs) {
+        // Stale client port: release shared DB ref.
+        releaseDb({ keepConfig: true });
+        stopHeartbeatWatchdog();
+      }
+    }, heartbeatCheckIntervalMs);
+  };
+
+  const releaseDb = (config?: { keepConfig?: boolean }): void => {
+    if (hasDbRef && dbName) {
+      releaseSharedDb(dbName);
+      hasDbRef = false;
+    }
+    db = null;
+    if (!config?.keepConfig) {
+      dbName = null;
+      schemaVersion = null;
+      stopHeartbeatWatchdog();
+    }
+  };
+
+  const ensureDbReady = async (): Promise<void> => {
+    if (db) return;
+    if (dbName == null || schemaVersion == null)
+      throw new Error("Database not initialized");
+    const acquired = await acquireSharedDb({ dbName, schemaVersion });
+    db = acquired.driver;
+    hasDbRef = true;
+    startHeartbeatWatchdog();
+    if (acquired.isLeader)
+      brokerPort.postMessage({ type: "LeaderAcquired", name });
+  };
+
+  brokerPort.onMessage = (message) => {
+    if (message.type === "LeaderHeartbeat" && message.name === name) {
+      markAlive();
+    }
+  };
 
   const postMessage = (message: DbWorkerOutput): void => {
     port.postMessage(message);
-  };
-
-  const closeDb = (): void => {
-    if (!dbName) return;
-    releaseSharedDb(dbName);
-    dbName = null;
-    db = null;
   };
 
   const requireDb = (): SqliteDriver => {
@@ -183,16 +255,34 @@ export const runWebDbWorkerPort = (config: {
   };
 
   const handleMessage = async (message: DbWorkerInput): Promise<void> => {
+    markAlive();
     switch (message.type) {
       case "DbWorkerInit": {
         try {
           if (!db || !dbName) {
+            if (dbName && dbName !== message.dbName) {
+              throw new Error(
+                `DbWorker already initialized for '${dbName}', cannot switch to '${message.dbName}'`,
+              );
+            }
+            if (
+              schemaVersion != null &&
+              schemaVersion !== message.schemaVersion
+            ) {
+              throw new Error(
+                `DbWorker already initialized for schema version ${schemaVersion}, cannot switch to ${message.schemaVersion}`,
+              );
+            }
+
             const acquired = await acquireSharedDb({
               dbName: message.dbName,
               schemaVersion: message.schemaVersion,
             });
             db = acquired.driver;
+            hasDbRef = true;
             dbName = message.dbName;
+            schemaVersion = message.schemaVersion;
+            startHeartbeatWatchdog();
             if (acquired.isLeader) {
               brokerPort.postMessage({ type: "LeaderAcquired", name });
             }
@@ -216,12 +306,13 @@ export const runWebDbWorkerPort = (config: {
             success: false,
             error: error instanceof Error ? error.message : String(error),
           });
-          closeDb();
+          releaseDb();
         }
         break;
       }
 
       case "DbWorkerGetAppOwner": {
+        await ensureDbReady();
         const result = exec(
           "SELECT value FROM __evolu_meta WHERE key = 'appOwner'",
         );
@@ -238,6 +329,7 @@ export const runWebDbWorkerPort = (config: {
       }
 
       case "DbWorkerQuery": {
+        await ensureDbReady();
         const result = exec(message.sql, message.params ?? []);
         postMessage({
           type: "DbWorkerQueryResponse",
@@ -248,6 +340,7 @@ export const runWebDbWorkerPort = (config: {
       }
 
       case "DbWorkerMutate": {
+        await ensureDbReady();
         const result = exec(message.sql, message.params);
         postMessage({
           type: "DbWorkerMutateResponse",
@@ -258,6 +351,7 @@ export const runWebDbWorkerPort = (config: {
       }
 
       case "DbWorkerExport": {
+        await ensureDbReady();
         const data = requireDb().export();
         postMessage({
           type: "DbWorkerExportResponse",
@@ -268,6 +362,7 @@ export const runWebDbWorkerPort = (config: {
       }
 
       case "DbWorkerReset": {
+        await ensureDbReady();
         const tables = exec(
           `
             SELECT name
@@ -293,7 +388,7 @@ export const runWebDbWorkerPort = (config: {
       }
 
       case "DbWorkerClose": {
-        closeDb();
+        releaseDb();
         postMessage({
           type: "DbWorkerCloseResponse",
           requestId: message.requestId,
