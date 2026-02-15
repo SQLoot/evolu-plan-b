@@ -18,6 +18,7 @@ import type {
 } from "../Worker.js";
 import type {
   DbWorkerInput,
+  DbWorkerLeaderInput,
   DbWorkerLeaderOutput,
   DbWorkerOutput,
 } from "./DbWorkerProtocol.js";
@@ -55,7 +56,7 @@ export interface RunDbWorkerPortDep {
   readonly runDbWorkerPort: (config: {
     readonly name: SimpleName;
     readonly port: MessagePort<DbWorkerOutput, DbWorkerInput>;
-    readonly brokerPort: MessagePort<DbWorkerLeaderOutput>;
+    readonly brokerPort: MessagePort<DbWorkerLeaderOutput, DbWorkerLeaderInput>;
   }) => void;
 }
 
@@ -97,9 +98,10 @@ export const runEvoluWorkerScope =
             const port = deps.createMessagePort<DbWorkerOutput, DbWorkerInput>(
               message.port,
             );
-            const brokerPort = deps.createMessagePort<DbWorkerLeaderOutput>(
-              message.brokerPort,
-            );
+            const brokerPort = deps.createMessagePort<
+              DbWorkerLeaderOutput,
+              DbWorkerLeaderInput
+            >(message.brokerPort);
             deps.runDbWorkerPort({ name: message.name, port, brokerPort });
             break;
           }

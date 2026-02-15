@@ -2,11 +2,15 @@ import type { MessagePort } from "@evolu/common";
 import { SimpleName } from "@evolu/common";
 import type {
   DbWorkerInput,
+  DbWorkerLeaderInput,
   DbWorkerLeaderOutput,
   DbWorkerOutput,
 } from "@evolu/common/local-first";
 import { describe, expect, test } from "vitest";
-import { runWebDbWorkerPort } from "../src/local-first/DbWorker.js";
+import {
+  runWebDbWorkerPort,
+  runWebDbWorkerPortWithOptions,
+} from "../src/local-first/DbWorker.js";
 import { createMessageChannel } from "../src/Worker.js";
 
 const waitForOutput = (
@@ -43,13 +47,19 @@ const waitForLeader = (
     };
   });
 
+const wait = (ms: number): Promise<void> =>
+  new Promise((resolve) => globalThis.setTimeout(resolve, ms));
+
 describe("runWebDbWorkerPort", () => {
   test("same dbName can initialize from multiple ports without blocking", async () => {
     const name = SimpleName.orThrow("DbWorkerTest");
     const dbName = ":memory:";
 
     const channel1 = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
-    const broker1 = createMessageChannel<DbWorkerLeaderOutput>();
+    const broker1 = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
     broker1.port2.onMessage = () => {};
     runWebDbWorkerPort({
       name,
@@ -58,7 +68,10 @@ describe("runWebDbWorkerPort", () => {
     });
 
     const channel2 = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
-    const broker2 = createMessageChannel<DbWorkerLeaderOutput>();
+    const broker2 = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
     broker2.port2.onMessage = () => {};
     runWebDbWorkerPort({
       name,
@@ -116,7 +129,10 @@ describe("runWebDbWorkerPort", () => {
     const dbName = ":memory:";
 
     const channel1 = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
-    const broker1 = createMessageChannel<DbWorkerLeaderOutput>();
+    const broker1 = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
     broker1.port2.onMessage = () => {};
     runWebDbWorkerPort({
       name,
@@ -125,7 +141,10 @@ describe("runWebDbWorkerPort", () => {
     });
 
     const channel2 = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
-    const broker2 = createMessageChannel<DbWorkerLeaderOutput>();
+    const broker2 = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
     broker2.port2.onMessage = () => {};
     runWebDbWorkerPort({
       name,
@@ -157,6 +176,170 @@ describe("runWebDbWorkerPort", () => {
       expect(init2Output.success).toBe(false);
       expect(init2Output.error).toContain("Schema version mismatch");
     }
+
+    const close1 = waitForOutput(channel1.port2);
+    channel1.port2.postMessage({ type: "DbWorkerClose", requestId: 1 });
+    const close1Output = await close1;
+    expect(close1Output.type).toBe("DbWorkerCloseResponse");
+
+    const close2 = waitForOutput(channel2.port2);
+    channel2.port2.postMessage({ type: "DbWorkerClose", requestId: 1 });
+    const close2Output = await close2;
+    expect(close2Output.type).toBe("DbWorkerCloseResponse");
+  });
+
+  test("releases stale leader when no heartbeat arrives", async () => {
+    const name = SimpleName.orThrow("DbWorkerStaleLeader");
+    const dbName = ":memory:";
+
+    const channel1 = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker1 = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    runWebDbWorkerPortWithOptions(
+      {
+        name,
+        port: channel1.port1,
+        brokerPort: broker1.port1,
+      },
+      {
+        heartbeatTimeoutMs: 80,
+        heartbeatCheckIntervalMs: 20,
+      },
+    );
+
+    const leader1 = waitForLeader(broker1.port2);
+    const init1 = waitForOutput(channel1.port2);
+    channel1.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName,
+      schemaVersion: 1,
+    });
+    const init1Output = await init1;
+    expect(init1Output.type).toBe("DbWorkerInitResponse");
+    if (init1Output.type === "DbWorkerInitResponse") {
+      expect(init1Output.success).toBe(true);
+    }
+    expect(await leader1).toMatchObject({ type: "LeaderAcquired", name });
+
+    await wait(220);
+
+    const channel2 = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker2 = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    broker2.port2.onMessage = () => {};
+    runWebDbWorkerPortWithOptions(
+      {
+        name,
+        port: channel2.port1,
+        brokerPort: broker2.port1,
+      },
+      {
+        heartbeatTimeoutMs: 80,
+        heartbeatCheckIntervalMs: 20,
+      },
+    );
+
+    const leader2 = waitForLeader(broker2.port2);
+    const init2 = waitForOutput(channel2.port2);
+    channel2.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName,
+      schemaVersion: 1,
+    });
+    const init2Output = await init2;
+    expect(init2Output.type).toBe("DbWorkerInitResponse");
+    if (init2Output.type === "DbWorkerInitResponse") {
+      expect(init2Output.success).toBe(true);
+    }
+    expect(await leader2).toMatchObject({ type: "LeaderAcquired", name });
+
+    const close1 = waitForOutput(channel1.port2);
+    channel1.port2.postMessage({ type: "DbWorkerClose", requestId: 1 });
+    const close1Output = await close1;
+    expect(close1Output.type).toBe("DbWorkerCloseResponse");
+
+    const close2 = waitForOutput(channel2.port2);
+    channel2.port2.postMessage({ type: "DbWorkerClose", requestId: 1 });
+    const close2Output = await close2;
+    expect(close2Output.type).toBe("DbWorkerCloseResponse");
+  });
+
+  test("keeps leader alive when heartbeats are delivered", async () => {
+    const name = SimpleName.orThrow("DbWorkerLiveLeader");
+    const dbName = ":memory:";
+
+    const channel1 = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker1 = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    runWebDbWorkerPortWithOptions(
+      {
+        name,
+        port: channel1.port1,
+        brokerPort: broker1.port1,
+      },
+      {
+        heartbeatTimeoutMs: 120,
+        heartbeatCheckIntervalMs: 30,
+      },
+    );
+
+    const leader1 = waitForLeader(broker1.port2);
+    const init1 = waitForOutput(channel1.port2);
+    channel1.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName,
+      schemaVersion: 1,
+    });
+    const init1Output = await init1;
+    expect(init1Output.type).toBe("DbWorkerInitResponse");
+    if (init1Output.type === "DbWorkerInitResponse") {
+      expect(init1Output.success).toBe(true);
+    }
+    expect(await leader1).toMatchObject({ type: "LeaderAcquired", name });
+
+    const heartbeatId = globalThis.setInterval(() => {
+      broker1.port2.postMessage({ type: "LeaderHeartbeat", name });
+    }, 20);
+
+    await wait(260);
+    globalThis.clearInterval(heartbeatId);
+
+    const channel2 = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker2 = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    runWebDbWorkerPortWithOptions(
+      {
+        name,
+        port: channel2.port1,
+        brokerPort: broker2.port1,
+      },
+      {
+        heartbeatTimeoutMs: 120,
+        heartbeatCheckIntervalMs: 30,
+      },
+    );
+
+    const leader2 = waitForLeader(broker2.port2, 200);
+    const init2 = waitForOutput(channel2.port2);
+    channel2.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName,
+      schemaVersion: 1,
+    });
+    const init2Output = await init2;
+    expect(init2Output.type).toBe("DbWorkerInitResponse");
+    if (init2Output.type === "DbWorkerInitResponse") {
+      expect(init2Output.success).toBe(true);
+    }
+    expect(await leader2).toBeNull();
 
     const close1 = waitForOutput(channel1.port2);
     channel1.port2.postMessage({ type: "DbWorkerClose", requestId: 1 });

@@ -38,9 +38,11 @@ import {
 import type { CreateMessageChannelDep } from "../Worker.js";
 import type {
   DbWorkerInput,
+  DbWorkerLeaderInput,
   DbWorkerLeaderOutput,
   DbWorkerOutput,
 } from "./DbWorkerProtocol.js";
+import { dbWorkerLeaderHeartbeatIntervalMs } from "./DbWorkerProtocol.js";
 import type { EvoluError } from "./Error.js";
 import type { AppOwner, OwnerId, OwnerTransport } from "./Owner.js";
 import {
@@ -1140,7 +1142,7 @@ const createDbWorkerClient = (
     deps.createMessageChannel<DbWorkerOutput, DbWorkerInput>(),
   );
   const brokerChannel = deps.disposableStack.use(
-    deps.createMessageChannel<DbWorkerLeaderOutput>(),
+    deps.createMessageChannel<DbWorkerLeaderOutput, DbWorkerLeaderInput>(),
   );
   const port = channel.port2;
   const brokerPort = brokerChannel.port2;
@@ -1148,6 +1150,8 @@ const createDbWorkerClient = (
   let requestIdCounter = 1;
   let isDisposed = false;
   let closePromise: Promise<void> | null = null;
+  let heartbeatIntervalId: ReturnType<typeof globalThis.setInterval> | null =
+    null;
 
   const pendingRequests = new Map<
     number,
@@ -1175,9 +1179,29 @@ const createDbWorkerClient = (
     while (appOwnerWaiters.length > 0) appOwnerWaiters.shift()?.reject(error);
   };
 
+  const stopLeaderHeartbeat = (): void => {
+    if (!heartbeatIntervalId) return;
+    globalThis.clearInterval(heartbeatIntervalId);
+    heartbeatIntervalId = null;
+  };
+
+  const sendLeaderHeartbeat = (): void => {
+    brokerPort.postMessage({ type: "LeaderHeartbeat", name });
+  };
+
+  const startLeaderHeartbeat = (): void => {
+    if (heartbeatIntervalId) return;
+    sendLeaderHeartbeat();
+    heartbeatIntervalId = globalThis.setInterval(
+      sendLeaderHeartbeat,
+      dbWorkerLeaderHeartbeatIntervalMs,
+    );
+  };
+
   const disposeNow = (error: unknown): void => {
     if (isDisposed) return;
     isDisposed = true;
+    stopLeaderHeartbeat();
     rejectAllPending(error);
     port.onMessage = null;
     brokerPort.onMessage = null;
@@ -1206,8 +1230,12 @@ const createDbWorkerClient = (
         onError(new Error("Received unexpected DbWorkerInitResponse"));
         return;
       }
-      if (message.success) waiter.resolve();
-      else waiter.reject(new Error(message.error ?? "DbWorker init failed"));
+      if (message.success) {
+        startLeaderHeartbeat();
+        waiter.resolve();
+      } else {
+        waiter.reject(new Error(message.error ?? "DbWorker init failed"));
+      }
       return;
     }
 
