@@ -9,13 +9,25 @@ import { SimpleName as SimpleNameType } from "@evolu/common";
 import type {
   AppOwner,
   DbWorkerInput,
+  DbWorkerLeaderInput,
+  DbWorkerLeaderOutput,
   DbWorkerOutput,
   Row,
 } from "@evolu/common/local-first";
+import { dbWorkerLeaderHeartbeatTimeoutMs as defaultHeartbeatTimeoutMs } from "@evolu/common/local-first";
 import { createWasmSqliteDriver } from "../Sqlite.js";
 import { createRun } from "../Task.js";
 
 const workerMemoryDbName = "evolu-worker-memory";
+
+interface SharedDbState {
+  driver: SqliteDriver | null;
+  initPromise: Promise<SqliteDriver> | null;
+  refs: number;
+  schemaVersion: number;
+}
+
+const sharedDbStates = new Map<string, SharedDbState>();
 
 const safeParseAppOwner = (value: string): AppOwner | null => {
   try {
@@ -37,19 +49,187 @@ const createDriver = async (dbName: string): Promise<SqliteDriver> => {
   return result.value;
 };
 
-export const runWebDbWorkerPort = (
-  port: MessagePort<DbWorkerOutput, DbWorkerInput>,
+const prepareDriver = (
+  driver: SqliteDriver,
+  schemaVersion: number,
+): ReturnType<SqliteDriver["exec"]> => {
+  driver.exec({ sql: "PRAGMA journal_mode = WAL;" as SafeSql, parameters: [] });
+  driver.exec({ sql: "PRAGMA foreign_keys = ON;" as SafeSql, parameters: [] });
+  driver.exec({
+    sql: "PRAGMA busy_timeout = 5000;" as SafeSql,
+    parameters: [],
+  });
+  driver.exec({
+    sql: `
+          CREATE TABLE IF NOT EXISTS __evolu_meta (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+          );
+        ` as SafeSql,
+    parameters: [],
+  });
+  return driver.exec({
+    sql: `
+            INSERT INTO __evolu_meta (key, value)
+            VALUES ('schemaVersion', ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+          ` as SafeSql,
+    parameters: [String(schemaVersion)] as Array<SqliteValue>,
+  });
+};
+
+const acquireSharedDb = async (config: {
+  readonly dbName: string;
+  readonly schemaVersion: number;
+}): Promise<{ driver: SqliteDriver; isLeader: boolean }> => {
+  const { dbName, schemaVersion } = config;
+  const existing = sharedDbStates.get(dbName);
+  if (existing) {
+    if (existing.schemaVersion !== schemaVersion) {
+      throw new Error(
+        `Schema version mismatch for '${dbName}': existing ${existing.schemaVersion}, requested ${schemaVersion}`,
+      );
+    }
+    existing.refs += 1;
+    try {
+      if (existing.driver) return { driver: existing.driver, isLeader: false };
+      const initPromise = existing.initPromise;
+      if (!initPromise) throw new Error("Shared DB initialization missing");
+      const driver = await initPromise;
+      return { driver, isLeader: false };
+    } catch (error) {
+      existing.refs -= 1;
+      if (existing.refs === 0) sharedDbStates.delete(dbName);
+      throw error;
+    }
+  }
+
+  const created: SharedDbState = {
+    driver: null,
+    initPromise: null,
+    refs: 1,
+    schemaVersion,
+  };
+  sharedDbStates.set(dbName, created);
+
+  created.initPromise = (async () => {
+    const driver = await createDriver(dbName);
+    prepareDriver(driver, schemaVersion);
+    created.driver = driver;
+    return driver;
+  })();
+
+  try {
+    const driver = await created.initPromise;
+    return { driver, isLeader: true };
+  } catch (error) {
+    created.refs -= 1;
+    if (created.refs === 0) sharedDbStates.delete(dbName);
+    throw error;
+  } finally {
+    created.initPromise = null;
+  }
+};
+
+const releaseSharedDb = (dbName: string): void => {
+  const state = sharedDbStates.get(dbName);
+  if (!state) return;
+
+  state.refs -= 1;
+  if (state.refs > 0) return;
+
+  if (state.driver) state.driver[Symbol.dispose]();
+  sharedDbStates.delete(dbName);
+};
+
+export const runWebDbWorkerPort = (config: {
+  readonly name: SimpleName;
+  readonly port: MessagePort<DbWorkerOutput, DbWorkerInput>;
+  readonly brokerPort: MessagePort<DbWorkerLeaderOutput, DbWorkerLeaderInput>;
+}): void => {
+  runWebDbWorkerPortWithOptions(config);
+};
+
+export const runWebDbWorkerPortWithOptions = (
+  config: {
+    readonly name: SimpleName;
+    readonly port: MessagePort<DbWorkerOutput, DbWorkerInput>;
+    readonly brokerPort: MessagePort<DbWorkerLeaderOutput, DbWorkerLeaderInput>;
+  },
+  options?: {
+    readonly heartbeatTimeoutMs?: number;
+    readonly heartbeatCheckIntervalMs?: number;
+  },
 ): void => {
+  const heartbeatTimeoutMs =
+    options?.heartbeatTimeoutMs ?? defaultHeartbeatTimeoutMs;
+  const heartbeatCheckIntervalMs =
+    options?.heartbeatCheckIntervalMs ??
+    Math.max(1_000, heartbeatTimeoutMs / 3);
+  const { name, port, brokerPort } = config;
   let db: SqliteDriver | null = null;
+  let dbName: string | null = null;
+  let schemaVersion: number | null = null;
+  let hasDbRef = false;
+  let heartbeatWatchdogId: ReturnType<typeof globalThis.setInterval> | null =
+    null;
+  let lastHeartbeatAt = Date.now();
+
+  const markAlive = (): void => {
+    lastHeartbeatAt = Date.now();
+  };
+
+  const stopHeartbeatWatchdog = (): void => {
+    if (!heartbeatWatchdogId) return;
+    globalThis.clearInterval(heartbeatWatchdogId);
+    heartbeatWatchdogId = null;
+  };
+
+  const startHeartbeatWatchdog = (): void => {
+    if (heartbeatWatchdogId) return;
+    heartbeatWatchdogId = globalThis.setInterval(() => {
+      if (!dbName) return;
+      if (Date.now() - lastHeartbeatAt > heartbeatTimeoutMs) {
+        // Stale client port: release shared DB ref.
+        releaseDb({ keepConfig: true });
+        stopHeartbeatWatchdog();
+      }
+    }, heartbeatCheckIntervalMs);
+  };
+
+  const releaseDb = (config?: { keepConfig?: boolean }): void => {
+    if (hasDbRef && dbName) {
+      releaseSharedDb(dbName);
+      hasDbRef = false;
+    }
+    db = null;
+    if (!config?.keepConfig) {
+      dbName = null;
+      schemaVersion = null;
+      stopHeartbeatWatchdog();
+    }
+  };
+
+  const ensureDbReady = async (): Promise<void> => {
+    if (db) return;
+    if (dbName == null || schemaVersion == null)
+      throw new Error("Database not initialized");
+    const acquired = await acquireSharedDb({ dbName, schemaVersion });
+    db = acquired.driver;
+    hasDbRef = true;
+    startHeartbeatWatchdog();
+    if (acquired.isLeader)
+      brokerPort.postMessage({ type: "LeaderAcquired", name });
+  };
+
+  brokerPort.onMessage = (message) => {
+    if (message.type === "LeaderHeartbeat" && message.name === name) {
+      markAlive();
+    }
+  };
 
   const postMessage = (message: DbWorkerOutput): void => {
     port.postMessage(message);
-  };
-
-  const closeDb = (): void => {
-    if (!db) return;
-    db[Symbol.dispose]();
-    db = null;
   };
 
   const requireDb = (): SqliteDriver => {
@@ -75,29 +255,49 @@ export const runWebDbWorkerPort = (
   };
 
   const handleMessage = async (message: DbWorkerInput): Promise<void> => {
+    markAlive();
     switch (message.type) {
       case "DbWorkerInit": {
         try {
-          closeDb();
-          db = await createDriver(message.dbName);
+          if (!db || !dbName) {
+            if (dbName && dbName !== message.dbName) {
+              throw new Error(
+                `DbWorker already initialized for '${dbName}', cannot switch to '${message.dbName}'`,
+              );
+            }
+            if (
+              schemaVersion != null &&
+              schemaVersion !== message.schemaVersion
+            ) {
+              throw new Error(
+                `DbWorker already initialized for schema version ${schemaVersion}, cannot switch to ${message.schemaVersion}`,
+              );
+            }
 
-          exec("PRAGMA journal_mode = WAL;");
-          exec("PRAGMA foreign_keys = ON;");
-          exec("PRAGMA busy_timeout = 5000;");
-          exec(`
-          CREATE TABLE IF NOT EXISTS __evolu_meta (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-          );
-        `);
-          exec(
-            `
-            INSERT INTO __evolu_meta (key, value)
-            VALUES ('schemaVersion', ?)
-            ON CONFLICT(key) DO UPDATE SET value = excluded.value;
-          `,
-            [String(message.schemaVersion)],
-          );
+            const acquired = await acquireSharedDb({
+              dbName: message.dbName,
+              schemaVersion: message.schemaVersion,
+            });
+            db = acquired.driver;
+            hasDbRef = true;
+            dbName = message.dbName;
+            schemaVersion = message.schemaVersion;
+            startHeartbeatWatchdog();
+            if (acquired.isLeader) {
+              brokerPort.postMessage({ type: "LeaderAcquired", name });
+            }
+          } else if (dbName !== message.dbName) {
+            throw new Error(
+              `DbWorker already initialized for '${dbName}', cannot switch to '${message.dbName}'`,
+            );
+          } else {
+            const state = sharedDbStates.get(dbName);
+            if (state && state.schemaVersion !== message.schemaVersion) {
+              throw new Error(
+                `DbWorker already initialized for schema version ${state.schemaVersion}, cannot switch to ${message.schemaVersion}`,
+              );
+            }
+          }
 
           postMessage({ type: "DbWorkerInitResponse", success: true });
         } catch (error) {
@@ -106,11 +306,13 @@ export const runWebDbWorkerPort = (
             success: false,
             error: error instanceof Error ? error.message : String(error),
           });
+          releaseDb();
         }
         break;
       }
 
       case "DbWorkerGetAppOwner": {
+        await ensureDbReady();
         const result = exec(
           "SELECT value FROM __evolu_meta WHERE key = 'appOwner'",
         );
@@ -127,6 +329,7 @@ export const runWebDbWorkerPort = (
       }
 
       case "DbWorkerQuery": {
+        await ensureDbReady();
         const result = exec(message.sql, message.params ?? []);
         postMessage({
           type: "DbWorkerQueryResponse",
@@ -137,6 +340,7 @@ export const runWebDbWorkerPort = (
       }
 
       case "DbWorkerMutate": {
+        await ensureDbReady();
         const result = exec(message.sql, message.params);
         postMessage({
           type: "DbWorkerMutateResponse",
@@ -147,6 +351,7 @@ export const runWebDbWorkerPort = (
       }
 
       case "DbWorkerExport": {
+        await ensureDbReady();
         const data = requireDb().export();
         postMessage({
           type: "DbWorkerExportResponse",
@@ -157,6 +362,7 @@ export const runWebDbWorkerPort = (
       }
 
       case "DbWorkerReset": {
+        await ensureDbReady();
         const tables = exec(
           `
             SELECT name
@@ -182,7 +388,7 @@ export const runWebDbWorkerPort = (
       }
 
       case "DbWorkerClose": {
-        closeDb();
+        releaseDb();
         postMessage({
           type: "DbWorkerCloseResponse",
           requestId: message.requestId,

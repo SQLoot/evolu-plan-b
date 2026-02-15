@@ -47,7 +47,6 @@ const toggleMode = (examplePath: string, mode: Mode): void => {
       if (mode === "production" && value.startsWith("catalog:")) {
         const catalogName = value.replace("catalog:", "");
         const catalog = catalogs[catalogName as keyof typeof catalogs];
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (catalog && dep in catalog) {
           deps[dep] = catalog[dep as keyof typeof catalog];
         }
@@ -88,7 +87,6 @@ const toggleAllExamples = (targetMode: Mode): void => {
 
   execSync("bun run clean", { stdio: "inherit" });
   execSync("bun install", { stdio: "inherit" });
-  // eslint-disable-next-line no-console
   console.log(`All examples switched to ${targetMode} mode.`);
 };
 
@@ -122,7 +120,6 @@ const askForModeInteractive = async (): Promise<Mode> => {
     });
 
   // Keep prompting until valid answer
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   while (true) {
     const answer = (await prompt()).trim();
     const mode = parseModeString(answer);
@@ -130,7 +127,6 @@ const askForModeInteractive = async (): Promise<Mode> => {
       rl.close();
       return mode;
     }
-    // eslint-disable-next-line no-console
     console.log(
       "Invalid option — please reply with 1 or 2 (or 'development'/'production').",
     );
@@ -143,6 +139,5 @@ const main = async () => {
 };
 
 main().catch((error: unknown) => {
-  // eslint-disable-next-line no-console
   console.error("Error:", error);
 });

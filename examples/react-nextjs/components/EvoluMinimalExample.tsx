@@ -47,7 +47,6 @@ evolu.subscribeError(() => {
   if (!error) return;
 
   alert("🚨 Evolu error occurred! Check the console.");
-  // eslint-disable-next-line no-console
   console.error(error);
 });
 

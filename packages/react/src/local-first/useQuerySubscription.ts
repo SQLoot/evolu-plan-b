@@ -25,7 +25,6 @@ export const useQuerySubscription = <R extends Row>(
   const { once } = useRef(options).current;
 
   if (once) {
-    /* eslint-disable react-hooks/rules-of-hooks */
     // biome-ignore lint/correctness/useHookAtTopLevel: intentional
     useEffect(
       // No useSyncExternalStore, no unnecessary updates.
@@ -42,6 +41,5 @@ export const useQuerySubscription = <R extends Row>(
     // biome-ignore lint/correctness/useHookAtTopLevel: intentional
     useMemo(() => () => evolu.getQueryRows(query), [evolu, query]),
     () => emptyRows as QueryRows<R>,
-    /* eslint-enable react-hooks/rules-of-hooks */
   );
 };
