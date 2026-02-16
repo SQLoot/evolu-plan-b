@@ -4,7 +4,12 @@
  * @module
  */
 
-import type { ConsoleDep, ConsoleEntry, ConsoleLevel } from "../Console.js";
+import type {
+  ConsoleDep,
+  ConsoleEntry,
+  ConsoleLevel,
+  ConsoleStoreOutputEntryDep,
+} from "../Console.js";
 import { exhaustiveCheck } from "../Function.js";
 import { ok } from "../Result.js";
 import type { Task } from "../Task.js";
@@ -67,7 +72,9 @@ export interface RunDbWorkerPortDep {
 
 export const runEvoluWorkerScope =
   (deps: CreateMessagePortDep & RunDbWorkerPortDep & ConsoleDep) =>
-  (self: EvoluWorkerScope<EvoluWorkerInput>): void => {
+  (
+    self: EvoluWorkerScope<EvoluWorkerInput>,
+  ): { readonly postTabOutput: (output: EvoluTabOutput) => void } => {
     const tabPorts = new Set<MessagePort<EvoluTabOutput>>();
     const queuedTabOutputs: Array<EvoluTabOutput> = [];
     let consoleLevel = deps.console.getLevel();
@@ -123,6 +130,8 @@ export const runEvoluWorkerScope =
         }
       };
     };
+
+    return { postTabOutput };
   };
 
 /**
@@ -136,9 +145,23 @@ export const initEvoluWorker =
   ): Task<
     void,
     never,
-    CreateMessagePortDep & RunDbWorkerPortDep & ConsoleDep
+    CreateMessagePortDep &
+      RunDbWorkerPortDep &
+      ConsoleDep &
+      ConsoleStoreOutputEntryDep
   > =>
   (run) => {
-    runEvoluWorkerScope(run.deps)(self);
+    const { postTabOutput } = runEvoluWorkerScope(run.deps)(self);
+
+    const unsubscribe = run.deps.consoleStoreOutputEntry.subscribe(() => {
+      const entry = run.deps.consoleStoreOutputEntry.get();
+      if (entry) postTabOutput({ type: "ConsoleEntry", entry });
+    });
+
+    run.defer(() => {
+      unsubscribe();
+      return ok();
+    });
+
     return ok();
   };

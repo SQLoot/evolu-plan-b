@@ -17,8 +17,7 @@ import {
 } from "../src/Sqlite.js";
 import { sleep } from "../src/Task.js";
 import { testCreateRun } from "../src/Test.js";
-import { testSimpleName } from "./_deps.js";
-import { testCreateRunWithSqlite } from "./_deps.nodejs.js";
+import { testCreateRunWithSqlite, testSimpleName } from "./_deps.js";
 
 describe("eqSqliteValue", () => {
   test("equal Uint8Arrays return true", () => {

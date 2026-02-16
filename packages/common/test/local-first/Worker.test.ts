@@ -1,6 +1,7 @@
 import { expect, test, vi } from "vitest";
 import { createConsole } from "../../src/Console.js";
 import { createUnknownError } from "../../src/Error.js";
+import type { ConsoleEntry } from "../../src/index.js";
 import type {
   DbWorkerInput,
   DbWorkerLeaderInput,
@@ -10,8 +11,11 @@ import type {
 import {
   type EvoluTabOutput,
   type EvoluWorkerInput,
+  initEvoluWorker,
   runEvoluWorkerScope,
 } from "../../src/local-first/Worker.js";
+import { createStore } from "../../src/Store.js";
+import { createRun } from "../../src/Task.js";
 import { SimpleName } from "../../src/Type.js";
 import type {
   CreateMessagePort,
@@ -145,4 +149,49 @@ test("runEvoluWorkerScope routes InitEvolu port to db worker runner", () => {
     port: dbPort.port,
     brokerPort: brokerPort.port,
   });
+});
+
+test("initEvoluWorker forwards console store output to tab port", async () => {
+  const workerScope = createWorkerScope();
+  const workerConnection = createTrackedPort<never, EvoluWorkerInput>();
+  const tabPort = createTrackedPort<EvoluTabOutput, never>();
+  const entryStore = createStore<ConsoleEntry | null>(null);
+
+  const createMessagePort: CreateMessagePort = <Input, Output = never>(
+    nativePort: NativeMessagePort<Input, Output>,
+  ): MessagePort<Input, Output> => {
+    if (
+      (nativePort as NativeMessagePort<any, any>) ===
+      (tabPort.native as NativeMessagePort<any, any>)
+    )
+      return tabPort.port as unknown as MessagePort<Input, Output>;
+    throw new Error("Unexpected native port");
+  };
+
+  await using run = createRun({
+    console: createConsole(),
+    consoleStoreOutputEntry: entryStore,
+    createMessagePort,
+    runDbWorkerPort: vi.fn(),
+  });
+
+  const initResult = await run(initEvoluWorker(workerScope));
+  expect(initResult.ok).toBe(true);
+  if (!initResult.ok) return;
+
+  workerScope.onConnect?.(workerConnection.port);
+  workerConnection.emit({
+    type: "InitTab",
+    consoleLevel: "debug",
+    port: tabPort.native,
+  });
+
+  const entry: ConsoleEntry = {
+    method: "info",
+    path: [],
+    args: ["forwarded"],
+  };
+  entryStore.set(entry);
+
+  expect(tabPort.sentMessages).toContainEqual({ type: "ConsoleEntry", entry });
 });

@@ -1483,14 +1483,21 @@ const fingerprintRanges =
     `);
 
     const fingerprintRanges = result.rows.map(
-      (row, i, arr): FingerprintRange => ({
-        type: RangeType.Fingerprint,
-        upperBound: i === arr.length - 1 ? upperBound : row.b!,
-        fingerprint: sqliteFingerprintToFingerprint([
-          row.h1,
-          row.h2,
-        ] as SqliteFingerprint),
-      }),
+      (row, i, arr): FingerprintRange => {
+        const nextUpperBound = i === arr.length - 1 ? upperBound : row.b;
+        assert(
+          nextUpperBound != null,
+          "Missing fingerprint upperBound row value",
+        );
+        return {
+          type: RangeType.Fingerprint,
+          upperBound: nextUpperBound,
+          fingerprint: sqliteFingerprintToFingerprint([
+            row.h1,
+            row.h2,
+          ] as SqliteFingerprint),
+        };
+      },
     );
 
     return fingerprintRanges;
