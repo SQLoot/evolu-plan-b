@@ -1,7 +1,10 @@
 import { describe, expect, test } from "vitest";
 import type { ConsoleEntry } from "../../src/Console.js";
 import { testCreateConsole } from "../../src/Console.js";
-import type { DbWorkerLeaderOutput } from "../../src/local-first/Db.js";
+import type {
+  DbWorkerLeaderInput,
+  DbWorkerLeaderOutput,
+} from "../../src/local-first/Db.js";
 import type { MutationChange } from "../../src/local-first/Schema.js";
 import {
   type EvoluInput,
@@ -261,8 +264,8 @@ describe("initSharedWorker", () => {
     await using _workerStack = workerStack;
 
     const evoluChannel = testCreateMessageChannel<never, EvoluInput>();
-    const brokerChannel = testCreateMessageChannel<
-      never,
+    const leaderChannel = testCreateMessageChannel<
+      DbWorkerLeaderInput,
       DbWorkerLeaderOutput
     >();
 
@@ -270,8 +273,8 @@ describe("initSharedWorker", () => {
       worker.port.postMessage({
         type: "InitEvolu",
         name: testName,
-        port: evoluChannel.port1.native,
-        brokerPort: brokerChannel.port1.native,
+        port1: evoluChannel.port1.native,
+        port2: leaderChannel.port1.native,
       });
     }).not.toThrow();
   });
@@ -294,15 +297,15 @@ describe("initSharedWorker", () => {
 
     const evoluChannel = testCreateMessageChannel<never, EvoluInput>();
     const leaderChannel = testCreateMessageChannel<
-      never,
+      DbWorkerLeaderInput,
       DbWorkerLeaderOutput
     >();
 
     worker.port.postMessage({
       type: "InitEvolu",
       name: testName,
-      port: evoluChannel.port1.native,
-      brokerPort: leaderChannel.port1.native,
+      port1: evoluChannel.port1.native,
+      port2: leaderChannel.port1.native,
     });
 
     const entry: ConsoleEntry = {
@@ -322,15 +325,15 @@ describe("initSharedWorker", () => {
 
     const evoluChannel = testCreateMessageChannel<never, EvoluInput>();
     const leaderChannel = testCreateMessageChannel<
-      never,
+      DbWorkerLeaderInput,
       DbWorkerLeaderOutput
     >();
 
     worker.port.postMessage({
       type: "InitEvolu",
       name: testName,
-      port: evoluChannel.port1.native,
-      brokerPort: leaderChannel.port1.native,
+      port1: evoluChannel.port1.native,
+      port2: leaderChannel.port1.native,
     });
 
     expect(() => {
@@ -347,20 +350,20 @@ describe("initSharedWorker", () => {
 
     const evoluChannel = testCreateMessageChannel<never, EvoluInput>();
     const leaderChannel = testCreateMessageChannel<
-      never,
+      DbWorkerLeaderInput,
       DbWorkerLeaderOutput
     >();
 
     worker.port.postMessage({
       type: "InitEvolu",
       name: testName,
-      port: evoluChannel.port1.native,
-      brokerPort: leaderChannel.port1.native,
+      port1: evoluChannel.port1.native,
+      port2: leaderChannel.port1.native,
     });
 
     expect(() => {
       evoluChannel.port2.postMessage({
-        type: "mutate",
+        type: "Mutate",
         changes: [{} as MutationChange],
         onCompleteIds: [],
         subscribedQueries: [],
@@ -374,15 +377,15 @@ describe("initSharedWorker", () => {
 
     const evoluChannel = testCreateMessageChannel<never, EvoluInput>();
     const leaderChannel = testCreateMessageChannel<
-      never,
+      DbWorkerLeaderInput,
       DbWorkerLeaderOutput
     >();
 
     worker.port.postMessage({
       type: "InitEvolu",
       name: testName,
-      port: evoluChannel.port1.native,
-      brokerPort: leaderChannel.port1.native,
+      port1: evoluChannel.port1.native,
+      port2: leaderChannel.port1.native,
     });
 
     expect(() => {
