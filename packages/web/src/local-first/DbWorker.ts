@@ -1,4 +1,5 @@
 import type {
+  ConsoleLevel,
   MessagePort,
   SafeSql,
   SimpleName,
@@ -8,13 +9,13 @@ import type {
 import { SimpleName as SimpleNameType } from "@evolu/common";
 import type {
   AppOwner,
-  DbWorkerInput,
-  DbWorkerLeaderInput,
-  DbWorkerLeaderOutput,
-  DbWorkerOutput,
+  ExperimentalDbWorkerInput as DbWorkerInput,
+  ExperimentalDbWorkerLeaderInput as DbWorkerLeaderInput,
+  ExperimentalDbWorkerLeaderOutput as DbWorkerLeaderOutput,
+  ExperimentalDbWorkerOutput as DbWorkerOutput,
   Row,
 } from "@evolu/common/local-first";
-import { dbWorkerLeaderHeartbeatTimeoutMs as defaultHeartbeatTimeoutMs } from "@evolu/common/local-first";
+import { experimentalDbWorkerLeaderHeartbeatTimeoutMs as defaultHeartbeatTimeoutMs } from "@evolu/common/local-first";
 import { createWasmSqliteDriver } from "../Sqlite.js";
 import { createRun } from "../Task.js";
 
@@ -144,6 +145,7 @@ const releaseSharedDb = (dbName: string): void => {
 
 export const runWebDbWorkerPort = (config: {
   readonly name: SimpleName;
+  readonly consoleLevel?: ConsoleLevel;
   readonly port: MessagePort<DbWorkerOutput, DbWorkerInput>;
   readonly brokerPort: MessagePort<DbWorkerLeaderOutput, DbWorkerLeaderInput>;
 }): void => {
@@ -153,6 +155,7 @@ export const runWebDbWorkerPort = (config: {
 export const runWebDbWorkerPortWithOptions = (
   config: {
     readonly name: SimpleName;
+    readonly consoleLevel?: ConsoleLevel;
     readonly port: MessagePort<DbWorkerOutput, DbWorkerInput>;
     readonly brokerPort: MessagePort<DbWorkerLeaderOutput, DbWorkerLeaderInput>;
   },

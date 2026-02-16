@@ -14,10 +14,10 @@ import {
   type SQLQueryBindings,
 } from "bun:sqlite";
 import type {
-  DbWorkerInput,
-  DbWorkerMutateResponseMessage,
-  DbWorkerOutput,
-  DbWorkerQueryResponseMessage,
+  ExperimentalDbWorkerInput as DbWorkerInput,
+  ExperimentalDbWorkerMutateResponseMessage as DbWorkerMutateResponseMessage,
+  ExperimentalDbWorkerOutput as DbWorkerOutput,
+  ExperimentalDbWorkerQueryResponseMessage as DbWorkerQueryResponseMessage,
   Row,
 } from "@evolu/common/local-first";
 

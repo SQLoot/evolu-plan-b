@@ -1659,6 +1659,21 @@ export type SimpleName = typeof SimpleName.Type;
 export interface SimpleNameError extends TypeError<"SimpleName"> {}
 
 /**
+ * @deprecated Use {@link SimpleName}. Kept for upstream/common-v8 API parity.
+ */
+export const Name = SimpleName;
+
+/**
+ * @deprecated Use {@link SimpleName}. Kept for upstream/common-v8 API parity.
+ */
+export type Name = SimpleName;
+
+/**
+ * @deprecated Use {@link SimpleNameError}. Kept for upstream/common-v8 API parity.
+ */
+export type NameError = SimpleNameError;
+
+/**
  * Trimmed string between 8 and 64 characters, branded as `SimplePassword`.
  *
  * Take a look how `SimplePassword` is defined:

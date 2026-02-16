@@ -1,18 +1,17 @@
 import { existsSync } from "node:fs";
 import { createServer } from "node:http";
 import {
-  allResult,
   type CreateSqliteDriverDep,
   callback,
   createRandom,
   createRelation,
   createSqlite,
+  getOk,
   isPromiseLike,
   type OwnerId,
   ok,
   type RandomDep,
   SimpleName,
-  type SqliteError,
   type Task,
   type TimingSafeEqualDep,
   Uint8Array,
@@ -57,7 +56,7 @@ export const createRelayDeps = (): RelayDeps => ({
  * ```ts
  * const deps = { ...createRelayDeps(), console };
  *
- * await using run = createRunner(deps);
+ * await using run = createRun(deps);
  * await using stack = run.stack();
  *
  * await stack.use(startRelay({ port: 4000 }));
@@ -71,33 +70,22 @@ export const startRelay =
     name = SimpleName.orThrow("evolu-relay"),
     isOwnerAllowed,
     isOwnerWithinQuota,
-  }: NodeJsRelayConfig): Task<Relay, SqliteError, RelayDeps> =>
+  }: NodeJsRelayConfig): Task<Relay, never, RelayDeps> =>
   async (_run) => {
     await using stack = _run.stack();
     const console = _run.deps.console.child("relay");
 
     const dbFileExists = existsSync(`${name}.db`);
 
-    const sqlite = await stack.use(createSqlite(name));
-    if (!sqlite.ok) {
-      console.error(sqlite.error);
-      return sqlite;
-    }
-    const deps = { ..._run.deps, sqlite: sqlite.value };
+    const sqlite = getOk(await stack.use(createSqlite(name)));
+    const deps = { ..._run.deps, sqlite };
 
     if (!dbFileExists) {
-      const result = allResult([
-        createBaseSqliteStorageTables(deps),
-        createRelayStorageTables(deps),
-      ]);
-      if (!result.ok) {
-        console.error(result.error);
-        return result;
-      }
+      createBaseSqliteStorageTables(deps);
+      createRelayStorageTables(deps);
     }
 
     const storage = createRelaySqliteStorage(deps)({
-      onStorageError: console.error,
       isOwnerWithinQuota,
     });
 
@@ -221,7 +209,6 @@ export const startRelay =
           console.info("HTTP server closed");
           ok();
         });
-        return undefined;
       }),
     );
 
@@ -233,7 +220,6 @@ export const startRelay =
           console.info("WebSocketServer closed");
           ok();
         });
-        return undefined;
       }),
     );
 
@@ -246,7 +232,6 @@ export const startRelay =
           }
         }
         ok();
-        return undefined;
       }),
     );
 

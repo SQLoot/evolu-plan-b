@@ -121,7 +121,7 @@ const wrap = <Input, Output>(
       else native.postMessage(message, toTransferList(transfer));
     },
     onMessage: null,
-    native: native as unknown as NativeMessagePort,
+    native: native as unknown as NativeMessagePort<Input, Output>,
     [Symbol.dispose]: () => {
       port.onMessage = null;
       native.off("message", onNativeMessage);
