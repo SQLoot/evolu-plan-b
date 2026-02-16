@@ -34,8 +34,8 @@ Source: `git cherry -v miccy-dev upstream/common-v8`
 | `fc99998` | Add evoluError tab channel and error handling | `verified-equivalent` | Implemented via local worker/tab error flow (`EvoluTabOutput`, `InitTab`, shared `evoluError` store). |
 | `c3e32b0` | Update pnpm-lock.yaml | `intentional-divergence` | Bun lockfile is authoritative. |
 | `e62d12a` | Add microtask batch utility | `verified-equivalent` | Present in local fork (`microtask batch` utility + export). |
-| `31e07eb` | Implement mutation methods | `pending-adopt` | Needs strict parity check for mutation dispatch/coalescing path. |
-| `da75834` | Rename worker module to Shared | `intentional-divergence` | Keep `Worker.ts` naming in fork; behavior parity still required. |
+| `31e07eb` | Implement mutation methods | `verified-equivalent` | `createEvolu` mutation dispatch/coalescing is implemented and covered; queue processing is serialized across microtasks. |
+| `da75834` | Rename worker module to Shared | `verified-equivalent` | `Shared.ts` is now present and exported; legacy `Worker.ts` stays as compatibility layer. |
 | `019ad76` | Add testCreateWorker and worker tests | `verified-equivalent` | Backported: `testCreateWorker`, `testCreateMessageChannel`, `testCreateMessagePort`, `testCreateSharedWorker` + `packages/common/test/Worker.test.ts`. |
 | `b90fae5` | Wire createEvolu to DB worker init | `pending-adopt` | Re-check against current `createEvolu` + DB worker init payload flow. |
 | `d4fb5ba` | Wire platform DB workers and worker rename | `pending-adopt` | Port behavior without forced file/module rename. |

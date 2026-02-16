@@ -829,6 +829,7 @@ export const createEvolu =
     const mutateMicrotaskQueue: Array<
       [MutationChange, MutationOptions["onComplete"] | undefined]
     > = [];
+    let isProcessingMutationQueue = false;
 
     const createMutation =
       <Kind extends MutationKind>(kind: Kind): Mutation<S, Kind> =>
@@ -907,36 +908,45 @@ export const createEvolu =
     };
 
     const processMutationQueue = () => {
-      const changes: Array<MutationChange> = [];
-      const onCompletes: Array<NonNullable<MutationOptions["onComplete"]>> = [];
-
-      for (const [change, onComplete] of mutateMicrotaskQueue) {
-        changes.push(change);
-        if (onComplete) onCompletes.push(onComplete);
-      }
-
-      mutateMicrotaskQueue.length = 0;
-
-      if (!isNonEmptyArray(changes)) return;
+      if (isProcessingMutationQueue) return;
+      isProcessingMutationQueue = true;
 
       void (async () => {
         try {
-          await dbReady;
-          const defaultOwnerId = (await getAppOwnerPromise()).id;
+          while (mutateMicrotaskQueue.length > 0) {
+            const changes: Array<MutationChange> = [];
+            const onCompletes: Array<
+              NonNullable<MutationOptions["onComplete"]>
+            > = [];
 
-          for (const change of changes) {
-            const ownerId = change.ownerId ?? defaultOwnerId;
-            const statements = mutationChangeToStatements(change, ownerId);
-            for (const statement of statements) {
-              await dbWorker.mutate(statement.sql, statement.params);
+            for (const [change, onComplete] of mutateMicrotaskQueue) {
+              changes.push(change);
+              if (onComplete) onCompletes.push(onComplete);
             }
+
+            mutateMicrotaskQueue.length = 0;
+            if (!isNonEmptyArray(changes)) continue;
+
+            await dbReady;
+            const defaultOwnerId = (await getAppOwnerPromise()).id;
+
+            for (const change of changes) {
+              const ownerId = change.ownerId ?? defaultOwnerId;
+              const statements = mutationChangeToStatements(change, ownerId);
+              for (const statement of statements) {
+                await dbWorker.mutate(statement.sql, statement.params);
+              }
+            }
+
+            await refreshLoadedQueries();
+            for (const onComplete of onCompletes) onComplete();
           }
-
-          await refreshLoadedQueries();
-
-          for (const onComplete of onCompletes) onComplete();
         } catch (error) {
           setUnknownError(error);
+        } finally {
+          isProcessingMutationQueue = false;
+          if (mutateMicrotaskQueue.length > 0)
+            queueMicrotask(processMutationQueue);
         }
       })();
     };

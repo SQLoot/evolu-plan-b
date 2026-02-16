@@ -7,18 +7,18 @@
 import type { LeaderLockDep } from "../Platform.js";
 import { ok } from "../Result.js";
 import type { AsyncDisposableStack, Task } from "../Task.js";
-import type { Name } from "../Type.js";
+import type { SimpleName } from "../Type.js";
 import type {
   NativeMessagePort,
   Worker,
-  WorkerInitDep,
+  WorkerDeps,
   WorkerSelf,
 } from "../Worker.js";
 
 export interface DbWorkerInput {
   readonly type: "init";
-  readonly name: Name;
-  readonly brokerPort: NativeMessagePort;
+  readonly name: SimpleName;
+  readonly brokerPort: NativeMessagePort<DbWorkerLeaderOutput>;
 }
 
 export type DbWorker = Worker<DbWorkerInput>;
@@ -31,13 +31,13 @@ export interface CreateDbWorkerDep {
 
 export interface DbWorkerLeaderOutput {
   readonly type: "LeaderAcquired";
-  readonly name: Name;
+  readonly name: SimpleName;
 }
 
 export const initDbWorker =
   (
     self: WorkerSelf<DbWorkerInput>,
-  ): Task<AsyncDisposableStack, never, WorkerInitDep & LeaderLockDep> =>
+  ): Task<AsyncDisposableStack, never, WorkerDeps & LeaderLockDep> =>
   (run) => {
     const { leaderLock } = run.deps;
     const stack = run.stack();
@@ -63,7 +63,7 @@ export const initDbWorker =
   };
 
 const initializeDb =
-  (name: Name): Task<void, never, WorkerInitDep> =>
+  (name: SimpleName): Task<void, never, WorkerDeps> =>
   (run) => {
     const _console = run.deps.console.child("DbWorker");
 

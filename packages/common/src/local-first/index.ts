@@ -1,4 +1,3 @@
-export * from "./Db.js";
 export * from "./DbWorkerProtocol.js";
 export * from "./Error.js";
 export * from "./Evolu.js";
@@ -7,7 +6,15 @@ export * from "./Protocol.js";
 export * from "./Query.js";
 export * from "./Relay.js";
 export * from "./Schema.js";
+export * from "./Shared.js";
 export * from "./Storage.js";
 export * from "./Sync.js";
 export * from "./Timestamp.js";
-export * from "./Worker.js";
+export {
+  type EvoluWorker,
+  type EvoluWorkerDep,
+  type EvoluWorkerInput,
+  initEvoluWorker,
+  type RunDbWorkerPortDep,
+  runEvoluWorkerScope,
+} from "./Worker.js";

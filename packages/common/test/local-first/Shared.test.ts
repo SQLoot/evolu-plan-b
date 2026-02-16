@@ -1,20 +1,21 @@
-import { createStore } from "../../src/Store.js";
+import { describe, expect, test } from "vitest";
 import type { ConsoleEntry } from "../../src/Console.js";
-import type { ReadonlyStore } from "../../src/Store.js";
-import {
-  type EvoluTabOutput,
-  type SharedWorkerInput,
-  initSharedWorker,
-} from "../../src/local-first/Shared.js";
 import { testCreateConsole } from "../../src/Console.js";
-import { testCreateRun } from "../../src/Test.js";
+import type { DbWorkerLeaderOutput } from "../../src/local-first/Db.js";
+import {
+  type EvoluInput,
+  type EvoluTabOutput,
+  initSharedWorker,
+  type SharedWorkerInput,
+} from "../../src/local-first/Shared.js";
+import type { ReadonlyStore } from "../../src/Store.js";
+import { createStore } from "../../src/Store.js";
+import { testCreateRun, testName } from "../../src/Test.js";
 import {
   testCreateMessageChannel,
   testCreateMessagePort,
   testCreateSharedWorker,
 } from "../../src/Worker.js";
-import { testName } from "../../src/Type.js";
-import { describe, expect, test } from "vitest";
 
 describe("initSharedWorker", () => {
   const setupWorker = async (
@@ -251,8 +252,11 @@ describe("initSharedWorker", () => {
     const { worker, workerStack } = await setupWorker();
     await using _workerStack = workerStack;
 
-    const evoluChannel = testCreateMessageChannel<string>();
-    const brokerChannel = testCreateMessageChannel<string>();
+    const evoluChannel = testCreateMessageChannel<never, EvoluInput>();
+    const brokerChannel = testCreateMessageChannel<
+      never,
+      DbWorkerLeaderOutput
+    >();
 
     expect(() => {
       worker.port.postMessage({
