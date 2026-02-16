@@ -64,7 +64,10 @@ test("runEvoluWorkerScope forwards global errors to registered tab port", () => 
   const createMessagePort: CreateMessagePort = <Input, Output = never>(
     nativePort: NativeMessagePort<Input, Output>,
   ): MessagePort<Input, Output> => {
-    if (nativePort === tabPort.native)
+    if (
+      (nativePort as NativeMessagePort<any, any>) ===
+      (tabPort.native as NativeMessagePort<any, any>)
+    )
       return tabPort.port as unknown as MessagePort<Input, Output>;
     throw new Error("Unexpected native port");
   };
@@ -100,9 +103,15 @@ test("runEvoluWorkerScope routes InitEvolu port to db worker runner", () => {
   const createMessagePort: CreateMessagePort = <Input, Output = never>(
     nativePort: NativeMessagePort<Input, Output>,
   ): MessagePort<Input, Output> => {
-    if (nativePort === dbPort.native)
+    if (
+      (nativePort as NativeMessagePort<any, any>) ===
+      (dbPort.native as NativeMessagePort<any, any>)
+    )
       return dbPort.port as unknown as MessagePort<Input, Output>;
-    if (nativePort === brokerPort.native)
+    if (
+      (nativePort as NativeMessagePort<any, any>) ===
+      (brokerPort.native as NativeMessagePort<any, any>)
+    )
       return brokerPort.port as unknown as MessagePort<Input, Output>;
     throw new Error("Unexpected native port");
   };

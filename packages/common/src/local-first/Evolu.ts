@@ -770,7 +770,7 @@ export const createEvolu =
       errorStore.set(createUnknownError(error));
     };
 
-    const dbSchema = evoluSchemaToDbSchema(schema as EvoluSchema, _indexes);
+    const dbSchema = evoluSchemaToDbSchema(schema, _indexes);
     const dbWorker = createDbWorkerClient(deps, name, setUnknownError);
 
     const storeAppOwner = async (nextAppOwner: AppOwner): Promise<void> => {

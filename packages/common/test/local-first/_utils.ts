@@ -1,11 +1,11 @@
-import { DbSchema, getDbSchema } from "../../src/local-first/Schema.js";
+import { type DbSchema, getDbSchema } from "../../src/local-first/Schema.js";
 import type { CrdtMessage } from "../../src/local-first/Storage.js";
 import { DbChange } from "../../src/local-first/Storage.js";
 import { createTimestamp } from "../../src/local-first/Timestamp.js";
 import type { SqliteDep } from "../../src/Sqlite.js";
 import { sql } from "../../src/Sqlite.js";
 import { Millis } from "../../src/Time.js";
-import { Id } from "../../src/Type.js";
+import type { Id } from "../../src/Type.js";
 
 export interface DbSnapshot {
   readonly schema: DbSchema;

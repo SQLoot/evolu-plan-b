@@ -1,22 +1,22 @@
 import {
+  type CreateSqliteDriverDep,
   callback,
   createRandom,
   createRelation,
   createSqlite,
-  type CreateSqliteDriverDep,
   getOk,
   isPromiseLike,
-  Name,
+  type OwnerId,
   ok,
-  OwnerId,
   type RandomDep,
+  SimpleName,
   type Task,
   type TimingSafeEqualDep,
   Uint8Array,
 } from "@evolu/common";
 import {
-  applyProtocolMessageAsRelay,
   type ApplyProtocolMessageAsRelayOptions,
+  applyProtocolMessageAsRelay,
   createBaseSqliteStorageTables,
   createRelaySqliteStorage,
   createRelayStorageTables,
@@ -67,7 +67,7 @@ export const createRelayDeps = (): RelayDeps => ({
 export const startRelay =
   ({
     port = 443,
-    name = Name.orThrow("evolu-relay"),
+    name = SimpleName.orThrow("evolu-relay"),
     isOwnerAllowed,
     isOwnerWithinQuota,
   }: NodeJsRelayConfig): Task<Relay, never, RelayDeps> =>

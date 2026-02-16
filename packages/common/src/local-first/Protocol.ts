@@ -181,7 +181,6 @@ import { Packr } from "msgpackr";
 import { isNonEmptyArray, type NonEmptyReadonlyArray } from "../Array.js";
 import { assert } from "../Assert.js";
 import type { Brand } from "../Brand.js";
-import type { ConsoleDep } from "../Console.js";
 import {
   type Buffer,
   bytesToHex,
@@ -190,6 +189,7 @@ import {
   hexToBytes,
   utf8ToBytes,
 } from "../Buffer.js";
+import type { ConsoleDep } from "../Console.js";
 import {
   createPadmePadding,
   type DecryptWithXChaCha20Poly1305Error,
@@ -994,7 +994,9 @@ export const applyProtocolMessageAsClient =
 
       if (isNonEmptyArray(messages)) {
         try {
-          const result = await run(storage.writeMessages(ownerIdBytes, messages));
+          const result = await run(
+            storage.writeMessages(ownerIdBytes, messages),
+          );
           // Quota errors are handled by Storage; protocol just stops syncing.
           if (!result.ok) return ok({ type: "NoResponse" });
         } catch (error) {
@@ -1152,7 +1154,9 @@ export const applyProtocolMessageAsRelay =
         }
 
         try {
-          const result = await run(storage.writeMessages(ownerIdBytes, messages));
+          const result = await run(
+            storage.writeMessages(ownerIdBytes, messages),
+          );
 
           if (!result.ok) {
             const message = createProtocolMessageBuffer(ownerId, {
