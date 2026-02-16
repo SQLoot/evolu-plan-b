@@ -198,7 +198,7 @@ export const createSqlite =
         return result as SqliteExecResult<R>;
       },
 
-      transaction: ((callback: () => Result<unknown, unknown> | void) => {
+      transaction: ((callback: () => Result<unknown, unknown> | undefined) => {
         console.debug("begin");
         driver.exec(sql`begin;`);
 

@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { createServer } from "node:http";
 import {
   type CreateSqliteDriverDep,
   callback,
@@ -25,8 +27,6 @@ import {
   type Relay,
   type RelayConfig,
 } from "@evolu/common/local-first";
-import { existsSync } from "fs";
-import { createServer } from "http";
 import { WebSocket, WebSocketServer } from "ws";
 import { createTimingSafeEqual } from "../Crypto.js";
 import { createBetterSqliteDriver } from "../Sqlite.js";
