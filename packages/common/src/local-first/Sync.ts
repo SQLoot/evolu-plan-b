@@ -441,6 +441,7 @@ export interface ClientStorageDep {
 const createClientStorage =
   (
     deps: ClockDep &
+      ConsoleDep &
       DbSchemaDep &
       GetSyncOwnerDep &
       RandomBytesDep &
@@ -666,15 +667,30 @@ export const applyLocalOnlyChange =
   };
 
 const applyMessages =
-  (deps: ClientStorageDep & ClockDep & DbSchemaDep & RandomDep & SqliteDep) =>
+  (
+    deps: ClientStorageDep &
+      ClockDep &
+      ConsoleDep &
+      DbSchemaDep &
+      RandomDep &
+      SqliteDep,
+  ) =>
   (ownerId: OwnerId, messages: NonEmptyReadonlyArray<CrdtMessage>): void => {
     const ownerIdBytes = ownerIdToOwnerIdBytes(ownerId);
-
-    const usage = getOwnerUsage(deps)(
-      ownerIdBytes,
-      timestampToTimestampBytes(firstInArray(messages).timestamp),
+    const firstMessageTimestamp = timestampToTimestampBytes(
+      firstInArray(messages).timestamp,
     );
-    if (!usage.ok) return;
+
+    const usage = getOwnerUsage(deps)(ownerIdBytes, firstMessageTimestamp);
+    if (!usage.ok) {
+      deps.console.error("[sync]", "applyMessages/getOwnerUsage failed", {
+        ownerId,
+        ownerIdBytes,
+        firstMessageTimestamp,
+        error: usage.error,
+      });
+      return;
+    }
 
     let { firstTimestamp, lastTimestamp } = usage.value;
 
