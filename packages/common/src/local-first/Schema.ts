@@ -14,25 +14,25 @@ import {
 } from "../Object.js";
 import {
   type SafeSql,
-  sql,
   SqliteBoolean,
   type SqliteDep,
   type SqliteQuery,
   type SqliteQueryOptions,
-  SqliteValue,
+  type SqliteValue,
+  sql,
 } from "../Sqlite.js";
 import type { InferType } from "../Type.js";
 import {
   array,
   DateIso,
   type Id,
-  IdBytes,
+  type IdBytes,
   nullOr,
   object,
   record,
-  set,
   type StandardSchemaV1,
   String,
+  set,
 } from "../Type.js";
 import type { Simplify } from "../Types.js";
 import type { AppOwner } from "./Owner.js";
@@ -40,7 +40,7 @@ import { OwnerId } from "./Owner.js";
 import type { Query, Row } from "./Query.js";
 import { serializeQuery } from "./Query.js";
 import type { CrdtMessage, DbChange } from "./Storage.js";
-import { TimestampBytes } from "./Timestamp.js";
+import type { TimestampBytes } from "./Timestamp.js";
 
 /** Any {@link StandardSchemaV1}. */
 export type AnyStandardSchemaV1 = StandardSchemaV1<any, any>;
@@ -449,10 +449,10 @@ export const getDbSchema =
   ({ allIndexes = false }: { allIndexes?: boolean } = {}): DbSchema => {
     const tables = createRecord<string, Set<string>>();
 
-      const tableAndColumnInfoRows = deps.sqlite.exec<{
-        tableName: string;
-        columnName: string;
-      }>(sql`
+    const tableAndColumnInfoRows = deps.sqlite.exec<{
+      tableName: string;
+      columnName: string;
+    }>(sql`
         select
           sqlite_master.name as tableName,
           table_info.name as columnName
@@ -461,18 +461,18 @@ export const getDbSchema =
           join pragma_table_info(sqlite_master.name) as table_info;
       `);
 
-      tableAndColumnInfoRows.rows.forEach(({ tableName, columnName }) => {
-        (tables[tableName] ??= new Set()).add(columnName);
-      });
+    tableAndColumnInfoRows.rows.forEach(({ tableName, columnName }) => {
+      (tables[tableName] ??= new Set()).add(columnName);
+    });
 
-      const indexesRows = deps.sqlite.exec<{ name: string; sql: string | null }>(
-        allIndexes
-          ? sql`
+    const indexesRows = deps.sqlite.exec<{ name: string; sql: string | null }>(
+      allIndexes
+        ? sql`
               select name, sql
               from sqlite_master
               where type = 'index' and name not like 'sqlite_%';
             `
-          : sql`
+        : sql`
               select name, sql
               from sqlite_master
               where
@@ -480,7 +480,7 @@ export const getDbSchema =
                 and name not like 'sqlite_%'
                 and name not like 'evolu_%';
             `,
-      );
+    );
 
     const indexes = indexesRows.rows.flatMap((row): Array<DbIndex> => {
       if (row.sql == null) return [];

@@ -787,9 +787,7 @@ const applyColumnChange =
         set ${sql.identifier(column)} = ${value}
         where not exists (select 1 from existingTimestamp);
     `);
-
-    {
-      deps.sqlite.exec(sql.prepared`
+    deps.sqlite.exec(sql.prepared`
         insert into evolu_history
           ("ownerId", "table", "id", "column", "value", "timestamp")
         values
@@ -803,7 +801,6 @@ const applyColumnChange =
           )
         on conflict do nothing;
       `);
-    }
   };
 
 /**
@@ -839,9 +836,7 @@ export const tryApplyQuarantinedMessages =
         row.value,
         row.timestamp,
       );
-
-      {
-        deps.sqlite.exec(sql`
+      deps.sqlite.exec(sql`
           delete from evolu_message_quarantine
           where
             "ownerId" = ${row.ownerId}
@@ -850,7 +845,6 @@ export const tryApplyQuarantinedMessages =
             and "id" = ${row.id}
             and "column" = ${row.column};
         `);
-      }
     }
   };
 

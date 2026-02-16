@@ -1,7 +1,7 @@
 import {
+  type CreateSqliteDriverDep,
   createLocalAuth,
   createRandomBytes,
-  type CreateSqliteDriverDep,
   type LocalAuth,
   type ReloadAppDep,
   type SecureStorage,

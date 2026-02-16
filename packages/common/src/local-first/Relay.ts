@@ -10,8 +10,8 @@ import {
   isNonEmptyArray,
   mapArray,
 } from "../Array.js";
-import type { TimingSafeEqualDep } from "../Crypto.js";
 import { assert } from "../Assert.js";
+import type { TimingSafeEqualDep } from "../Crypto.js";
 import { createInstances } from "../Instances.js";
 import type { Result } from "../Result.js";
 import { err, ok } from "../Result.js";
@@ -227,23 +227,17 @@ export const createRelaySqliteStorage =
                       firstTimestamp,
                       lastTimestamp,
                     );
-
-                  {
-                    sqliteStorageBase.insertTimestamp(
-                      ownerIdBytes,
-                      timestamp,
-                      strategy,
-                    );
-                  }
-
-                  {
-                    deps.sqlite.exec(sql`
+                  sqliteStorageBase.insertTimestamp(
+                    ownerIdBytes,
+                    timestamp,
+                    strategy,
+                  );
+                  deps.sqlite.exec(sql`
                       insert into evolu_message
                         ("ownerId", "timestamp", "change")
                       values (${ownerIdBytes}, ${timestamp}, ${change})
                       on conflict do nothing;
                     `);
-                  }
                 }
 
                 updateOwnerUsage(deps)(

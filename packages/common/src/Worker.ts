@@ -5,8 +5,8 @@
  */
 
 import type { Brand } from "./Brand.js";
-import type { GlobalErrorScope } from "./Error.js";
 import type { ConsoleDep, ConsoleStoreOutputEntryDep } from "./Console.js";
+import type { GlobalErrorScope } from "./Error.js";
 
 /**
  * Platform-agnostic Worker.
