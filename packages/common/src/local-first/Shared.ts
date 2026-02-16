@@ -10,13 +10,13 @@ import type { ConsoleEntry } from "../Console.js";
 import { exhaustiveCheck } from "../Function.js";
 import { ok } from "../Result.js";
 import type { Task } from "../Task.js";
-import type { Name } from "../Type.js";
+import type { SimpleName } from "../Type.js";
 import type {
   SharedWorker as CommonSharedWorker,
   MessagePort,
   NativeMessagePort,
   SharedWorkerSelf,
-  WorkerInitDep,
+  WorkerDeps,
 } from "../Worker.js";
 import type { DbWorkerLeaderOutput } from "./Db.js";
 import type { EvoluError } from "./Error.js";
@@ -46,14 +46,14 @@ export type SharedWorkerInput =
   | {
       /** Tab-level channel for broadcast outputs (console/error). */
       readonly type: "InitTab";
-      readonly port: NativeMessagePort;
+      readonly port: NativeMessagePort<EvoluTabOutput>;
     }
   | {
       /** Per-Evolu instance request channel. */
       readonly type: "InitEvolu";
-      readonly name: Name;
-      readonly port: NativeMessagePort;
-      readonly brokerPort: NativeMessagePort;
+      readonly name: SimpleName;
+      readonly port: NativeMessagePort<never, EvoluInput>;
+      readonly brokerPort: NativeMessagePort<never, DbWorkerLeaderOutput>;
     };
 
 export type EvoluTabOutput =
@@ -69,7 +69,7 @@ export type EvoluTabOutput =
 export const initSharedWorker =
   (
     self: SharedWorkerSelf<SharedWorkerInput>,
-  ): Task<AsyncDisposableStack, never, WorkerInitDep> =>
+  ): Task<AsyncDisposableStack, never, WorkerDeps> =>
   async (run) => {
     const { createMessagePort, consoleStoreOutputEntry } = run.deps;
     const console = run.deps.console.child("SharedWorker");
@@ -78,7 +78,7 @@ export const initSharedWorker =
     const tabPorts = new Set<MessagePort<EvoluTabOutput>>();
     const queuedTabOutputs: Array<EvoluTabOutput> = [];
     const leaderPorts = new Map<
-      Name,
+      SimpleName,
       MessagePort<never, DbWorkerLeaderOutput>
     >();
 
@@ -93,12 +93,15 @@ export const initSharedWorker =
 
     await using stack = run.stack();
 
-    stack.defer(
-      consoleStoreOutputEntry.subscribe(() => {
-        const entry = consoleStoreOutputEntry.get();
-        if (entry) postOrQueueTabOutput({ type: "ConsoleEntry", entry });
-      }),
-    );
+    const unsubscribeConsoleStore = consoleStoreOutputEntry.subscribe(() => {
+      const entry = consoleStoreOutputEntry.get();
+      if (entry) postOrQueueTabOutput({ type: "ConsoleEntry", entry });
+    });
+
+    stack.defer(() => {
+      unsubscribeConsoleStore();
+      return ok();
+    });
 
     console.info("initSharedWorker");
 
@@ -131,12 +134,12 @@ export const initSharedWorker =
 
             leaderPorts.set(message.name, brokerPort);
 
-            brokerPort.onMessage = (leaderEvent) => {
+            brokerPort.onMessage = (leaderEvent: DbWorkerLeaderOutput) => {
               leaderPorts.set(leaderEvent.name, brokerPort);
               console.info("leaderAcquired", { name: leaderEvent.name });
             };
 
-            evoluPort.onMessage = (message) => {
+            evoluPort.onMessage = (message: EvoluInput) => {
               console.log(message);
             };
             break;

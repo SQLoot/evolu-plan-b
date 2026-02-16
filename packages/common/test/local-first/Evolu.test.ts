@@ -96,13 +96,17 @@ const createMockMessageChannel = <Input, Output>() => {
   };
 };
 
-const createMockDeps = () => {
+const createMockDeps = (options?: {
+  readonly mutateResponseDelayMs?: number;
+}) => {
   const rows = new Map<string, { id: string; title: string }>();
   let persistedAppOwner: AppOwner | null = null;
   let reloadCount = 0;
   let resetCount = 0;
   let mutateCount = 0;
   let closeCount = 0;
+  let inFlightMutates = 0;
+  let maxInFlightMutates = 0;
   let tabPort: MockPort<EvoluTabOutput, never> | null = null;
   const brokerInputs: Array<DbWorkerLeaderInput> = [];
 
@@ -169,41 +173,59 @@ const createMockDeps = () => {
               }
               case "DbWorkerMutate": {
                 mutateCount += 1;
+                inFlightMutates += 1;
+                maxInFlightMutates = Math.max(
+                  maxInFlightMutates,
+                  inFlightMutates,
+                );
 
-                if (
-                  dbMessage.sql?.includes("__evolu_meta") &&
-                  dbMessage.params?.length === 1
-                ) {
-                  const appOwnerFromDb = dbMessage.params[0];
-                  if (typeof appOwnerFromDb === "string") {
-                    persistedAppOwner = JSON.parse(appOwnerFromDb) as AppOwner;
+                const respond = () => {
+                  if (
+                    dbMessage.sql?.includes("__evolu_meta") &&
+                    dbMessage.params?.length === 1
+                  ) {
+                    const appOwnerFromDb = dbMessage.params[0];
+                    if (typeof appOwnerFromDb === "string") {
+                      persistedAppOwner = JSON.parse(
+                        appOwnerFromDb,
+                      ) as AppOwner;
+                    }
                   }
-                }
 
-                if (
-                  dbMessage.sql?.includes(`"title"`) &&
-                  dbMessage.params?.length === 3
-                ) {
-                  const [, id, title] = dbMessage.params;
-                  rows.set(String(id), {
-                    id: String(id),
-                    title: String(title),
+                  if (
+                    dbMessage.sql?.includes(`"title"`) &&
+                    dbMessage.params?.length === 3
+                  ) {
+                    const [, id, title] = dbMessage.params;
+                    rows.set(String(id), {
+                      id: String(id),
+                      title: String(title),
+                    });
+                  }
+
+                  if (
+                    dbMessage.sql?.startsWith("delete from") &&
+                    dbMessage.params?.length === 2
+                  ) {
+                    const [, id] = dbMessage.params;
+                    rows.delete(String(id));
+                  }
+
+                  dbPort.postMessage({
+                    type: "DbWorkerMutateResponse",
+                    requestId: dbMessage.requestId,
+                    changes: 1,
                   });
-                }
+                  inFlightMutates -= 1;
+                };
 
-                if (
-                  dbMessage.sql?.startsWith("delete from") &&
-                  dbMessage.params?.length === 2
-                ) {
-                  const [, id] = dbMessage.params;
-                  rows.delete(String(id));
+                const mutateResponseDelayMs =
+                  options?.mutateResponseDelayMs ?? 0;
+                if (mutateResponseDelayMs > 0) {
+                  globalThis.setTimeout(respond, mutateResponseDelayMs);
+                } else {
+                  respond();
                 }
-
-                dbPort.postMessage({
-                  type: "DbWorkerMutateResponse",
-                  requestId: dbMessage.requestId,
-                  changes: 1,
-                });
                 break;
               }
               case "DbWorkerExport": {
@@ -253,6 +275,7 @@ const createMockDeps = () => {
       resetCount,
       mutateCount,
       closeCount,
+      maxInFlightMutates,
       hasTabPort: tabPort !== null,
       brokerInputs: [...brokerInputs],
       rows: [...rows],
@@ -463,6 +486,32 @@ describe("createEvolu", () => {
 
     const state = getState();
     expect(state.closeCount).toBeGreaterThanOrEqual(2);
+  });
+
+  test("mutation queue stays serialized across microtasks", async () => {
+    const { deps, getState } = createMockDeps({ mutateResponseDelayMs: 10 });
+    const evoluDeps = createEvoluDeps(deps as any);
+    const evolu = createEvolu(evoluDeps)(Schema, { name: testSimpleName });
+    const createQuery = createQueryBuilder(Schema);
+    const allTodos = createQuery((db) =>
+      db.selectFrom("todo").select(["id", "title"]),
+    );
+
+    await evolu.appOwner;
+
+    evolu.insert("todo", { title: NonEmptyString100.orThrow("A") });
+    await Promise.resolve();
+    evolu.insert("todo", { title: NonEmptyString100.orThrow("B") });
+
+    await new Promise((resolve) => {
+      globalThis.setTimeout(resolve, 200);
+    });
+
+    const rows = await evolu.loadQuery(allTodos);
+    const state = getState();
+
+    expect(rows).toHaveLength(2);
+    expect(state.maxInFlightMutates).toBe(1);
   });
 });
 
