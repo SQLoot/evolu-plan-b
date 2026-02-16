@@ -1,10 +1,10 @@
 import type { MessagePort } from "@evolu/common";
 import { SimpleName } from "@evolu/common";
 import type {
-  DbWorkerInput,
-  DbWorkerLeaderInput,
-  DbWorkerLeaderOutput,
-  DbWorkerOutput,
+  ExperimentalDbWorkerInput as DbWorkerInput,
+  ExperimentalDbWorkerLeaderInput as DbWorkerLeaderInput,
+  ExperimentalDbWorkerLeaderOutput as DbWorkerLeaderOutput,
+  ExperimentalDbWorkerOutput as DbWorkerOutput,
 } from "@evolu/common/local-first";
 import { describe, expect, test } from "vitest";
 import {

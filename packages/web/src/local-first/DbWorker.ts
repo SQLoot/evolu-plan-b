@@ -9,13 +9,13 @@ import type {
 import { SimpleName as SimpleNameType } from "@evolu/common";
 import type {
   AppOwner,
-  DbWorkerInput,
-  DbWorkerLeaderInput,
-  DbWorkerLeaderOutput,
-  DbWorkerOutput,
+  ExperimentalDbWorkerInput as DbWorkerInput,
+  ExperimentalDbWorkerLeaderInput as DbWorkerLeaderInput,
+  ExperimentalDbWorkerLeaderOutput as DbWorkerLeaderOutput,
+  ExperimentalDbWorkerOutput as DbWorkerOutput,
   Row,
 } from "@evolu/common/local-first";
-import { dbWorkerLeaderHeartbeatTimeoutMs as defaultHeartbeatTimeoutMs } from "@evolu/common/local-first";
+import { experimentalDbWorkerLeaderHeartbeatTimeoutMs as defaultHeartbeatTimeoutMs } from "@evolu/common/local-first";
 import { createWasmSqliteDriver } from "../Sqlite.js";
 import { createRun } from "../Task.js";
 
