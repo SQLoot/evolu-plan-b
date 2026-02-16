@@ -2,13 +2,13 @@ import { describe, expect, test } from "vitest";
 import type { ConsoleEntry } from "../../src/Console.js";
 import { testCreateConsole } from "../../src/Console.js";
 import type { DbWorkerLeaderOutput } from "../../src/local-first/Db.js";
+import type { MutationChange } from "../../src/local-first/Schema.js";
 import {
   type EvoluInput,
   type EvoluTabOutput,
   initSharedWorker,
   type SharedWorkerInput,
 } from "../../src/local-first/Shared.js";
-import type { MutationChange } from "../../src/local-first/Schema.js";
 import type { ReadonlyStore } from "../../src/Store.js";
 import { createStore } from "../../src/Store.js";
 import { testCreateRun, testName } from "../../src/Test.js";

@@ -55,10 +55,12 @@ export const initDbWorker =
           createMessagePort<DbWorkerLeaderOutput>(nativeBrokerPort),
         );
 
-        const unsubscribeConsoleStore = consoleStoreOutputEntry.subscribe(() => {
-          const entry = consoleStoreOutputEntry.get();
-          if (entry) leaderPort.postMessage({ type: "ConsoleEntry", entry });
-        });
+        const unsubscribeConsoleStore = consoleStoreOutputEntry.subscribe(
+          () => {
+            const entry = consoleStoreOutputEntry.get();
+            if (entry) leaderPort.postMessage({ type: "ConsoleEntry", entry });
+          },
+        );
 
         stack.defer(() => {
           unsubscribeConsoleStore();
