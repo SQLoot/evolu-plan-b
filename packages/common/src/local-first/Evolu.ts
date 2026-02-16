@@ -654,7 +654,11 @@ export const createEvoluDeps = <D extends EvoluPlatformDeps>(
   };
 
   evoluWorker.port.postMessage(
-    { type: "InitTab", port: tabChannel.port1.native },
+    {
+      type: "InitTab",
+      consoleLevel: console.getLevel(),
+      port: tabChannel.port1.native,
+    },
     [tabChannel.port1.native],
   );
 
@@ -766,7 +770,7 @@ export const createEvolu =
       errorStore.set(createUnknownError(error));
     };
 
-    const dbSchema = evoluSchemaToDbSchema(schema as EvoluSchema, _indexes);
+    const dbSchema = evoluSchemaToDbSchema(schema, _indexes);
     const dbWorker = createDbWorkerClient(deps, name, setUnknownError);
 
     const storeAppOwner = async (nextAppOwner: AppOwner): Promise<void> => {
@@ -825,6 +829,7 @@ export const createEvolu =
     const mutateMicrotaskQueue: Array<
       [MutationChange, MutationOptions["onComplete"] | undefined]
     > = [];
+    let isProcessingMutationQueue = false;
 
     const createMutation =
       <Kind extends MutationKind>(kind: Kind): Mutation<S, Kind> =>
@@ -903,36 +908,45 @@ export const createEvolu =
     };
 
     const processMutationQueue = () => {
-      const changes: Array<MutationChange> = [];
-      const onCompletes: Array<NonNullable<MutationOptions["onComplete"]>> = [];
-
-      for (const [change, onComplete] of mutateMicrotaskQueue) {
-        changes.push(change);
-        if (onComplete) onCompletes.push(onComplete);
-      }
-
-      mutateMicrotaskQueue.length = 0;
-
-      if (!isNonEmptyArray(changes)) return;
+      if (isProcessingMutationQueue) return;
+      isProcessingMutationQueue = true;
 
       void (async () => {
         try {
-          await dbReady;
-          const defaultOwnerId = (await getAppOwnerPromise()).id;
+          while (mutateMicrotaskQueue.length > 0) {
+            const changes: Array<MutationChange> = [];
+            const onCompletes: Array<
+              NonNullable<MutationOptions["onComplete"]>
+            > = [];
 
-          for (const change of changes) {
-            const ownerId = change.ownerId ?? defaultOwnerId;
-            const statements = mutationChangeToStatements(change, ownerId);
-            for (const statement of statements) {
-              await dbWorker.mutate(statement.sql, statement.params);
+            for (const [change, onComplete] of mutateMicrotaskQueue) {
+              changes.push(change);
+              if (onComplete) onCompletes.push(onComplete);
             }
+
+            mutateMicrotaskQueue.length = 0;
+            if (!isNonEmptyArray(changes)) continue;
+
+            await dbReady;
+            const defaultOwnerId = (await getAppOwnerPromise()).id;
+
+            for (const change of changes) {
+              const ownerId = change.ownerId ?? defaultOwnerId;
+              const statements = mutationChangeToStatements(change, ownerId);
+              for (const statement of statements) {
+                await dbWorker.mutate(statement.sql, statement.params);
+              }
+            }
+
+            await refreshLoadedQueries();
+            for (const onComplete of onCompletes) onComplete();
           }
-
-          await refreshLoadedQueries();
-
-          for (const onComplete of onCompletes) onComplete();
         } catch (error) {
           setUnknownError(error);
+        } finally {
+          isProcessingMutationQueue = false;
+          if (mutateMicrotaskQueue.length > 0)
+            queueMicrotask(processMutationQueue);
         }
       })();
     };
@@ -1281,12 +1295,14 @@ const createDbWorkerClient = (
     }
   };
 
+  // All Evolu instance traffic goes through SharedWorker, which is our
+  // single control point for observability and resilience behavior.
   deps.evoluWorker.port.postMessage(
     {
       type: "InitEvolu",
       name,
-      port: channel.port1.native,
-      brokerPort: brokerChannel.port1.native,
+      port1: channel.port1.native,
+      port2: brokerChannel.port1.native,
     },
     [channel.port1.native, brokerChannel.port1.native],
   );

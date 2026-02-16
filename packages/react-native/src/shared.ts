@@ -1,4 +1,5 @@
 import {
+  type CreateSqliteDriverDep,
   createLocalAuth,
   createRandomBytes,
   type LocalAuth,
@@ -11,8 +12,9 @@ import { createEvoluDeps as createCommonEvoluDeps } from "@evolu/common/local-fi
 const randomBytes = createRandomBytes();
 
 /** Creates Evolu dependencies for React Native. */
-export const createEvoluDeps = (deps: ReloadAppDep): EvoluDeps =>
-  createCommonEvoluDeps(deps);
+export const createEvoluDeps = (
+  deps: ReloadAppDep & CreateSqliteDriverDep,
+): EvoluDeps => createCommonEvoluDeps(deps);
 
 export const createSharedLocalAuth = (
   secureStorage: SecureStorage,

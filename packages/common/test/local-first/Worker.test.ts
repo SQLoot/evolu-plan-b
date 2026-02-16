@@ -1,5 +1,7 @@
 import { expect, test, vi } from "vitest";
+import { createConsole } from "../../src/Console.js";
 import { createUnknownError } from "../../src/Error.js";
+import type { ConsoleEntry } from "../../src/index.js";
 import type {
   DbWorkerInput,
   DbWorkerLeaderInput,
@@ -9,8 +11,11 @@ import type {
 import {
   type EvoluTabOutput,
   type EvoluWorkerInput,
+  initEvoluWorker,
   runEvoluWorkerScope,
 } from "../../src/local-first/Worker.js";
+import { createStore } from "../../src/Store.js";
+import { createRun } from "../../src/Task.js";
 import { SimpleName } from "../../src/Type.js";
 import type {
   CreateMessagePort,
@@ -22,7 +27,7 @@ import type {
 const createTrackedPort = <Input, Output = never>() => {
   let onMessage: ((message: Output) => void) | null = null;
   const sentMessages: Array<Input> = [];
-  const native = {} as NativeMessagePort;
+  const native = {} as NativeMessagePort<Input, Output>;
 
   const port: MessagePort<Input, Output> = {
     postMessage: (message) => {
@@ -62,14 +67,21 @@ test("runEvoluWorkerScope forwards global errors to registered tab port", () => 
   const tabPort = createTrackedPort<EvoluTabOutput, never>();
 
   const createMessagePort: CreateMessagePort = <Input, Output = never>(
-    nativePort: NativeMessagePort,
+    nativePort: NativeMessagePort<Input, Output>,
   ): MessagePort<Input, Output> => {
-    if (nativePort === tabPort.native)
+    if (
+      (nativePort as NativeMessagePort<any, any>) ===
+      (tabPort.native as NativeMessagePort<any, any>)
+    )
       return tabPort.port as unknown as MessagePort<Input, Output>;
     throw new Error("Unexpected native port");
   };
 
+  const console = createConsole();
+  const setLevel = vi.spyOn(console, "setLevel");
+
   runEvoluWorkerScope({
+    console,
     createMessagePort,
     runDbWorkerPort: vi.fn(),
   })(workerScope);
@@ -77,12 +89,14 @@ test("runEvoluWorkerScope forwards global errors to registered tab port", () => 
   workerScope.onConnect?.(workerConnection.port);
   workerConnection.emit({
     type: "InitTab",
+    consoleLevel: "debug",
     port: tabPort.native,
   });
 
   const error = createUnknownError(new Error("boom"));
   workerScope.onError?.(error);
 
+  expect(setLevel).toHaveBeenCalledWith("debug");
   expect(tabPort.sentMessages).toEqual([{ type: "EvoluError", error }]);
 });
 
@@ -95,18 +109,26 @@ test("runEvoluWorkerScope routes InitEvolu port to db worker runner", () => {
     DbWorkerLeaderInput
   >();
   const runDbWorkerPort = vi.fn();
+  const console = createConsole();
 
   const createMessagePort: CreateMessagePort = <Input, Output = never>(
-    nativePort: NativeMessagePort,
+    nativePort: NativeMessagePort<Input, Output>,
   ): MessagePort<Input, Output> => {
-    if (nativePort === dbPort.native)
+    if (
+      (nativePort as NativeMessagePort<any, any>) ===
+      (dbPort.native as NativeMessagePort<any, any>)
+    )
       return dbPort.port as unknown as MessagePort<Input, Output>;
-    if (nativePort === brokerPort.native)
+    if (
+      (nativePort as NativeMessagePort<any, any>) ===
+      (brokerPort.native as NativeMessagePort<any, any>)
+    )
       return brokerPort.port as unknown as MessagePort<Input, Output>;
     throw new Error("Unexpected native port");
   };
 
   runEvoluWorkerScope({
+    console,
     createMessagePort,
     runDbWorkerPort,
   })(workerScope);
@@ -116,14 +138,60 @@ test("runEvoluWorkerScope routes InitEvolu port to db worker runner", () => {
   workerConnection.emit({
     type: "InitEvolu",
     name,
-    port: dbPort.native,
-    brokerPort: brokerPort.native,
+    port1: dbPort.native,
+    port2: brokerPort.native,
   });
 
   expect(runDbWorkerPort).toHaveBeenCalledTimes(1);
   expect(runDbWorkerPort).toHaveBeenCalledWith({
     name,
+    consoleLevel: "log",
     port: dbPort.port,
     brokerPort: brokerPort.port,
   });
+});
+
+test("initEvoluWorker forwards console store output to tab port", async () => {
+  const workerScope = createWorkerScope();
+  const workerConnection = createTrackedPort<never, EvoluWorkerInput>();
+  const tabPort = createTrackedPort<EvoluTabOutput, never>();
+  const entryStore = createStore<ConsoleEntry | null>(null);
+
+  const createMessagePort: CreateMessagePort = <Input, Output = never>(
+    nativePort: NativeMessagePort<Input, Output>,
+  ): MessagePort<Input, Output> => {
+    if (
+      (nativePort as NativeMessagePort<any, any>) ===
+      (tabPort.native as NativeMessagePort<any, any>)
+    )
+      return tabPort.port as unknown as MessagePort<Input, Output>;
+    throw new Error("Unexpected native port");
+  };
+
+  await using run = createRun({
+    console: createConsole(),
+    consoleStoreOutputEntry: entryStore,
+    createMessagePort,
+    runDbWorkerPort: vi.fn(),
+  });
+
+  const initResult = await run(initEvoluWorker(workerScope));
+  expect(initResult.ok).toBe(true);
+  if (!initResult.ok) return;
+
+  workerScope.onConnect?.(workerConnection.port);
+  workerConnection.emit({
+    type: "InitTab",
+    consoleLevel: "debug",
+    port: tabPort.native,
+  });
+
+  const entry: ConsoleEntry = {
+    method: "info",
+    path: [],
+    args: ["forwarded"],
+  };
+  entryStore.set(entry);
+
+  expect(tabPort.sentMessages).toContainEqual({ type: "ConsoleEntry", entry });
 });

@@ -10,6 +10,7 @@ import type { ReloadApp } from "@evolu/common";
 import { DevSettings } from "react-native";
 import { SensitiveInfo } from "react-native-sensitive-info";
 import { createEvoluDeps, createSharedLocalAuth } from "../shared.js";
+import { createOpSqliteDriver } from "../sqlite-drivers/createOpSqliteDriver.js";
 
 const reloadApp: ReloadApp = () => {
   if (process.env.NODE_ENV === "development") {
@@ -19,6 +20,9 @@ const reloadApp: ReloadApp = () => {
   }
 };
 
-export const evoluReactNativeDeps = createEvoluDeps({ reloadApp });
+export const evoluReactNativeDeps = createEvoluDeps({
+  createSqliteDriver: createOpSqliteDriver,
+  reloadApp,
+});
 
 export const localAuth = createSharedLocalAuth(SensitiveInfo);

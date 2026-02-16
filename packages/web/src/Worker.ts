@@ -138,7 +138,7 @@ const wrap = <Input, Output>(
       else native.postMessage(message, [...transfer]);
     },
     onMessage: null,
-    native: native as unknown as NativeMessagePort,
+    native: native as unknown as NativeMessagePort<Input, Output>,
     [Symbol.dispose]: () => {
       native.onmessage = null;
       if (native instanceof globalThis.Worker) native.terminate();

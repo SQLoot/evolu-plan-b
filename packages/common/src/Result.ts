@@ -10,6 +10,7 @@ import {
   isNonEmptyArray,
   type NonEmptyReadonlyArray,
 } from "./Array.js";
+import { assert } from "./Assert.js";
 import type { UnknownError } from "./Error.js";
 import type { Lazy } from "./Function.js";
 import { exhaustiveCheck } from "./Function.js";
@@ -182,9 +183,9 @@ import type { Typed } from "./Type.js";
  * handleable at the app level. Group them in a union type like `AppError`:
  *
  * ```ts
- * type AppError = SqliteError | SyncError | UnknownError;
+ * type AppError = TimestampError | SyncError | UnknownError;
  *
- * interface SqliteError extends Typed<"SqliteError"> {
+ * interface TimestampError extends Typed<"TimestampError"> {
  *   readonly error: UnknownError;
  * }
  * ```
@@ -197,9 +198,11 @@ import type { Typed } from "./Type.js";
  * ```ts
  * const handleAppError = (error: AppError): void => {
  *   switch (error.type) {
- *     case "SqliteError":
+ *     case "TimestampError":
  *       console.error(error.error.stack); // Log preserved stack trace
- *       showToast("Database error. Please restart the app.");
+ *       showToast(
+ *         "Timestamp error. Your computer clock appears to be incorrect.",
+ *       );
  *       break;
  *     case "SyncError":
  *       showToast("Sync failed. Retrying...");
@@ -378,6 +381,18 @@ export const getOrThrow = <T, E>(result: Result<T, E>): T => {
  */
 export const getOrNull = <T, E>(result: Result<T, E>): T | null =>
   result.ok ? result.value : null;
+
+/**
+ * Extracts the value from a {@link Result} whose error type is `never`.
+ *
+ * This is useful when the type system guarantees the result cannot fail (for
+ * example `Result<T, never>`), avoiding impossible `if (!result.ok)` branches
+ * at call sites.
+ */
+export const getOk = <T>(result: Result<T>): T => {
+  assert(result.ok, "Expected Ok result.");
+  return result.value;
+};
 
 /**
  * Wraps a synchronous function that may throw, returning a {@link Result}.

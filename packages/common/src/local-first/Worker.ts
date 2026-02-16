@@ -4,7 +4,12 @@
  * @module
  */
 
-import type { ConsoleEntry } from "../Console.js";
+import type {
+  ConsoleDep,
+  ConsoleEntry,
+  ConsoleLevel,
+  ConsoleStoreOutputEntryDep,
+} from "../Console.js";
 import { exhaustiveCheck } from "../Function.js";
 import { ok } from "../Result.js";
 import type { Task } from "../Task.js";
@@ -33,13 +38,17 @@ export interface EvoluWorkerDep {
 export type EvoluWorkerInput =
   | {
       readonly type: "InitTab";
-      readonly port: NativeMessagePort;
+      readonly consoleLevel: ConsoleLevel;
+      readonly port: NativeMessagePort<EvoluTabOutput>;
     }
   | {
       readonly type: "InitEvolu";
       readonly name: SimpleName;
-      readonly port: NativeMessagePort;
-      readonly brokerPort: NativeMessagePort;
+      readonly port1: NativeMessagePort<DbWorkerOutput, DbWorkerInput>;
+      readonly port2: NativeMessagePort<
+        DbWorkerLeaderOutput,
+        DbWorkerLeaderInput
+      >;
     };
 
 export type EvoluTabOutput =
@@ -55,16 +64,20 @@ export type EvoluTabOutput =
 export interface RunDbWorkerPortDep {
   readonly runDbWorkerPort: (config: {
     readonly name: SimpleName;
+    readonly consoleLevel: ConsoleLevel;
     readonly port: MessagePort<DbWorkerOutput, DbWorkerInput>;
     readonly brokerPort: MessagePort<DbWorkerLeaderOutput, DbWorkerLeaderInput>;
   }) => void;
 }
 
 export const runEvoluWorkerScope =
-  (deps: CreateMessagePortDep & RunDbWorkerPortDep) =>
-  (self: EvoluWorkerScope<EvoluWorkerInput>): void => {
+  (deps: CreateMessagePortDep & RunDbWorkerPortDep & ConsoleDep) =>
+  (
+    self: EvoluWorkerScope<EvoluWorkerInput>,
+  ): { readonly postTabOutput: (output: EvoluTabOutput) => void } => {
     const tabPorts = new Set<MessagePort<EvoluTabOutput>>();
     const queuedTabOutputs: Array<EvoluTabOutput> = [];
+    let consoleLevel = deps.console.getLevel();
 
     const postTabOutput = (output: EvoluTabOutput): void => {
       if (tabPorts.size === 0) {
@@ -85,6 +98,8 @@ export const runEvoluWorkerScope =
             const tabPort = deps.createMessagePort<EvoluTabOutput>(
               message.port,
             );
+            consoleLevel = message.consoleLevel;
+            deps.console.setLevel(consoleLevel);
             tabPorts.add(tabPort);
 
             if (queuedTabOutputs.length > 0) {
@@ -96,13 +111,18 @@ export const runEvoluWorkerScope =
           }
           case "InitEvolu": {
             const port = deps.createMessagePort<DbWorkerOutput, DbWorkerInput>(
-              message.port,
+              message.port1,
             );
             const brokerPort = deps.createMessagePort<
               DbWorkerLeaderOutput,
               DbWorkerLeaderInput
-            >(message.brokerPort);
-            deps.runDbWorkerPort({ name: message.name, port, brokerPort });
+            >(message.port2);
+            deps.runDbWorkerPort({
+              name: message.name,
+              consoleLevel,
+              port,
+              brokerPort,
+            });
             break;
           }
           default:
@@ -110,6 +130,8 @@ export const runEvoluWorkerScope =
         }
       };
     };
+
+    return { postTabOutput };
   };
 
 /**
@@ -120,8 +142,26 @@ export const runEvoluWorkerScope =
 export const initEvoluWorker =
   (
     self: EvoluWorkerScope<EvoluWorkerInput>,
-  ): Task<void, never, CreateMessagePortDep & RunDbWorkerPortDep> =>
+  ): Task<
+    void,
+    never,
+    CreateMessagePortDep &
+      RunDbWorkerPortDep &
+      ConsoleDep &
+      ConsoleStoreOutputEntryDep
+  > =>
   (run) => {
-    runEvoluWorkerScope(run.deps)(self);
+    const { postTabOutput } = runEvoluWorkerScope(run.deps)(self);
+
+    const unsubscribe = run.deps.consoleStoreOutputEntry.subscribe(() => {
+      const entry = run.deps.consoleStoreOutputEntry.get();
+      if (entry) postTabOutput({ type: "ConsoleEntry", entry });
+    });
+
+    run.defer(() => {
+      unsubscribe();
+      return ok();
+    });
+
     return ok();
   };

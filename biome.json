@@ -30,6 +30,7 @@
         "noExplicitAny": "off",
         "noImplicitAnyLet": "off",
         "useIterableCallbackReturn": "off",
+        "noImportCycles": "error",
         "noThenProperty": "off",
         "noAssignInExpressions": "off"
       },
@@ -54,14 +55,7 @@
       "security": {
         "noDangerouslySetInnerHtml": "warn"
       },
-      "nursery": {
-        "noImportCycles": {
-          "level": "error",
-          "options": {
-            "ignoreTypes": true
-          }
-        }
-      }
+      "nursery": {}
     }
   },
   "javascript": {

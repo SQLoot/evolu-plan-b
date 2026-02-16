@@ -1,4 +1,3 @@
-import { assert } from "../../src/Assert.js";
 import { type DbSchema, getDbSchema } from "../../src/local-first/Schema.js";
 import type { CrdtMessage } from "../../src/local-first/Storage.js";
 import { DbChange } from "../../src/local-first/Storage.js";
@@ -18,23 +17,21 @@ export interface DbSnapshot {
 
 export const getDbSnapshot = (deps: SqliteDep): DbSnapshot => {
   const schema = getDbSchema(deps)({ allIndexes: true });
-  assert(schema.ok, "bug");
 
   const tables = [];
 
-  for (const tableName in schema.value.tables) {
+  for (const tableName in schema.tables) {
     const result = deps.sqlite.exec(sql`
       select * from ${sql.identifier(tableName)};
     `);
-    assert(result.ok, "bug");
 
     tables.push({
       name: tableName,
-      rows: result.value.rows,
+      rows: result.rows,
     });
   }
 
-  return { schema: schema.value, tables };
+  return { schema, tables };
 };
 
 export const createTestCrdtMessage = (
