@@ -540,13 +540,14 @@ export const createProtocolMessageForSync =
 
     const size = deps.storage.getSize(ownerIdBytes);
 
-    splitRange(deps)(
+    const didSplitRange = splitRange(deps)(
       ownerIdBytes,
       NonNegativeInt.orThrow(0),
       size,
       InfiniteUpperBound,
       buffer,
     );
+    if (!didSplitRange) return null;
 
     return buffer.unwrap();
   };
@@ -1394,13 +1395,17 @@ const sync =
           } else {
             if (output.canSplitRange()) {
               coalesceSkipsBeforeAdd();
-              splitRange(deps)(
-                ownerIdBytes,
-                lower,
-                upper,
-                currentUpperBound,
-                output,
-              );
+              if (
+                !splitRange(deps)(
+                  ownerIdBytes,
+                  lower,
+                  upper,
+                  currentUpperBound,
+                  output,
+                )
+              ) {
+                return err(ProtocolErrorCode.SyncError);
+              }
             } else {
               return addFingerprintForRemainingRange(upper)
                 ? ok(true)
@@ -1522,7 +1527,7 @@ const splitRange =
     upper: NonNegativeInt,
     upperBound: RangeUpperBound,
     buffer: ProtocolMessageBuffer,
-  ): void => {
+  ): boolean => {
     const itemCount = NonNegativeInt.orThrow(upper - lower);
     const buckets = computeBalancedBuckets(itemCount);
 
@@ -1544,7 +1549,7 @@ const splitRange =
       );
 
       buffer.addRange(range);
-      return;
+      return true;
     }
 
     // Check Storage.ts `fingerprint` and `fingerprintRanges` docs.
@@ -1565,7 +1570,7 @@ const splitRange =
       );
     } catch (error) {
       deps.console.error(error);
-      return;
+      return false;
     }
 
     const rangesToUse =
@@ -1574,6 +1579,7 @@ const splitRange =
     for (const range of rangesToUse) {
       buffer.addRange(range);
     }
+    return true;
   };
 
 const decodeRanges = (buffer: Buffer): ReadonlyArray<Range> => {

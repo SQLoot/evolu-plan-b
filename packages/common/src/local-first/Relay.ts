@@ -254,7 +254,7 @@ export const createRelaySqliteStorage =
 
         if (!result.ok) {
           if (result.error.type === "AbortError") return ok();
-          return err({ type: "StorageQuotaError", ownerId });
+          return err(result.error);
         }
 
         return ok();
@@ -289,8 +289,6 @@ export const createRelaySqliteStorage =
           `);
 
           sqliteStorageBase.deleteOwner(ownerId);
-
-          return ok();
         });
       },
     };

@@ -1322,12 +1322,32 @@ const fingerprint =
       return zeroFingerprint;
     }
 
+    const getFingerprintFromRanges = (
+      ranges: ReadonlyArray<FingerprintRange>,
+      index: number,
+    ): Fingerprint => {
+      const range = ranges[index];
+      if (range) return range.fingerprint;
+      throw new Error(
+        [
+          "Missing fingerprint range",
+          `ownerId=${globalThis.Array.from(ownerId).join(",")}`,
+          `begin=${begin}`,
+          `end=${end}`,
+          `index=${index}`,
+          `rangesLength=${ranges.length}`,
+        ].join(" "),
+      );
+    };
+
     if (begin === 0) {
-      return fingerprintRanges(deps)(ownerId, [end])[0].fingerprint;
+      const ranges = fingerprintRanges(deps)(ownerId, [end]);
+      return getFingerprintFromRanges(ranges, 0);
     }
 
     // We should have a param to skip the first result.
-    return fingerprintRanges(deps)(ownerId, [begin, end])[1].fingerprint;
+    const ranges = fingerprintRanges(deps)(ownerId, [begin, end]);
+    return getFingerprintFromRanges(ranges, 1);
   };
 
 /**

@@ -1,4 +1,5 @@
 import type {
+  ConsoleLevel,
   MessagePort,
   SafeSql,
   SimpleName,
@@ -144,6 +145,7 @@ const releaseSharedDb = (dbName: string): void => {
 
 export const runWebDbWorkerPort = (config: {
   readonly name: SimpleName;
+  readonly consoleLevel?: ConsoleLevel;
   readonly port: MessagePort<DbWorkerOutput, DbWorkerInput>;
   readonly brokerPort: MessagePort<DbWorkerLeaderOutput, DbWorkerLeaderInput>;
 }): void => {
@@ -153,6 +155,7 @@ export const runWebDbWorkerPort = (config: {
 export const runWebDbWorkerPortWithOptions = (
   config: {
     readonly name: SimpleName;
+    readonly consoleLevel?: ConsoleLevel;
     readonly port: MessagePort<DbWorkerOutput, DbWorkerInput>;
     readonly brokerPort: MessagePort<DbWorkerLeaderOutput, DbWorkerLeaderInput>;
   },

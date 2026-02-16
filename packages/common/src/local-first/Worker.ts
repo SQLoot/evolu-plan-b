@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { ConsoleEntry, ConsoleLevel } from "../Console.js";
+import type { ConsoleDep, ConsoleEntry, ConsoleLevel } from "../Console.js";
 import { exhaustiveCheck } from "../Function.js";
 import { ok } from "../Result.js";
 import type { Task } from "../Task.js";
@@ -59,16 +59,18 @@ export type EvoluTabOutput =
 export interface RunDbWorkerPortDep {
   readonly runDbWorkerPort: (config: {
     readonly name: SimpleName;
+    readonly consoleLevel: ConsoleLevel;
     readonly port: MessagePort<DbWorkerOutput, DbWorkerInput>;
     readonly brokerPort: MessagePort<DbWorkerLeaderOutput, DbWorkerLeaderInput>;
   }) => void;
 }
 
 export const runEvoluWorkerScope =
-  (deps: CreateMessagePortDep & RunDbWorkerPortDep) =>
+  (deps: CreateMessagePortDep & RunDbWorkerPortDep & ConsoleDep) =>
   (self: EvoluWorkerScope<EvoluWorkerInput>): void => {
     const tabPorts = new Set<MessagePort<EvoluTabOutput>>();
     const queuedTabOutputs: Array<EvoluTabOutput> = [];
+    let consoleLevel = deps.console.getLevel();
 
     const postTabOutput = (output: EvoluTabOutput): void => {
       if (tabPorts.size === 0) {
@@ -89,6 +91,8 @@ export const runEvoluWorkerScope =
             const tabPort = deps.createMessagePort<EvoluTabOutput>(
               message.port,
             );
+            consoleLevel = message.consoleLevel;
+            deps.console.setLevel(consoleLevel);
             tabPorts.add(tabPort);
 
             if (queuedTabOutputs.length > 0) {
@@ -106,7 +110,12 @@ export const runEvoluWorkerScope =
               DbWorkerLeaderOutput,
               DbWorkerLeaderInput
             >(message.port2);
-            deps.runDbWorkerPort({ name: message.name, port, brokerPort });
+            deps.runDbWorkerPort({
+              name: message.name,
+              consoleLevel,
+              port,
+              brokerPort,
+            });
             break;
           }
           default:
@@ -124,7 +133,11 @@ export const runEvoluWorkerScope =
 export const initEvoluWorker =
   (
     self: EvoluWorkerScope<EvoluWorkerInput>,
-  ): Task<void, never, CreateMessagePortDep & RunDbWorkerPortDep> =>
+  ): Task<
+    void,
+    never,
+    CreateMessagePortDep & RunDbWorkerPortDep & ConsoleDep
+  > =>
   (run) => {
     runEvoluWorkerScope(run.deps)(self);
     return ok();

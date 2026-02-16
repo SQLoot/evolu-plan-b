@@ -1,4 +1,5 @@
 import { expect, test, vi } from "vitest";
+import { createConsole } from "../../src/Console.js";
 import { createUnknownError } from "../../src/Error.js";
 import type {
   DbWorkerInput,
@@ -72,7 +73,11 @@ test("runEvoluWorkerScope forwards global errors to registered tab port", () => 
     throw new Error("Unexpected native port");
   };
 
+  const console = createConsole();
+  const setLevel = vi.spyOn(console, "setLevel");
+
   runEvoluWorkerScope({
+    console,
     createMessagePort,
     runDbWorkerPort: vi.fn(),
   })(workerScope);
@@ -87,6 +92,7 @@ test("runEvoluWorkerScope forwards global errors to registered tab port", () => 
   const error = createUnknownError(new Error("boom"));
   workerScope.onError?.(error);
 
+  expect(setLevel).toHaveBeenCalledWith("debug");
   expect(tabPort.sentMessages).toEqual([{ type: "EvoluError", error }]);
 });
 
@@ -99,6 +105,7 @@ test("runEvoluWorkerScope routes InitEvolu port to db worker runner", () => {
     DbWorkerLeaderInput
   >();
   const runDbWorkerPort = vi.fn();
+  const console = createConsole();
 
   const createMessagePort: CreateMessagePort = <Input, Output = never>(
     nativePort: NativeMessagePort<Input, Output>,
@@ -117,6 +124,7 @@ test("runEvoluWorkerScope routes InitEvolu port to db worker runner", () => {
   };
 
   runEvoluWorkerScope({
+    console,
     createMessagePort,
     runDbWorkerPort,
   })(workerScope);
@@ -133,6 +141,7 @@ test("runEvoluWorkerScope routes InitEvolu port to db worker runner", () => {
   expect(runDbWorkerPort).toHaveBeenCalledTimes(1);
   expect(runDbWorkerPort).toHaveBeenCalledWith({
     name,
+    consoleLevel: "log",
     port: dbPort.port,
     brokerPort: brokerPort.port,
   });
