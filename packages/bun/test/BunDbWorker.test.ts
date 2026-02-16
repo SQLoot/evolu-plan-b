@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import type { DbWorkerInput, DbWorkerOutput } from "@evolu/common/local-first";
+import type {
+  ExperimentalDbWorkerInput as DbWorkerInput,
+  ExperimentalDbWorkerOutput as DbWorkerOutput,
+} from "@evolu/common/local-first";
 import {
   type BunDbWorkerScope,
   runBunDbWorkerScope,
