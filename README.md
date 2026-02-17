@@ -1,14 +1,13 @@
 # Evolu Plan B (Fork)
 
-> **Plan B**: The "B" stands for **B**un and **B**iome (fully implemented).
-> 
-> This fork aims to remove as many third-party dependencies as possible, streamlining the monorepo for maximum efficiency.
-> 
-> **Goals:**
-> - ⚡️ **Bun & Biome**: Fully migrated to modern, fast tools as the foundation (see [Linting](#linting)).
-> - 🧹 **Clean Monorepo**: Simplifying structure and reducing dependencies.
-> - 🛠️ **Integrations & Tools**: Adding new capabilities and tooling.
-> - ♻️ **Refactoring**: Improving efficiency while maintaining compatibility with Evolu.
+`Evolu Plan B` is SQLoot's Bun + Biome fork of Evolu.
+
+Primary goals:
+
+- Keep API and protocol compatibility with Evolu upstream.
+- Use Bun-first tooling across the monorepo.
+- Reduce third-party dependencies where Bun provides native equivalents.
+- Keep changes benchmarkable against upstream via `bench-suite`.
 
 Evolu is a TypeScript library and local-first platform.
 
