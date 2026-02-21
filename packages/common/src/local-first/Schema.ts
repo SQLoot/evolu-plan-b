@@ -14,25 +14,25 @@ import {
 } from "../Object.js";
 import {
   type SafeSql,
+  sql,
   SqliteBoolean,
   type SqliteDep,
   type SqliteQuery,
   type SqliteQueryOptions,
-  type SqliteValue,
-  sql,
+  SqliteValue,
 } from "../Sqlite.js";
 import type { InferType } from "../Type.js";
 import {
   array,
   DateIso,
   type Id,
-  type IdBytes,
+  IdBytes,
   nullOr,
   object,
   record,
+  set,
   type StandardSchemaV1,
   String,
-  set,
 } from "../Type.js";
 import type { Simplify } from "../Types.js";
 import type { AppOwner } from "./Owner.js";
@@ -40,7 +40,7 @@ import { OwnerId } from "./Owner.js";
 import type { Query, Row } from "./Query.js";
 import { serializeQuery } from "./Query.js";
 import type { CrdtMessage, DbChange } from "./Storage.js";
-import type { TimestampBytes } from "./Timestamp.js";
+import { TimestampBytes } from "./Timestamp.js";
 
 /** Any {@link StandardSchemaV1}. */
 export type AnyStandardSchemaV1 = StandardSchemaV1<any, any>;
@@ -239,8 +239,7 @@ export interface MutationOptions {
 }
 
 export interface MutationChange extends DbChange {
-  /** Owner of the change. If undefined, the change belongs to the AppOwner. */
-  readonly ownerId?: OwnerId | undefined;
+  readonly ownerId: OwnerId;
 }
 
 /**
@@ -453,13 +452,13 @@ export const getDbSchema =
       tableName: string;
       columnName: string;
     }>(sql`
-        select
-          sqlite_master.name as tableName,
-          table_info.name as columnName
-        from
-          sqlite_master
-          join pragma_table_info(sqlite_master.name) as table_info;
-      `);
+      select
+        sqlite_master.name as tableName,
+        table_info.name as columnName
+      from
+        sqlite_master
+        join pragma_table_info(sqlite_master.name) as table_info;
+    `);
 
     tableAndColumnInfoRows.rows.forEach(({ tableName, columnName }) => {
       (tables[tableName] ??= new Set()).add(columnName);
@@ -468,18 +467,18 @@ export const getDbSchema =
     const indexesRows = deps.sqlite.exec<{ name: string; sql: string | null }>(
       allIndexes
         ? sql`
-              select name, sql
-              from sqlite_master
-              where type = 'index' and name not like 'sqlite_%';
-            `
+            select name, sql
+            from sqlite_master
+            where type = 'index' and name not like 'sqlite_%';
+          `
         : sql`
-              select name, sql
-              from sqlite_master
-              where
-                type = 'index'
-                and name not like 'sqlite_%'
-                and name not like 'evolu_%';
-            `,
+            select name, sql
+            from sqlite_master
+            where
+              type = 'index'
+              and name not like 'sqlite_%'
+              and name not like 'evolu_%';
+          `,
     );
 
     const indexes = indexesRows.rows.flatMap((row): Array<DbIndex> => {
@@ -489,8 +488,8 @@ export const getDbSchema =
           name: row.name,
           /**
            * SQLite returns "CREATE INDEX" for "create index" for some reason.
-           * Other keywords remain unchanged. We have to normalize the casing for
-           * {@link indexesAreEqual} manually.
+           * Other keywords remain unchanged. We have to normalize the casing
+           * for {@link indexesAreEqual} manually.
            */
           sql: row.sql
             .replace("CREATE INDEX", "create index")
