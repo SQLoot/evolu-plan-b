@@ -1,25 +1,24 @@
-import { describe, expect, test } from "vitest";
+import { createStore } from "../../src/Store.js";
 import type { ConsoleEntry } from "../../src/Console.js";
-import { testCreateConsole } from "../../src/Console.js";
-import type {
-  DbWorkerLeaderInput,
-  DbWorkerLeaderOutput,
-} from "../../src/local-first/Db.js";
-import type { MutationChange } from "../../src/local-first/Schema.js";
+import type { ReadonlyStore } from "../../src/Store.js";
 import {
   type EvoluInput,
   type EvoluTabOutput,
-  initSharedWorker,
   type SharedWorkerInput,
+  initSharedWorker,
 } from "../../src/local-first/Shared.js";
-import type { ReadonlyStore } from "../../src/Store.js";
-import { createStore } from "../../src/Store.js";
-import { testCreateRun, testName } from "../../src/Test.js";
+import type { DbWorkerOutput } from "../../src/local-first/Shared.js";
+import type { DbWorkerInput } from "../../src/local-first/Shared.js";
+import type { MutationChange } from "../../src/local-first/Schema.js";
+import { testCreateConsole } from "../../src/Console.js";
+import { testCreateRun } from "../../src/Test.js";
 import {
   testCreateMessageChannel,
   testCreateMessagePort,
   testCreateSharedWorker,
 } from "../../src/Worker.js";
+import { testName } from "../../src/Type.js";
+import { describe, expect, test } from "vitest";
 
 describe("initSharedWorker", () => {
   const setupWorker = async (
@@ -82,8 +81,8 @@ describe("initSharedWorker", () => {
     consoleStoreOutputEntry.set(secondEntry);
 
     expect(receivedOutputs).toEqual([
-      { type: "ConsoleEntry", entry: firstEntry },
-      { type: "ConsoleEntry", entry: secondEntry },
+      { type: "OnConsoleEntry", entry: firstEntry },
+      { type: "OnConsoleEntry", entry: secondEntry },
     ]);
   });
 
@@ -113,7 +112,7 @@ describe("initSharedWorker", () => {
     consoleStoreOutputEntry.set(liveEntry);
 
     expect(receivedOutputs).toEqual([
-      { type: "ConsoleEntry", entry: liveEntry },
+      { type: "OnConsoleEntry", entry: liveEntry },
     ]);
   });
 
@@ -143,7 +142,7 @@ describe("initSharedWorker", () => {
     consoleStoreOutputEntry.set(entry);
     consoleStoreOutputEntry.set(null);
 
-    expect(receivedOutputs).toEqual([{ type: "ConsoleEntry", entry }]);
+    expect(receivedOutputs).toEqual([{ type: "OnConsoleEntry", entry }]);
   });
 
   test("forwards typed console error entries as ConsoleEntry", async () => {
@@ -172,7 +171,7 @@ describe("initSharedWorker", () => {
 
     consoleStoreOutputEntry.set(entry);
 
-    expect(receivedOutputs).toEqual([{ type: "ConsoleEntry", entry }]);
+    expect(receivedOutputs).toEqual([{ type: "OnConsoleEntry", entry }]);
   });
 
   test("forwards untyped console error entries as ConsoleEntry", async () => {
@@ -200,7 +199,7 @@ describe("initSharedWorker", () => {
 
     consoleStoreOutputEntry.set(entry);
 
-    expect(receivedOutputs).toEqual([{ type: "ConsoleEntry", entry }]);
+    expect(receivedOutputs).toEqual([{ type: "OnConsoleEntry", entry }]);
   });
 
   test("forwards console error entry with one argument", async () => {
@@ -228,7 +227,7 @@ describe("initSharedWorker", () => {
 
     consoleStoreOutputEntry.set(entry);
 
-    expect(receivedOutputs).toEqual([{ type: "ConsoleEntry", entry }]);
+    expect(receivedOutputs).toEqual([{ type: "OnConsoleEntry", entry }]);
   });
 
   test("forwards console error entry with no arguments", async () => {
@@ -256,30 +255,30 @@ describe("initSharedWorker", () => {
 
     consoleStoreOutputEntry.set(entry);
 
-    expect(receivedOutputs).toEqual([{ type: "ConsoleEntry", entry }]);
+    expect(receivedOutputs).toEqual([{ type: "OnConsoleEntry", entry }]);
   });
 
-  test("accepts InitEvolu message", async () => {
+  test("accepts CreateEvolu message", async () => {
     const { worker, workerStack } = await setupWorker();
     await using _workerStack = workerStack;
 
     const evoluChannel = testCreateMessageChannel<never, EvoluInput>();
-    const leaderChannel = testCreateMessageChannel<
-      DbWorkerLeaderInput,
-      DbWorkerLeaderOutput
+    const dbWorkerChannel = testCreateMessageChannel<
+      DbWorkerInput,
+      DbWorkerOutput
     >();
 
     expect(() => {
       worker.port.postMessage({
-        type: "InitEvolu",
+        type: "CreateEvolu",
         name: testName,
-        port1: evoluChannel.port1.native,
-        port2: leaderChannel.port1.native,
+        evoluPort: evoluChannel.port1.native,
+        dbWorkerPort: dbWorkerChannel.port1.native,
       });
     }).not.toThrow();
   });
 
-  test("forwards DbWorker console entries from leader channel", async () => {
+  test("forwards DbWorker console entries from db worker channel", async () => {
     const { worker, workerStack } = await setupWorker();
     await using _workerStack = workerStack;
 
@@ -296,16 +295,16 @@ describe("initSharedWorker", () => {
     });
 
     const evoluChannel = testCreateMessageChannel<never, EvoluInput>();
-    const leaderChannel = testCreateMessageChannel<
-      DbWorkerLeaderInput,
-      DbWorkerLeaderOutput
+    const dbWorkerChannel = testCreateMessageChannel<
+      DbWorkerInput,
+      DbWorkerOutput
     >();
 
     worker.port.postMessage({
-      type: "InitEvolu",
+      type: "CreateEvolu",
       name: testName,
-      port1: evoluChannel.port1.native,
-      port2: leaderChannel.port1.native,
+      evoluPort: evoluChannel.port1.native,
+      dbWorkerPort: dbWorkerChannel.port1.native,
     });
 
     const entry: ConsoleEntry = {
@@ -314,30 +313,30 @@ describe("initSharedWorker", () => {
       args: ["initializeDb", { name: testName }],
     };
 
-    leaderChannel.port2.postMessage({ type: "ConsoleEntry", entry });
+    dbWorkerChannel.port2.postMessage({ type: "OnConsoleEntry", entry });
 
-    expect(receivedOutputs).toContainEqual({ type: "ConsoleEntry", entry });
+    expect(receivedOutputs).toContainEqual({ type: "OnConsoleEntry", entry });
   });
 
-  test("accepts LeaderAcquired events from leader channel", async () => {
+  test("accepts LeaderAcquired events from db worker channel", async () => {
     const { worker, workerStack } = await setupWorker();
     await using _workerStack = workerStack;
 
     const evoluChannel = testCreateMessageChannel<never, EvoluInput>();
-    const leaderChannel = testCreateMessageChannel<
-      DbWorkerLeaderInput,
-      DbWorkerLeaderOutput
+    const dbWorkerChannel = testCreateMessageChannel<
+      DbWorkerInput,
+      DbWorkerOutput
     >();
 
     worker.port.postMessage({
-      type: "InitEvolu",
+      type: "CreateEvolu",
       name: testName,
-      port1: evoluChannel.port1.native,
-      port2: leaderChannel.port1.native,
+      evoluPort: evoluChannel.port1.native,
+      dbWorkerPort: dbWorkerChannel.port1.native,
     });
 
     expect(() => {
-      leaderChannel.port2.postMessage({
+      dbWorkerChannel.port2.postMessage({
         type: "LeaderAcquired",
         name: testName,
       });
@@ -349,16 +348,16 @@ describe("initSharedWorker", () => {
     await using _workerStack = workerStack;
 
     const evoluChannel = testCreateMessageChannel<never, EvoluInput>();
-    const leaderChannel = testCreateMessageChannel<
-      DbWorkerLeaderInput,
-      DbWorkerLeaderOutput
+    const dbWorkerChannel = testCreateMessageChannel<
+      DbWorkerInput,
+      DbWorkerOutput
     >();
 
     worker.port.postMessage({
-      type: "InitEvolu",
+      type: "CreateEvolu",
       name: testName,
-      port1: evoluChannel.port1.native,
-      port2: leaderChannel.port1.native,
+      evoluPort: evoluChannel.port1.native,
+      dbWorkerPort: dbWorkerChannel.port1.native,
     });
 
     expect(() => {
@@ -371,25 +370,25 @@ describe("initSharedWorker", () => {
     }).not.toThrow();
   });
 
-  test("throws for unknown leader channel message type", async () => {
+  test("throws for unknown db worker channel message type", async () => {
     const { worker, workerStack } = await setupWorker();
     await using _workerStack = workerStack;
 
     const evoluChannel = testCreateMessageChannel<never, EvoluInput>();
-    const leaderChannel = testCreateMessageChannel<
-      DbWorkerLeaderInput,
-      DbWorkerLeaderOutput
+    const dbWorkerChannel = testCreateMessageChannel<
+      DbWorkerInput,
+      DbWorkerOutput
     >();
 
     worker.port.postMessage({
-      type: "InitEvolu",
+      type: "CreateEvolu",
       name: testName,
-      port1: evoluChannel.port1.native,
-      port2: leaderChannel.port1.native,
+      evoluPort: evoluChannel.port1.native,
+      dbWorkerPort: dbWorkerChannel.port1.native,
     });
 
     expect(() => {
-      leaderChannel.port2.postMessage({ type: "Unknown" } as never);
+      dbWorkerChannel.port2.postMessage({ type: "Unknown" } as never);
     }).toThrow();
   });
 

@@ -1,34 +1,45 @@
-import { describe, expect, test, vi } from "vitest";
-// Force rebuild
+import { describe, expect, expectTypeOf, test } from "vitest";
+import type { Brand } from "../../src/Brand.js";
+import type { ConsoleEntry, TestConsole } from "../../src/Console.js";
 import { testCreateConsole } from "../../src/Console.js";
-import { createUnknownError } from "../../src/Error.js";
 import { lazyVoid } from "../../src/Function.js";
 import type {
-  DbWorkerInput,
-  DbWorkerLeaderInput,
-  DbWorkerLeaderOutput,
-  DbWorkerOutput,
-} from "../../src/local-first/DbWorkerProtocol.js";
+  CreateDbWorker,
+  DbWorker,
+  DbWorkerInit,
+} from "../../src/local-first/Db.js";
 import {
   AppName,
   createEvolu,
   createEvoluDeps,
+  testAppName,
 } from "../../src/local-first/Evolu.js";
-import type { AppOwner } from "../../src/local-first/Owner.js";
-import { createQueryBuilder } from "../../src/local-first/Schema.js";
-import type { EvoluTabOutput } from "../../src/local-first/Worker.js";
+import type {
+  EvoluInput,
+  EvoluOutput,
+  EvoluTabOutput,
+  SharedWorker,
+  SharedWorkerInput,
+} from "../../src/local-first/Shared.js";
+import { err, ok } from "../../src/Result.js";
 import { SqliteBoolean } from "../../src/Sqlite.js";
 import { testCreateRun } from "../../src/Test.js";
 import {
+  createIdFromString,
   id,
   NonEmptyString100,
   nullOr,
-  type SimpleName,
 } from "../../src/Type.js";
-import { testSimpleName } from "../_deps.js";
+import {
+  testCreateMessageChannel,
+  testCreateMessagePort,
+  testCreateSharedWorker,
+  testCreateWorker,
+} from "../../src/Worker.js";
 import { testAppOwner } from "./_fixtures.js";
 
 const TodoId = id("Todo");
+type TodoId = typeof TodoId.Type;
 
 const Schema = {
   todo: {
@@ -38,480 +49,599 @@ const Schema = {
   },
 };
 
-const _createEvoluRun = () => testCreateRun({ reloadApp: lazyVoid });
-
-type MockPort<Input, Output> = {
-  readonly postMessage: (message: Input) => void;
-  onMessage: ((message: Output) => void) | null;
-  readonly native: unknown;
-  readonly [Symbol.dispose]: () => void;
+const testCreateDbWorker: CreateDbWorker = () => {
+  const { worker } = testCreateWorker<DbWorkerInit>();
+  return worker as DbWorker;
 };
 
-const createMockMessageChannel = <Input, Output>() => {
-  let port1OnMessage: ((message: Output) => void) | null = null;
-  let port2OnMessage: ((message: Input) => void) | null = null;
-
-  const port1: MockPort<Input, Output> = {
-    postMessage: (message) => {
-      port2OnMessage?.(message);
-    },
-    get onMessage() {
-      return port1OnMessage;
-    },
-    set onMessage(handler) {
-      port1OnMessage = handler;
-    },
-    native: null,
-    [Symbol.dispose]: () => {
-      port1OnMessage = null;
-    },
-  };
-
-  const port2: MockPort<Output, Input> = {
-    postMessage: (message) => {
-      port1OnMessage?.(message);
-    },
-    get onMessage() {
-      return port2OnMessage;
-    },
-    set onMessage(handler) {
-      port2OnMessage = handler;
-    },
-    native: null,
-    [Symbol.dispose]: () => {
-      port2OnMessage = null;
-    },
-  };
-
-  (port1 as { native: unknown }).native = port1;
-  (port2 as { native: unknown }).native = port2;
-
-  return {
-    port1,
-    port2,
-    [Symbol.dispose]: () => {
-      port1[Symbol.dispose]();
-      port2[Symbol.dispose]();
-    },
-  };
-};
-
-const createMockDeps = (options?: {
-  readonly mutateResponseDelayMs?: number;
-}) => {
-  const rows = new Map<string, { id: string; title: string }>();
-  let persistedAppOwner: AppOwner | null = null;
-  let reloadCount = 0;
-  let resetCount = 0;
-  let mutateCount = 0;
-  let closeCount = 0;
-  let inFlightMutates = 0;
-  let maxInFlightMutates = 0;
-  let tabPort: MockPort<EvoluTabOutput, never> | null = null;
-  const brokerInputs: Array<DbWorkerLeaderInput> = [];
-
-  const deps = {
-    reloadApp: () => {
-      reloadCount += 1;
-    },
-    createMessageChannel: createMockMessageChannel,
-    evoluWorker: {
-      port: {
-        postMessage: (
-          message:
-            | { type: "InitTab"; consoleLevel: string; port: unknown }
-            | {
-                type: "InitEvolu";
-                name: SimpleName;
-                port1: unknown;
-                port2: unknown;
-              },
-          _transfer?: ReadonlyArray<unknown>,
-        ) => {
-          if (message.type === "InitTab") {
-            tabPort = message.port as MockPort<EvoluTabOutput, never>;
-            return;
-          }
-
-          if (message.type !== "InitEvolu") return;
-          const dbPort = message.port1 as MockPort<
-            DbWorkerOutput,
-            DbWorkerInput
-          >;
-          const brokerPort = message.port2 as MockPort<
-            DbWorkerLeaderOutput,
-            DbWorkerLeaderInput
-          >;
-
-          brokerPort.onMessage = (brokerInput) => {
-            brokerInputs.push(brokerInput);
-          };
-
-          dbPort.onMessage = (dbMessage) => {
-            switch (dbMessage.type) {
-              case "DbWorkerInit": {
-                dbPort.postMessage({
-                  type: "DbWorkerInitResponse",
-                  success: true,
-                });
-                break;
-              }
-              case "DbWorkerGetAppOwner": {
-                dbPort.postMessage({
-                  type: "DbWorkerAppOwner",
-                  appOwner: persistedAppOwner,
-                });
-                break;
-              }
-              case "DbWorkerQuery": {
-                dbPort.postMessage({
-                  type: "DbWorkerQueryResponse",
-                  requestId: dbMessage.requestId,
-                  rows: [...rows.values()],
-                });
-                break;
-              }
-              case "DbWorkerMutate": {
-                mutateCount += 1;
-                inFlightMutates += 1;
-                maxInFlightMutates = Math.max(
-                  maxInFlightMutates,
-                  inFlightMutates,
-                );
-
-                const respond = () => {
-                  if (
-                    dbMessage.sql?.includes("__evolu_meta") &&
-                    dbMessage.params?.length === 1
-                  ) {
-                    const appOwnerFromDb = dbMessage.params[0];
-                    if (typeof appOwnerFromDb === "string") {
-                      persistedAppOwner = JSON.parse(
-                        appOwnerFromDb,
-                      ) as AppOwner;
-                    }
-                  }
-
-                  if (
-                    dbMessage.sql?.includes(`"title"`) &&
-                    dbMessage.params?.length === 3
-                  ) {
-                    const [, id, title] = dbMessage.params;
-                    rows.set(String(id), {
-                      id: String(id),
-                      title: String(title),
-                    });
-                  }
-
-                  if (
-                    dbMessage.sql?.startsWith("delete from") &&
-                    dbMessage.params?.length === 2
-                  ) {
-                    const [, id] = dbMessage.params;
-                    rows.delete(String(id));
-                  }
-
-                  dbPort.postMessage({
-                    type: "DbWorkerMutateResponse",
-                    requestId: dbMessage.requestId,
-                    changes: 1,
-                  });
-                  inFlightMutates -= 1;
-                };
-
-                const mutateResponseDelayMs =
-                  options?.mutateResponseDelayMs ?? 0;
-                if (mutateResponseDelayMs > 0) {
-                  globalThis.setTimeout(respond, mutateResponseDelayMs);
-                } else {
-                  respond();
-                }
-                break;
-              }
-              case "DbWorkerExport": {
-                dbPort.postMessage({
-                  type: "DbWorkerExportResponse",
-                  requestId: dbMessage.requestId,
-                  data: new Uint8Array([1, 2, 3]),
-                });
-                break;
-              }
-              case "DbWorkerReset": {
-                resetCount += 1;
-                rows.clear();
-                persistedAppOwner = null;
-                dbPort.postMessage({
-                  type: "DbWorkerResetResponse",
-                  requestId: dbMessage.requestId,
-                });
-                break;
-              }
-              case "DbWorkerClose": {
-                closeCount += 1;
-                dbPort.postMessage({
-                  type: "DbWorkerCloseResponse",
-                  requestId: dbMessage.requestId,
-                });
-                break;
-              }
-            }
-          };
-        },
-        onMessage: null,
-        native: {} as unknown,
-        [Symbol.dispose]: () => {},
-      },
-      [Symbol.dispose]: () => {},
-    },
-  };
-
-  return {
-    deps,
-    emitTabOutput: (output: EvoluTabOutput) => {
-      tabPort?.postMessage(output);
-    },
-    getState: () => ({
-      reloadCount,
-      resetCount,
-      mutateCount,
-      closeCount,
-      maxInFlightMutates,
-      hasTabPort: tabPort !== null,
-      brokerInputs: [...brokerInputs],
-      rows: [...rows],
-    }),
-  };
-};
-
-test("createEvoluDeps returns deps unchanged", () => {
-  const { deps } = createMockDeps();
-  expect(createEvoluDeps(deps as any)).toEqual(expect.objectContaining(deps));
-});
-
-test("createEvoluDeps keeps provided console instance", () => {
-  const { deps } = createMockDeps();
-  const console = testCreateConsole();
-  const evoluDeps = createEvoluDeps({ ...deps, console } as any);
-  expect(evoluDeps.console).toBe(console);
-});
-
-test("createEvoluDeps updates evoluError store from tab output", () => {
-  const { deps, emitTabOutput, getState } = createMockDeps();
-  const evoluDeps = createEvoluDeps(deps as any);
-
-  expect(getState().hasTabPort).toBe(true);
-
-  const error = createUnknownError(new Error("tab-boom"));
-  emitTabOutput({ type: "EvoluError", error });
-
-  expect(evoluDeps.evoluError.get()).toEqual(error);
-});
-
-test("createEvoluDeps wraps console error entry into UnknownError", () => {
-  const { deps, emitTabOutput } = createMockDeps();
-  const evoluDeps = createEvoluDeps(deps as any);
-
-  emitTabOutput({
-    type: "ConsoleEntry",
-    entry: {
-      method: "error",
-      path: ["mock-worker"],
-      args: ["boom"],
-    },
+const createEvoluRun = (
+  worker: SharedWorker = testCreateSharedWorker<SharedWorkerInput>().worker,
+) =>
+  testCreateRun({
+    console: testCreateConsole(),
+    createDbWorker: testCreateDbWorker,
+    createMessageChannel: testCreateMessageChannel,
+    reloadApp: lazyVoid,
+    sharedWorker: worker,
   });
 
-  expect(evoluDeps.evoluError.get()).toEqual(
-    createUnknownError([
-      "Worker console.error without typed EvoluError payload",
-      { argCount: 1, argKinds: ["string(4)"] },
-    ]),
+const setupCreateEvolu = async () => {
+  const { worker, self, connect } = testCreateSharedWorker<SharedWorkerInput>();
+  const evoluInputs: Array<EvoluInput> = [];
+
+  self.onConnect = (port) => {
+    port.onMessage = (message) => {
+      if (message.type !== "CreateEvolu") return;
+      const evoluPort = testCreateMessagePort<EvoluOutput, EvoluInput>(
+        message.evoluPort,
+      );
+      evoluPort.onMessage = (input) => {
+        evoluInputs.push(input);
+      };
+    };
+  };
+  connect();
+
+  const run = createEvoluRun(worker);
+
+  const result = await run(
+    createEvolu(Schema, { appName: testAppName, appOwner: testAppOwner }),
   );
+
+  return { run, result, evoluInputs };
+};
+
+test("AppName", () => {
+  expect(AppName.from("my-app")).toEqual(ok("my-app"));
+  expect(AppName.from("")).toEqual(
+    err({
+      type: "Regex",
+      name: "UrlSafeString",
+      pattern: /^[A-Za-z0-9_-]+$/,
+      value: "",
+    }),
+  );
+  expect(AppName.from("a".repeat(41))).toEqual(ok("a".repeat(41)));
+  expect(AppName.from("a".repeat(42))).toEqual(
+    err({
+      type: "AppName",
+      value: "a".repeat(42),
+    }),
+  );
+
+  const appName = AppName.orThrow("my-app");
+  expectTypeOf(appName).toExtend<string & Brand<"AppName">>();
+  expectTypeOf(AppName.Input).toEqualTypeOf<string>();
+  expectTypeOf(AppName.Parent).toEqualTypeOf<string & Brand<"UrlSafeString">>();
 });
 
-test("createEvoluDeps sends leader heartbeats and stops after dispose", async () => {
-  vi.useFakeTimers();
-  try {
-    const { deps, getState } = createMockDeps();
-    const evoluDeps = createEvoluDeps(deps as any);
-    const evolu = createEvolu(evoluDeps)(Schema, { name: testSimpleName });
+describe("createEvoluDeps", () => {
+  const setupAndCall = (console?: TestConsole) => {
+    const { worker, self, connect } =
+      testCreateSharedWorker<SharedWorkerInput>();
+    const messages: Array<SharedWorkerInput> = [];
+    self.onConnect = (port) => {
+      port.onMessage = (message) => messages.push(message);
+    };
+    connect();
 
-    await evolu.appOwner;
-    expect(getState().brokerInputs).toContainEqual({
-      type: "LeaderHeartbeat",
-      name: testSimpleName,
+    createEvoluDeps({
+      createDbWorker: testCreateDbWorker,
+      createMessageChannel: testCreateMessageChannel,
+      sharedWorker: worker,
+      reloadApp: lazyVoid,
+      ...(console && { console }),
     });
 
-    await vi.advanceTimersByTimeAsync(10_200);
-    const heartbeatCountBeforeDispose = getState().brokerInputs.length;
-    expect(heartbeatCountBeforeDispose).toBeGreaterThanOrEqual(3);
+    return { messages };
+  };
 
-    await evolu[Symbol.asyncDispose]();
-    await vi.advanceTimersByTimeAsync(10_200);
-    expect(getState().brokerInputs).toHaveLength(heartbeatCountBeforeDispose);
-  } finally {
-    vi.useRealTimers();
-  }
+  test("posts InitTab with port to worker", () => {
+    const { messages } = setupAndCall(testCreateConsole());
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0].type).toBe("InitTab");
+  });
+
+  test("falls back to default console when not provided", () => {
+    const { messages } = setupAndCall();
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0].type).toBe("InitTab");
+  });
+
+  const setupDepsWithPort = () => {
+    const { worker, self, connect } =
+      testCreateSharedWorker<SharedWorkerInput>();
+    const messages: Array<SharedWorkerInput> = [];
+    self.onConnect = (port) => {
+      port.onMessage = (message) => messages.push(message);
+    };
+    connect();
+
+    const deps = createEvoluDeps({
+      createDbWorker: testCreateDbWorker,
+      createMessageChannel: testCreateMessageChannel,
+      sharedWorker: worker,
+      reloadApp: lazyVoid,
+    });
+
+    const initTab = messages[0] as Extract<
+      SharedWorkerInput,
+      { readonly type: "InitTab" }
+    >;
+    const workerPort = testCreateMessagePort<EvoluTabOutput>(initTab.port);
+
+    return { deps, workerPort };
+  };
+
+  test("wires console channel to console.write", () => {
+    const console = testCreateConsole();
+    const { messages } = setupAndCall(console);
+
+    const initConsole = messages[0] as Extract<
+      SharedWorkerInput,
+      { readonly type: "InitTab" }
+    >;
+    const workerPort = testCreateMessagePort<EvoluTabOutput>(initConsole.port);
+
+    const entry: ConsoleEntry = {
+      method: "info",
+      path: ["test"],
+      args: ["hello"],
+    };
+    workerPort.postMessage({ type: "OnConsoleEntry", entry });
+
+    expect(console.getEntriesSnapshot()).toEqual([entry]);
+  });
+
+  test("maps ConsoleEntry error output to deps.evoluError store", () => {
+    const { deps, workerPort } = setupDepsWithPort();
+
+    const entry: ConsoleEntry = {
+      method: "error",
+      path: ["global"],
+      args: ["error", { type: "UnknownError", error: "boom" }],
+    };
+
+    workerPort.postMessage({ type: "OnConsoleEntry", entry });
+
+    expect(deps.evoluError.get()).toEqual({
+      type: "UnknownError",
+      error: ["error", { type: "UnknownError", error: "boom" }],
+    });
+  });
+
+  test("wraps single-arg ConsoleEntry error output to UnknownError", () => {
+    const { deps, workerPort } = setupDepsWithPort();
+
+    workerPort.postMessage({
+      type: "OnConsoleEntry",
+      entry: { method: "error", path: ["global"], args: ["boom"] },
+    });
+
+    expect(deps.evoluError.get()).toEqual({
+      type: "UnknownError",
+      error: ["boom"],
+    });
+  });
+
+  test("wraps multi-arg ConsoleEntry error output to UnknownError", () => {
+    const { deps, workerPort } = setupDepsWithPort();
+
+    workerPort.postMessage({
+      type: "OnConsoleEntry",
+      entry: { method: "error", path: ["global"], args: ["error", "boom"] },
+    });
+
+    expect(deps.evoluError.get()).toEqual({
+      type: "UnknownError",
+      error: ["error", "boom"],
+    });
+  });
+
+  test("wires EvoluError output to deps.evoluError store", () => {
+    const { deps, workerPort } = setupDepsWithPort();
+
+    const error = { type: "UnknownError", error: "boom" } as const;
+    workerPort.postMessage({ type: "OnError", error });
+
+    expect(deps.evoluError.get()).toEqual(error);
+  });
+
+  test("throws for unknown tab output type", () => {
+    const { workerPort } = setupDepsWithPort();
+
+    expect(() => {
+      workerPort.postMessage({ type: "Unknown" } as never);
+    }).toThrow();
+  });
+
+  test("dispose cleans up resources", () => {
+    const { worker, self, connect } =
+      testCreateSharedWorker<SharedWorkerInput>();
+    self.onConnect = (port) => {
+      port.onMessage = lazyVoid;
+    };
+    connect();
+
+    const channels: Array<{ readonly isDisposed: () => boolean }> = [];
+    let workerDisposed = false;
+    const sharedWorker: SharedWorker = {
+      port: worker.port,
+      [Symbol.dispose]: () => {
+        workerDisposed = true;
+        worker[Symbol.dispose]();
+      },
+    };
+
+    const deps = createEvoluDeps({
+      createDbWorker: testCreateDbWorker,
+      createMessageChannel: <Input, Output = never>() => {
+        const channel = testCreateMessageChannel<Input, Output>();
+        channels.push(channel);
+        return channel;
+      },
+      sharedWorker,
+      reloadApp: lazyVoid,
+    });
+
+    expect(channels[0].isDisposed()).toBe(false);
+    expect(workerDisposed).toBe(false);
+    deps[Symbol.dispose]();
+    expect(channels[0].isDisposed()).toBe(true);
+    expect(workerDisposed).toBe(true);
+  });
 });
 
 describe("createEvolu", () => {
+  test("initializes db worker with resolved name", async () => {
+    const dbWorkerMessages: Array<DbWorkerInit> = [];
+
+    const createDbWorker: CreateDbWorker = () => {
+      const { worker, self } = testCreateWorker<DbWorkerInit>();
+      self.onMessage = (message) => {
+        dbWorkerMessages.push(message);
+      };
+      return worker as DbWorker;
+    };
+
+    await using run = testCreateRun({
+      console: testCreateConsole(),
+      createDbWorker,
+      createMessageChannel: testCreateMessageChannel,
+      reloadApp: lazyVoid,
+      sharedWorker: testCreateSharedWorker<SharedWorkerInput>().worker,
+    });
+
+    const result = await run(
+      createEvolu(Schema, { appName: testAppName, appOwner: testAppOwner }),
+    );
+    if (!result.ok) return;
+
+    expect(dbWorkerMessages).toHaveLength(1);
+    expect(dbWorkerMessages[0]).toEqual(
+      expect.objectContaining({
+        type: "Init",
+        name: result.value.name,
+      }),
+    );
+  });
+
+  test("resolves name from appName and appOwner hash", async () => {
+    await using run = createEvoluRun();
+
+    const result = await run(
+      createEvolu(Schema, { appName: testAppName, appOwner: testAppOwner }),
+    );
+    const expectedSuffix = createIdFromString(testAppOwner.id);
+    expect(result.ok && result.value.name).toBe(`AppName-${expectedSuffix}`);
+  });
+
   test("appOwner from config is exposed as evolu.appOwner", async () => {
-    const { deps } = createMockDeps();
-    const evoluDeps = createEvoluDeps(deps as any);
-    const createQuery = createQueryBuilder(Schema);
-    const allTodos = createQuery((db) =>
-      db.selectFrom("todo").select(["id", "title"]),
+    await using run = createEvoluRun();
+
+    const result = await run(
+      createEvolu(Schema, { appName: testAppName, appOwner: testAppOwner }),
     );
 
-    const evolu = createEvolu(evoluDeps)(Schema, {
-      name: testSimpleName,
-      appOwner: testAppOwner,
-    });
-
-    const appOwner = await evolu.appOwner;
-    const rows = await evolu.loadQuery(allTodos);
-
-    expect(appOwner).toBe(testAppOwner);
-    expect(rows).toEqual([]);
+    expect(result.ok && result.value.appOwner).toBe(testAppOwner);
   });
 
-  test("appName compatibility alias works when name is omitted", async () => {
-    const { deps } = createMockDeps();
-    const evoluDeps = createEvoluDeps(deps as any);
-    const appName = AppName.orThrow("compat-app");
-    const evolu = createEvolu(evoluDeps)(Schema, {
-      appName,
-      appOwner: testAppOwner,
-    });
+  test("appOwner is created when omitted from config", async () => {
+    await using run = createEvoluRun();
 
-    await evolu.appOwner;
+    const result = await run(createEvolu(Schema, { appName: testAppName }));
 
-    expect(evolu.name).toBe(appName);
+    expect(result.ok && result.value.appOwner).toMatchInlineSnapshot(`
+      {
+        "encryptionKey": uint8:[50,42,177,193,76,197,92,240,100,30,92,209,205,42,108,45,195,37,118,158,238,206,161,144,11,241,190,167,14,254,186,53],
+        "id": "t_xEbmXuICrgDm3Ob0_afw",
+        "mnemonic": "old jungle over boy ankle suggest service source civil insane end silver polar swap flight diagram keep fix gauge social wink subway bronze leader",
+        "type": "AppOwner",
+        "writeKey": uint8:[129,228,239,103,127,237,0,59,174,241,77,12,26,180,213,14],
+      }
+    `);
   });
 
-  test("db worker flow handles mutate, query, export, and reset", async () => {
-    const { deps, getState } = createMockDeps();
-    const evoluDeps = createEvoluDeps(deps as any);
-    const evolu = createEvolu(evoluDeps)(Schema, { name: testSimpleName });
-    const createQuery = createQueryBuilder(Schema);
-    const allTodos = createQuery((db) =>
-      db.selectFrom("todo").select(["id", "title"]),
-    );
+  test("asyncDispose disposes Evolu resources", async () => {
+    await using run = createEvoluRun();
 
-    await evolu.appOwner;
-    const insertResult = evolu.insert("todo", {
-      title: NonEmptyString100.orThrow("Task A"),
-    });
-    expect(insertResult.id).toBeTruthy();
+    const result = await run(createEvolu(Schema, { appName: testAppName }));
 
-    // Wait until microtask-driven mutation queue is processed.
-    await Promise.resolve();
-    await Promise.resolve();
-
-    const rowsAfterInsert = await evolu.loadQuery(allTodos);
-    expect(rowsAfterInsert).toHaveLength(1);
-    expect(rowsAfterInsert[0]?.id).toBe(insertResult.id);
-    expect(String(rowsAfterInsert[0]?.title)).toBe("Task A");
-
-    const exported = await evolu.exportDatabase();
-    expect(exported).toEqual(new Uint8Array([1, 2, 3]));
-
-    await evolu.resetAppOwner({ reload: false });
-    const rowsAfterReset = await evolu.loadQuery(allTodos);
-    expect(rowsAfterReset).toEqual([]);
-
-    await evolu.resetAppOwner();
-    const state = getState();
-    expect(state.resetCount).toBeGreaterThanOrEqual(2);
-    expect(state.reloadCount).toBe(1);
-    expect(state.mutateCount).toBeGreaterThan(0);
+    if (!result.ok) return;
+    await result.value[Symbol.asyncDispose]();
   });
+});
 
-  test("resetAppOwner without reload rotates appOwner", async () => {
-    const { deps } = createMockDeps();
-    const evoluDeps = createEvoluDeps(deps as any);
-    const evolu = createEvolu(evoluDeps)(Schema, { name: testSimpleName });
+describe("mutations", () => {
+  test("insert posts mutate with generated id and stripped values", async () => {
+    const { run, result, evoluInputs } = await setupCreateEvolu();
+    await using _run = run;
 
-    const previousAppOwner = await evolu.appOwner;
-    await evolu.resetAppOwner({ reload: false });
-    const nextAppOwner = await evolu.appOwner;
+    if (!result.ok) return;
 
-    expect(nextAppOwner.id).not.toBe(previousAppOwner.id);
-  });
-
-  test("restoreAppOwner uses mnemonic-derived appOwner", async () => {
-    const { deps } = createMockDeps();
-    const evoluDeps = createEvoluDeps(deps as any);
-    const evolu = createEvolu(evoluDeps)(Schema, { name: testSimpleName });
-
-    await evolu.appOwner;
-    if (!testAppOwner.mnemonic) throw new Error("Missing test mnemonic");
-    await evolu.restoreAppOwner(testAppOwner.mnemonic, { reload: false });
-
-    await expect(evolu.appOwner).resolves.toEqual(testAppOwner);
-  });
-
-  test("db worker flow supports dispose and re-init roundtrip", async () => {
-    const { deps, getState } = createMockDeps();
-    const evoluDeps = createEvoluDeps(deps as any);
-    const createQuery = createQueryBuilder(Schema);
-    const allTodos = createQuery((db) =>
-      db.selectFrom("todo").select(["id", "title"]),
-    );
-
-    const evolu1 = createEvolu(evoluDeps)(Schema, { name: testSimpleName });
-    await evolu1.appOwner;
-    const insertResult = evolu1.insert("todo", {
-      title: NonEmptyString100.orThrow("Task Persist"),
+    result.value.insert("todo", {
+      title: NonEmptyString100.orThrow("Todo 1"),
     });
 
     await Promise.resolve();
-    await Promise.resolve();
 
-    const rowsBeforeDispose = await evolu1.loadQuery(allTodos);
-    expect(rowsBeforeDispose.some((row) => row.id === insertResult.id)).toBe(
-      true,
+    expect(evoluInputs).toMatchInlineSnapshot(
+      [
+        {
+          changes: [
+            {
+              id: expect.any(String),
+            },
+          ],
+        },
+      ],
+      `
+      [
+        {
+          "changes": [
+            {
+              "id": Any<String>,
+              "isDelete": null,
+              "isInsert": true,
+              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "table": "todo",
+              "values": {
+                "title": "Todo 1",
+              },
+            },
+          ],
+          "onCompleteIds": [],
+          "subscribedQueries": [],
+          "type": "Mutate",
+        },
+      ]
+      `,
     );
-
-    await evolu1[Symbol.asyncDispose]();
-
-    const evolu2 = createEvolu(evoluDeps)(Schema, { name: testSimpleName });
-    await evolu2.appOwner;
-
-    const rowsAfterReinit = await evolu2.loadQuery(allTodos);
-    expect(rowsAfterReinit.some((row) => row.id === insertResult.id)).toBe(
-      true,
-    );
-
-    await evolu2[Symbol.asyncDispose]();
-
-    const state = getState();
-    expect(state.closeCount).toBeGreaterThanOrEqual(2);
   });
 
-  test("mutation queue stays serialized across microtasks", async () => {
-    const { deps, getState } = createMockDeps({ mutateResponseDelayMs: 10 });
-    const evoluDeps = createEvoluDeps(deps as any);
-    const evolu = createEvolu(evoluDeps)(Schema, { name: testSimpleName });
-    const createQuery = createQueryBuilder(Schema);
-    const allTodos = createQuery((db) =>
-      db.selectFrom("todo").select(["id", "title"]),
-    );
+  test("update and upsert preserve passed id and set isInsert correctly", async () => {
+    const { run, result, evoluInputs } = await setupCreateEvolu();
+    await using _run = run;
 
-    await evolu.appOwner;
+    if (!result.ok) return;
 
-    evolu.insert("todo", { title: NonEmptyString100.orThrow("A") });
-    await Promise.resolve();
-    evolu.insert("todo", { title: NonEmptyString100.orThrow("B") });
+    const updateId = TodoId.orThrow(createIdFromString("todo-update"));
+    const upsertId = TodoId.orThrow(createIdFromString("todo-upsert"));
 
-    await new Promise((resolve) => {
-      globalThis.setTimeout(resolve, 200);
+    result.value.update("todo", {
+      id: updateId,
+      title: NonEmptyString100.orThrow("Updated"),
+      isDeleted: 1,
     });
 
-    const rows = await evolu.loadQuery(allTodos);
-    const state = getState();
+    result.value.upsert("todo", {
+      id: upsertId,
+      title: NonEmptyString100.orThrow("Upserted"),
+    });
 
-    expect(rows).toHaveLength(2);
-    expect(state.maxInFlightMutates).toBe(1);
+    await Promise.resolve();
+
+    expect(evoluInputs).toMatchInlineSnapshot(
+      [
+        {
+          changes: [
+            {
+              id: updateId,
+            },
+            {
+              id: upsertId,
+            },
+          ],
+        },
+      ],
+      `
+      [
+        {
+          "changes": [
+            {
+              "id": "VPIPiOGb2m2OlsM-pg18CA",
+              "isDelete": true,
+              "isInsert": false,
+              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "table": "todo",
+              "values": {
+                "title": "Updated",
+              },
+            },
+            {
+              "id": "j4rh6UkYDIqXKLCOX4ru2A",
+              "isDelete": null,
+              "isInsert": true,
+              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "table": "todo",
+              "values": {
+                "title": "Upserted",
+              },
+            },
+          ],
+          "onCompleteIds": [],
+          "subscribedQueries": [],
+          "type": "Mutate",
+        },
+      ]
+      `,
+    );
+  });
+
+  test("coalesces insert, update, and upsert in one microtask", async () => {
+    const { run, result, evoluInputs } = await setupCreateEvolu();
+    await using _run = run;
+
+    if (!result.ok) return;
+
+    const updateId = TodoId.orThrow(createIdFromString("todo-batch-update"));
+    const upsertId = TodoId.orThrow(createIdFromString("todo-batch-upsert"));
+
+    result.value.insert("todo", { title: NonEmptyString100.orThrow("A") });
+    result.value.update("todo", {
+      id: updateId,
+      title: NonEmptyString100.orThrow("B"),
+    });
+    result.value.upsert("todo", {
+      id: upsertId,
+      title: NonEmptyString100.orThrow("C"),
+    });
+
+    await Promise.resolve();
+
+    expect(evoluInputs).toMatchInlineSnapshot(
+      [
+        {
+          changes: [
+            {
+              id: expect.any(String),
+            },
+            {
+              id: updateId,
+            },
+            {
+              id: upsertId,
+            },
+          ],
+        },
+      ],
+      `
+      [
+        {
+          "changes": [
+            {
+              "id": Any<String>,
+              "isDelete": null,
+              "isInsert": true,
+              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "table": "todo",
+              "values": {
+                "title": "A",
+              },
+            },
+            {
+              "id": "fOTG65tQ_ZYHpSBp3GbogA",
+              "isDelete": null,
+              "isInsert": false,
+              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "table": "todo",
+              "values": {
+                "title": "B",
+              },
+            },
+            {
+              "id": "3I1Sfwp5IxdacWcpAna5qg",
+              "isDelete": null,
+              "isInsert": true,
+              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "table": "todo",
+              "values": {
+                "title": "C",
+              },
+            },
+          ],
+          "onCompleteIds": [],
+          "subscribedQueries": [],
+          "type": "Mutate",
+        },
+      ]
+      `,
+    );
+  });
+
+  test("includes ownerId and onComplete callback ids", async () => {
+    const { run, result, evoluInputs } = await setupCreateEvolu();
+    await using _run = run;
+
+    if (!result.ok) return;
+
+    result.value.insert(
+      "todo",
+      { title: NonEmptyString100.orThrow("With callback") },
+      { ownerId: testAppOwner.id, onComplete: lazyVoid },
+    );
+
+    await Promise.resolve();
+
+    expect(evoluInputs).toMatchInlineSnapshot(
+      [
+        {
+          changes: [
+            {
+              id: expect.any(String),
+            },
+          ],
+          onCompleteIds: [expect.any(String)],
+        },
+      ],
+      `
+      [
+        {
+          "changes": [
+            {
+              "id": Any<String>,
+              "isDelete": null,
+              "isInsert": true,
+              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "table": "todo",
+              "values": {
+                "title": "With callback",
+              },
+            },
+          ],
+          "onCompleteIds": [
+            Any<String>,
+          ],
+          "subscribedQueries": [],
+          "type": "Mutate",
+        },
+      ]
+      `,
+    );
+  });
+
+  test("asyncDispose cancels pending mutation microtask", async () => {
+    const { run, result, evoluInputs } = await setupCreateEvolu();
+    await using _run = run;
+
+    if (!result.ok) return;
+
+    result.value.insert("todo", {
+      title: NonEmptyString100.orThrow("Queued then disposed"),
+    });
+
+    await result.value[Symbol.asyncDispose]();
+    await Promise.resolve();
+
+    expect(evoluInputs).toMatchInlineSnapshot(`
+      [
+        {
+          "type": "Dispose",
+        },
+      ]
+    `);
   });
 });
 
@@ -539,16 +669,15 @@ describe("createEvolu", () => {
 //   maxLength,
 //   NonEmptyString,
 //   nullOr,
-//   SimpleName,
+//   Name,
 // } from "../../src/Type.js";
 // import {
 //   testCreateDummyWebSocket,
 //   testCreateSqliteDriver,
 //   testRandom,
 //   testRandomBytes,
-//   testSimpleName,
+//   testName,
 //   testTime,
-// } from "../_deps.js";
 
 // const TodoId = id("Todo");
 // type TodoId = InferType<typeof TodoId>;
@@ -600,7 +729,7 @@ describe("createEvolu", () => {
 // let testInstanceCounter = 0;
 
 // const testCreateEvoluDeps = async () => {
-//   const instanceName = SimpleName.orThrow(`Test${testInstanceCounter++}`);
+//   const instanceName = Name.orThrow(`Test${testInstanceCounter++}`);
 //   // We eagerly create a SqliteDriver instance so we can use it for SQL tests.
 //   const sqliteDriver = await testCreateSqliteDriver(instanceName);
 //   const createSqliteDriver = () => Promise.resolve(sqliteDriver);
@@ -667,7 +796,7 @@ describe("createEvolu", () => {
 
 //     // @ts-expect-error - Schema validation should catch missing id column
 //     createEvolu(deps)(SchemaWithoutId, {
-//       name: testSimpleName,
+//       name: testName,
 //     });
 //   });
 
@@ -689,7 +818,7 @@ describe("createEvolu", () => {
 
 //     // @ts-expect-error - Schema validation should catch system column name
 //     createEvolu(deps)(SchemaWithDefaultColumn, {
-//       name: testSimpleName,
+//       name: testName,
 //     });
 //   });
 
@@ -711,7 +840,7 @@ describe("createEvolu", () => {
 
 //     // @ts-expect-error - Schema validation should catch system column name
 //     createEvolu(deps)(SchemaWithDefaultColumn, {
-//       name: testSimpleName,
+//       name: testName,
 //     });
 //   });
 
@@ -733,7 +862,7 @@ describe("createEvolu", () => {
 
 //     // @ts-expect-error - Schema validation should catch system column name
 //     createEvolu(deps)(SchemaWithDefaultColumn, {
-//       name: testSimpleName,
+//       name: testName,
 //     });
 //   });
 
@@ -755,7 +884,7 @@ describe("createEvolu", () => {
 
 //     // @ts-expect-error - Schema validation should catch system column name
 //     createEvolu(deps)(SchemaWithDefaultColumn, {
-//       name: testSimpleName,
+//       name: testName,
 //     });
 //   });
 
@@ -775,7 +904,7 @@ describe("createEvolu", () => {
 
 //     // @ts-expect-error - Schema validation should catch non-branded id column
 //     createEvolu(deps)(SchemaWithInvalidId, {
-//       name: testSimpleName,
+//       name: testName,
 //     });
 //   });
 
@@ -796,7 +925,7 @@ describe("createEvolu", () => {
 
 //     // @ts-expect-error - Schema validation should catch incompatible column type
 //     createEvolu(deps)(SchemaWithInvalidType, {
-//       name: testSimpleName,
+//       name: testName,
 //     });
 //   });
 // });
