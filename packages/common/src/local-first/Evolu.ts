@@ -47,7 +47,7 @@ import type {
   Row,
   RowsByQuery,
 } from "./Query.js";
-import { applyQueryPatches } from "./Query.js";
+import { applyQueryPatches, emptyRows } from "./Query.js";
 import type {
   EvoluSchema,
   IndexesConfig,
@@ -544,6 +544,83 @@ export const createEvolu =
       createDeferreds<Uint8Array<ArrayBuffer>>(run.deps),
     );
 
+    type LoadingQueryPromise = Promise<QueryRows> & {
+      status?: "pending" | "fulfilled" | "rejected";
+      value?: QueryRows;
+      reason?: unknown;
+    };
+
+    interface LoadingQueryState {
+      promise: LoadingQueryPromise;
+      resolve: (rows: QueryRows) => void;
+      releaseOnResolve: boolean;
+    }
+
+    const queryLoadingPromises = new Map<Query, LoadingQueryState>();
+
+    const getQueryLoadingPromise = <R extends Row>(
+      query: Query<R>,
+    ): {
+      readonly promise: Promise<QueryRows<R>>;
+      readonly isNew: boolean;
+    } => {
+      let loadingQuery = queryLoadingPromises.get(query);
+      const isNew = loadingQuery == null;
+
+      if (!loadingQuery) {
+        const { promise, resolve } = Promise.withResolvers<QueryRows>();
+        const loadingPromise = promise as LoadingQueryPromise;
+        void Object.assign(loadingPromise, { status: "pending" as const });
+        loadingQuery = {
+          promise: loadingPromise,
+          resolve,
+          releaseOnResolve: false,
+        };
+        queryLoadingPromises.set(query, loadingQuery);
+      }
+
+      return {
+        promise: loadingQuery.promise as Promise<QueryRows<R>>,
+        isNew,
+      };
+    };
+
+    const resolveQueryLoadingPromise = (
+      query: Query,
+      rows: QueryRows,
+    ): void => {
+      const loadingQuery = queryLoadingPromises.get(query);
+      if (!loadingQuery) return;
+
+      if (loadingQuery.promise.status !== "fulfilled") {
+        loadingQuery.resolve(rows);
+      } else {
+        loadingQuery.promise = Promise.resolve(rows) as LoadingQueryPromise;
+      }
+
+      // Set status/value for React use() synchronous unwrap semantics.
+      void Object.assign(loadingQuery.promise, {
+        status: "fulfilled" as const,
+        value: rows,
+      });
+
+      if (loadingQuery.releaseOnResolve) {
+        queryLoadingPromises.delete(query);
+      }
+    };
+
+    const releaseUnsubscribedLoadingQueriesOnMutation = (): void => {
+      for (const [query, loadingQuery] of queryLoadingPromises.entries()) {
+        if (subscribedQueriesRefCount.has(query)) continue;
+
+        if (loadingQuery.promise.status === "fulfilled") {
+          queryLoadingPromises.delete(query);
+        } else {
+          loadingQuery.releaseOnResolve = true;
+        }
+      }
+    };
+
     let postMessage: (input: EvoluInput) => void;
 
     // Wire SharedWorker and DbWorker.
@@ -591,6 +668,13 @@ export const createEvolu =
               message.queryPatches,
             );
 
+            for (const { query } of message.queryPatches) {
+              resolveQueryLoadingPromise(
+                query,
+                (nextRowsByQuery.get(query) ?? emptyRows) as QueryRows,
+              );
+            }
+
             if (run.deps.flushSync && message.onCompleteIds.length > 0) {
               run.deps.flushSync(() => {
                 rowsStore.set(nextRowsByQuery);
@@ -605,7 +689,11 @@ export const createEvolu =
             break;
           }
           case "RefreshQueries": {
-            const queries = subscribedQueriesRefCount.keys();
+            releaseUnsubscribedLoadingQueriesOnMutation();
+            const queries = new Set([
+              ...subscribedQueriesRefCount.keys(),
+              ...queryLoadingPromises.keys(),
+            ]);
             if (isNonEmptySet(queries)) postMessage({ type: "Query", queries });
             break;
           }
@@ -621,11 +709,22 @@ export const createEvolu =
       postMessage = evoluChannel.port1.postMessage;
     }
 
+    const queryBatch = stack.use(
+      createMicrotaskBatch<Query>((queries) => {
+        const dedupedQueries = new Set(queries);
+        if (isNonEmptySet(dedupedQueries)) {
+          postMessage({ type: "Query", queries: dedupedQueries });
+        }
+      }),
+    );
+
     const mutateBatch = stack.use(
       createMicrotaskBatch<{
         readonly change: MutationChange;
         readonly onComplete: (() => void) | undefined;
       }>((items) => {
+        releaseUnsubscribedLoadingQueriesOnMutation();
+
         postMessage({
           type: "Mutate",
           changes: mapArray(items, (item) => item.change),
@@ -673,6 +772,14 @@ export const createEvolu =
         return { id };
       };
 
+    const loadQuery = <R extends Row>(
+      query: Query<R>,
+    ): Promise<QueryRows<R>> => {
+      const { promise, isNew } = getQueryLoadingPromise(query);
+      if (isNew) queryBatch.push(query);
+      return promise;
+    };
+
     const moved = stack.move();
 
     return ok({
@@ -682,10 +789,30 @@ export const createEvolu =
       subscribeError: evoluErrorStore.subscribe,
       getError: evoluErrorStore.get,
 
-      loadQuery: todo,
-      loadQueries: todo,
-      subscribeQuery: todo,
-      getQueryRows: todo,
+      loadQuery,
+      loadQueries: <R extends Row, Q extends Queries<R>>(
+        queries: [...Q],
+      ): [...QueriesToQueryRowsPromises<Q>] =>
+        queries.map(loadQuery) as [...QueriesToQueryRowsPromises<Q>],
+      subscribeQuery: (query) => (listener) => {
+        subscribedQueriesRefCount.increment(query);
+
+        let previousRows: unknown = null;
+        const unsubscribeRowsStore = rowsStore.subscribe(() => {
+          const rows = (rowsStore.get().get(query) ?? emptyRows) as QueryRows;
+          if (rows === previousRows) return;
+          previousRows = rows;
+          listener();
+        });
+
+        return () => {
+          previousRows = null;
+          unsubscribeRowsStore();
+          subscribedQueriesRefCount.decrement(query);
+        };
+      },
+      getQueryRows: <R extends Row>(query: Query<R>): QueryRows<R> =>
+        (rowsStore.get().get(query) ?? emptyRows) as QueryRows<R>,
 
       insert: createMutation("insert"),
       update: createMutation("update"),
@@ -703,6 +830,15 @@ export const createEvolu =
       useOwner: todo,
 
       [Symbol.asyncDispose]: () => {
+        for (const [query, loadingQuery] of queryLoadingPromises.entries()) {
+          if (loadingQuery.promise.status === "fulfilled") continue;
+          resolveQueryLoadingPromise(
+            query,
+            (rowsStore.get().get(query) ?? emptyRows) as QueryRows,
+          );
+        }
+        queryLoadingPromises.clear();
+
         pendingExports.resolveAll(
           err({ type: "AbortError", reason: runnerClosingError }),
         );
