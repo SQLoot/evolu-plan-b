@@ -1,5 +1,5 @@
 /**
- * Platform-agnostic Worker and MessageChannel abstractions.
+ * Platform-agnostic Worker abstractions.
  *
  * @module
  */
@@ -10,10 +10,6 @@ import type { GlobalErrorScope } from "./Error.js";
 
 /**
  * Platform-agnostic Worker.
- *
- * Initialization errors (script load failures, syntax errors) bubble to global
- * error handlers — they're programming errors, not recoverable runtime
- * conditions.
  *
  * @see https://developer.mozilla.org/en-US/docs/Web/API/Worker
  */
@@ -26,10 +22,6 @@ export interface Worker<Input, Output = never>
  * A shared worker is shared across multiple clients (tabs, windows, iframes)
  * and provides a port for bidirectional communication with each client.
  *
- * Initialization errors (script load failures, syntax errors) bubble to global
- * error handlers — they're programming errors, not recoverable runtime
- * conditions.
- *
  * @see https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker
  */
 export interface SharedWorker<Input, Output = never> extends Disposable {
@@ -40,10 +32,6 @@ export interface SharedWorker<Input, Output = never> extends Disposable {
 /**
  * Platform-agnostic MessagePort.
  *
- * Message deserialization errors (structured clone failures) bubble to global
- * error handlers — they're programming errors, not recoverable runtime
- * conditions.
- *
  * Note: There is no reliable way to detect when a port is closed or
  * disconnected. Calling `postMessage` on a disposed port does not throw — it
  * silently fails. To detect dead ports, use a heartbeat pattern where the other
@@ -53,29 +41,41 @@ export interface SharedWorker<Input, Output = never> extends Disposable {
  * @see https://developer.mozilla.org/en-US/docs/Web/API/MessagePort
  */
 export interface MessagePort<Input, Output = never> extends Disposable {
-  /**
-   * Sends a message.
-   *
-   * Transferable objects in the optional transfer array will have their
-   * ownership transferred to the receiver, making them unusable in the sender.
-   * The transferable objects must be reachable from the message object.
-   */
   readonly postMessage: (
     message: Input,
     transfer?: ReadonlyArray<Transferable>,
   ) => void;
 
   /**
-   * Callback for messages from the port (like `onmessage` on MessagePort).
-   *
-   * @see https://developer.mozilla.org/en-US/docs/Web/API/MessagePort/message_event
+   * Handler for incoming messages. Messages are queued until this is assigned,
+   * matching native `MessagePort` behavior where setting `onmessage` implicitly
+   * calls `start()`. This enables safe async initialization — the sender can
+   * post messages immediately while the receiver sets up.
    */
   onMessage: ((message: Output) => void) | null;
 
-  /** The native underlying port. Use this only for transferring via postMessage. */
+  /**
+   * The native underlying port for transferring via `postMessage`.
+   *
+   * ### Example
+   *
+   * ```ts
+   * sharedWorker.port.postMessage(
+   *   { type: "InitConsole", port: consoleChannel.port1.native },
+   *   [consoleChannel.port1.native],
+   * );
+   * ```
+   */
   readonly native: NativeMessagePort<Input, Output>;
 }
 
+/**
+ * Objects whose ownership can be transferred between threads via `postMessage`.
+ *
+ * Intentionally scoped to types Evolu uses. The web platform defines additional
+ * transferable types (`ImageBitmap`, `OffscreenCanvas`, `ReadableStream`, etc.)
+ * that can be added here if needed.
+ */
 export type Transferable = NativeMessagePort<any, any> | ArrayBuffer;
 
 /**
@@ -109,47 +109,50 @@ export interface CreateMessagePortDep {
 export type WorkerDeps = ConsoleDep &
   ConsoleStoreOutputEntryDep &
   CreateMessagePortDep;
+
 /**
  * Platform-agnostic MessageChannel.
  *
- * A channel creates two entangled ports: keep one and transfer the other (e.g.,
- * to a SharedWorker via `postMessage` with `transfer`). Messages sent to one
- * port are received by the other.
+ * Creates two entangled ports: keep one and transfer the other (e.g., to a
+ * SharedWorker via `postMessage` with `transfer`). Messages sent to one port
+ * are received by the other.
+ *
+ * Messages are queued until `onMessage` is assigned, enabling safe async
+ * initialization. The sender can post messages immediately while the receiver
+ * performs async setup — no manual buffering required.
  *
  * For one-way communication, omit `Output` (defaults to `never`).
  *
  * ### Example
  *
- * One-way error channel: worker sends errors, main thread receives them.
- *
- * Main thread:
+ * Transfer a channel port to a SharedWorker for async initialization:
  *
  * ```ts
- * const errorChannel = createMessageChannel<UnknownError>();
- * const errorStore = createStore<UnknownError | null>(null);
+ * // Main thread: create channel, transfer port1, use port2 immediately.
+ * const channel = createMessageChannel<EvoluRequest, EvoluResponse>();
  *
  * sharedWorker.port.postMessage(
- *   { type: "InitErrorStore", port: errorChannel.port1.native },
- *   [errorChannel.port1.native], // transfer ownership to worker
+ *   { type: "CreateEvolu", port: channel.port1.native },
+ *   [channel.port1.native],
  * );
  *
- * errorChannel.port2.onMessage = (error) => {
- *   errorStore.set(error);
+ * // Safe to send immediately — messages queue until worker is ready.
+ * channel.port2.postMessage({ type: "Query", query });
+ * channel.port2.onMessage = (response) => {
+ *   handleResponse(response);
  * };
  * ```
  *
- * Inside worker:
- *
  * ```ts
- * scope.onError = (error) => {
- *   errorPort.postMessage(error);
+ * // Worker: receive the port, do async init, then start listening.
+ * const evoluPort = createMessagePort<EvoluResponse, EvoluRequest>(
+ *   message.port,
+ * );
+ * await openDatabase(name);
+ * evoluPort.onMessage = (request) => {
+ *   handleRequest(request);
  * };
- * ```
- *
- * Bidirectional channel (both sides send and receive):
- *
- * ```ts
- * const channel = createMessageChannel<Request, Response>();
+ * // Queued messages are now delivered in order.
  * ```
  *
  * @see https://developer.mozilla.org/en-US/docs/Web/API/MessageChannel
@@ -172,8 +175,6 @@ export interface CreateMessageChannelDep {
   readonly createMessageChannel: CreateMessageChannel;
 }
 
-// Worker-side types (for code running inside workers)
-
 /**
  * Typed `self` for code running inside a dedicated worker.
  *
@@ -184,6 +185,13 @@ export interface WorkerSelf<Input, Output = never>
   extends MessagePort<Output, Input> {}
 
 /**
+ * @deprecated Use {@link WorkerSelf}. Retained for backwards compatibility.
+ */
+export interface WorkerScope<Input, Output = never>
+  extends WorkerSelf<Input, Output>,
+    GlobalErrorScope {}
+
+/**
  * Typed `self` for code running inside a shared worker.
  *
  * This is the worker-side counterpart to {@link SharedWorker}. It wraps `self`
@@ -192,13 +200,6 @@ export interface WorkerSelf<Input, Output = never>
 export interface SharedWorkerSelf<Input, Output = never> extends Disposable {
   onConnect: ((port: MessagePort<Output, Input>) => void) | null;
 }
-
-/**
- * @deprecated Use {@link WorkerSelf}. Retained for backwards compatibility.
- */
-export interface WorkerScope<Input, Output = never>
-  extends WorkerSelf<Input, Output>,
-    GlobalErrorScope {}
 
 /**
  * @deprecated Use {@link SharedWorkerSelf}. Retained for backwards compatibility.

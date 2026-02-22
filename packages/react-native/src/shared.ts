@@ -1,20 +1,68 @@
 import {
+  type ConsoleDep,
   type CreateSqliteDriverDep,
+  createConsoleStoreOutput,
   createLocalAuth,
   createRandomBytes,
+  createRun,
   type LocalAuth,
   type ReloadAppDep,
   type SecureStorage,
 } from "@evolu/common";
-import type { EvoluDeps } from "@evolu/common/local-first";
-import { createEvoluDeps as createCommonEvoluDeps } from "@evolu/common/local-first";
+import type {
+  CreateDbWorker,
+  DbWorker,
+  DbWorkerInit,
+  EvoluDeps,
+  SharedWorkerInput,
+} from "@evolu/common/local-first";
+import {
+  createEvoluDeps as createCommonEvoluDeps,
+  initDbWorker,
+  initSharedWorker,
+} from "@evolu/common/local-first";
+import { leaderLock } from "./Platform.js";
+import {
+  createMessageChannel,
+  createMessagePort,
+  createSharedWorker,
+  createWorker,
+} from "./Worker.js";
 
 const randomBytes = createRandomBytes();
 
 /** Creates Evolu dependencies for React Native. */
 export const createEvoluDeps = (
-  deps: ReloadAppDep & CreateSqliteDriverDep,
-): EvoluDeps => createCommonEvoluDeps(deps);
+  deps: ReloadAppDep & CreateSqliteDriverDep & Partial<ConsoleDep>,
+): EvoluDeps => {
+  const consoleStoreOutput = createConsoleStoreOutput();
+
+  // Worker-side Run lives as long as the app. When RN supports real workers,
+  // this moves to the worker entry point (like web's Worker.worker.ts).
+  const workerRun = createRun({
+    consoleStoreOutputEntry: consoleStoreOutput.entry,
+    createMessagePort,
+    createSqliteDriver: deps.createSqliteDriver,
+    leaderLock,
+  });
+
+  const createDbWorker: CreateDbWorker = (): DbWorker =>
+    createWorker<DbWorkerInit, never>((self) => {
+      workerRun(initDbWorker(self));
+    });
+
+  const sharedWorker = createSharedWorker<SharedWorkerInput, never>((self) => {
+    workerRun(initSharedWorker(self));
+  });
+
+  return createCommonEvoluDeps({
+    ...deps,
+    createDbWorker,
+    createMessageChannel,
+    reloadApp: deps.reloadApp,
+    sharedWorker,
+  });
+};
 
 export const createSharedLocalAuth = (
   secureStorage: SecureStorage,
