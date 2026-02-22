@@ -13,6 +13,7 @@ import {
 import { assert } from "../Assert.js";
 import type { TimingSafeEqualDep } from "../Crypto.js";
 import { createInstances } from "../Instances.js";
+import { createRefCount } from "../RefCount.js";
 import type { Result } from "../Result.js";
 import { err, ok } from "../Result.js";
 import type { SqliteDep } from "../Sqlite.js";
@@ -115,6 +116,7 @@ export const createRelaySqliteStorage =
 
     /** Mutex instances cached per OwnerId to prevent concurrent writes. */
     const ownerMutexes = createInstances<OwnerId, Mutex>();
+    const ownerMutexRefs = createRefCount<OwnerId>();
 
     return {
       ...sqliteStorageBase,
@@ -165,92 +167,103 @@ export const createRelaySqliteStorage =
           timestamp: timestampToTimestampBytes(m.timestamp),
           change: m.change,
         }));
+        const ownerMutex = ownerMutexes.ensure(ownerId, createMutex);
+        ownerMutexRefs.increment(ownerId);
 
-        const result = await run(
-          ownerMutexes
-            .ensure(ownerId, createMutex)
-            .withLock(async (): Promise<Result<void, StorageQuotaError>> => {
-              const existingTimestampsResult =
-                sqliteStorageBase.getExistingTimestamps(
-                  ownerIdBytes,
-                  mapArray(messagesWithTimestampBytes, (m) => m.timestamp),
-                );
-
-              const existingTimestampsSet = new Set(
-                existingTimestampsResult.map((t) => t.toString()),
-              );
-              const newMessages = filterArray(
-                messagesWithTimestampBytes,
-                (m) => !existingTimestampsSet.has(m.timestamp.toString()),
-              );
-
-              // Nothing to write
-              if (!isNonEmptyArray(newMessages)) {
-                return ok();
-              }
-
-              const usage = getOwnerUsage(deps)(
-                ownerIdBytes,
-                firstInArray(newMessages).timestamp,
-              );
-              if (!usage.ok) return usage;
-
-              const { storedBytes } = usage.value;
-
-              const incomingBytes = newMessages.reduce(
-                (sum, m) => sum + m.change.length,
-                0,
-              );
-              const newStoredBytes = PositiveInt.orThrow(
-                (storedBytes ?? 0) + incomingBytes,
-              );
-
-              const quotaResult = config.isOwnerWithinQuota(
-                ownerId,
-                newStoredBytes,
-              );
-              const isWithinQuota = isPromiseLike(quotaResult)
-                ? await quotaResult
-                : quotaResult;
-              if (!isWithinQuota) {
-                return err({ type: "StorageQuotaError", ownerId });
-              }
-
-              let { firstTimestamp, lastTimestamp } = usage.value;
-
-              return deps.sqlite.transaction(() => {
-                for (const { timestamp, change } of newMessages) {
-                  let strategy;
-                  [strategy, firstTimestamp, lastTimestamp] =
-                    getTimestampInsertStrategy(
-                      timestamp,
-                      firstTimestamp,
-                      lastTimestamp,
+        const result = await (async () => {
+          try {
+            return await run(
+              ownerMutex.withLock(
+                async (): Promise<Result<void, StorageQuotaError>> => {
+                  const existingTimestampsResult =
+                    sqliteStorageBase.getExistingTimestamps(
+                      ownerIdBytes,
+                      mapArray(messagesWithTimestampBytes, (m) => m.timestamp),
                     );
-                  sqliteStorageBase.insertTimestamp(
-                    ownerIdBytes,
-                    timestamp,
-                    strategy,
+
+                  const existingTimestampsSet = new Set(
+                    existingTimestampsResult.map((t) => t.toString()),
                   );
-                  deps.sqlite.exec(sql`
+                  const newMessages = filterArray(
+                    messagesWithTimestampBytes,
+                    (m) => !existingTimestampsSet.has(m.timestamp.toString()),
+                  );
+
+                  // Nothing to write
+                  if (!isNonEmptyArray(newMessages)) {
+                    return ok();
+                  }
+
+                  const usage = getOwnerUsage(deps)(
+                    ownerIdBytes,
+                    firstInArray(newMessages).timestamp,
+                  );
+                  if (!usage.ok) return usage;
+
+                  const { storedBytes } = usage.value;
+
+                  const incomingBytes = newMessages.reduce(
+                    (sum, m) => sum + m.change.length,
+                    0,
+                  );
+                  const newStoredBytes = PositiveInt.orThrow(
+                    (storedBytes ?? 0) + incomingBytes,
+                  );
+
+                  const quotaResult = config.isOwnerWithinQuota(
+                    ownerId,
+                    newStoredBytes,
+                  );
+                  const isWithinQuota = isPromiseLike(quotaResult)
+                    ? await quotaResult
+                    : quotaResult;
+                  if (!isWithinQuota) {
+                    return err({ type: "StorageQuotaError", ownerId });
+                  }
+
+                  let { firstTimestamp, lastTimestamp } = usage.value;
+
+                  return deps.sqlite.transaction(() => {
+                    for (const { timestamp, change } of newMessages) {
+                      let strategy;
+                      [strategy, firstTimestamp, lastTimestamp] =
+                        getTimestampInsertStrategy(
+                          timestamp,
+                          firstTimestamp,
+                          lastTimestamp,
+                        );
+                      sqliteStorageBase.insertTimestamp(
+                        ownerIdBytes,
+                        timestamp,
+                        strategy,
+                      );
+                      deps.sqlite.exec(sql`
                       insert into evolu_message
                         ("ownerId", "timestamp", "change")
                       values (${ownerIdBytes}, ${timestamp}, ${change})
                       on conflict do nothing;
                     `);
-                }
+                    }
 
-                updateOwnerUsage(deps)(
-                  ownerIdBytes,
-                  newStoredBytes,
-                  firstTimestamp,
-                  lastTimestamp,
-                );
+                    updateOwnerUsage(deps)(
+                      ownerIdBytes,
+                      newStoredBytes,
+                      firstTimestamp,
+                      lastTimestamp,
+                    );
 
-                return ok();
-              });
-            }),
-        );
+                    return ok();
+                  });
+                },
+              ),
+            );
+          } finally {
+            ownerMutexRefs.decrement(ownerId);
+            if (!ownerMutexRefs.has(ownerId)) {
+              ownerMutexes.delete(ownerId);
+            }
+          }
+        })();
 
         if (!result.ok) {
           if (result.error.type === "AbortError") return ok();
