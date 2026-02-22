@@ -14,6 +14,7 @@ import {
   createEvoluDeps,
   testAppName,
 } from "../../src/local-first/Evolu.js";
+import type { Query, Row } from "../../src/local-first/Query.js";
 import type {
   EvoluInput,
   EvoluOutput,
@@ -67,11 +68,14 @@ const createEvoluRun = (
 const setupCreateEvolu = async () => {
   const { worker, self, connect } = testCreateSharedWorker<SharedWorkerInput>();
   const evoluInputs: Array<EvoluInput> = [];
+  let evoluPort: ReturnType<
+    typeof testCreateMessagePort<EvoluOutput, EvoluInput>
+  > | null = null;
 
   self.onConnect = (port) => {
     port.onMessage = (message) => {
       if (message.type !== "CreateEvolu") return;
-      const evoluPort = testCreateMessagePort<EvoluOutput, EvoluInput>(
+      evoluPort = testCreateMessagePort<EvoluOutput, EvoluInput>(
         message.evoluPort,
       );
       evoluPort.onMessage = (input) => {
@@ -87,7 +91,15 @@ const setupCreateEvolu = async () => {
     createEvolu(Schema, { appName: testAppName, appOwner: testAppOwner }),
   );
 
-  return { run, result, evoluInputs };
+  const sendEvoluOutput = (
+    output: EvoluOutput,
+    transfer?: ReadonlyArray<ArrayBuffer>,
+  ): void => {
+    if (!evoluPort) throw new Error("Evolu port is not connected.");
+    evoluPort.postMessage(output, transfer);
+  };
+
+  return { run, result, evoluInputs, sendEvoluOutput };
 };
 
 test("AppName", () => {
@@ -641,6 +653,149 @@ describe("mutations", () => {
         },
       ]
     `);
+  });
+});
+
+describe("queries", () => {
+  const allTodosQuery = "query:allTodos" as Query<{
+    readonly id: string;
+    readonly title: string;
+  }>;
+
+  const queryRows = (rows: ReadonlyArray<Row>) => [
+    {
+      query: allTodosQuery,
+      patches: [{ op: "replaceAll", value: rows }] as const,
+    },
+  ];
+
+  test("loadQuery batches duplicates and resolves cached promise", async () => {
+    const { run, result, evoluInputs, sendEvoluOutput } =
+      await setupCreateEvolu();
+    await using _run = run;
+
+    if (!result.ok) return;
+
+    const promise1 = result.value.loadQuery(allTodosQuery);
+    const promise2 = result.value.loadQuery(allTodosQuery);
+
+    expect(promise1).toBe(promise2);
+
+    await Promise.resolve();
+
+    expect(evoluInputs).toHaveLength(1);
+    expect(evoluInputs[0]?.type).toBe("Query");
+    if (evoluInputs[0]?.type !== "Query") return;
+    expect(evoluInputs[0].queries.has(allTodosQuery)).toBe(true);
+
+    sendEvoluOutput({
+      type: "OnQueryPatches",
+      queryPatches: queryRows([{ id: "1", title: "Todo 1" }]),
+      onCompleteIds: [],
+    });
+
+    await expect(promise1).resolves.toEqual([{ id: "1", title: "Todo 1" }]);
+    expect(result.value.getQueryRows(allTodosQuery)).toEqual([
+      { id: "1", title: "Todo 1" },
+    ]);
+  });
+
+  test("mutation releases unsubscribed loadQuery cache", async () => {
+    const { run, result, evoluInputs, sendEvoluOutput } =
+      await setupCreateEvolu();
+    await using _run = run;
+
+    if (!result.ok) return;
+
+    const promise1 = result.value.loadQuery(allTodosQuery);
+    await Promise.resolve();
+    sendEvoluOutput({
+      type: "OnQueryPatches",
+      queryPatches: queryRows([]),
+      onCompleteIds: [],
+    });
+    await promise1;
+
+    evoluInputs.length = 0;
+
+    result.value.insert("todo", {
+      title: NonEmptyString100.orThrow("After load"),
+    });
+    await Promise.resolve();
+
+    const promise2 = result.value.loadQuery(allTodosQuery);
+    await Promise.resolve();
+
+    const queryInputs = evoluInputs.filter((input) => input.type === "Query");
+    const mutateInputs = evoluInputs.filter((input) => input.type === "Mutate");
+
+    expect(mutateInputs).toHaveLength(1);
+    expect(queryInputs).toHaveLength(1);
+    expect(queryInputs[0]?.queries.has(allTodosQuery)).toBe(true);
+    expect(promise2).not.toBe(promise1);
+
+    sendEvoluOutput({
+      type: "OnQueryPatches",
+      queryPatches: queryRows([{ id: "2", title: "After load" }]),
+      onCompleteIds: [],
+    });
+    await expect(promise2).resolves.toEqual([{ id: "2", title: "After load" }]);
+  });
+
+  test("mutation keeps subscribed loadQuery cache", async () => {
+    const { run, result, evoluInputs, sendEvoluOutput } =
+      await setupCreateEvolu();
+    await using _run = run;
+
+    if (!result.ok) return;
+
+    const promise1 = result.value.loadQuery(allTodosQuery);
+    await Promise.resolve();
+    sendEvoluOutput({
+      type: "OnQueryPatches",
+      queryPatches: queryRows([]),
+      onCompleteIds: [],
+    });
+    await promise1;
+
+    const unsubscribe = result.value.subscribeQuery(allTodosQuery)(lazyVoid);
+    evoluInputs.length = 0;
+
+    result.value.insert("todo", {
+      title: NonEmptyString100.orThrow("Subscribed"),
+    });
+    await Promise.resolve();
+
+    const promise2 = result.value.loadQuery(allTodosQuery);
+    await Promise.resolve();
+
+    const queryInputs = evoluInputs.filter((input) => input.type === "Query");
+    const mutateInputs = evoluInputs.filter((input) => input.type === "Mutate");
+
+    expect(mutateInputs).toHaveLength(1);
+    expect(queryInputs).toHaveLength(0);
+    expect(promise2).toBe(promise1);
+
+    unsubscribe();
+  });
+
+  test("RefreshQueries re-queries pending loadQuery (hook regression)", async () => {
+    const { run, result, evoluInputs, sendEvoluOutput } =
+      await setupCreateEvolu();
+    await using _run = run;
+
+    if (!result.ok) return;
+
+    void result.value.loadQuery(allTodosQuery);
+    await Promise.resolve();
+    evoluInputs.length = 0;
+
+    sendEvoluOutput({ type: "RefreshQueries" });
+    await Promise.resolve();
+
+    const queryInputs = evoluInputs.filter((input) => input.type === "Query");
+    expect(queryInputs).toHaveLength(1);
+    expect(queryInputs[0]?.queries.has(allTodosQuery)).toBe(true);
   });
 });
 
