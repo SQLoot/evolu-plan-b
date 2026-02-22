@@ -14,15 +14,15 @@
     "@evolu/common": "workspace:*",
     "@evolu/react": "workspace:*",
     "@evolu/react-web": "workspace:*",
-    "@tabler/icons-react": "^3.36.1",
+    "@tabler/icons-react": "^3.37.1",
     "clsx": "^2.1.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "tailwindcss": "^4.1.18"
+    "tailwindcss": "^4.2.0"
   },
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.11",
-    "@tailwindcss/vite": "^4.1.18",
+    "@tailwindcss/vite": "^4.2.0",
     "@types/react": "~19.2.14",
     "@types/react-dom": "~19.2.3",
     "@vite-pwa/assets-generator": "^1.0.2",
