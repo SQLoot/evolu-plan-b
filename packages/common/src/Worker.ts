@@ -293,7 +293,7 @@ export const createMessagePort: CreateMessagePort = <Input, Output = never>(
   nativePort: NativeMessagePort<Input, Output>,
 ): MessagePort<Input, Output> => {
   const pair = nativePortRegistry.get(nativePort);
-  assert(pair, "Unknown native port — did you transfer it?");
+  assert(pair, "Unknown native port");
   return pair as MessagePort<Input, Output>;
 };
 
