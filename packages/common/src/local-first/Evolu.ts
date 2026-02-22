@@ -438,6 +438,16 @@ export type EvoluPlatformDeps = CreateDbWorkerDep &
 export const createEvoluDeps = (deps: EvoluPlatformDeps): EvoluDeps => {
   const { createMessageChannel, sharedWorker } = deps;
   const console = deps.console ?? createConsole();
+  const writeConsoleEntry = (output: Extract<EvoluTabOutput, { type: "OnConsoleEntry" }>) => {
+    const targetConsole = output.entry.path.reduce(
+      (currentConsole, name) => currentConsole.child(name),
+      console,
+    );
+    const method = targetConsole[output.entry.method] as (
+      ...args: ReadonlyArray<unknown>
+    ) => void;
+    method(...output.entry.args);
+  };
 
   const stack = new DisposableStack();
   stack.use(sharedWorker);
@@ -447,7 +457,7 @@ export const createEvoluDeps = (deps: EvoluPlatformDeps): EvoluDeps => {
   tabChannel.port2.onMessage = (output) => {
     switch (output.type) {
       case "OnConsoleEntry":
-        console.write(output.entry);
+        writeConsoleEntry(output);
         // Fallback channel for unexpected errors without EvoluError typing.
         if (output.entry.method === "error") {
           evoluError.set(createUnknownError(output.entry.args));
