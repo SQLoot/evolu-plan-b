@@ -6,16 +6,15 @@
 
 import type { Brand } from "./Brand.js";
 import type { ConsoleDep, ConsoleStoreOutputEntryDep } from "./Console.js";
+import type { GlobalErrorScope } from "./Error.js";
 
 /**
  * Platform-agnostic Worker.
  *
  * @see https://developer.mozilla.org/en-US/docs/Web/API/Worker
  */
-export interface Worker<Input, Output = never> extends MessagePort<
-  Input,
-  Output
-> {}
+export interface Worker<Input, Output = never>
+  extends MessagePort<Input, Output> {}
 
 /**
  * Platform-agnostic SharedWorker.
@@ -182,10 +181,15 @@ export interface CreateMessageChannelDep {
  * This is the worker-side counterpart to {@link Worker} — a typed
  * {@link MessagePort} that wraps `self` inside the worker.
  */
-export interface WorkerSelf<Input, Output = never> extends MessagePort<
-  Output,
-  Input
-> {}
+export interface WorkerSelf<Input, Output = never>
+  extends MessagePort<Output, Input> {}
+
+/**
+ * @deprecated Use {@link WorkerSelf}. Retained for backwards compatibility.
+ */
+export interface WorkerScope<Input, Output = never>
+  extends WorkerSelf<Input, Output>,
+    GlobalErrorScope {}
 
 /**
  * Typed `self` for code running inside a shared worker.
@@ -196,6 +200,13 @@ export interface WorkerSelf<Input, Output = never> extends MessagePort<
 export interface SharedWorkerSelf<Input, Output = never> extends Disposable {
   onConnect: ((port: MessagePort<Output, Input>) => void) | null;
 }
+
+/**
+ * @deprecated Use {@link SharedWorkerSelf}. Retained for backwards compatibility.
+ */
+export interface SharedWorkerScope<Input, Output = never>
+  extends SharedWorkerSelf<Input, Output>,
+    GlobalErrorScope {}
 
 /**
  * Creates a connected {@link Worker} / {@link WorkerSelf} pair for testing.
@@ -276,10 +287,8 @@ export const testCreateSharedWorker = <Input, Output = never>(): {
 };
 
 /** {@link MessageChannel} with disposal tracking for testing. */
-export interface TestMessageChannel<
-  Input,
-  Output = never,
-> extends MessageChannel<Input, Output> {
+export interface TestMessageChannel<Input, Output = never>
+  extends MessageChannel<Input, Output> {
   readonly isDisposed: () => boolean;
 }
 

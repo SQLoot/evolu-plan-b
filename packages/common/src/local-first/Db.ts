@@ -12,11 +12,11 @@ import {
 } from "../Array.js";
 import { assertNonEmptyReadonlyArray } from "../Assert.js";
 import type { ConsoleLevel } from "../Console.js";
-import {
+import type {
+  DecryptWithXChaCha20Poly1305Error,
   EncryptionKey,
-  type DecryptWithXChaCha20Poly1305Error,
-  type EncryptionKeyDep,
-  type RandomBytesDep,
+  EncryptionKeyDep,
+  RandomBytesDep,
 } from "../Crypto.js";
 import { lazyFalse, lazyVoid } from "../Function.js";
 import { createRecord, getProperty, objectToEntries } from "../Object.js";
@@ -27,17 +27,17 @@ import type { CreateSqliteDriverDep, SqliteDep, SqliteRow } from "../Sqlite.js";
 import {
   booleanToSqliteBoolean,
   createSqlite,
-  sql,
   SqliteBoolean,
+  type SqliteValue,
+  sql,
   sqliteBooleanToBoolean,
-  SqliteValue,
 } from "../Sqlite.js";
-import { type AsyncDisposableStack, type Task } from "../Task.js";
-import { Millis, millisToDateIso, type TimeDep } from "../Time.js";
+import type { AsyncDisposableStack, Task } from "../Task.js";
+import { type Millis, millisToDateIso, type TimeDep } from "../Time.js";
 import type { Name } from "../Type.js";
 import {
-  Id,
-  IdBytes,
+  type Id,
+  type IdBytes,
   idBytesToId,
   idToIdBytes,
   minPositiveInt,
@@ -55,9 +55,9 @@ import { ownerIdBytesToOwnerId, ownerIdToOwnerIdBytes } from "./Owner.js";
 import {
   decryptAndDecodeDbChange,
   encodeAndEncryptDbChange,
-  protocolVersion,
   type ProtocolInvalidDataError,
   type ProtocolTimestampMismatchError,
+  protocolVersion,
 } from "./Protocol.js";
 import { deserializeQuery, type Query } from "./Query.js";
 import type { DbSchema, DbSchemaDep, MutationChange } from "./Schema.js";
@@ -69,16 +69,16 @@ import type {
   QueuedResponse,
 } from "./Shared.js";
 import {
+  type BaseSqliteStorage,
+  type BaseSqliteStorageDep,
+  type CrdtMessage,
   createBaseSqliteStorage,
   createBaseSqliteStorageTables,
   DbChange,
   getOwnerUsage,
   getTimestampInsertStrategy,
-  updateOwnerUsage,
-  type BaseSqliteStorage,
-  type BaseSqliteStorageDep,
-  type CrdtMessage,
   type Storage,
+  updateOwnerUsage,
 } from "./Storage.js";
 import type {
   Timestamp,
@@ -91,10 +91,10 @@ import {
   defaultTimestampMaxDrift,
   receiveTimestamp,
   sendTimestamp,
-  TimestampBytes,
+  type TimestampBytes,
+  type TimestampConfigDep,
   timestampBytesToTimestamp,
   timestampToTimestampBytes,
-  type TimestampConfigDep,
 } from "./Timestamp.js";
 
 export type DbWorker = Worker<DbWorkerInit>;
@@ -145,12 +145,11 @@ export const initDbWorker =
         createMessagePort<DbWorkerOutput, DbWorkerInput>(nativeLeaderPort),
       );
 
-      const unsubscribeConsoleStoreOutputEntry = consoleStoreOutputEntry.subscribe(
-        () => {
+      const unsubscribeConsoleStoreOutputEntry =
+        consoleStoreOutputEntry.subscribe(() => {
           const entry = consoleStoreOutputEntry.get();
           if (entry) port.postMessage({ type: "OnConsoleEntry", entry });
-        },
-      );
+        });
       stack.defer(() => {
         unsubscribeConsoleStoreOutputEntry();
         return ok();

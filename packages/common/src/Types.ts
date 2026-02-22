@@ -4,7 +4,7 @@
  * @module
  */
 
-import * as Kysely from "kysely";
+import type * as Kysely from "kysely";
 import type { TypeName } from "./Type.js";
 
 /**

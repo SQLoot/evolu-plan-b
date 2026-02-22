@@ -20,7 +20,7 @@ import { isNonEmptySet } from "../Set.js";
 import { SqliteBoolean, sqliteBooleanToBoolean } from "../Sqlite.js";
 import type { ReadonlyStore } from "../Store.js";
 import { createStore } from "../Store.js";
-import { createDeferreds, runClosingError, type Task } from "../Task.js";
+import { createDeferreds, runnerClosingError, type Task } from "../Task.js";
 import type { Id, TypeError } from "../Type.js";
 import {
   brand,
@@ -225,9 +225,8 @@ export const testAppName = /*#__PURE__*/ AppName.orThrow("AppName");
  *
  * TODO: Better docs.
  */
-export interface Evolu<
-  S extends EvoluSchema = EvoluSchema,
-> extends AsyncDisposable {
+export interface Evolu<S extends EvoluSchema = EvoluSchema>
+  extends AsyncDisposable {
   /**
    * Resolved instance name derived from {@link EvoluConfig.appName} and app
    * owner hash.
@@ -236,6 +235,19 @@ export interface Evolu<
 
   /** {@link AppOwner}. */
   readonly appOwner: AppOwner;
+
+  /** Shared stream of global Evolu errors. */
+  readonly evoluError: ReadonlyStore<EvoluError | null>;
+
+  /**
+   * @deprecated Use {@link Evolu.evoluError} and {@link ReadonlyStore.subscribe}.
+   */
+  readonly subscribeError: (listener: Listener) => Unsubscribe;
+
+  /**
+   * @deprecated Use {@link Evolu.evoluError} and {@link ReadonlyStore.get}.
+   */
+  readonly getError: () => EvoluError | null;
 
   /**
    * Load {@link Query} and return a promise with {@link QueryRows}.
@@ -446,7 +458,9 @@ export type EvoluPlatformDeps = CreateDbWorkerDep &
 export const createEvoluDeps = (deps: EvoluPlatformDeps): EvoluDeps => {
   const { createMessageChannel, sharedWorker } = deps;
   const console = deps.console ?? createConsole();
-  const writeConsoleEntry = (output: Extract<EvoluTabOutput, { type: "OnConsoleEntry" }>) => {
+  const writeConsoleEntry = (
+    output: Extract<EvoluTabOutput, { type: "OnConsoleEntry" }>,
+  ) => {
     const targetConsole = output.entry.path.reduce(
       (currentConsole, name) => currentConsole.child(name),
       console,
@@ -519,6 +533,9 @@ export const createEvolu =
 
     const rowsStore = createStore<RowsByQuery>(new Map());
     const subscribedQueriesRefCount = createRefCount<Query>();
+    const evoluErrorStore =
+      (run.deps as Partial<EvoluErrorDep>).evoluError ??
+      createStore<EvoluError | null>(null);
 
     await using stack = run.stack();
 
@@ -661,6 +678,9 @@ export const createEvolu =
     return ok({
       name,
       appOwner,
+      evoluError: evoluErrorStore,
+      subscribeError: evoluErrorStore.subscribe,
+      getError: evoluErrorStore.get,
 
       loadQuery: todo,
       loadQueries: todo,
@@ -684,7 +704,7 @@ export const createEvolu =
 
       [Symbol.asyncDispose]: () => {
         pendingExports.resolveAll(
-          err({ type: "AbortError", reason: runClosingError }),
+          err({ type: "AbortError", reason: runnerClosingError }),
         );
         postMessage({ type: "Dispose" });
         return moved.disposeAsync();

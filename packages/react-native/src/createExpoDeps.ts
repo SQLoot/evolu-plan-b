@@ -11,11 +11,14 @@ import {
   localAuthDefaultOptions,
   type ReloadApp,
 } from "@evolu/common";
-import { createEvoluDeps, type EvoluDeps } from "@evolu/common/local-first";
+import type { EvoluDeps } from "@evolu/common/local-first";
 import * as Expo from "expo";
 import * as SecureStore from "expo-secure-store";
 import KVStore from "expo-sqlite/kv-store";
-import { createSharedLocalAuth } from "./shared.js";
+import {
+  createEvoluDeps as createSharedEvoluDeps,
+  createSharedLocalAuth,
+} from "./shared.js";
 
 const reloadApp: ReloadApp = () => {
   void Expo.reloadAppAsync();
@@ -155,7 +158,7 @@ const localAuth = createSharedLocalAuth(createSecureStore());
 export const createExpoDeps = (
   deps: CreateSqliteDriverDep,
 ): { evoluReactNativeDeps: EvoluDeps; localAuth: LocalAuth } => ({
-  evoluReactNativeDeps: createEvoluDeps({
+  evoluReactNativeDeps: createSharedEvoluDeps({
     ...deps,
     reloadApp,
   }),
