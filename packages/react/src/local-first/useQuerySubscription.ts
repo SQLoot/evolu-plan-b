@@ -1,6 +1,5 @@
-import { lazyVoid } from "@evolu/common";
+import { emptyArray, lazyVoid } from "@evolu/common";
 import {
-  emptyRows,
   type Query,
   type QueryRows,
   type Row,
@@ -40,6 +39,7 @@ export const useQuerySubscription = <R extends Row>(
     useMemo(() => evolu.subscribeQuery(query), [evolu, query]),
     // biome-ignore lint/correctness/useHookAtTopLevel: intentional
     useMemo(() => () => evolu.getQueryRows(query), [evolu, query]),
-    () => emptyRows as QueryRows<R>,
+    () => emptyArray as QueryRows<R>,
+    /* eslint-enable react-hooks/rules-of-hooks */
   );
 };
