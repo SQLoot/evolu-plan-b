@@ -146,12 +146,16 @@ export const initDbWorker =
         createMessagePort<DbWorkerOutput, DbWorkerInput>(nativeLeaderPort),
       );
 
-      stack.defer(
-        consoleStoreOutputEntry.subscribe(() => {
+      const unsubscribeConsoleStoreOutputEntry = consoleStoreOutputEntry.subscribe(
+        () => {
           const entry = consoleStoreOutputEntry.get();
           if (entry) port.postMessage({ type: "OnConsoleEntry", entry });
-        }),
+        },
       );
+      stack.defer(() => {
+        unsubscribeConsoleStoreOutputEntry();
+        return ok();
+      });
 
       // One DbWorker serves multiple tabs, so console level is global
       // here. The most recently initialized tab's level wins.

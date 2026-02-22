@@ -116,12 +116,16 @@ export const initSharedWorker =
     // TODO: Use heartbeat to detect and prune dead instances.
     const sharedEvolus = stack.use(createInstances<Name, SharedEvolu>());
 
-    stack.defer(
-      consoleStoreOutputEntry.subscribe(() => {
+    const unsubscribeConsoleStoreOutputEntry = consoleStoreOutputEntry.subscribe(
+      () => {
         const entry = consoleStoreOutputEntry.get();
         if (entry) postTabOutput({ type: "OnConsoleEntry", entry });
-      }),
+      },
     );
+    stack.defer(() => {
+      unsubscribeConsoleStoreOutputEntry();
+      return ok();
+    });
 
     console.info("initSharedWorker");
 

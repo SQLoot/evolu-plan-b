@@ -11,13 +11,12 @@ import type { DbWorkerOutput } from "../../src/local-first/Shared.js";
 import type { DbWorkerInput } from "../../src/local-first/Shared.js";
 import type { MutationChange } from "../../src/local-first/Schema.js";
 import { testCreateConsole } from "../../src/Console.js";
-import { testCreateRun } from "../../src/Test.js";
+import { testCreateRun, testName } from "../../src/Test.js";
 import {
   testCreateMessageChannel,
   testCreateMessagePort,
   testCreateSharedWorker,
 } from "../../src/Worker.js";
-import { testName } from "../../src/Type.js";
 import { describe, expect, test } from "vitest";
 
 describe("initSharedWorker", () => {
