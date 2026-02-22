@@ -302,10 +302,8 @@ export const createMessagePort: CreateMessagePort = <Input, Output = never>(
  *
  * Use `self` to simulate messages and behavior from inside the worker.
  */
-export interface TestWorker<Input, Output = never> extends Worker<
-  Input,
-  Output
-> {
+export interface TestWorker<Input, Output = never>
+  extends Worker<Input, Output> {
   /** Typed `self` counterpart for worker-side testing assertions. */
   readonly self: WorkerSelf<Input, Output>;
 }
@@ -316,19 +314,15 @@ export interface TestWorker<Input, Output = never> extends Worker<
  * Call `connect()` to simulate a client connection and trigger
  * `self.onConnect`.
  */
-export interface TestSharedWorker<Input, Output = never> extends SharedWorker<
-  Input,
-  Output
-> {
+export interface TestSharedWorker<Input, Output = never>
+  extends SharedWorker<Input, Output> {
   readonly self: SharedWorkerSelf<Input, Output>;
   readonly connect: () => void;
 }
 
 /** {@link MessageChannel} with disposal tracking for testing. */
-export interface TestMessageChannel<
-  Input,
-  Output = never,
-> extends MessageChannel<Input, Output> {
+export interface TestMessageChannel<Input, Output = never>
+  extends MessageChannel<Input, Output> {
   readonly isDisposed: () => boolean;
 }
 
