@@ -4,15 +4,24 @@
  * @module
  */
 
-import type { NonEmptyReadonlyArray } from "../Array.js";
-import type { CallbackId } from "../Callbacks.js";
+import {
+  emptyArray,
+  firstInArray,
+  isNonEmptyArray,
+  type NonEmptyReadonlyArray,
+  shiftFromArray,
+} from "../Array.js";
+import { assert } from "../Assert.js";
 import { createCallbacks } from "../Callbacks.js";
-import type { ConsoleEntry, ConsoleLevel } from "../Console.js";
+import type { Console, ConsoleEntry, ConsoleLevel } from "../Console.js";
 import { exhaustiveCheck } from "../Function.js";
+import { createInstances } from "../Instances.js";
 import { ok } from "../Result.js";
-import { exponential, jitter, maxDelay } from "../Schedule.js";
-import { sleep, type Task, timeout } from "../Task.js";
-import type { Name } from "../Type.js";
+import { spaced } from "../Schedule.js";
+import type { NonEmptyReadonlySet } from "../Set.js";
+import { type Fiber, type Run, repeat, type Task } from "../Task.js";
+import { createId, type Id, type Name } from "../Type.js";
+import type { Callback, ExtractType } from "../Types.js";
 import type {
   SharedWorker as CommonSharedWorker,
   MessagePort,
@@ -20,10 +29,16 @@ import type {
   SharedWorkerSelf,
   WorkerDeps,
 } from "../Worker.js";
-import type { DbWorkerLeaderInput, DbWorkerLeaderOutput } from "./Db.js";
 import type { EvoluError } from "./Error.js";
-import type { Query } from "./Query.js";
+import type { OwnerId } from "./Owner.js";
+import {
+  makePatches,
+  type Query,
+  type QueryPatches,
+  type RowsByQuery,
+} from "./Query.js";
 import type { MutationChange } from "./Schema.js";
+import type { CrdtMessage } from "./Storage.js";
 
 export type SharedWorker = CommonSharedWorker<SharedWorkerInput>;
 
@@ -31,45 +46,61 @@ export interface SharedWorkerDep {
   readonly sharedWorker: SharedWorker;
 }
 
-/**
- * Messages sent from an Evolu instance to the worker-side Evolu port.
- *
- * Redesign status: currently only mutation dispatch is defined. Additional
- * request variants will be added as query and owner flows are implemented.
- */
-export interface EvoluInput {
-  readonly type: "Mutate";
-  readonly changes: NonEmptyReadonlyArray<MutationChange>;
-  readonly onCompleteIds: ReadonlyArray<CallbackId>;
-  readonly subscribedQueries: ReadonlyArray<Query>;
-}
-
 export type SharedWorkerInput =
   | {
-      /** Tab-level channel for broadcast outputs (console/error). */
       readonly type: "InitTab";
       readonly consoleLevel: ConsoleLevel;
       readonly port: NativeMessagePort<EvoluTabOutput>;
     }
   | {
-      /** Per-Evolu instance request channel. */
-      readonly type: "InitEvolu";
+      readonly type: "CreateEvolu";
       readonly name: Name;
-      readonly port1: NativeMessagePort<never, EvoluInput>;
-      readonly port2: NativeMessagePort<
-        DbWorkerLeaderInput,
-        DbWorkerLeaderOutput
-      >;
+      readonly evoluPort: NativeMessagePort<EvoluOutput, EvoluInput>;
+      readonly dbWorkerPort: NativeMessagePort<DbWorkerInput, DbWorkerOutput>;
     };
 
 export type EvoluTabOutput =
   | {
-      readonly type: "ConsoleEntry";
+      readonly type: "OnConsoleEntry";
       readonly entry: ConsoleEntry;
     }
   | {
-      readonly type: "EvoluError";
+      readonly type: "OnError";
       readonly error: EvoluError;
+    };
+
+export type EvoluInput =
+  | {
+      readonly type: "Mutate";
+      readonly changes: NonEmptyReadonlyArray<MutationChange>;
+      readonly onCompleteIds: ReadonlyArray<Id>;
+      readonly subscribedQueries: ReadonlySet<Query>;
+    }
+  | {
+      readonly type: "Query";
+      readonly queries: NonEmptyReadonlySet<Query>;
+    }
+  | {
+      readonly type: "Export";
+      readonly requestId: Id;
+    }
+  | {
+      readonly type: "Dispose";
+    };
+
+export type EvoluOutput =
+  | {
+      readonly type: "OnQueryPatches";
+      readonly queryPatches: ReadonlyArray<QueryPatches>;
+      readonly onCompleteIds: ReadonlyArray<Id>;
+    }
+  | {
+      readonly type: "RefreshQueries";
+    }
+  | {
+      readonly type: "OnExport";
+      readonly requestId: Id;
+      readonly file: Uint8Array<ArrayBuffer>;
     };
 
 export const initSharedWorker =
@@ -82,106 +113,25 @@ export const initSharedWorker =
 
     // TODO: Use heartbeat to detect and prune dead ports.
     const tabPorts = new Set<MessagePort<EvoluTabOutput>>();
+
     const queuedTabOutputs: Array<EvoluTabOutput> = [];
-    const leaderPorts = new Map<
-      Name,
-      MessagePort<DbWorkerLeaderInput, DbWorkerLeaderOutput>
-    >();
-    const mutationQueues = new Map<Name, Array<QueuedMutation>>();
-    const queueProcessors = new Set<Name>();
-    const onMutateCallbacks = createCallbacks(run.deps);
-
-    const retrySchedule = jitter(0.5)(maxDelay("5s")(exponential("250ms")));
-
     const postTabOutput = (output: EvoluTabOutput): void => {
       if (tabPorts.size === 0) queuedTabOutputs.push(output);
       else for (const port of tabPorts) port.postMessage(output);
     };
 
-    const waitForAck =
-      (ackPromise: Promise<void>): Task<void> =>
-      async () => {
-        await ackPromise;
-        return ok();
-      };
-
-    const ensureMutationQueue = (name: Name): Array<QueuedMutation> => {
-      let queue = mutationQueues.get(name);
-      if (!queue) {
-        queue = [];
-        mutationQueues.set(name, queue);
-      }
-      return queue;
-    };
-
-    const processMutationQueue = (name: Name): void => {
-      if ((mutationQueues.get(name)?.length ?? 0) === 0) return;
-      if (queueProcessors.has(name)) return;
-      queueProcessors.add(name);
-
-      void run.daemon(async (run) => {
-        const retryStep = retrySchedule(run.deps);
-
-        while ((mutationQueues.get(name)?.length ?? 0) > 0) {
-          const queue = mutationQueues.get(name);
-          if (!queue) break;
-
-          const message = queue[0];
-          const leaderPort = leaderPorts.get(name);
-
-          if (!leaderPort) {
-            const retry = retryStep(undefined);
-            if (!retry.ok) break;
-            const r = await run(sleep(retry.value[1]));
-            if (!r.ok) break;
-            continue;
-          }
-
-          if (!message.requestId) {
-            const { promise, resolve } = Promise.withResolvers<void>();
-            message.requestId = onMutateCallbacks.register(resolve);
-            message.ackPromise = promise;
-          }
-
-          leaderPort.postMessage({
-            type: "Mutate",
-            requestId: message.requestId,
-            changes: message.changes,
-            onCompleteIds: message.onCompleteIds,
-            subscribedQueries: message.subscribedQueries,
-          });
-
-          const ackPromise = message.ackPromise;
-          if (!ackPromise) continue;
-
-          const ack = await run(timeout(waitForAck(ackPromise), "3s"));
-
-          if (ack.ok) {
-            queue.shift();
-            continue;
-          }
-
-          const retry = retryStep(undefined);
-          if (!retry.ok) break;
-          const r = await run(sleep(retry.value[1]));
-          if (!r.ok) break;
-        }
-
-        queueProcessors.delete(name);
-        processMutationQueue(name);
-        return ok();
-      });
-    };
-
     await using stack = run.stack();
 
-    const unsubscribeConsoleStore = consoleStoreOutputEntry.subscribe(() => {
-      const entry = consoleStoreOutputEntry.get();
-      if (entry) postTabOutput({ type: "ConsoleEntry", entry });
-    });
+    // TODO: Use heartbeat to detect and prune dead instances.
+    const sharedEvolus = stack.use(createInstances<Name, SharedEvolu>());
 
+    const unsubscribeConsoleStoreOutputEntry =
+      consoleStoreOutputEntry.subscribe(() => {
+        const entry = consoleStoreOutputEntry.get();
+        if (entry) postTabOutput({ type: "OnConsoleEntry", entry });
+      });
     stack.defer(() => {
-      unsubscribeConsoleStore();
+      unsubscribeConsoleStoreOutputEntry();
       return ok();
     });
 
@@ -193,60 +143,33 @@ export const initSharedWorker =
       port.onMessage = (message) => {
         switch (message.type) {
           case "InitTab": {
+            // One SharedWorker serves multiple tabs, so console level is global
+            // here. The most recently initialized tab's level wins.
             console.setLevel(message.consoleLevel);
+
             const tabPort = createMessagePort<EvoluTabOutput>(message.port);
             tabPorts.add(tabPort);
-
             if (queuedTabOutputs.length > 0) {
               queuedTabOutputs.forEach(postTabOutput);
               queuedTabOutputs.length = 0;
             }
-
             break;
           }
-          case "InitEvolu": {
-            const evoluName = message.name;
-            const evoluPort = createMessagePort<never, EvoluInput>(
-              message.port1,
-            );
-            const leaderPort = createMessagePort<
-              DbWorkerLeaderInput,
-              DbWorkerLeaderOutput
-            >(message.port2);
 
-            leaderPorts.set(evoluName, leaderPort);
-
-            leaderPort.onMessage = (message) => {
-              switch (message.type) {
-                case "LeaderAcquired": {
-                  leaderPorts.set(message.name, leaderPort);
-                  console.info("leaderAcquired", { name: message.name });
-                  processMutationQueue(message.name);
-                  break;
-                }
-                case "OnMutate": {
-                  onMutateCallbacks.execute(message.requestId);
-                  break;
-                }
-                case "ConsoleEntry":
-                case "EvoluError": {
-                  postTabOutput(message);
-                  break;
-                }
-                default:
-                  exhaustiveCheck(message);
-              }
-            };
-
-            evoluPort.onMessage = (message) => {
-              const queue = ensureMutationQueue(evoluName);
-              queue.push({
-                changes: message.changes,
-                onCompleteIds: message.onCompleteIds,
-                subscribedQueries: message.subscribedQueries,
-              });
-              processMutationQueue(evoluName);
-            };
+          case "CreateEvolu": {
+            sharedEvolus
+              .ensure(message.name, () =>
+                createSharedEvolu({
+                  run,
+                  console,
+                  name: message.name,
+                  postTabOutput,
+                  onDispose: () => {
+                    sharedEvolus.delete(message.name);
+                  },
+                }),
+              )
+              .addPorts(message.evoluPort, message.dbWorkerPort);
             break;
           }
           default:
@@ -258,10 +181,321 @@ export const initSharedWorker =
     return ok(stack.move());
   };
 
-interface QueuedMutation {
-  readonly changes: NonEmptyReadonlyArray<MutationChange>;
-  readonly onCompleteIds: ReadonlyArray<CallbackId>;
-  readonly subscribedQueries: ReadonlyArray<Query>;
-  requestId?: CallbackId;
-  ackPromise?: Promise<void>;
+interface SharedEvolu extends Disposable {
+  readonly addPorts: (
+    evoluPort: NativeMessagePort<EvoluOutput, EvoluInput>,
+    dbWorkerPort: NativeMessagePort<DbWorkerInput, DbWorkerOutput>,
+  ) => void;
 }
+
+export interface DbWorkerQueueItem {
+  readonly evoluPortId: Id;
+  readonly request: ExtractType<EvoluInput, "Mutate" | "Query" | "Export">;
+}
+
+export interface DbWorkerInput extends DbWorkerQueueItem {
+  readonly callbackId: Id;
+}
+
+export type DbWorkerOutput =
+  | {
+      readonly type: "LeaderAcquired";
+      readonly name: Name;
+    }
+  | {
+      readonly type: "OnQueuedResponse";
+      readonly callbackId: Id;
+      readonly evoluPortId: Id;
+      readonly response: QueuedResponse;
+    }
+  | EvoluTabOutput;
+
+export type QueuedResponse =
+  | {
+      readonly type: "Mutate";
+      readonly messagesByOwnerId: ReadonlyMap<
+        OwnerId,
+        NonEmptyReadonlyArray<CrdtMessage>
+      >;
+      readonly rowsByQuery: RowsByQuery;
+    }
+  | {
+      readonly type: "Query";
+      readonly rowsByQuery: RowsByQuery;
+    }
+  | {
+      readonly type: "Export";
+      readonly file: Uint8Array<ArrayBuffer>;
+    };
+
+export interface QueuedResult {
+  readonly evoluPortId: Id;
+  readonly response: QueuedResponse;
+}
+
+// createSharedEvolu could be Task, but Instances doesn't support it yet.
+const createSharedEvolu = ({
+  run,
+  console,
+  name,
+  postTabOutput,
+  onDispose,
+}: {
+  run: Run<WorkerDeps>;
+  console: Console;
+  name: Name;
+  postTabOutput: Callback<EvoluTabOutput>;
+  onDispose: () => void;
+}): SharedEvolu => {
+  const { createMessagePort } = run.deps;
+
+  const evoluPorts = new Map<Id, MessagePort<EvoluOutput, EvoluInput>>();
+  const dbWorkerPorts = new Set<MessagePort<DbWorkerInput, DbWorkerOutput>>();
+  const rowsByQueryByEvoluPortId = new Map<Id, RowsByQuery>();
+  const queue: Array<DbWorkerQueueItem> = [];
+  const callbacks = createCallbacks<QueuedResult>(run.deps);
+
+  let activeDbWorkerPort = null as MessagePort<
+    DbWorkerInput,
+    DbWorkerOutput
+  > | null;
+
+  let queueProcessingFiber: Fiber<void, never, WorkerDeps> | null = null;
+
+  const ensureQueueProcessing = (): void => {
+    if (
+      queueProcessingFiber ||
+      !isNonEmptyArray(queue) ||
+      !activeDbWorkerPort
+    ) {
+      return;
+    }
+
+    const first = firstInArray(queue);
+
+    const callbackId = callbacks.register(({ evoluPortId, response }) => {
+      queueProcessingFiber?.abort();
+      queueProcessingFiber = null;
+
+      const evoluPort = evoluPorts.get(evoluPortId);
+
+      switch (response.type) {
+        case "Mutate":
+        case "Query": {
+          if (evoluPort)
+            evoluPort.postMessage({
+              type: "OnQueryPatches",
+              queryPatches: createQueryPatches(
+                evoluPortId,
+                response.rowsByQuery,
+              ),
+              onCompleteIds:
+                first.request.type === "Mutate"
+                  ? first.request.onCompleteIds
+                  : emptyArray,
+            });
+
+          if (response.type === "Mutate") {
+            for (const [otherEvoluPortId, otherEvoluPort] of evoluPorts) {
+              if (otherEvoluPortId === evoluPortId) continue;
+              otherEvoluPort.postMessage({ type: "RefreshQueries" });
+            }
+          }
+          break;
+        }
+        case "Export":
+          assert(first.request.type === "Export", "Expected Export input");
+          if (evoluPort)
+            evoluPort.postMessage(
+              {
+                type: "OnExport",
+                requestId: first.request.requestId,
+                file: response.file,
+              },
+              [response.file.buffer],
+            );
+
+          break;
+        default:
+          exhaustiveCheck(response);
+      }
+
+      // Complete the current queue item and continue with the next one.
+      shiftFromArray(queue);
+      ensureQueueProcessing();
+    });
+
+    queueProcessingFiber = run.daemon(
+      repeat(() => {
+        assert(activeDbWorkerPort, "Expected an active DbWorker");
+        activeDbWorkerPort.postMessage({ callbackId, ...first });
+        return ok();
+      }, spaced("5s")), // 5s seems to be a good balance
+    );
+  };
+
+  const createQueryPatches = (
+    evoluPortId: Id,
+    rowsByQuery: RowsByQuery,
+  ): ReadonlyArray<QueryPatches> => {
+    const previousRowsByQuery = rowsByQueryByEvoluPortId.get(evoluPortId);
+    const nextRowsByQuery = new Map(previousRowsByQuery ?? emptyArray);
+    const queryPatches: Array<QueryPatches> = [];
+
+    for (const [query, rows] of rowsByQuery) {
+      nextRowsByQuery.set(query, rows);
+      queryPatches.push({
+        query,
+        patches: makePatches(previousRowsByQuery?.get(query), rows),
+      });
+    }
+
+    rowsByQueryByEvoluPortId.set(evoluPortId, nextRowsByQuery);
+    return queryPatches;
+  };
+
+  return {
+    addPorts: (nativeEvoluPort, nativeDbWorkerPort) => {
+      const evoluPort = createMessagePort<EvoluOutput, EvoluInput>(
+        nativeEvoluPort,
+      );
+      const dbWorkerPort = createMessagePort<DbWorkerInput, DbWorkerOutput>(
+        nativeDbWorkerPort,
+      );
+
+      const evoluPortId = createId(run.deps);
+
+      evoluPorts.set(evoluPortId, evoluPort);
+      dbWorkerPorts.add(dbWorkerPort);
+
+      dbWorkerPort.onMessage = (message) => {
+        switch (message.type) {
+          case "LeaderAcquired": {
+            activeDbWorkerPort = dbWorkerPort;
+            console.info("leaderAcquired");
+            ensureQueueProcessing();
+            break;
+          }
+          case "OnQueuedResponse": {
+            callbacks.execute(message.callbackId, {
+              evoluPortId: message.evoluPortId,
+              response: message.response,
+            });
+            break;
+          }
+          case "OnConsoleEntry":
+          case "OnError": {
+            postTabOutput(message);
+            break;
+          }
+          default:
+            exhaustiveCheck(message);
+        }
+      };
+
+      evoluPort.onMessage = (evoluMessage) => {
+        switch (evoluMessage.type) {
+          case "Dispose": {
+            console.info("evoluDispose", {
+              name,
+              evoluPortId,
+              hadLastPort: evoluPorts.size === 1,
+            });
+            evoluPorts.delete(evoluPortId);
+            rowsByQueryByEvoluPortId.delete(evoluPortId);
+            if (evoluPorts.size === 0) onDispose();
+
+            // TODO: Decided what to do with DbWorker but probably dispose it, but
+            // https://bugs.webkit.org/show_bug.cgi?id=301520
+            break;
+          }
+
+          case "Mutate":
+          case "Query":
+          case "Export": {
+            queue.push({ evoluPortId, request: evoluMessage });
+            ensureQueueProcessing();
+            break;
+          }
+          default:
+            exhaustiveCheck(evoluMessage);
+        }
+      };
+    },
+
+    [Symbol.dispose]: () => {
+      queueProcessingFiber?.abort();
+      queueProcessingFiber = null;
+      callbacks[Symbol.dispose]();
+      activeDbWorkerPort = null;
+      queue.length = 0;
+      evoluPorts.clear();
+      rowsByQueryByEvoluPortId.clear();
+      dbWorkerPorts.clear();
+    },
+  };
+};
+
+// export type DbWorkerInput =
+//   | (Typed<"init"> & {
+//       readonly config: DbConfig;
+//       readonly dbSchema: DbSchema;
+//     })
+//   | Typed<"getAppOwner">
+//   | (Typed<"mutate"> & {
+//       readonly tabId: Id;
+//       readonly changes: NonEmptyReadonlyArray<MutationChange>;
+//       readonly onCompleteIds: ReadonlyArray<CallbackId>;
+//       readonly subscribedQueries: ReadonlyArray<Query>;
+//     })
+//   | (Typed<"query"> & {
+//       readonly tabId: Id;
+//       readonly queries: NonEmptyReadonlyArray<Query>;
+//     })
+//   | (Typed<"reset"> & {
+//       readonly onCompleteId: CallbackId;
+//       readonly reload: boolean;
+//       readonly restore?: {
+//         readonly dbSchema: DbSchema;
+//         readonly mnemonic: Mnemonic;
+//       };
+//     })
+//   | (Typed<"ensureDbSchema"> & {
+//       readonly dbSchema: DbSchema;
+//     })
+//   | (Typed<"export"> & {
+//       readonly onCompleteId: CallbackId;
+//     })
+//   | (Typed<"useOwner"> & {
+//       readonly use: boolean;
+//       readonly owner: SyncOwner;
+//     });
+
+// export type DbWorkerOutput =
+//   | (Typed<"onError"> & {
+//       readonly error:
+//         | ProtocolError
+//         | SqliteError
+//         | DecryptWithXChaCha20Poly1305Error
+//         | TimestampError
+//         | UnknownError;
+//     })
+//   | (Typed<"onGetAppOwner"> & {
+//       readonly appOwner: AppOwner;
+//     })
+//   | (Typed<"onQueryPatches"> & {
+//       readonly tabId: Id;
+//       readonly queryPatches: ReadonlyArray<QueryPatches>;
+//       readonly onCompleteIds: ReadonlyArray<CallbackId>;
+//     })
+//   | (Typed<"refreshQueries"> & {
+//       readonly tabId?: Id;
+//     })
+//   | (Typed<"onReset"> & {
+//       readonly onCompleteId: CallbackId;
+//       readonly reload: boolean;
+//     })
+//   | (Typed<"onExport"> & {
+//       readonly onCompleteId: CallbackId;
+//       readonly file: Uint8Array;
+//     });
