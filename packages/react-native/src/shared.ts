@@ -1,10 +1,10 @@
 import {
+  type ConsoleDep,
+  type CreateSqliteDriverDep,
   createConsoleStoreOutput,
   createLocalAuth,
   createRandomBytes,
   createRun,
-  type ConsoleDep,
-  type CreateSqliteDriverDep,
   type LocalAuth,
   type ReloadAppDep,
   type SecureStorage,

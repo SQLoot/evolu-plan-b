@@ -11,8 +11,8 @@ import {
   type EvoluInput,
   type EvoluOutput,
   type EvoluTabOutput,
-  type SharedWorkerInput,
   initSharedWorker,
+  type SharedWorkerInput,
 } from "../../src/local-first/Shared.js";
 import { createSet } from "../../src/Set.js";
 import type { ReadonlyStore } from "../../src/Store.js";

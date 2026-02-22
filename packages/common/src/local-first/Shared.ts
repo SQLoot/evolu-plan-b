@@ -8,8 +8,8 @@ import {
   emptyArray,
   firstInArray,
   isNonEmptyArray,
-  shiftFromArray,
   type NonEmptyReadonlyArray,
+  shiftFromArray,
 } from "../Array.js";
 import { assert } from "../Assert.js";
 import { createCallbacks } from "../Callbacks.js";
@@ -19,7 +19,7 @@ import { createInstances } from "../Instances.js";
 import { ok } from "../Result.js";
 import { spaced } from "../Schedule.js";
 import type { NonEmptyReadonlySet } from "../Set.js";
-import { repeat, type Fiber, type Run, type Task } from "../Task.js";
+import { type Fiber, type Run, repeat, type Task } from "../Task.js";
 import { createId, type Id, type Name } from "../Type.js";
 import type { Callback, ExtractType } from "../Types.js";
 import type {
@@ -125,12 +125,11 @@ export const initSharedWorker =
     // TODO: Use heartbeat to detect and prune dead instances.
     const sharedEvolus = stack.use(createInstances<Name, SharedEvolu>());
 
-    const unsubscribeConsoleStoreOutputEntry = consoleStoreOutputEntry.subscribe(
-      () => {
+    const unsubscribeConsoleStoreOutputEntry =
+      consoleStoreOutputEntry.subscribe(() => {
         const entry = consoleStoreOutputEntry.get();
         if (entry) postTabOutput({ type: "OnConsoleEntry", entry });
-      },
-    );
+      });
     stack.defer(() => {
       unsubscribeConsoleStoreOutputEntry();
       return ok();

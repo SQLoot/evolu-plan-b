@@ -1,8 +1,8 @@
 import { expect, test } from "vitest";
 import type { Query, Row } from "../../src/local-first/Query.js";
 import {
-  applyQueryPatches,
   applyPatches,
+  applyQueryPatches,
   deserializeQuery,
   makePatches,
   serializeQuery,
