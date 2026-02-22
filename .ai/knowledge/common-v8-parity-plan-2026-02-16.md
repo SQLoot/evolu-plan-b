@@ -25,6 +25,41 @@ Reach practical `upstream/common-v8` compatibility for architecture/API/behavior
 - `bun run verify:fast`
 - `SYNC_GUARD_MAIN_REF=miccy-dev bun run sync:guard:common-v8:strict`
 
+## Sync Wave 2026-02-22 (Latest)
+
+Source range:
+
+- `sync/common-v8-2026-02-22..upstream/common-v8`
+- 16 upstream commits (`2026-02-19` to `2026-02-21`)
+
+Resolution summary:
+
+| Upstream | Subject | Status | Local Note |
+|---|---|---|---|
+| `0ccedcf` | Add top-down code ordering guidance | `verified-equivalent` | Cherry-picked (`-x`). |
+| `c8d1bf9` | Bump pnpm to 10.30.0 in package.json | `intentional-divergence` | Bun-first fork (`packageManager: bun@...`). |
+| `01e588d` | Update pnpm-lock.yaml | `intentional-divergence` | Bun lockfile authoritative. |
+| `ae95d0e` | Make MicrotaskBatch disposable | `verified-equivalent` | Cherry-picked (`-x`). |
+| `e047437` | Wrap mutateBatch with stack.use and add test | `verified-equivalent` | Superseded by `21203bb` (same behavior present after refactor). |
+| `ebf0d31` | Bump pnpm packageManager to 10.30.1 | `intentional-divergence` | Bun-first fork. |
+| `1ab01ab` | Update pnpm-lock.yaml | `intentional-divergence` | Bun lockfile authoritative. |
+| `43ba3f2` | Add TODO: Example to Instances | `verified-equivalent` | Cherry-picked (`-x`). |
+| `5c163a9` | Add ExtractType utility and tests | `verified-equivalent` | Cherry-picked (`-x`) with import conflict resolution only. |
+| `cec27bc` | Clarify exhaustiveCheck docs and add example | `verified-equivalent` | Cherry-picked (`-x`). |
+| `ec8a83b` | Add ArrayBuffer external link in typedoc | `verified-equivalent` | Cherry-picked (`-x`). |
+| `121ee93` | Update pnpm-lock.yaml | `intentional-divergence` | Bun lockfile authoritative. |
+| `f81b896` | Update biome.json | `verified-equivalent` | Already covered by local Biome update (empty cherry-pick). |
+| `42dcbd5` | Ensure exported SQLite bytes use ArrayBuffer backing | `verified-equivalent` | Cherry-picked (`-x`) with Node test import conflict resolution only. |
+| `e6997a1` | Alias int factory; use TypeName for typed tags | `verified-equivalent` | Cherry-picked (`-x`). |
+| `21203bb` | Refactor DbWorker, storage, and messaging | `verified-equivalent` | Cherry-picked (`-x`), core runtime files aligned; `apps/web` hunk intentionally dropped (website docs live outside this repo). |
+
+Post-pick local compat fix:
+
+- `2cc68d85` (`fix(sync): adapt common-v8 worker logging to Task/Console APIs`)
+  - Adapts upstream subscription cleanup to local `Task` stack contract.
+  - Replays `ConsoleEntry` through local `Console` API (no `console.write` in fork interface).
+  - Fixes `Shared.test.ts` import path drift (`testName` from `Test.ts`).
+
 ## Upstream Commit Matrix (Current Snapshot)
 
 Source: `git cherry -v miccy-dev upstream/common-v8`
