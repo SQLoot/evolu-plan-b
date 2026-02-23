@@ -38,6 +38,12 @@ test("createAppOwner is deterministic", () => {
   expect(owner1.mnemonic).toBeDefined();
 });
 
+test("createAppOwner mnemonic round-trips to the source secret", () => {
+  const appOwner = createAppOwner(testAppOwnerSecret);
+
+  expect(mnemonicToOwnerSecret(appOwner.mnemonic)).toEqual(testAppOwnerSecret);
+});
+
 test("deriveShardOwner is deterministic", () => {
   const appOwner = createAppOwner(testAppOwnerSecret);
 
