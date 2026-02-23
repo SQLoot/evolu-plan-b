@@ -192,13 +192,11 @@ const createOwner = (secret: OwnerSecret): Owner => ({
  */
 export interface AppOwner extends Owner, Typed<"AppOwner"> {
   /**
-   * The mnemonic that was used to derive the AppOwner keys. Optional when the
-   * AppOwner is created from external keys to avoid sharing the mnemonic with
-   * the Evolu app.
+   * The mnemonic that was used to derive the AppOwner keys.
    *
    * TODO: Wrap with `Redacted` in the next major version.
    */
-  readonly mnemonic?: Mnemonic | null;
+  readonly mnemonic: Mnemonic;
 }
 
 export interface AppOwnerDep {
