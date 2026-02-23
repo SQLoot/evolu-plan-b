@@ -9,7 +9,7 @@ import {
   testQuery,
   testQuery2,
 } from "../../src/local-first/Query.js";
-import { sql, type SafeSql, type SqliteQuery } from "../../src/Sqlite.js";
+import { type SafeSql, type SqliteQuery, sql } from "../../src/Sqlite.js";
 
 test("Query", () => {
   const query1 = serializeQuery<{ a: 1 }>(sql`select "a" as "kind";`);

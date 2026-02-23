@@ -1,9 +1,5 @@
 import { emptyArray, lazyVoid } from "@evolu/common";
-import {
-  type Query,
-  type QueryRows,
-  type Row,
-} from "@evolu/common/local-first";
+import type { Query, QueryRows, Row } from "@evolu/common/local-first";
 import { use, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { EvoluContext } from "./EvoluContext.js";
 
