@@ -10,7 +10,7 @@ import { createRandomBytes } from "../Crypto.js";
 import type { ReadonlyRecord } from "../Object.js";
 import { createRecord, isPlainObject, objectToEntries } from "../Object.js";
 import type { SafeSql, SqliteQuery, SqliteQueryOptions } from "../Sqlite.js";
-import { eqSqliteValue, sql, SqliteValue } from "../Sqlite.js";
+import { eqSqliteValue, type SqliteValue, sql } from "../Sqlite.js";
 import { createId, String } from "../Type.js";
 import type { Simplify } from "../Types.js";
 

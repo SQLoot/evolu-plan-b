@@ -136,6 +136,14 @@ export interface Console {
 
   /** Failures requiring immediate attention. */
   readonly error: (...args: ReadonlyArray<unknown>) => void;
+
+  /**
+   * Writes a pre-built {@link ConsoleEntry} directly to output.
+   *
+   * Use this to replay entries received from another context where level
+   * filtering was already applied.
+   */
+  readonly write: (entry: ConsoleEntry) => void;
 }
 
 export interface ConsoleDep {
@@ -256,6 +264,7 @@ export const createConsole = ({
       childrenSet.add(childConsole);
       return childConsole;
     },
+    write: (entry) => output.write(entry, resolvedFormatter),
 
     ...objectFrom(
       ["trace", "debug", "log", "info", "warn", "error"],
@@ -581,6 +590,9 @@ export const testCreateConsole = (config?: {
         );
         childrenSet.add(childConsole);
         return childConsole;
+      },
+      write: (entry) => {
+        entries.push(entry);
       },
 
       ...objectFrom(

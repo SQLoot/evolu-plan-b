@@ -230,9 +230,8 @@ export const testAppName = /*#__PURE__*/ AppName.orThrow("AppName");
  *
  * TODO: Better docs.
  */
-export interface Evolu<
-  S extends EvoluSchema = EvoluSchema,
-> extends AsyncDisposable {
+export interface Evolu<S extends EvoluSchema = EvoluSchema>
+  extends AsyncDisposable {
   /**
    * Resolved instance name derived from {@link EvoluConfig.appName} and app
    * owner hash.
@@ -241,6 +240,14 @@ export interface Evolu<
 
   /** {@link AppOwner}. */
   readonly appOwner: AppOwner;
+
+  /**
+   * Shared {@link EvoluError} store for this instance.
+   *
+   * When available, this is the same store as
+   * {@link EvoluErrorDep.evoluError} from {@link createEvoluDeps}.
+   */
+  readonly evoluError: ReadonlyStore<EvoluError | null>;
 
   /**
    * Inserts a row and returns the generated {@link Id}.
@@ -557,6 +564,9 @@ export const createEvolu =
 
     const console = run.deps.console.child(name).child("Evolu");
     console.info("createEvolu");
+    const evoluError =
+      (run.deps as Partial<EvoluErrorDep>).evoluError ??
+      createStore<EvoluError | null>(null);
 
     const rowsByQueryMapStore = createStore<RowsByQueryMap>(new Map());
     const subscribedQueriesRefCount = createRefCount<Query>();
@@ -831,6 +841,7 @@ export const createEvolu =
     return ok({
       name,
       appOwner,
+      evoluError,
 
       insert: createMutation("insert"),
       update: createMutation("update"),
