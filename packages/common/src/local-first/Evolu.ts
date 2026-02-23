@@ -20,7 +20,7 @@ import { isNonEmptySet } from "../Set.js";
 import { SqliteBoolean, sqliteBooleanToBoolean } from "../Sqlite.js";
 import type { ReadonlyStore } from "../Store.js";
 import { createStore } from "../Store.js";
-import { createDeferreds, runnerClosingError, type Task } from "../Task.js";
+import { createDeferred, type Deferred, type Task } from "../Task.js";
 import type { Id, TypeError } from "../Type.js";
 import {
   brand,
@@ -394,7 +394,12 @@ export interface Evolu<S extends EvoluSchema = EvoluSchema>
    */
   readonly upsert: Mutation<S, "upsert">;
 
-  /** Exports the SQLite database file. */
+  /**
+   * Exports the SQLite database file.
+   *
+   * Exports are sequential: concurrent calls share one pending export instead
+   * of starting parallel exports.
+   */
   readonly exportDatabase: Task<Uint8Array<ArrayBuffer>>;
 
   // TODO: Add exportHistory.
@@ -539,10 +544,11 @@ export const createEvolu =
 
     await using stack = run.stack();
 
-    const onCompleteCallbacks = stack.use(createCallbacks(run.deps));
-    const pendingExports = stack.use(
-      createDeferreds<Uint8Array<ArrayBuffer>>(run.deps),
-    );
+    const onMutateCompleteCallbacks = stack.use(createCallbacks(run.deps));
+
+    let exportDatabaseDeferred = null as Deferred<
+      Uint8Array<ArrayBuffer>
+    > | null;
 
     type LoadingQueryPromise = Promise<QueryRows> & {
       status?: "pending" | "fulfilled" | "rejected";
@@ -684,7 +690,7 @@ export const createEvolu =
             }
 
             for (const onCompleteId of message.onCompleteIds) {
-              onCompleteCallbacks.execute(onCompleteId);
+              onMutateCompleteCallbacks.execute(onCompleteId);
             }
             break;
           }
@@ -698,7 +704,8 @@ export const createEvolu =
             break;
           }
           case "OnExport": {
-            pendingExports.resolve(message.requestId, ok(message.file));
+            exportDatabaseDeferred?.resolve(ok(message.file));
+            exportDatabaseDeferred = null;
             break;
           }
           default:
@@ -730,7 +737,7 @@ export const createEvolu =
           changes: mapArray(items, (item) => item.change),
           onCompleteIds: items.flatMap((item) =>
             item.onComplete
-              ? [onCompleteCallbacks.register(item.onComplete)]
+              ? [onMutateCompleteCallbacks.register(item.onComplete)]
               : [],
           ),
           subscribedQueries: subscribedQueriesRefCount.keys(),
@@ -819,12 +826,11 @@ export const createEvolu =
       upsert: createMutation("upsert"),
 
       exportDatabase: (run) => {
-        const { id, task } = pendingExports.register();
-        run.onAbort((reason) => {
-          pendingExports.resolve(id, err({ type: "AbortError", reason }));
-        });
-        postMessage({ type: "Export", requestId: id });
-        return run(task);
+        if (!exportDatabaseDeferred) {
+          exportDatabaseDeferred = createDeferred<Uint8Array<ArrayBuffer>>();
+          postMessage({ type: "Export" });
+        }
+        return run(exportDatabaseDeferred.task);
       },
 
       useOwner: todo,
@@ -838,10 +844,7 @@ export const createEvolu =
           );
         }
         queryLoadingPromises.clear();
-
-        pendingExports.resolveAll(
-          err({ type: "AbortError", reason: runnerClosingError }),
-        );
+        exportDatabaseDeferred?.[Symbol.dispose]();
         postMessage({ type: "Dispose" });
         return moved.disposeAsync();
       },
