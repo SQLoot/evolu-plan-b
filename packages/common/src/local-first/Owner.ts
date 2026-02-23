@@ -198,7 +198,7 @@ export interface AppOwner extends Owner, Typed<"AppOwner"> {
    *
    * TODO: Wrap with `Redacted` in the next major version.
    */
-  readonly mnemonic?: Mnemonic | null;
+  readonly mnemonic: Mnemonic;
 }
 
 export interface AppOwnerDep {
