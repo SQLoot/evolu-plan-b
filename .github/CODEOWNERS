@@ -1,1 +1,10 @@
-* @miccy
+# CODEOWNERS
+# SQLoot team ownership baseline
+
+# Default ownership
+* @SQLoot/maintainers
+
+# Governance-critical paths
+/.github/ @SQLoot/core
+/SECURITY.md @SQLoot/core
+/CODEOWNERS @SQLoot/core
