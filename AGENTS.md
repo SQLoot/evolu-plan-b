@@ -106,7 +106,7 @@ bun run verify
 - Use Bun for all package operations
 - Run `bun run verify` before suggesting PR
 - Check `.ai/tasks/active/` for current work
-- Reference upstream issues with `upstream#XXX`
+- Reference upstream issues with `upstream#`
 
 ### Don't
 - Use npm/pnpm/yarn
