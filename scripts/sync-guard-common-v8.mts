@@ -151,12 +151,20 @@ const getCommonV8BranchIssues = (mainRef: string): ReadonlyArray<BranchIssue> =>
     "refs/remotes/origin",
   ]);
 
-  const candidates = refs.filter((ref) => {
-    if (!ref.includes("common-v8")) return false;
-    if (ref === "origin/main" || ref === "main") return false;
-    if (ref.endsWith("/HEAD")) return false;
-    return true;
-  });
+  const candidateByCanonicalRef = new Map<string, string>();
+  for (const ref of refs) {
+    if (!/^(origin\/)?sync\/common-v8/.test(ref)) continue;
+    if (ref.endsWith("/HEAD")) continue;
+
+    const canonicalRef = ref.startsWith("origin/") ? ref.slice(7) : ref;
+    // Prefer local branch ref over origin/* mirror to avoid duplicate reports.
+    if (candidateByCanonicalRef.has(canonicalRef) && ref.startsWith("origin/")) {
+      continue;
+    }
+    candidateByCanonicalRef.set(canonicalRef, ref);
+  }
+
+  const candidates = [...candidateByCanonicalRef.values()];
 
   return candidates
     .filter((ref) => !isAncestor(ref, mainRef))
@@ -198,6 +206,8 @@ const getDanglingIssues = (options: GuardOptions): ReadonlyArray<DanglingIssue> 
     const dateIso = runGit(["show", "-s", "--format=%cI", sha]).trim();
     const subject = runGit(["show", "-s", "--format=%s", sha]).trim();
     const body = runGit(["show", "-s", "--format=%b", sha]).trim();
+    // Ignore synthetic stash commits (WIP/index) that are not actionable sync history.
+    if (/^(WIP on |index on )/.test(subject)) continue;
 
     const patchId = commitPatchId(sha);
     const inMain = patchId ? mainPatchMap.get(patchId) : undefined;
