@@ -29,7 +29,7 @@ import type { Random, RandomDep, RandomNumber } from "./Random.js";
 import { createRandom } from "./Random.js";
 import { createRef, type Ref } from "./Ref.js";
 import type { Done, NextResult, Ok, Result } from "./Result.js";
-import { err, isErr, ok, tryAsync } from "./Result.js";
+import { err, getOrThrow, isErr, ok, tryAsync } from "./Result.js";
 import type { Schedule, ScheduleStep } from "./Schedule.js";
 import { addToSet, deleteFromSet, emptySet } from "./Set.js";
 import type { testCreateRunner } from "./Test.js";
@@ -478,6 +478,9 @@ export interface AbortError extends InferType<typeof AbortError> {}
 export interface Runner<D = unknown> extends AsyncDisposable {
   /** Runs a {@link Task} and returns a {@link Fiber} handle. */
   <T, E>(task: Task<T, E, D>): Fiber<T, E, D>;
+
+  /** Runs a {@link Task} and throws if the returned {@link Result} is an error. */
+  readonly orThrow: <T, E>(task: Task<T, E, D>) => Promise<T>;
 
   /** Unique {@link Id} for this runner. */
   readonly id: Id;
@@ -1396,6 +1399,7 @@ const createRunnerInternal =
       let snapshot: FiberSnapshot | null = null;
       let disposingPromise: Promise<void> | null = null;
 
+      run.orThrow = async (task) => getOrThrow(await self(task));
       run.id = id;
       run.parent = parent ?? null;
 
@@ -1409,7 +1413,6 @@ const createRunnerInternal =
           { once: true, signal: requestController.signal },
         );
       };
-
       run.getState = () => state;
       run.getChildren = () => children;
 
