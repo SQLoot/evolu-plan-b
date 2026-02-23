@@ -1,9 +1,5 @@
-import {
-  emptyRows,
-  type Query,
-  type QueryRows,
-  type Row,
-} from "@evolu/common/local-first";
+import { emptyArray } from "@evolu/common";
+import type { Query, QueryRows, Row } from "@evolu/common/local-first";
 import { onScopeDispose, type Ref, shallowReadonly, shallowRef } from "vue";
 import { useEvolu } from "./useEvolu.js";
 
@@ -43,7 +39,7 @@ export const useQuery = <R extends Row>(
   }> = {},
 ): Readonly<Ref<QueryRows<R>>> => {
   const evolu = useEvolu();
-  const rows = shallowRef(emptyRows as QueryRows<R>);
+  const rows = shallowRef(emptyArray as QueryRows<R>);
 
   void (options.promise ?? evolu.loadQuery(query)).then((result) => {
     rows.value = result;

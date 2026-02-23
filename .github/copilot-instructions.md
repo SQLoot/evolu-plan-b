@@ -59,7 +59,8 @@ Key directories:
 
 - **Use named imports only** - avoid default exports and namespace imports
 - **Use unique exported members** - avoid namespaces, use descriptive names to prevent conflicts
-- **Organize code top-down** - public interfaces first, then implementation, then implementation details. If a helper must be defined before the public export that uses it (due to JavaScript hoisting), place it immediately before that export.
+- **Name indexed collections as `vByK`** - use value + `By` + key for maps and records (for example `rowsByQuery`, `messagesByOwnerId`, `usersById`)
+- **Organize code top-down** - public interfaces first, then implementation, then implementation details. TypeScript types can reference types defined later in the file (no forward declaration needed), so always place the higher-level type first. For runtime code (functions, constants), if a helper must be defined before the public export that uses it (due to JavaScript hoisting), place it immediately before that export.
 - **Reference globals explicitly with `globalThis`** - when a name clashes with global APIs (e.g., `SharedWorker`, `Worker`), use `globalThis.SharedWorker` instead of aliasing imports
 
 ### Order (top-down readability)
@@ -156,6 +157,7 @@ type NativeMessagePort = Brand<"NativeMessagePort">;
 - **Write clear descriptions** - explain what the function does, not how to use it
 - **Use `{@link}` for references** - link to types, interfaces, functions, and exported symbols on first mention for discoverability
 - **Avoid pipe characters in first sentence** - TypeDoc extracts the first sentence for table descriptions, and pipe characters (even in inline code like `T | undefined`) break markdown table rendering. Move such details to subsequent sentences.
+- **Ignore temporary JSDoc alignment lint while editing** - do not spend cycles manually fixing alignment-only warnings; rely on format-on-save to normalize comment indentation.
 
 ## Error handling with Result
 

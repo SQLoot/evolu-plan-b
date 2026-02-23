@@ -9,6 +9,7 @@ export default defineProject({
     snapshotSerializers: [
       resolve(__dirname, "./test/local-first/_uint8ArraySerializer.ts"),
     ],
+    setupFiles: ["./test/_nodeSetup.ts"],
     include: ["test/**/*.test.ts"],
     name: "unit",
     environment: "node",
