@@ -42,7 +42,6 @@ import {
 import { testAppOwner } from "./_fixtures.js";
 
 const TodoId = id("Todo");
-type TodoId = typeof TodoId.Type;
 
 const Schema = {
   todo: {
