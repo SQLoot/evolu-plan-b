@@ -3,6 +3,8 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
+    "types": ["user-agent-data-types"],
+    "rootDir": "src",
     "tsBuildInfoFile": "dist/.tsBuildInfo"
   },
   "include": ["src"],
