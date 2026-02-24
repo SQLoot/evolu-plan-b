@@ -1,13 +1,14 @@
-import { existsSync, unlinkSync } from "node:fs";
+import { existsSync, unlinkSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import {
   type CreateSqliteDriverDep,
   createSqlite,
   SimpleName,
+  type SqliteRow,
   sql,
   testCreateRun,
 } from "@evolu/common";
-import { afterEach, assert, describe, expect, test } from "vitest";
+import { afterEach, assert, describe, expect, test, vi } from "vitest";
 import { createBetterSqliteDriver } from "../src/Sqlite.js";
 
 const testName = SimpleName.orThrow("Test");
@@ -168,6 +169,94 @@ describe("createBetterSqliteDriver", () => {
       db.close();
     },
   );
+
+  test("falls back to node:sqlite when better-sqlite3 initialization fails", async () => {
+    vi.resetModules();
+
+    interface MockStatement {
+      readonly all: (...parameters: ReadonlyArray<unknown>) => Array<SqliteRow>;
+      readonly run: (...parameters: ReadonlyArray<unknown>) => {
+        readonly changes?: number;
+      };
+    }
+
+    class MockDatabaseSync {
+      #rows = [] as { readonly name: unknown }[];
+
+      prepare(sqlText: string): MockStatement {
+        const normalized = sqlText.trim().toLowerCase();
+
+        return {
+          all: (..._parameters) => {
+            if (normalized.startsWith("select")) {
+              return this.#rows.map((row) => ({ ...row }));
+            }
+
+            return [];
+          },
+          run: (...parameters) => {
+            if (normalized.startsWith("insert")) {
+              this.#rows.push({ name: parameters[0] });
+              return { changes: 1 };
+            }
+
+            return { changes: 0 };
+          },
+        };
+      }
+
+      exec(sqlText: string): void {
+        const match = /^vacuum into '(.+)'$/i.exec(sqlText.trim());
+        if (!match) return;
+        const path = match[1]?.replaceAll("''", "'");
+        if (!path) return;
+        writeFileSync(path, Buffer.from([1, 2, 3]));
+      }
+
+      close(): void {}
+    }
+
+    vi.doMock("node:module", () => ({
+      createRequire: () => (id: string) => {
+        if (id === "better-sqlite3") {
+          return class BetterSqliteBroken {
+            constructor() {
+              throw new Error("simulated better-sqlite3 init failure");
+            }
+          };
+        }
+        if (id === "node:sqlite") {
+          return { DatabaseSync: MockDatabaseSync };
+        }
+        throw new Error(`Unexpected module request: ${id}`);
+      },
+    }));
+
+    try {
+      const modulePath = `../src/Sqlite.ts?fallback-${Date.now()}`;
+      const { createBetterSqliteDriver: createDriver } = await import(
+        modulePath
+      );
+
+      await using run = testCreateRun();
+      const result = await run(createDriver(testName, { mode: "memory" }));
+      assert(result.ok);
+      const sqlite = result.value;
+
+      sqlite.exec(sql`create table t (name text);`);
+      sqlite.exec(sql`insert into t (name) values (${"Alice"});`);
+      const rows = sqlite.exec(sql`select name from t;`);
+
+      expect(rows.rows).toEqual([{ name: "Alice" }]);
+
+      const exported = sqlite.export();
+      expect(exported).toBeInstanceOf(Uint8Array);
+      expect(exported).toEqual(new Uint8Array([1, 2, 3]));
+    } finally {
+      vi.doUnmock("node:module");
+      vi.resetModules();
+    }
+  });
 
   describe("file-based database", () => {
     const dbPath = `${testName}.db`;
