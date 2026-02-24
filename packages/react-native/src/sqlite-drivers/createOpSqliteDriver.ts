@@ -22,6 +22,13 @@ export const createOpSqliteDriver: CreateSqliteDriver =
           },
     );
     let isDisposed = false;
+    const getDbPath = (): string | null => {
+      try {
+        return db.getDbPath();
+      } catch {
+        return null;
+      }
+    };
 
     const cache = createPreparedStatementsCache<PreparedStatement>(
       (sql) => db.prepareStatement(sql),
@@ -44,10 +51,14 @@ export const createOpSqliteDriver: CreateSqliteDriver =
         return { rows: rows as Array<SqliteRow>, changes: rowsAffected };
       },
 
-      // FIXME: op-sqlite does not expose binary, but a path to the database file
-      // another react native dependency would be needed to implement this
       export: () => {
-        throw new Error("TODO: Not implemented yet");
+        const dbPath = getDbPath();
+        const pathSuffix = dbPath ? ` Database path: ${dbPath}.` : "";
+        throw new Error(
+          "Evolu export() is not supported with @op-engineering/op-sqlite because the driver does not expose database bytes." +
+            pathSuffix +
+            " Use @evolu/react-native/expo-sqlite when export is required.",
+        );
       },
 
       [Symbol.dispose]: () => {

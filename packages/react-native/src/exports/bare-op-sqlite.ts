@@ -4,6 +4,8 @@
  *
  * Use this with bare React Native projects (not Expo) that use
  * `@op-engineering/op-sqlite`.
+ *
+ * Note: this flavor does not support Evolu `export()`.
  */
 
 import type { ReloadApp } from "@evolu/common";

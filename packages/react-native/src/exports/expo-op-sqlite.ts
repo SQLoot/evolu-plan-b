@@ -4,6 +4,9 @@
  *
  * Use this with Expo projects that use `@op-engineering/op-sqlite` for better
  * performance.
+ *
+ * Note: this flavor does not support Evolu `export()`. Use `expo-sqlite`
+ * flavor when database export bytes are required.
  */
 
 import { createExpoDeps } from "../createExpoDeps.js";
