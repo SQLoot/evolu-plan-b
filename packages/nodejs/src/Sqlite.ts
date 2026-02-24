@@ -61,43 +61,58 @@ interface BunSqliteModule {
 const isReaderSql = (sql: string): boolean =>
   /^\s*(select|pragma|with|explain|values)\b/i.test(sql);
 
+const createBetterDb = (filename: string): DbLike => {
+  const BetterSQLite = require("better-sqlite3") as BetterSqliteConstructor;
+  const db = new BetterSQLite(filename);
+
+  return {
+    prepare: (sql) => {
+      const statement = db.prepare(sql);
+      return {
+        reader: statement.reader,
+        all: (...parameters) => statement.all(parameters),
+        run: (...parameters) => statement.run(parameters),
+      };
+    },
+    serialize: () => db.serialize(),
+    close: () => db.close(),
+  };
+};
+
+const createBunDb = (filename: string): DbLike => {
+  const { Database } = require("bun:sqlite") as BunSqliteModule;
+  const db = new Database(filename);
+
+  return {
+    prepare: (sql) => {
+      const statement = db.prepare(sql);
+      return {
+        reader: isReaderSql(sql),
+        all: (...parameters) => statement.all(...parameters),
+        run: (...parameters) => statement.run(...parameters),
+      };
+    },
+    serialize: () => db.serialize(),
+    close: () => db.close(),
+  };
+};
+
 const createDb = (filename: string): DbLike => {
-  try {
-    const BetterSQLite = require("better-sqlite3") as BetterSqliteConstructor;
-    const db = new BetterSQLite(filename);
+  const hasBunRuntime = (globalThis as Record<string, unknown>).Bun != null;
 
-    return {
-      prepare: (sql) => {
-        const statement = db.prepare(sql);
-        return {
-          reader: statement.reader,
-          all: (...parameters) => statement.all(parameters),
-          run: (...parameters) => statement.run(parameters),
-        };
-      },
-      serialize: () => db.serialize(),
-      close: () => db.close(),
-    };
-  } catch (error) {
-    const hasBunRuntime = (globalThis as Record<string, unknown>).Bun != null;
-    if (!hasBunRuntime) throw error;
-
-    const { Database } = require("bun:sqlite") as BunSqliteModule;
-    const db = new Database(filename);
-
-    return {
-      prepare: (sql) => {
-        const statement = db.prepare(sql);
-        return {
-          reader: isReaderSql(sql),
-          all: (...parameters) => statement.all(...parameters),
-          run: (...parameters) => statement.run(...parameters),
-        };
-      },
-      serialize: () => db.serialize(),
-      close: () => db.close(),
-    };
+  if (hasBunRuntime) {
+    try {
+      return createBunDb(filename);
+    } catch (bunError) {
+      try {
+        return createBetterDb(filename);
+      } catch {
+        throw bunError;
+      }
+    }
   }
+
+  return createBetterDb(filename);
 };
 
 export const createBetterSqliteDriver: CreateSqliteDriver =
