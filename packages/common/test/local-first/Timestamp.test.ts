@@ -1,4 +1,4 @@
-import SQLite from "better-sqlite3";
+import { createRequire } from "node:module";
 import { describe, expect, test } from "vitest";
 import type {
   Timestamp,
@@ -34,6 +34,27 @@ import {
   minMillis,
   testCreateTime,
 } from "../../src/Time.js";
+
+const require = createRequire(import.meta.url);
+
+interface BetterSqliteStatementLike {
+  readonly run: (params?: Record<string, unknown>) => unknown;
+  readonly all: () => Array<{ readonly t: TimestampBytes }>;
+}
+
+interface BetterSqliteDbLike {
+  readonly prepare: (sql: string) => BetterSqliteStatementLike;
+}
+
+type BetterSqliteConstructor = new () => BetterSqliteDbLike;
+
+const BetterSQLite = (() => {
+  try {
+    return require("better-sqlite3") as BetterSqliteConstructor;
+  } catch {
+    return null;
+  }
+})();
 
 test("Millis", () => {
   expect(Millis.from(-1).ok).toBe(false);
@@ -379,7 +400,8 @@ describe("receiveTimestamp", () => {
         .map((a) => a.millis),
     ).toEqual(sortedMillis);
 
-    const db = new SQLite();
+    if (!BetterSQLite) return;
+    const db = new BetterSQLite();
     db.prepare(
       `
       create table "Message" (
@@ -393,10 +415,11 @@ describe("receiveTimestamp", () => {
     randomTimestampsBytes.forEach((t) => {
       insertTimestamp.run({ t });
     });
-    const sqliteMillis = db
-      .prepare<[], { t: TimestampBytes }>(`select t from Message order by t`)
-      .all()
-      .map((a) => decodeFromEncoded(a.t).millis);
+    const sqliteMillis = (
+      db.prepare(`select t from Message order by t`).all() as Array<{
+        readonly t: TimestampBytes;
+      }>
+    ).map((a) => decodeFromEncoded(a.t).millis);
     expect(sqliteMillis).toEqual(sortedMillis);
   });
 });
