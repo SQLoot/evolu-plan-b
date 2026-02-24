@@ -110,7 +110,6 @@ export const initSharedWorker =
     const { createMessagePort, consoleStoreOutputEntry } = run.deps;
     const console = run.deps.console.child("SharedWorker");
 
-    // TODO: Use heartbeat to detect and prune dead ports.
     const tabPorts = new Set<MessagePort<EvoluTabOutput>>();
 
     const queuedTabOutputs: Array<EvoluTabOutput> = [];
@@ -340,8 +339,42 @@ const createSharedEvolu = ({
     cancelActiveQueue();
   };
 
+  const pruneStaleDbWorkerPorts = (): void => {
+    const now = run.deps.time.now();
+
+    for (const [dbWorkerPort, lastHeartbeatAt] of lastHeartbeatByDbWorkerPort) {
+      const elapsed = now - lastHeartbeatAt;
+      if (elapsed <= dbWorkerHeartbeatTimeoutMs) continue;
+
+      const wasActive = dbWorkerPort === activeDbWorkerPort;
+      if (wasActive) {
+        activeDbWorkerPort = null;
+        cancelActiveQueue();
+      }
+
+      for (const [
+        evoluPortId,
+        mappedDbWorkerPort,
+      ] of dbWorkerPortByEvoluPortId) {
+        if (mappedDbWorkerPort === dbWorkerPort)
+          dbWorkerPortByEvoluPortId.delete(evoluPortId);
+      }
+
+      lastHeartbeatByDbWorkerPort.delete(dbWorkerPort);
+      dbWorkerPorts.delete(dbWorkerPort);
+      dbWorkerPort[Symbol.dispose]();
+
+      console.warn("prunedStaleDbWorkerPort", {
+        name,
+        timeoutMs: dbWorkerHeartbeatTimeoutMs,
+        elapsedMs: elapsed,
+      });
+    }
+  };
+
   const heartbeatFiber = run.daemon(
     repeat(() => {
+      pruneStaleDbWorkerPorts();
       clearActiveDbWorkerIfStale();
       return ok();
     }, spaced("1s")),
