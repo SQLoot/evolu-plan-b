@@ -26,6 +26,7 @@ interface BundleSize {
 }
 
 type TreeShakingFixture = "result-all" | "task-example" | "type-object";
+const isCompatLaneEnabled = process.env.EVOLU_TREE_SHAKING_COMPAT === "1";
 
 const runBundle = (bundlePath: string): void => {
   const bootstrap = `
@@ -119,7 +120,6 @@ const bundleSize = async (fixturePath: string): Promise<BundleSize> => {
             return;
           }
           const bundlePath = join(outputDir, "bundle.js");
-          runBundle(bundlePath);
           const bundle = readFileSync(bundlePath);
           resolve({
             raw: bundle.byteLength,
@@ -177,7 +177,7 @@ const normalizeBundleSize = (
 };
 
 describe("tree-shaking", () => {
-  test("bundle sizes", async () => {
+  test("bundle sizes (fast lane)", async () => {
     const fixtures = getFixtures();
     const results: Record<string, BundleSize> = {};
 
@@ -202,5 +202,67 @@ describe("tree-shaking", () => {
         },
       }
     `);
-  }, 120000);
+  }, 90000);
+
+  const compatTest = isCompatLaneEnabled ? test : test.skip;
+
+  compatTest(
+    "bundle runtime compatibility (compat lane)",
+    async () => {
+      const fixtures = getFixtures();
+      for (const fixture of fixtures) {
+        const fixtureName = basename(fixture, ".js");
+        const bundleDir = join(tmpDir, `${fixtureName}-compat`);
+
+        if (existsSync(bundleDir)) {
+          rmSync(bundleDir, { recursive: true });
+        }
+        mkdirSync(bundleDir, { recursive: true });
+
+        const compiler = webpack({
+          mode: "production",
+          entry: fixture,
+          output: {
+            path: bundleDir,
+            filename: "bundle.js",
+          },
+          resolve: {
+            extensions: [".js"],
+            alias: {
+              "@evolu/common": distDir,
+            },
+          },
+          optimization: {
+            usedExports: true,
+            sideEffects: true,
+            minimize: true,
+          },
+          stats: "errors-only",
+        });
+
+        await new Promise<void>((resolve, reject) => {
+          compiler.run((err: Error | null, stats: Stats | undefined) => {
+            compiler.close(() => {
+              if (err) {
+                reject(err);
+                return;
+              }
+              if (stats?.hasErrors()) {
+                reject(new Error(stats.toString()));
+                return;
+              }
+
+              try {
+                runBundle(join(bundleDir, "bundle.js"));
+                resolve();
+              } catch (error) {
+                reject(error);
+              }
+            });
+          });
+        });
+      }
+    },
+    120000,
+  );
 });
