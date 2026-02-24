@@ -2,13 +2,19 @@
 
 ## Reporting Security Vulnerabilities
 
-If you discover a security vulnerability in Evolu, please help keep the project secure by disclosing it responsibly.
+If you discover a security vulnerability in this fork, please help keep the project secure by disclosing it responsibly.
 
 ### How to Report
 
 **Please DO NOT open a public GitHub issue for security vulnerabilities.**
 
-Instead, use GitHub's [private vulnerability reporting](https://github.com/evoluhq/evolu/security/advisories/new) feature.
+Instead, use GitHub's private vulnerability reporting for this repository:
+
+- https://github.com/SQLoot/evolu-plan-b/security/advisories/new
+
+If the issue appears to affect upstream as well, you can additionally report it upstream:
+
+- https://github.com/evoluhq/evolu/security/advisories/new
 
 ### Response Time
 
@@ -18,7 +24,7 @@ As this project is maintained by a single volunteer, please be patient.
 
 ### Important Notice
 
-While Evolu is developed with care, please note:
+While this fork is developed with care, please note:
 
 - This is a volunteer-maintained project
 - It has NOT undergone professional security audits yet

@@ -15,7 +15,11 @@ Evolu is a TypeScript library and local-first platform.
 
 For detailed information and usage examples, please visit [evolu.dev](https://www.evolu.dev).
 
-## Community
+## Community & Support
+
+For this fork (`SQLoot/evolu-plan-b`), use GitHub Issues in this repository.
+
+Upstream Evolu community channels are still relevant for shared design topics:
 
 The Evolu community is on [GitHub Discussions](https://github.com/evoluhq/evolu/discussions), where you can ask questions and voice ideas.
 
