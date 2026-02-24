@@ -23,6 +23,7 @@ import { createRecord, getProperty, objectToEntries } from "../Object.js";
 import type { LeaderLockDep } from "../Platform.js";
 import type { RandomDep } from "../Random.js";
 import { getOk, ok, type Result } from "../Result.js";
+import { spaced } from "../Schedule.js";
 import type { CreateSqliteDriverDep, SqliteDep, SqliteRow } from "../Sqlite.js";
 import {
   booleanToSqliteBoolean,
@@ -32,7 +33,7 @@ import {
   sql,
   sqliteBooleanToBoolean,
 } from "../Sqlite.js";
-import type { AsyncDisposableStack, Task } from "../Task.js";
+import { type AsyncDisposableStack, repeat, type Task } from "../Task.js";
 import { type Millis, millisToDateIso, type TimeDep } from "../Time.js";
 import type { Name } from "../Type.js";
 import {
@@ -166,6 +167,18 @@ export const initDbWorker =
         await stack.use(leaderLock.acquire(name));
         console.info("leaderLock acquired");
         port.postMessage({ type: "LeaderAcquired", name });
+
+        const heartbeatFiber = run.daemon(
+          repeat(() => {
+            port.postMessage({ type: "LeaderHeartbeat", name });
+            return ok();
+          }, spaced("5s")),
+        );
+        stack.defer(() => {
+          heartbeatFiber.abort();
+          return ok();
+        });
+
         return run.addDeps({
           port,
           timestampConfig: { maxDrift: defaultTimestampMaxDrift },

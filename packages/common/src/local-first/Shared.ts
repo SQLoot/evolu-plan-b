@@ -20,6 +20,7 @@ import { ok } from "../Result.js";
 import { spaced } from "../Schedule.js";
 import type { NonEmptyReadonlySet } from "../Set.js";
 import { type Fiber, type Run, repeat, type Task } from "../Task.js";
+import type { Millis, TimeDep } from "../Time.js";
 import { createId, type Id, type Name } from "../Type.js";
 import type { Callback, ExtractType } from "../Types.js";
 import type {
@@ -104,7 +105,7 @@ export type EvoluOutput =
 export const initSharedWorker =
   (
     self: SharedWorkerSelf<SharedWorkerInput>,
-  ): Task<AsyncDisposableStack, never, WorkerDeps> =>
+  ): Task<AsyncDisposableStack, never, WorkerDeps & TimeDep> =>
   async (run) => {
     const { createMessagePort, consoleStoreOutputEntry } = run.deps;
     const console = run.deps.console.child("SharedWorker");
@@ -201,6 +202,10 @@ export type DbWorkerOutput =
       readonly name: Name;
     }
   | {
+      readonly type: "LeaderHeartbeat";
+      readonly name: Name;
+    }
+  | {
       readonly type: "OnQueuedResponse";
       readonly callbackId: Id;
       readonly evoluPortId: Id;
@@ -231,6 +236,9 @@ export interface QueuedResult {
   readonly response: QueuedResponse;
 }
 
+export const dbWorkerHeartbeatIntervalMs = 5_000;
+export const dbWorkerHeartbeatTimeoutMs = 30_000;
+
 // createSharedEvolu could be Task, but Instances doesn't support it yet.
 const createSharedEvolu = ({
   run,
@@ -239,7 +247,7 @@ const createSharedEvolu = ({
   postTabOutput,
   onDispose,
 }: {
-  run: Run<WorkerDeps>;
+  run: Run<WorkerDeps & TimeDep>;
   console: Console;
   name: Name;
   postTabOutput: Callback<EvoluTabOutput>;
@@ -261,8 +269,14 @@ const createSharedEvolu = ({
     DbWorkerInput,
     DbWorkerOutput
   > | null;
+  let activeDbWorkerLastHeartbeatAt = 0 as Millis;
+  const lastHeartbeatByDbWorkerPort = new Map<
+    MessagePort<DbWorkerInput, DbWorkerOutput>,
+    Millis
+  >();
 
-  let queueProcessingFiber: Fiber<void, never, WorkerDeps> | null = null;
+  let queueProcessingFiber: Fiber<void, never, WorkerDeps & TimeDep> | null =
+    null;
   let activeQueueCallback: {
     readonly callbackId: Id;
     readonly evoluPortId: Id;
@@ -284,6 +298,54 @@ const createSharedEvolu = ({
 
     if (queue[0]?.evoluPortId === evoluPortId) queue.shift();
   };
+
+  const cancelActiveQueue = (): void => {
+    if (activeQueueCallback) {
+      callbacks.cancel(activeQueueCallback.callbackId);
+      activeQueueCallback = null;
+    }
+    queueProcessingFiber?.abort();
+    queueProcessingFiber = null;
+  };
+
+  const markDbWorkerHeartbeat = (
+    dbWorkerPort: MessagePort<DbWorkerInput, DbWorkerOutput>,
+  ): void => {
+    const now = run.deps.time.now();
+    lastHeartbeatByDbWorkerPort.set(dbWorkerPort, now);
+    if (activeDbWorkerPort === dbWorkerPort)
+      activeDbWorkerLastHeartbeatAt = now;
+  };
+
+  const setActiveDbWorkerPort = (
+    dbWorkerPort: MessagePort<DbWorkerInput, DbWorkerOutput>,
+  ): void => {
+    activeDbWorkerPort = dbWorkerPort;
+    const now = run.deps.time.now();
+    activeDbWorkerLastHeartbeatAt = now;
+    lastHeartbeatByDbWorkerPort.set(dbWorkerPort, now);
+  };
+
+  const clearActiveDbWorkerIfStale = (): void => {
+    if (!activeDbWorkerPort) return;
+    const elapsed = run.deps.time.now() - activeDbWorkerLastHeartbeatAt;
+    if (elapsed <= dbWorkerHeartbeatTimeoutMs) return;
+
+    console.warn("leaderHeartbeatTimeout", {
+      name,
+      timeoutMs: dbWorkerHeartbeatTimeoutMs,
+      elapsedMs: elapsed,
+    });
+    activeDbWorkerPort = null;
+    cancelActiveQueue();
+  };
+
+  const heartbeatFiber = run.daemon(
+    repeat(() => {
+      clearActiveDbWorkerIfStale();
+      return ok();
+    }, spaced("1s")),
+  );
 
   const ensureQueueProcessing = (): void => {
     if (
@@ -395,12 +457,25 @@ const createSharedEvolu = ({
       dbWorkerPort.onMessage = (message) => {
         switch (message.type) {
           case "LeaderAcquired": {
-            activeDbWorkerPort = dbWorkerPort;
             console.info("leaderAcquired");
+            setActiveDbWorkerPort(dbWorkerPort);
             ensureQueueProcessing();
             break;
           }
+          case "LeaderHeartbeat": {
+            markDbWorkerHeartbeat(dbWorkerPort);
+            if (!activeDbWorkerPort) {
+              console.info("leaderHeartbeat adopted");
+              setActiveDbWorkerPort(dbWorkerPort);
+              ensureQueueProcessing();
+            }
+            break;
+          }
           case "OnQueuedResponse": {
+            if (dbWorkerPort !== activeDbWorkerPort) {
+              console.debug("ignoredQueuedResponseFromInactiveDbWorker");
+              break;
+            }
             callbacks.execute(message.callbackId, {
               evoluPortId: message.evoluPortId,
               response: message.response,
@@ -436,15 +511,11 @@ const createSharedEvolu = ({
               dbWorkerPorts.delete(dbWorkerPortForEvolu);
 
               if (activeDbWorkerPort === dbWorkerPortForEvolu) {
-                if (activeQueueCallback) {
-                  callbacks.cancel(activeQueueCallback.callbackId);
-                  activeQueueCallback = null;
-                }
-                queueProcessingFiber?.abort();
-                queueProcessingFiber = null;
+                cancelActiveQueue();
                 activeDbWorkerPort = null;
               }
 
+              lastHeartbeatByDbWorkerPort.delete(dbWorkerPortForEvolu);
               dbWorkerPortForEvolu[Symbol.dispose]();
             }
 
@@ -471,11 +542,13 @@ const createSharedEvolu = ({
     },
 
     [Symbol.dispose]: () => {
+      heartbeatFiber.abort();
       queueProcessingFiber?.abort();
       queueProcessingFiber = null;
       callbacks[Symbol.dispose]();
       activeQueueCallback = null;
       activeDbWorkerPort = null;
+      lastHeartbeatByDbWorkerPort.clear();
       queue.length = 0;
       evoluPorts.clear();
       rowsByQueryByEvoluPortId.clear();
