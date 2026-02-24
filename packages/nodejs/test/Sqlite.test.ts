@@ -1,4 +1,5 @@
 import { existsSync, unlinkSync } from "node:fs";
+import { createRequire } from "node:module";
 import {
   type CreateSqliteDriverDep,
   createSqlite,
@@ -6,11 +7,27 @@ import {
   sql,
   testCreateRun,
 } from "@evolu/common";
-import BetterSQLite from "better-sqlite3";
 import { afterEach, assert, describe, expect, test } from "vitest";
 import { createBetterSqliteDriver } from "../src/Sqlite.js";
 
 const testName = SimpleName.orThrow("Test");
+const require = createRequire(import.meta.url);
+
+type BetterSqliteConstructor = new (
+  filename: string,
+) => {
+  readonly exec: (sql: string) => void;
+  readonly serialize: () => Uint8Array;
+  readonly close: () => void;
+};
+
+const BetterSQLite = (() => {
+  try {
+    return require("better-sqlite3") as BetterSqliteConstructor;
+  } catch {
+    return null;
+  }
+})();
 
 describe("createBetterSqliteDriver", () => {
   test("creates in-memory database", async () => {
@@ -130,19 +147,24 @@ describe("createBetterSqliteDriver", () => {
     driver[Symbol.dispose]();
   });
 
-  test("better-sqlite3 serialize returns Buffer backed by ArrayBuffer", () => {
-    const db = new BetterSQLite(":memory:");
-    db.exec("create table t (data text);");
-    db.exec("insert into t (data) values ('x');");
+  const testIfBetterSqlite = BetterSQLite ? test : test.skip;
+  testIfBetterSqlite(
+    "better-sqlite3 serialize returns Buffer backed by ArrayBuffer",
+    () => {
+      if (!BetterSQLite) return;
+      const db = new BetterSQLite(":memory:");
+      db.exec("create table t (data text);");
+      db.exec("insert into t (data) values ('x');");
 
-    const serialized = db.serialize();
+      const serialized = db.serialize();
 
-    expect(serialized).toBeInstanceOf(Uint8Array);
-    expect(Buffer.isBuffer(serialized)).toBe(true);
-    expect(serialized.buffer).toBeInstanceOf(ArrayBuffer);
+      expect(serialized).toBeInstanceOf(Uint8Array);
+      expect(Buffer.isBuffer(serialized)).toBe(true);
+      expect(serialized.buffer).toBeInstanceOf(ArrayBuffer);
 
-    db.close();
-  });
+      db.close();
+    },
+  );
 
   describe("file-based database", () => {
     const dbPath = `${testName}.db`;

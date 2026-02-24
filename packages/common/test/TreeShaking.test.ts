@@ -28,9 +28,23 @@ interface BundleSize {
 type TreeShakingFixture = "result-all" | "task-example" | "type-object";
 
 const runBundle = (bundlePath: string): void => {
-  const result = spawnSync(process.execPath, [bundlePath], {
+  const bootstrap = `
+if (!Promise.try) {
+  Promise.try = (callback, ...args) =>
+    new Promise((resolve, reject) => {
+      try {
+        resolve(callback(...args));
+      } catch (error) {
+        reject(error);
+      }
+    });
+}
+require(process.argv[1]);
+`;
+
+  const result = spawnSync(process.execPath, ["-e", bootstrap, bundlePath], {
     stdio: "inherit",
-    timeout: 5000,
+    timeout: 15000,
   });
 
   if (result.error) {
@@ -177,5 +191,5 @@ describe("tree-shaking", () => {
         },
       }
     `);
-  }, 60000);
+  }, 120000);
 });

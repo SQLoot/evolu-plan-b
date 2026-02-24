@@ -1,5 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
-import BetterSQLite, { type Statement } from "better-sqlite3";
+import { createRequire } from "node:module";
 import { assert } from "../src/Assert.js";
 import type { TimingSafeEqual } from "../src/Crypto.js";
 import { lazyTrue, lazyVoid } from "../src/Function.js";
@@ -19,11 +19,14 @@ import type {
   SqliteDep,
   SqliteDriver,
   SqliteRow,
+  SqliteValue,
 } from "../src/Sqlite.js";
 import { createPreparedStatementsCache, createSqlite } from "../src/Sqlite.js";
 import type { Run } from "../src/Task.js";
 import { type TestDeps, testCreateRun } from "../src/Test.js";
 import { SimpleName } from "../src/Type.js";
+
+const require = createRequire(import.meta.url);
 
 export const testSimpleName = /*#__PURE__*/ SimpleName.orThrow("Test");
 
@@ -71,14 +74,103 @@ export const testCreateRunWithSqliteAndRelayStorage = async (
 const testCreateSqliteDriver: CreateSqliteDriver = (name) =>
   createBetterSqliteDriver(name, { mode: "memory" });
 
+interface StatementLike {
+  readonly reader?: boolean;
+  readonly all: (...parameters: ReadonlyArray<unknown>) => Array<SqliteRow>;
+  readonly run: (...parameters: ReadonlyArray<unknown>) => {
+    readonly changes: number;
+  };
+}
+
+interface DbLike {
+  readonly prepare: (sql: string) => StatementLike;
+  readonly serialize: () => Uint8Array;
+  readonly close: () => void;
+}
+
+interface BetterSqliteStatementLike {
+  readonly reader: boolean;
+  readonly all: (parameters?: ReadonlyArray<SqliteValue>) => Array<SqliteRow>;
+  readonly run: (parameters?: ReadonlyArray<SqliteValue>) => {
+    readonly changes: number;
+  };
+}
+
+interface BetterSqliteDbLike {
+  readonly prepare: (sql: string) => BetterSqliteStatementLike;
+  readonly serialize: () => Uint8Array;
+  readonly close: () => void;
+}
+
+type BetterSqliteConstructor = new (filename: string) => BetterSqliteDbLike;
+
+interface BunSqliteStatementLike {
+  readonly all: (...parameters: ReadonlyArray<SqliteValue>) => Array<SqliteRow>;
+  readonly run: (...parameters: ReadonlyArray<SqliteValue>) => {
+    readonly changes: number;
+  };
+}
+
+interface BunSqliteDbLike {
+  readonly prepare: (sql: string) => BunSqliteStatementLike;
+  readonly serialize: () => Uint8Array;
+  readonly close: () => void;
+}
+
+interface BunSqliteModule {
+  readonly Database: new (filename: string) => BunSqliteDbLike;
+}
+
+const isReaderSql = (sql: string): boolean =>
+  /^\s*(select|pragma|with|explain|values)\b/i.test(sql);
+
+const createDb = (filename: string): DbLike => {
+  try {
+    const BetterSQLite = require("better-sqlite3") as BetterSqliteConstructor;
+    const db = new BetterSQLite(filename);
+
+    return {
+      prepare: (sql) => {
+        const statement = db.prepare(sql);
+        return {
+          reader: statement.reader,
+          all: (...parameters) => statement.all(parameters),
+          run: (...parameters) => statement.run(parameters),
+        };
+      },
+      serialize: () => db.serialize(),
+      close: () => db.close(),
+    };
+  } catch (error) {
+    const hasBunRuntime = (globalThis as Record<string, unknown>).Bun != null;
+    if (!hasBunRuntime) throw error;
+
+    const { Database } = require("bun:sqlite") as BunSqliteModule;
+    const db = new Database(filename);
+
+    return {
+      prepare: (sql) => {
+        const statement = db.prepare(sql);
+        return {
+          reader: isReaderSql(sql),
+          all: (...parameters) => statement.all(...parameters),
+          run: (...parameters) => statement.run(...parameters),
+        };
+      },
+      serialize: () => db.serialize(),
+      close: () => db.close(),
+    };
+  }
+};
+
 // Duplicated from @evolu/nodejs because @evolu/common cannot depend on it
 // (nodejs depends on common — importing back would create a circular dependency).
 const createBetterSqliteDriver: CreateSqliteDriver = (name, options) => () => {
   const filename = options?.mode === "memory" ? ":memory:" : `${name}.db`;
-  const db = new BetterSQLite(filename);
+  const db = createDb(filename);
   let isDisposed = false;
 
-  const cache = createPreparedStatementsCache<Statement>(
+  const cache = createPreparedStatementsCache<StatementLike>(
     (sql) => db.prepare(sql),
     // Not needed.
     // https://github.com/WiseLibs/better-sqlite3/blob/master/docs/api.md#class-statement
@@ -90,12 +182,12 @@ const createBetterSqliteDriver: CreateSqliteDriver = (name, options) => () => {
       // Always prepare is recommended for better-sqlite3
       const prepared = cache.get(query, true);
 
-      if (prepared.reader) {
-        const rows = prepared.all(query.parameters) as Array<SqliteRow>;
+      if (prepared.reader ?? isReaderSql(query.sql)) {
+        const rows = prepared.all(...query.parameters) as Array<SqliteRow>;
         return { rows, changes: 0 };
       }
 
-      const changes = prepared.run(query.parameters).changes;
+      const changes = prepared.run(...query.parameters).changes;
       return { rows: [], changes };
     },
 
