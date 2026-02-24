@@ -56,6 +56,9 @@ export interface Callbacks<T = undefined> extends Disposable {
   readonly execute: T extends undefined
     ? (id: Id) => undefined
     : (id: Id, arg: T) => undefined;
+
+  /** Removes callback associated with the given ID if present. */
+  readonly cancel: (id: Id) => undefined;
 }
 
 /** Creates a {@link Callbacks} registry for managing callbacks. */
@@ -85,6 +88,11 @@ export const createCallbacks = <T = undefined>(
     },
 
     execute,
+
+    cancel: (id) => {
+      callbackMap.delete(id);
+      return undefined;
+    },
 
     [Symbol.dispose]: () => {
       callbackMap.clear();

@@ -120,6 +120,8 @@ export interface PortDep {
   readonly port: MessagePort<DbWorkerOutput, DbWorkerInput>;
 }
 
+const processedRequestIdsLimit = 10_000;
+
 export const initDbWorker =
   (
     self: WorkerSelf<DbWorkerInit>,
@@ -212,16 +214,20 @@ const startDbWorker =
     /**
      * SharedWorker repeats sends until it gets a response, so handling here
      * must be idempotent and ignore already processed IDs.
-     *
-     * TODO: Bound memory growth by evicting old IDs.
      */
     const processedRequestIds = new Set<Id>();
+    const processedRequestIdsOrder: Array<Id> = [];
 
     const { port } = run.deps;
 
     port.onMessage = ({ callbackId, request, evoluPortId }) => {
       if (processedRequestIds.has(callbackId)) return;
       processedRequestIds.add(callbackId);
+      appendToArray(processedRequestIdsOrder, callbackId);
+      if (processedRequestIdsOrder.length > processedRequestIdsLimit) {
+        const oldestCallbackId = processedRequestIdsOrder.shift();
+        if (oldestCallbackId) processedRequestIds.delete(oldestCallbackId);
+      }
 
       // console.debug("onQueuedEvoluInput", callbackId);
 
