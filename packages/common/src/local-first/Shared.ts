@@ -249,6 +249,10 @@ const createSharedEvolu = ({
 
   const evoluPorts = new Map<Id, MessagePort<EvoluOutput, EvoluInput>>();
   const dbWorkerPorts = new Set<MessagePort<DbWorkerInput, DbWorkerOutput>>();
+  const dbWorkerPortByEvoluPortId = new Map<
+    Id,
+    MessagePort<DbWorkerInput, DbWorkerOutput>
+  >();
   const rowsByQueryByEvoluPortId = new Map<Id, RowsByQueryMap>();
   const queue: Array<DbWorkerQueueItem> = [];
   const callbacks = createCallbacks<QueuedResult>(run.deps);
@@ -259,6 +263,27 @@ const createSharedEvolu = ({
   > | null;
 
   let queueProcessingFiber: Fiber<void, never, WorkerDeps> | null = null;
+  let activeQueueCallback: {
+    readonly callbackId: Id;
+    readonly evoluPortId: Id;
+  } | null = null;
+
+  const dropQueuedRequestsForEvoluPort = (evoluPortId: Id): void => {
+    for (let i = queue.length - 1; i >= 0; i -= 1) {
+      if (queue[i]?.evoluPortId === evoluPortId) queue.splice(i, 1);
+    }
+  };
+
+  const cancelActiveQueueForEvoluPort = (evoluPortId: Id): void => {
+    if (activeQueueCallback?.evoluPortId !== evoluPortId) return;
+
+    callbacks.cancel(activeQueueCallback.callbackId);
+    activeQueueCallback = null;
+    queueProcessingFiber?.abort();
+    queueProcessingFiber = null;
+
+    if (queue[0]?.evoluPortId === evoluPortId) queue.shift();
+  };
 
   const ensureQueueProcessing = (): void => {
     if (
@@ -272,6 +297,7 @@ const createSharedEvolu = ({
     const first = firstInArray(queue);
 
     const callbackId = callbacks.register(({ evoluPortId, response }) => {
+      activeQueueCallback = null;
       queueProcessingFiber?.abort();
       queueProcessingFiber = null;
 
@@ -320,6 +346,7 @@ const createSharedEvolu = ({
       shiftFromArray(queue);
       ensureQueueProcessing();
     });
+    activeQueueCallback = { callbackId, evoluPortId: first.evoluPortId };
 
     queueProcessingFiber = run.daemon(
       repeat(() => {
@@ -363,6 +390,7 @@ const createSharedEvolu = ({
 
       evoluPorts.set(evoluPortId, evoluPort);
       dbWorkerPorts.add(dbWorkerPort);
+      dbWorkerPortByEvoluPortId.set(evoluPortId, dbWorkerPort);
 
       dbWorkerPort.onMessage = (message) => {
         switch (message.type) {
@@ -397,12 +425,35 @@ const createSharedEvolu = ({
               evoluPortId,
               hadLastPort: evoluPorts.size === 1,
             });
+
+            dropQueuedRequestsForEvoluPort(evoluPortId);
+            cancelActiveQueueForEvoluPort(evoluPortId);
+
+            const dbWorkerPortForEvolu =
+              dbWorkerPortByEvoluPortId.get(evoluPortId);
+            if (dbWorkerPortForEvolu) {
+              dbWorkerPortByEvoluPortId.delete(evoluPortId);
+              dbWorkerPorts.delete(dbWorkerPortForEvolu);
+
+              if (activeDbWorkerPort === dbWorkerPortForEvolu) {
+                if (activeQueueCallback) {
+                  callbacks.cancel(activeQueueCallback.callbackId);
+                  activeQueueCallback = null;
+                }
+                queueProcessingFiber?.abort();
+                queueProcessingFiber = null;
+                activeDbWorkerPort = null;
+              }
+
+              dbWorkerPortForEvolu[Symbol.dispose]();
+            }
+
             evoluPorts.delete(evoluPortId);
             rowsByQueryByEvoluPortId.delete(evoluPortId);
+
+            if (activeDbWorkerPort) ensureQueueProcessing();
             if (evoluPorts.size === 0) onDispose();
 
-            // TODO: Decided what to do with DbWorker but probably dispose it, but
-            // https://bugs.webkit.org/show_bug.cgi?id=301520
             break;
           }
 
@@ -423,10 +474,12 @@ const createSharedEvolu = ({
       queueProcessingFiber?.abort();
       queueProcessingFiber = null;
       callbacks[Symbol.dispose]();
+      activeQueueCallback = null;
       activeDbWorkerPort = null;
       queue.length = 0;
       evoluPorts.clear();
       rowsByQueryByEvoluPortId.clear();
+      dbWorkerPortByEvoluPortId.clear();
       dbWorkerPorts.clear();
     },
   };

@@ -810,6 +810,180 @@ describe("initSharedWorker", () => {
     expect(outputs).toEqual([]);
   });
 
+  test("drops queued request for disposed evolu port before dispatch", async () => {
+    const { run, time, worker, workerStack } = await setupWorker();
+    await using _run = run;
+    await using _workerStack = workerStack;
+
+    const evoluChannel1 = testCreateMessageChannel<EvoluOutput, EvoluInput>();
+    const dbWorkerChannel1 = testCreateMessageChannel<
+      DbWorkerInput,
+      DbWorkerOutput
+    >();
+    const evoluChannel2 = testCreateMessageChannel<EvoluOutput, EvoluInput>();
+    const dbWorkerChannel2 = testCreateMessageChannel<
+      DbWorkerInput,
+      DbWorkerOutput
+    >();
+
+    worker.port.postMessage({
+      type: "CreateEvolu",
+      name: testName,
+      evoluPort: evoluChannel1.port1.native,
+      dbWorkerPort: dbWorkerChannel1.port1.native,
+    });
+    worker.port.postMessage({
+      type: "CreateEvolu",
+      name: testName,
+      evoluPort: evoluChannel2.port1.native,
+      dbWorkerPort: dbWorkerChannel2.port1.native,
+    });
+
+    const dbInputs1: Array<DbWorkerInput> = [];
+    dbWorkerChannel1.port2.onMessage = (input) => {
+      dbInputs1.push(input);
+    };
+
+    dbWorkerChannel1.port2.postMessage({
+      type: "LeaderAcquired",
+      name: testName,
+    });
+
+    evoluChannel1.port2.postMessage({
+      type: "Query",
+      queries: createSet([testQuery]),
+    });
+    evoluChannel2.port2.postMessage({
+      type: "Query",
+      queries: createSet([testQuery]),
+    });
+    time.advance("10s");
+    await Promise.resolve();
+
+    const firstInput = dbInputs1.at(-1);
+    assert(firstInput);
+
+    // Drop queued request for the second Evolu port before it is dispatched.
+    evoluChannel2.port2.postMessage({ type: "Dispose" });
+
+    dbWorkerChannel1.port2.postMessage({
+      type: "OnQueuedResponse",
+      callbackId: firstInput.callbackId,
+      evoluPortId: firstInput.evoluPortId,
+      response: {
+        type: "Query",
+        rowsByQuery: new Map([[testQuery, [{ value: 1 }]]]),
+      },
+    });
+
+    time.advance("10s");
+    await Promise.resolve();
+
+    expect(dbInputs1).toHaveLength(1);
+  });
+
+  test("cancels active disposed queue item and resumes after new leader", async () => {
+    const { run, time, worker, workerStack } = await setupWorker();
+    await using _run = run;
+    await using _workerStack = workerStack;
+
+    const evoluChannel1 = testCreateMessageChannel<EvoluOutput, EvoluInput>();
+    const dbWorkerChannel1 = testCreateMessageChannel<
+      DbWorkerInput,
+      DbWorkerOutput
+    >();
+    const evoluChannel2 = testCreateMessageChannel<EvoluOutput, EvoluInput>();
+    const dbWorkerChannel2 = testCreateMessageChannel<
+      DbWorkerInput,
+      DbWorkerOutput
+    >();
+
+    worker.port.postMessage({
+      type: "CreateEvolu",
+      name: testName,
+      evoluPort: evoluChannel1.port1.native,
+      dbWorkerPort: dbWorkerChannel1.port1.native,
+    });
+    worker.port.postMessage({
+      type: "CreateEvolu",
+      name: testName,
+      evoluPort: evoluChannel2.port1.native,
+      dbWorkerPort: dbWorkerChannel2.port1.native,
+    });
+
+    const dbInputs1: Array<DbWorkerInput> = [];
+    dbWorkerChannel1.port2.onMessage = (input) => {
+      dbInputs1.push(input);
+    };
+    const dbInputs2: Array<DbWorkerInput> = [];
+    dbWorkerChannel2.port2.onMessage = (input) => {
+      dbInputs2.push(input);
+    };
+
+    const outputs2: Array<EvoluOutput> = [];
+    evoluChannel2.port2.onMessage = (output) => {
+      outputs2.push(output);
+    };
+
+    dbWorkerChannel1.port2.postMessage({
+      type: "LeaderAcquired",
+      name: testName,
+    });
+
+    evoluChannel1.port2.postMessage({
+      type: "Query",
+      queries: createSet([testQuery]),
+    });
+    evoluChannel2.port2.postMessage({
+      type: "Query",
+      queries: createSet([testQuery]),
+    });
+    time.advance("10s");
+    await Promise.resolve();
+
+    const firstInput = dbInputs1.at(-1);
+    assert(firstInput);
+
+    evoluChannel1.port2.postMessage({ type: "Dispose" });
+
+    // Stale response from disposed worker/port is ignored.
+    dbWorkerChannel1.port2.postMessage({
+      type: "OnQueuedResponse",
+      callbackId: firstInput.callbackId,
+      evoluPortId: firstInput.evoluPortId,
+      response: {
+        type: "Query",
+        rowsByQuery: new Map([[testQuery, [{ value: 999 }]]]),
+      },
+    });
+
+    time.advance("10s");
+    await Promise.resolve();
+    expect(dbInputs2).toEqual([]);
+
+    dbWorkerChannel2.port2.postMessage({
+      type: "LeaderAcquired",
+      name: testName,
+    });
+    time.advance("10s");
+    await Promise.resolve();
+
+    const secondInput = dbInputs2.at(-1);
+    assert(secondInput);
+    dbWorkerChannel2.port2.postMessage({
+      type: "OnQueuedResponse",
+      callbackId: secondInput.callbackId,
+      evoluPortId: secondInput.evoluPortId,
+      response: {
+        type: "Query",
+        rowsByQuery: new Map([[testQuery, [{ value: 2 }]]]),
+      },
+    });
+
+    const output = outputs2[0];
+    assert(output?.type === "OnPatchesByQuery");
+  });
+
   test("keeps shared evolu alive when one of multiple ports disposes", async () => {
     const { run, time, worker, workerStack } = await setupWorker();
     await using _run = run;
