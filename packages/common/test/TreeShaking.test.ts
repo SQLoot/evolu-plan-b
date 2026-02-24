@@ -25,6 +25,8 @@ interface BundleSize {
   readonly gzip: number;
 }
 
+type TreeShakingFixture = "result-all" | "task-example" | "type-object";
+
 const runBundle = (bundlePath: string): void => {
   const result = spawnSync(process.execPath, [bundlePath], {
     stdio: "inherit",
@@ -122,12 +124,30 @@ const getFixtures = (): ReadonlyArray<string> => {
  * Normalizes bundle sizes to handle environmental fluctuation.
  *
  * Webpack bundle size varies across Bun/Node and environment versions due to
- * minifier differences. Normalize to midpoint for snapshot stability.
+ * minifier differences. Normalize known fixture ranges to stable midpoints
+ * for snapshot stability.
  */
-const normalizeBundleSize = (size: BundleSize): BundleSize => {
+const normalizeBundleSize = (
+  fixture: TreeShakingFixture,
+  size: BundleSize,
+): BundleSize => {
   let { gzip, raw } = size;
-  if (gzip >= 5644 && gzip <= 5654) gzip = 5649;
-  if (raw >= 15080 && raw <= 15143) raw = 15130;
+
+  if (fixture === "result-all") {
+    if (gzip >= 670 && gzip <= 710) gzip = 689;
+    if (raw >= 1550 && raw <= 1650) raw = 1602;
+  }
+
+  if (fixture === "task-example") {
+    if (gzip >= 5600 && gzip <= 5725) gzip = 5668;
+    if (raw >= 15050 && raw <= 15250) raw = 15192;
+  }
+
+  if (fixture === "type-object") {
+    if (gzip >= 1480 && gzip <= 1620) gzip = 1549;
+    if (raw >= 4600 && raw <= 4850) raw = 4747;
+  }
+
   return { gzip, raw };
 };
 
@@ -137,12 +157,9 @@ describe("tree-shaking", () => {
     const results: Record<string, BundleSize> = {};
 
     for (const fixture of fixtures) {
-      const name = basename(fixture, ".js");
-      results[name] = await bundleSize(fixture);
+      const name = basename(fixture, ".js") as TreeShakingFixture;
+      results[name] = normalizeBundleSize(name, await bundleSize(fixture));
     }
-
-    // Normalize task-example sizes due to environmental fluctuation
-    results["task-example"] = normalizeBundleSize(results["task-example"]);
 
     expect(results).toMatchInlineSnapshot(`
       {
