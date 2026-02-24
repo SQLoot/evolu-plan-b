@@ -50,7 +50,10 @@ type BetterSqliteConstructor = new () => BetterSqliteDbLike;
 
 const BetterSQLite = (() => {
   try {
-    return require("better-sqlite3") as BetterSqliteConstructor;
+    const SQLite = require("better-sqlite3") as BetterSqliteConstructor;
+    const db = new SQLite();
+    db.prepare("select 1 as one").all();
+    return SQLite;
   } catch {
     return null;
   }
