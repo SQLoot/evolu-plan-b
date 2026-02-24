@@ -1,47 +1,40 @@
 import { expect, test } from "vitest";
+import { createConsoleStoreOutput } from "../../src/Console.js";
+import {
+  type DbWorkerDeps,
+  type DbWorkerInit,
+  initDbWorker,
+} from "../../src/local-first/Db.js";
+import { ok } from "../../src/Result.js";
+import type { CreateSqliteDriver } from "../../src/Sqlite.js";
+import { testCreateRun } from "../../src/Test.js";
+import { testCreateWorker } from "../../src/Worker.js";
 
-test("TODO", () => {
-  expect(1).toBe(1);
+const neverUsedCreateSqliteDriver = (() => () => {
+  throw new Error("createSqliteDriver should not be called in this unit test");
+}) as CreateSqliteDriver;
+
+test("initDbWorker registers onMessage handler", async () => {
+  const worker = testCreateWorker<DbWorkerInit>();
+  const storeOutput = createConsoleStoreOutput();
+
+  await using run = testCreateRun<DbWorkerDeps>({
+    leaderLock: {
+      acquire: () => () => ok({ [Symbol.dispose]: () => undefined }),
+    },
+    createSqliteDriver: neverUsedCreateSqliteDriver,
+    createMessagePort: () => {
+      throw new Error(
+        "createMessagePort should not be called in this unit test",
+      );
+    },
+    consoleStoreOutputEntry: storeOutput.entry,
+  });
+
+  const result = await run(initDbWorker(worker.self));
+  expect(result.ok).toBe(true);
+  expect(typeof worker.self.onMessage).toBe("function");
 });
-
-// TODO: handleMutation, ze drzi poradi vkladani local a to sync
-
-// import { CallbackId } from "../../src/Callbacks.js";
-// import {
-//   createDbWorkerForPlatform,
-//   DbWorker,
-//   DbWorkerPlatformDeps,
-//   defaultDbConfig,
-// } from "../../src/local-first/Db.js";
-// import { createQuery } from "../../src/local-first/Evolu.js";
-// import { createAppOwner } from "../../src/local-first/Owner.js";
-// import {
-//   applyProtocolMessageAsRelay,
-//   createProtocolMessageFromCrdtMessages,
-//   ProtocolMessage,
-// } from "../../src/local-first/Protocol.js";
-// import { CrdtMessage, DbChange } from "../../src/local-first/Storage.js";
-// import { createTimestamp, Millis } from "../../src/local-first/Timestamp.js";
-// import { getOrThrow } from "../../src/Result.js";
-// import { createSqlite, Sqlite } from "../../src/Sqlite.js";
-// import { wait } from "../../src/OldTask.js";
-// import { createId } from "../../src/Type.js";
-// import {
-//   TestConsole,
-//   testCreateConsole,
-//   testCreateId,
-//   testCreateRelayStorageAndSqliteDeps,
-//   testCreateSqliteDriver,
-//   testCreateWebSocket,
-//   testDeps,
-//   testOwnerSecret,
-//   testRandom,
-//   testRandomBytes,
-//   testSimpleName,
-//   testTime,
-//   TestWebSocket,
-// } from "../_nodeDeps.js";
-// import { createTestCrdtMessage, getDbSnapshot } from "./_utils.js";
 
 // const createInitializedDbWorker = async (): Promise<{
 //   readonly worker: DbWorker;
