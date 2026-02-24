@@ -1,4 +1,8 @@
+import { randomUUID } from "node:crypto";
+import { readFileSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   type CreateSqliteDriver,
   createPreparedStatementsCache,
@@ -58,8 +62,45 @@ interface BunSqliteModule {
   readonly Database: new (filename: string) => BunSqliteDbLike;
 }
 
+interface NodeSqliteStatementLike {
+  readonly all: (...parameters: ReadonlyArray<SqliteValue>) => Array<SqliteRow>;
+  readonly run: (...parameters: ReadonlyArray<SqliteValue>) => {
+    readonly changes?: number;
+  };
+}
+
+interface NodeSqliteDbLike {
+  readonly prepare: (sql: string) => NodeSqliteStatementLike;
+  readonly exec: (sql: string) => void;
+  readonly close: () => void;
+}
+
+interface NodeSqliteModule {
+  readonly DatabaseSync: new (filename: string) => NodeSqliteDbLike;
+}
+
 const isReaderSql = (sql: string): boolean =>
   /^\s*(select|pragma|with|explain|values)\b/i.test(sql);
+
+const sqliteEscape = (value: string): string => value.replaceAll("'", "''");
+
+const serializeToBytes = (exec: (sql: string) => void): Uint8Array => {
+  const path = join(tmpdir(), `evolu-export-${randomUUID()}.db`);
+
+  try {
+    exec(`vacuum into '${sqliteEscape(path)}'`);
+    const file = readFileSync(path);
+    const { buffer } = file;
+
+    if (buffer instanceof ArrayBuffer) {
+      return new Uint8Array(buffer, file.byteOffset, file.byteLength);
+    }
+
+    return new Uint8Array(file);
+  } finally {
+    rmSync(path, { force: true });
+  }
+};
 
 const createBetterDb = (filename: string): DbLike => {
   const BetterSQLite = require("better-sqlite3") as BetterSqliteConstructor;
@@ -97,6 +138,26 @@ const createBunDb = (filename: string): DbLike => {
   };
 };
 
+const createNodeDb = (filename: string): DbLike => {
+  const { DatabaseSync } = require("node:sqlite") as NodeSqliteModule;
+  const db = new DatabaseSync(filename);
+
+  return {
+    prepare: (sql) => {
+      const statement = db.prepare(sql);
+      return {
+        reader: isReaderSql(sql),
+        all: (...parameters) => statement.all(...parameters),
+        run: (...parameters) => ({
+          changes: statement.run(...parameters).changes ?? 0,
+        }),
+      };
+    },
+    serialize: () => serializeToBytes((sql) => db.exec(sql)),
+    close: () => db.close(),
+  };
+};
+
 const createDb = (filename: string): DbLike => {
   const hasBunRuntime = (globalThis as Record<string, unknown>).Bun != null;
 
@@ -107,12 +168,24 @@ const createDb = (filename: string): DbLike => {
       try {
         return createBetterDb(filename);
       } catch {
-        throw bunError;
+        try {
+          return createNodeDb(filename);
+        } catch {
+          throw bunError;
+        }
       }
     }
   }
 
-  return createBetterDb(filename);
+  try {
+    return createBetterDb(filename);
+  } catch (betterError) {
+    try {
+      return createNodeDb(filename);
+    } catch {
+      throw betterError;
+    }
+  }
 };
 
 export const createBetterSqliteDriver: CreateSqliteDriver =

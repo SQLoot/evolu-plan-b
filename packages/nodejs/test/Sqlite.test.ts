@@ -23,7 +23,10 @@ type BetterSqliteConstructor = new (
 
 const BetterSQLite = (() => {
   try {
-    return require("better-sqlite3") as BetterSqliteConstructor;
+    const SQLite = require("better-sqlite3") as BetterSqliteConstructor;
+    const db = new SQLite(":memory:");
+    db.close();
+    return SQLite;
   } catch {
     return null;
   }

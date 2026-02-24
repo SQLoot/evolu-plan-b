@@ -39,7 +39,14 @@ if (!Promise.try) {
       }
     });
 }
-require(process.argv[1]);
+const { pathToFileURL } = require("node:url");
+(async () => {
+  const fileUrl = pathToFileURL(process.argv[1]).href;
+  await import(fileUrl);
+})().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
 `;
 
   const result = spawnSync(process.execPath, ["-e", bootstrap, bundlePath], {
@@ -102,21 +109,25 @@ const bundleSize = async (fixturePath: string): Promise<BundleSize> => {
   return await new Promise((resolve, reject) => {
     compiler.run((err: Error | null, stats: Stats | undefined) => {
       compiler.close(() => {
-        if (err) {
-          reject(err);
-          return;
+        try {
+          if (err) {
+            reject(err);
+            return;
+          }
+          if (stats?.hasErrors()) {
+            reject(new Error(stats.toString()));
+            return;
+          }
+          const bundlePath = join(outputDir, "bundle.js");
+          runBundle(bundlePath);
+          const bundle = readFileSync(bundlePath);
+          resolve({
+            raw: bundle.byteLength,
+            gzip: gzipSync(bundle).byteLength,
+          });
+        } catch (error) {
+          reject(error);
         }
-        if (stats?.hasErrors()) {
-          reject(new Error(stats.toString()));
-          return;
-        }
-        const bundlePath = join(outputDir, "bundle.js");
-        runBundle(bundlePath);
-        const bundle = readFileSync(bundlePath);
-        resolve({
-          raw: bundle.byteLength,
-          gzip: gzipSync(bundle).byteLength,
-        });
       });
     });
   });

@@ -1,5 +1,8 @@
-import { timingSafeEqual } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
+import { readFileSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { assert } from "../src/Assert.js";
 import type { TimingSafeEqual } from "../src/Crypto.js";
 import { lazyTrue, lazyVoid } from "../src/Function.js";
@@ -121,8 +124,45 @@ interface BunSqliteModule {
   readonly Database: new (filename: string) => BunSqliteDbLike;
 }
 
+interface NodeSqliteStatementLike {
+  readonly all: (...parameters: ReadonlyArray<SqliteValue>) => Array<SqliteRow>;
+  readonly run: (...parameters: ReadonlyArray<SqliteValue>) => {
+    readonly changes?: number;
+  };
+}
+
+interface NodeSqliteDbLike {
+  readonly prepare: (sql: string) => NodeSqliteStatementLike;
+  readonly exec: (sql: string) => void;
+  readonly close: () => void;
+}
+
+interface NodeSqliteModule {
+  readonly DatabaseSync: new (filename: string) => NodeSqliteDbLike;
+}
+
 const isReaderSql = (sql: string): boolean =>
   /^\s*(select|pragma|with|explain|values)\b/i.test(sql);
+
+const sqliteEscape = (value: string): string => value.replaceAll("'", "''");
+
+const serializeToBytes = (exec: (sql: string) => void): Uint8Array => {
+  const path = join(tmpdir(), `evolu-test-export-${randomUUID()}.db`);
+
+  try {
+    exec(`vacuum into '${sqliteEscape(path)}'`);
+    const file = readFileSync(path);
+    const { buffer } = file;
+
+    if (buffer instanceof ArrayBuffer) {
+      return new Uint8Array(buffer, file.byteOffset, file.byteLength);
+    }
+
+    return new Uint8Array(file);
+  } finally {
+    rmSync(path, { force: true });
+  }
+};
 
 const createDb = (filename: string): DbLike => {
   try {
@@ -141,10 +181,9 @@ const createDb = (filename: string): DbLike => {
       serialize: () => db.serialize(),
       close: () => db.close(),
     };
-  } catch (error) {
-    const hasBunRuntime = (globalThis as Record<string, unknown>).Bun != null;
-    if (!hasBunRuntime) throw error;
+  } catch {}
 
+  try {
     const { Database } = require("bun:sqlite") as BunSqliteModule;
     const db = new Database(filename);
 
@@ -160,7 +199,25 @@ const createDb = (filename: string): DbLike => {
       serialize: () => db.serialize(),
       close: () => db.close(),
     };
-  }
+  } catch {}
+
+  const { DatabaseSync } = require("node:sqlite") as NodeSqliteModule;
+  const db = new DatabaseSync(filename);
+
+  return {
+    prepare: (sql) => {
+      const statement = db.prepare(sql);
+      return {
+        reader: isReaderSql(sql),
+        all: (...parameters) => statement.all(...parameters),
+        run: (...parameters) => ({
+          changes: statement.run(...parameters).changes ?? 0,
+        }),
+      };
+    },
+    serialize: () => serializeToBytes((sql) => db.exec(sql)),
+    close: () => db.close(),
+  };
 };
 
 // Duplicated from @evolu/nodejs because @evolu/common cannot depend on it

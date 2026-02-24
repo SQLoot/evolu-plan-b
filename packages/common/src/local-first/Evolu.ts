@@ -895,6 +895,9 @@ export const createEvolu =
       [Symbol.asyncDispose]: () => {
         console.info("disposeEvolu");
         exportDatabaseDeferred?.[Symbol.dispose]();
+        // Cancel queued microtask batches before sending dispose.
+        mutateBatch[Symbol.dispose]();
+        queryBatch[Symbol.dispose]();
         postMessage({ type: "Dispose" });
         return moved.disposeAsync();
       },
