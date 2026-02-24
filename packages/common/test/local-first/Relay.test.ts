@@ -108,9 +108,10 @@ describe("writeMessages", () => {
   test("accumulates storedBytes across multiple writes", async () => {
     await using run = await testCreateRunWithSqliteAndRelayStorage();
     const { storage, sqlite } = run.deps;
+    const message2 = createTestMessage();
 
     await run(storage.writeMessages(testAppOwnerIdBytes, [message]));
-    await run(storage.writeMessages(testAppOwnerIdBytes, [message]));
+    await run(storage.writeMessages(testAppOwnerIdBytes, [message2]));
 
     expect(getStoredBytes({ sqlite })(testAppOwnerIdBytes)).toBe(6);
   });
