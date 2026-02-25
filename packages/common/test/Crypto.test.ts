@@ -95,25 +95,14 @@ test("createSlip21", () => {
   );
 });
 
-/**
- * This test demonstrates createRandomBytes performance, which is used for
- * createId and is fast enough: ~0.0014ms per call on Apple M1.
- */
-test.skip("createRandomBytes generates unique values", () => {
+test("createRandomBytes generates unique values in short sequence", () => {
   const randomBytes = createRandomBytes();
   const values = new Set<string>();
-  const iterations = 10_000;
+  const iterations = 512;
 
-  const start = performance.now();
   for (let i = 0; i < iterations; i++) {
     values.add(bytesToHex(randomBytes.create(16)));
   }
-  const end = performance.now();
-
-  // ~14ms on Apple M1
-  console.log(
-    `createRandomBytes: ${iterations} in ${(end - start).toFixed(2)}ms`,
-  );
 
   expect(values.size).toBe(iterations);
 });
