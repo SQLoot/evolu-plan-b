@@ -220,19 +220,36 @@ const startDbWorker =
     /**
      * SharedWorker repeats sends until it gets a response, so handling here
      * must be idempotent and ignore already processed IDs.
+     *
+     * processedRequestIds combines a size-based bound with time-based
+     * expiration to limit memory growth and reduce replay windows.
      */
     const processedRequestIds = new Set<Id>();
-    const processedRequestIdsOrder: Array<Id> = [];
+    const processedRequestIdsOrder: Array<{
+      readonly id: Id;
+      readonly processedAt: Millis;
+    }> = [];
+    const processedRequestIdTtl: Millis = 5 * 60 * 1000;
 
     const { port } = run.deps;
 
     port.onMessage = ({ callbackId, request, evoluPortId }) => {
+      const now = clock.get();
+
+      // Evict expired callback IDs based on time-to-live.
+      while (processedRequestIdsOrder.length > 0) {
+        const oldest = processedRequestIdsOrder[0];
+        if (now - oldest.processedAt <= processedRequestIdTtl) break;
+        processedRequestIdsOrder.shift();
+        processedRequestIds.delete(oldest.id);
+      }
+
       if (processedRequestIds.has(callbackId)) return;
       processedRequestIds.add(callbackId);
-      processedRequestIdsOrder.push(callbackId);
+      processedRequestIdsOrder.push({ id: callbackId, processedAt: now });
       if (processedRequestIdsOrder.length > processedRequestIdsLimit) {
-        const oldestCallbackId = processedRequestIdsOrder.shift();
-        if (oldestCallbackId) processedRequestIds.delete(oldestCallbackId);
+        const oldest = processedRequestIdsOrder.shift();
+        if (oldest) processedRequestIds.delete(oldest.id);
       }
 
       // console.debug("onQueuedEvoluInput", callbackId);
