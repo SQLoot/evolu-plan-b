@@ -2,7 +2,7 @@
 
 ## Current totals
 
-- `TODO` in `packages/*`: `44` (down from `56`)
+- `TODO` in `packages/*`: `42` (down from `56`)
 - `FIXME` in `packages/*`: `0`
 - skipped tests (`test.skip`, `it.skip`, `describe.skip`, `test.todo`, `it.todo`): `5` (down from `9`)
 
@@ -30,6 +30,11 @@
 - Removed stale Sync TODO stubs/comments and added baseline Sync tests:
   - `packages/common/src/local-first/Sync.ts`
   - `packages/common/test/local-first/Sync.test.ts`
+- Replaced transport `todo()` runtime crash with explicit error and added guard test:
+  - `packages/common/src/local-first/Sync.ts`
+  - `packages/common/test/local-first/Sync.test.ts`
+- Removed stale/invalid TODO text from `Evolu` API docs:
+  - `packages/common/src/local-first/Evolu.ts`
 
 ## Remaining skipped tests (intentional)
 
