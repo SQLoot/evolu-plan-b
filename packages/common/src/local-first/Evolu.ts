@@ -403,12 +403,7 @@ export interface Evolu<S extends EvoluSchema = EvoluSchema>
    */
   readonly exportDatabase: Task<Uint8Array<ArrayBuffer>>;
 
-  // TODO: Add exportHistory.
-
   /**
-   * // TODO: Ten naming je furt divnej, syncOwner? subscribeOwner? // hmm, use
-   * je ale ok, cleanup vracet teda? uvidime.
-   *
    * Use a {@link SyncOwner}. Returns a {@link UnuseOwner}.
    *
    * Using an owner means syncing it with its transports, or the transports
