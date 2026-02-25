@@ -855,7 +855,6 @@ const applyMessages =
         lastTimestamp,
       );
 
-      // TODO: Rethink and maybe refactor.
       deps.storage.insertTimestamp(ownerIdBytes, timestampBytes, strategy);
     }
 
@@ -984,10 +983,7 @@ export const tryApplyQuarantinedMessages =
   };
 
 /**
- * TODO: Rework for the new owners API.
- *
- * The possible states of a synchronization process. The `SyncState` can be one
- * of the following:
+ * The possible states of a synchronization process.
  *
  * - {@link SyncStateInitial}
  * - {@link SyncStateIsSyncing}
@@ -1025,6 +1021,3 @@ export interface ServerError extends Typed<"ServerError"> {
 export interface PaymentRequiredError extends Typed<"PaymentRequiredError"> {}
 
 export const initialSyncState: SyncStateInitial = { type: "SyncStateInitial" };
-
-// TODO:
-// export const createSyncState, jasny, a ten si vezme taky shared worker, jasny
