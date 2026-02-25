@@ -20,8 +20,10 @@ import type {
 } from "../Crypto.js";
 import type { UnknownError } from "../Error.js";
 import { lazyFalse, lazyVoid, todo } from "../Function.js";
+import { createInstances } from "../Instances.js";
 import { createRecord, getProperty, objectToEntries } from "../Object.js";
 import type { RandomDep } from "../Random.js";
+import { createRefCount } from "../RefCount.js";
 import { createResources } from "../Resources.js";
 import type { Result } from "../Result.js";
 import { ok } from "../Result.js";
@@ -481,8 +483,11 @@ const createClientStorage =
   }): ClientStorage => {
     const sqliteStorageBase = createBaseSqliteStorage(deps);
 
-    // TODO: Mutex per OwnerId like in Relay to support more owners.
-    const mutex = createMutex();
+    const ownerMutexes = createInstances<
+      OwnerId,
+      ReturnType<typeof createMutex>
+    >();
+    const ownerMutexRefs = createRefCount<OwnerId>();
 
     const storage: ClientStorage = {
       ...sqliteStorageBase,
@@ -493,119 +498,132 @@ const createClientStorage =
 
       writeMessages: (ownerIdBytes, encryptedMessages) => async (run) => {
         const ownerId = ownerIdBytesToOwnerId(ownerIdBytes);
+        const ownerMutex = ownerMutexes.ensure(ownerId, createMutex);
+        ownerMutexRefs.increment(ownerId);
 
-        const result = await run(
-          mutex.withLock(
-            (): Result<
-              boolean,
-              | ProtocolInvalidDataError
-              | ProtocolTimestampMismatchError
-              | DecryptWithXChaCha20Poly1305Error
-              | TimestampCounterOverflowError
-              | TimestampDriftError
-              | TimestampTimeOutOfRangeError
-            > => {
-              const owner = deps.getSyncOwner(ownerId);
-              // Owner can be removed during syncing.
-              // `ok(true)` means success, we just skipped the write.
-              if (!owner) return ok(true);
+        const result = await (async () => {
+          try {
+            return await run(
+              ownerMutex.withLock(
+                (): Result<
+                  boolean,
+                  | ProtocolInvalidDataError
+                  | ProtocolTimestampMismatchError
+                  | DecryptWithXChaCha20Poly1305Error
+                  | TimestampCounterOverflowError
+                  | TimestampDriftError
+                  | TimestampTimeOutOfRangeError
+                > => {
+                  const owner = deps.getSyncOwner(ownerId);
+                  // Owner can be removed during syncing.
+                  // `ok(true)` means success, we just skipped the write.
+                  if (!owner) return ok(true);
 
-              // TODO: Add quota checking for collaborative scenarios.
-              // When receiving messages from other owners via relay broadcast,
-              // check if this owner is within quota before accepting the data.
-              // This prevents an owner from exceeding storage limits when receiving
-              // data shared by other collaborators.
+                  // TODO: Add quota checking for collaborative scenarios.
+                  // When receiving messages from other owners via relay broadcast,
+                  // check if this owner is within quota before accepting the data.
+                  // This prevents an owner from exceeding storage limits when
+                  // receiving data shared by other collaborators.
 
-              const messagesWithTimestampBytes = mapArray(
-                encryptedMessages,
-                (message) => ({
-                  message,
-                  timestampBytes: timestampToTimestampBytes(message.timestamp),
-                }),
-              );
-              const existingTimestampsSet = new Set(
-                sqliteStorageBase
-                  .getExistingTimestamps(
-                    ownerIdBytes,
-                    mapArray(
-                      messagesWithTimestampBytes,
-                      (item) => item.timestampBytes,
+                  const messagesWithTimestampBytes = mapArray(
+                    encryptedMessages,
+                    (message) => ({
+                      message,
+                      timestampBytes: timestampToTimestampBytes(
+                        message.timestamp,
+                      ),
+                    }),
+                  );
+                  const existingTimestampsSet = new Set(
+                    sqliteStorageBase
+                      .getExistingTimestamps(
+                        ownerIdBytes,
+                        mapArray(
+                          messagesWithTimestampBytes,
+                          (item) => item.timestampBytes,
+                        ),
+                      )
+                      .map((timestamp) => timestamp.toString()),
+                  );
+                  const seenNewTimestamps = new Set<string>();
+                  const newMessagesWithTimestampBytes: Array<{
+                    message: (typeof encryptedMessages)[number];
+                    timestampBytes: TimestampBytes;
+                  }> = [];
+                  for (const item of messagesWithTimestampBytes) {
+                    const key = item.timestampBytes.toString();
+                    if (
+                      existingTimestampsSet.has(key) ||
+                      seenNewTimestamps.has(key)
+                    ) {
+                      continue;
+                    }
+                    seenNewTimestamps.add(key);
+                    appendToArray(newMessagesWithTimestampBytes, item);
+                  }
+                  if (!isNonEmptyArray(newMessagesWithTimestampBytes))
+                    return ok(true);
+
+                  const incomingBytes = PositiveInt.orThrow(
+                    newMessagesWithTimestampBytes.reduce(
+                      (sum, { message }) => sum + message.change.length,
+                      0,
                     ),
-                  )
-                  .map((timestamp) => timestamp.toString()),
-              );
-              const seenNewTimestamps = new Set<string>();
-              const newMessagesWithTimestampBytes: Array<{
-                message: (typeof encryptedMessages)[number];
-                timestampBytes: TimestampBytes;
-              }> = [];
-              for (const item of messagesWithTimestampBytes) {
-                const key = item.timestampBytes.toString();
-                if (
-                  existingTimestampsSet.has(key) ||
-                  seenNewTimestamps.has(key)
-                ) {
-                  continue;
-                }
-                seenNewTimestamps.add(key);
-                appendToArray(newMessagesWithTimestampBytes, item);
-              }
-              if (!isNonEmptyArray(newMessagesWithTimestampBytes))
-                return ok(true);
-
-              const incomingBytes = PositiveInt.orThrow(
-                newMessagesWithTimestampBytes.reduce(
-                  (sum, { message }) => sum + message.change.length,
-                  0,
-                ),
-              );
-
-              const messages: Array<CrdtMessage> = [];
-
-              for (const { message } of newMessagesWithTimestampBytes) {
-                const change = decryptAndDecodeDbChange(
-                  message,
-                  owner.encryptionKey,
-                );
-                if (!change.ok) return change;
-
-                messages.push({
-                  timestamp: message.timestamp,
-                  change: change.value,
-                });
-              }
-
-              const transaction = deps.sqlite.transaction(() => {
-                let clockTimestamp = deps.clock.get();
-
-                for (const message of messages) {
-                  const nextTimestamp = receiveTimestamp(deps)(
-                    clockTimestamp,
-                    message.timestamp,
                   );
-                  if (!nextTimestamp.ok) return nextTimestamp;
 
-                  clockTimestamp = nextTimestamp.value;
-                }
+                  const messages: Array<CrdtMessage> = [];
 
-                if (isNonEmptyArray(messages)) {
-                  applyMessages({ ...deps, storage })(
-                    owner.id,
-                    messages,
-                    incomingBytes,
-                  );
-                }
+                  for (const { message } of newMessagesWithTimestampBytes) {
+                    const change = decryptAndDecodeDbChange(
+                      message,
+                      owner.encryptionKey,
+                    );
+                    if (!change.ok) return change;
 
-                deps.clock.save(clockTimestamp);
-                return ok();
-              });
+                    messages.push({
+                      timestamp: message.timestamp,
+                      change: change.value,
+                    });
+                  }
 
-              if (!transaction.ok) return transaction;
+                  const transaction = deps.sqlite.transaction(() => {
+                    let clockTimestamp = deps.clock.get();
 
-              return ok(true);
-            },
-          ),
-        );
+                    for (const message of messages) {
+                      const nextTimestamp = receiveTimestamp(deps)(
+                        clockTimestamp,
+                        message.timestamp,
+                      );
+                      if (!nextTimestamp.ok) return nextTimestamp;
+
+                      clockTimestamp = nextTimestamp.value;
+                    }
+
+                    if (isNonEmptyArray(messages)) {
+                      applyMessages({ ...deps, storage })(
+                        owner.id,
+                        messages,
+                        incomingBytes,
+                      );
+                    }
+
+                    deps.clock.save(clockTimestamp);
+                    return ok();
+                  });
+
+                  if (!transaction.ok) return transaction;
+
+                  return ok(true);
+                },
+              ),
+            );
+          } finally {
+            ownerMutexRefs.decrement(ownerId);
+            if (!ownerMutexRefs.has(ownerId)) {
+              ownerMutexes.delete(ownerId);
+            }
+          }
+        })();
 
         if (!result.ok) {
           if (result.error.type !== "AbortError") {
