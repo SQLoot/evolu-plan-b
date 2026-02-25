@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun src/index.ts",
+    "dev": "bun --watch src/index.ts",
     "build": "rimraf dist && tsc",
     "start": "node dist/src/index.js",
     "clean": "rimraf .turbo node_modules dist data/evolu-relay.db"
