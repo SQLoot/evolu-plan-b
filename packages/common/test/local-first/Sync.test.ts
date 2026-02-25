@@ -15,7 +15,7 @@ import { sql } from "../../src/Sqlite.js";
 import { createId } from "../../src/Type.js";
 import type { CreateWebSocket } from "../../src/WebSocket.js";
 import { testCreateRunWithSqlite } from "../_deps.js";
-import { testAppOwner } from "./_fixtures.js";
+import { testAppOwner, testAppOwner2 } from "./_fixtures.js";
 
 const prepareSyncTables = ({ sqlite }: SqliteDep): void => {
   createBaseSqliteStorageTables({ sqlite });
@@ -239,5 +239,43 @@ test("createSync creates websocket resource for configured transport", async () 
 
   sync.useOwner(false, testAppOwner);
 
+  sync[Symbol.dispose]();
+});
+
+test("createSync deduplicates shared transport across owners", async () => {
+  await using run = await testCreateRunWithSqlite();
+  prepareSyncTables(run.deps);
+
+  let createWebSocketCalls = 0;
+  const transport = { type: "WebSocket", url: "ws://localhost:4000" } as const;
+
+  const sync = createSync({
+    ...run.deps,
+    clock: createInMemoryClock(run.deps),
+    dbSchema: testDbSchema,
+    createWebSocket: () => async () => {
+      createWebSocketCalls += 1;
+      return ok({
+        send: () => ok(),
+        getReadyState: () => "open",
+        isOpen: () => true,
+        [Symbol.dispose]: () => {},
+      });
+    },
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })({
+    appOwner: testAppOwner,
+    transports: [],
+    onError: () => {},
+    onReceive: () => {},
+  });
+
+  sync.useOwner(true, { ...testAppOwner, transports: [transport] });
+  sync.useOwner(true, { ...testAppOwner2, transports: [transport] });
+
+  expect(createWebSocketCalls).toBe(1);
+
+  sync.useOwner(false, { ...testAppOwner, transports: [transport] });
+  sync.useOwner(false, { ...testAppOwner2, transports: [transport] });
   sync[Symbol.dispose]();
 });
