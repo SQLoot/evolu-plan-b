@@ -160,3 +160,27 @@ test("createSync applyChanges persists local mutation without transports", async
   `).rows[0]?.count;
   expect(historyCount).toBeGreaterThan(0);
 });
+
+test("createSync throws explicit error when transport wiring is requested", async () => {
+  await using run = await testCreateRunWithSqlite();
+  prepareSyncTables(run.deps);
+
+  const sync = createSync({
+    ...run.deps,
+    clock: createInMemoryClock(run.deps),
+    dbSchema: testDbSchema,
+    createWebSocket: () => () => {
+      throw new Error("createWebSocket task should not be executed");
+    },
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })({
+    appOwner: testAppOwner,
+    transports: [{ type: "ws", url: "ws://localhost:4000" }],
+    onError: () => {},
+    onReceive: () => {},
+  });
+
+  expect(() => sync.useOwner(true, testAppOwner)).toThrowError(
+    /Sync transport wiring is not implemented yet/,
+  );
+});
