@@ -60,7 +60,7 @@ import type {
   MutationChange,
   ValidateSchema,
 } from "./Schema.js";
-import { evoluSchemaToDbSchema } from "./Schema.js";
+import { evoluSchemaToSqliteSchema } from "./Schema.js";
 import type {
   DbWorkerInput,
   DbWorkerOutput,
@@ -679,7 +679,7 @@ export const createEvolu =
           type: "Init",
           name,
           consoleLevel: console.getLevel(),
-          dbSchema: evoluSchemaToDbSchema(schema, config.indexes),
+          sqliteSchema: evoluSchemaToSqliteSchema(schema, config.indexes),
           encryptionKey: appOwner.encryptionKey,
           port: dbWorkerChannel.port1.native,
         },
@@ -939,7 +939,7 @@ export const createEvolu =
 //   }
 // });
 
-// const dbSchema = evoluSchemaToDbSchema(schema, indexes);
+// const sqliteSchema = evoluSchemaToSqliteSchema(schema, indexes);
 
 // const processMutationQueue = () => {
 //   const changes: Array<MutationChange> = [];
@@ -1044,7 +1044,7 @@ export const createEvolu =
 //   //   type: "reset",
 //   //   onCompleteId,
 //   //   reload: options?.reload ?? true,
-//   //   restore: { mnemonic, dbSchema },
+//   //   restore: { mnemonic, sqliteSchema },
 //   // });
 //   return promise;
 // },
@@ -1056,8 +1056,8 @@ export const createEvolu =
 
 // ensureSchema: (schema) => {
 //   mutationTypesCache.clear();
-//   const dbSchema = evoluSchemaToDbSchema(schema);
-//   dbWorker.postMessage({ type: "ensureDbSchema", dbSchema });
+//   const sqliteSchema = evoluSchemaToSqliteSchema(schema);
+//   dbWorker.postMessage({ type: "ensureSqliteSchema", sqliteSchema });
 // },
 
 // useOwner: (owner) => {
