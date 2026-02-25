@@ -26,7 +26,7 @@ import type { RandomDep } from "../Random.js";
 import { createRefCount } from "../RefCount.js";
 import { createResources } from "../Resources.js";
 import type { Result } from "../Result.js";
-import { ok } from "../Result.js";
+import { err, ok } from "../Result.js";
 import type { SqliteDep } from "../Sqlite.js";
 import {
   booleanToSqliteBoolean,
@@ -46,6 +46,7 @@ import {
   idToIdBytes,
   PositiveInt,
 } from "../Type.js";
+import { isPromiseLike } from "../Types.js";
 import type { CreateWebSocketDep, WebSocket } from "../WebSocket.js";
 import type {
   AppOwner,
@@ -63,6 +64,8 @@ import {
 import type {
   ProtocolError,
   ProtocolInvalidDataError,
+  ProtocolQuotaError,
+  ProtocolSyncError,
   ProtocolTimestampMismatchError,
 } from "./Protocol.js";
 import {
@@ -75,7 +78,12 @@ import {
 } from "./Protocol.js";
 import type { DbSchemaDep, MutationChange } from "./Schema.js";
 import { systemColumns } from "./Schema.js";
-import type { BaseSqliteStorage, CrdtMessage, Storage } from "./Storage.js";
+import type {
+  BaseSqliteStorage,
+  CrdtMessage,
+  Storage,
+  StorageConfig,
+} from "./Storage.js";
 import {
   createBaseSqliteStorage,
   DbChange,
@@ -139,6 +147,8 @@ export interface SyncConfig {
   readonly appOwner: AppOwner;
 
   readonly transports: ReadonlyArray<OwnerTransport>;
+
+  readonly isOwnerWithinQuota?: StorageConfig["isOwnerWithinQuota"];
 
   /**
    * Delay in milliseconds before disposing unused WebSocket connections.
@@ -469,18 +479,9 @@ const createClientStorage =
       TimeDep &
       TimestampConfigDep,
   ) =>
-  (config: {
-    onError: (
-      error:
-        | ProtocolInvalidDataError
-        | ProtocolTimestampMismatchError
-        | DecryptWithXChaCha20Poly1305Error
-        | TimestampCounterOverflowError
-        | TimestampDriftError
-        | TimestampTimeOutOfRangeError,
-    ) => void;
-    onReceive: () => void;
-  }): ClientStorage => {
+  (
+    config: Pick<SyncConfig, "isOwnerWithinQuota" | "onError" | "onReceive">,
+  ): ClientStorage => {
     const sqliteStorageBase = createBaseSqliteStorage(deps);
 
     const ownerMutexes = createInstances<
@@ -505,25 +506,25 @@ const createClientStorage =
           try {
             return await run(
               ownerMutex.withLock(
-                (): Result<
-                  boolean,
-                  | ProtocolInvalidDataError
-                  | ProtocolTimestampMismatchError
-                  | DecryptWithXChaCha20Poly1305Error
-                  | TimestampCounterOverflowError
-                  | TimestampDriftError
-                  | TimestampTimeOutOfRangeError
+                async (): Promise<
+                  Result<
+                    boolean,
+                    | ProtocolInvalidDataError
+                    | ProtocolQuotaError
+                    | ProtocolSyncError
+                    | ProtocolTimestampMismatchError
+                    | DecryptWithXChaCha20Poly1305Error
+                    | TimestampCounterOverflowError
+                    | TimestampDriftError
+                    | TimestampTimeOutOfRangeError
+                  >
                 > => {
                   const owner = deps.getSyncOwner(ownerId);
                   // Owner can be removed during syncing.
                   // `ok(true)` means success, we just skipped the write.
                   if (!owner) return ok(true);
 
-                  // TODO: Add quota checking for collaborative scenarios.
-                  // When receiving messages from other owners via relay broadcast,
-                  // check if this owner is within quota before accepting the data.
-                  // This prevents an owner from exceeding storage limits when
-                  // receiving data shared by other collaborators.
+                  // Check quota before accepting collaborative data.
 
                   const messagesWithTimestampBytes = mapArray(
                     encryptedMessages,
@@ -570,6 +571,37 @@ const createClientStorage =
                       0,
                     ),
                   );
+                  const usage = getOwnerUsage(deps)(
+                    ownerIdBytes,
+                    firstInArray(newMessagesWithTimestampBytes).timestampBytes,
+                  );
+                  if (!usage.ok) {
+                    return err<ProtocolSyncError>({
+                      type: "ProtocolSyncError",
+                      ownerId,
+                    });
+                  }
+
+                  const requiredBytes = getNextStoredBytes(
+                    usage.value.storedBytes,
+                    incomingBytes,
+                  );
+                  const quotaResult = config.isOwnerWithinQuota?.(
+                    ownerId,
+                    requiredBytes,
+                  );
+                  const isWithinQuota =
+                    quotaResult == null
+                      ? true
+                      : isPromiseLike(quotaResult)
+                        ? await quotaResult
+                        : quotaResult;
+                  if (!isWithinQuota) {
+                    return err<ProtocolQuotaError>({
+                      type: "ProtocolQuotaError",
+                      ownerId,
+                    });
+                  }
 
                   const messages: Array<CrdtMessage> = [];
 

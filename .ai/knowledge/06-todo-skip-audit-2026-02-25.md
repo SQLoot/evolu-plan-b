@@ -2,7 +2,7 @@
 
 ## Current totals
 
-- `TODO` in `packages/*`: `52` (down from `56`)
+- `TODO` in `packages/*`: `50` (down from `56`)
 - `FIXME` in `packages/*`: `0`
 - skipped tests (`test.skip`, `it.skip`, `describe.skip`, `test.todo`, `it.todo`): `5` (down from `9`)
 
@@ -18,6 +18,10 @@
   - `packages/common/src/local-first/Sync.ts`
   - `packages/common/src/local-first/Db.ts`
   - shared helper: `packages/common/src/local-first/Storage.ts`
+- Added client-side quota checks in Sync receive path:
+  - `packages/common/src/local-first/Sync.ts`
+- Replaced global Sync mutex with per-owner mutexes:
+  - `packages/common/src/local-first/Sync.ts`
 
 ## Remaining skipped tests (intentional)
 
@@ -36,12 +40,10 @@
 
 ### A) Sync correctness and scalability
 
-- `packages/common/src/local-first/Sync.ts:484`
-  - Per-owner mutex (currently global lock behavior).
-- `packages/common/src/local-first/Sync.ts:513`
-  - Quota checks for collaborative scenarios.
-- `packages/common/src/local-first/Sync.ts:808`
+- `packages/common/src/local-first/Sync.ts:858`
   - Insert timestamp path marked for refactor/rethink.
+- `packages/common/src/local-first/Sync.ts:987`
+  - Rework for the new owners API.
 
 Recommended scope: **M**
 
@@ -61,6 +63,6 @@ Recommended scope: **M**
 
 ## Suggested execution order
 
-1. Quota checks (A + C).
-2. Per-owner mutex in Sync (A).
-3. Db stale-leader parallel detection (B).
+1. Quota checks in Db worker path (C).
+2. Db stale-leader parallel detection (B).
+3. Sync refactor for owners API (A).
