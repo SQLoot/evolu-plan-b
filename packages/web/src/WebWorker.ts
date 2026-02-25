@@ -39,7 +39,7 @@
 //     },
 
 //     [Symbol.dispose]: () => {
-//       throw new Error("TODO");
+//       webWorker.terminate();
 //     },
 //   };
 

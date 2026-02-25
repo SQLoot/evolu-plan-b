@@ -6295,7 +6295,7 @@ describe("fetch", () => {
 });
 
 describe("examples TODO", () => {
-  describe.skip("composition types from JSDoc", () => {
+  describe("composition types from JSDoc", () => {
     // These tests verify the types shown in Task.ts JSDoc examples are accurate.
     // No runtime behavior - just type-level assertions.
 
@@ -6324,7 +6324,7 @@ describe("examples TODO", () => {
       >();
     });
 
-    test("retry wraps errors in RetryError", async () => {
+    test("retry wraps errors in RetryError", () => {
       const fetchWithTimeout = (url: string) => timeout(fetch(url), "30s");
 
       const fetchWithRetry = (url: string) =>
@@ -6339,22 +6339,6 @@ describe("examples TODO", () => {
           NativeFetchDep
         >
       >();
-
-      const deps: RunnerDeps & NativeFetchDep = {
-        ...testCreateDeps(),
-        fetch: globalThis.fetch,
-      };
-
-      await using run = createRunner(deps);
-
-      const urls = [
-        "https://api.example.com/users",
-        "https://api.example.com/posts",
-        "https://api.example.com/comments",
-      ];
-
-      // At most 2 concurrent requests
-      const _result = await run(parallel(2, map(urls, fetchWithRetry)));
     });
 
     test("all with NonEmptyReadonlyArray returns NonEmptyReadonlyArray", () => {

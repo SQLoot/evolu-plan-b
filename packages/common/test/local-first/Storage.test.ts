@@ -9,6 +9,7 @@ import {
   createBaseSqliteStorage,
   createBaseSqliteStorageTables,
   DbChange,
+  getNextStoredBytes,
   getTimestampByIndex,
   getTimestampInsertStrategy,
   InfiniteUpperBound,
@@ -214,6 +215,13 @@ test("empty db", async () => {
     testTimestampsAsc[0],
   );
   expect(lowerBound).toBe(0);
+});
+
+test("getNextStoredBytes computes cumulative usage", () => {
+  expect(getNextStoredBytes(null, 5 as PositiveInt)).toBe(5);
+  expect(getNextStoredBytes(NonNegativeInt.orThrow(5), 7 as PositiveInt)).toBe(
+    12,
+  );
 });
 
 const count = 1_000_000;

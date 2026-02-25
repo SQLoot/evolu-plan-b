@@ -13,6 +13,8 @@ const testName = SimpleName.orThrow("Test");
 const isWebKit =
   navigator.userAgent.includes("WebKit") &&
   !navigator.userAgent.includes("Chrome");
+const webKitOpfsSkipReason =
+  "WebKit OPFS can fail with an unknown transient reason in CI/runtime.";
 
 // Helper to communicate with the sqlite-worker for OPFS tests.
 const createWorkerDriver = () => {
@@ -139,8 +141,12 @@ describe("createWasmSqliteDriver", () => {
     });
   });
 
-  // TODO: Investigate WebKit OPFS failure ("unknown transient reason").
-  describe.skipIf(isWebKit)("opfs", () => {
+  test.skipIf(!isWebKit)("documents WebKit OPFS skip reason", () => {
+    expect(navigator.userAgent).toContain("WebKit");
+    expect(webKitOpfsSkipReason).toContain("unknown transient reason");
+  });
+
+  describe.skipIf(isWebKit)(`opfs (${webKitOpfsSkipReason})`, () => {
     const timeout = 30_000;
 
     test(

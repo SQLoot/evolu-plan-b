@@ -37,6 +37,7 @@ import type {
 } from "./Storage.js";
 import {
   createBaseSqliteStorage,
+  getNextStoredBytes,
   getOwnerUsage,
   getTimestampInsertStrategy,
   updateOwnerUsage,
@@ -202,12 +203,20 @@ export const createRelaySqliteStorage =
 
                   const { storedBytes } = usage.value;
 
-                  const incomingBytes = newMessages.reduce(
+                  const incomingBytesSum = newMessages.reduce(
                     (sum, m) => sum + m.change.length,
                     0,
                   );
-                  const newStoredBytes = PositiveInt.orThrow(
-                    (storedBytes ?? 0) + incomingBytes,
+                  if (incomingBytesSum <= 0) return ok();
+                  const incomingBytesResult =
+                    PositiveInt.from(incomingBytesSum);
+                  if (!incomingBytesResult.ok) {
+                    return err({ type: "StorageQuotaError", ownerId });
+                  }
+                  const incomingBytes = incomingBytesResult.value;
+                  const newStoredBytes = getNextStoredBytes(
+                    storedBytes,
+                    incomingBytes,
                   );
 
                   const quotaResult = config.isOwnerWithinQuota(
@@ -310,7 +319,7 @@ export const createRelaySqliteStorage =
 export const createRelayStorageTables = (deps: SqliteDep): void => {
   for (const query of [
     sql`
-      create table evolu_writeKey (
+      create table if not exists evolu_writeKey (
         "ownerId" blob not null,
         "writeKey" blob not null,
         primary key ("ownerId")
@@ -319,7 +328,7 @@ export const createRelayStorageTables = (deps: SqliteDep): void => {
     `,
 
     sql`
-      create table evolu_message (
+      create table if not exists evolu_message (
         "ownerId" blob not null,
         "timestamp" blob not null,
         "change" blob not null,
