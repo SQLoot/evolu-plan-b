@@ -3,7 +3,6 @@ import { readFileSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { assert } from "../src/Assert.js";
 import type { TimingSafeEqual } from "../src/Crypto.js";
 import { lazyTrue, lazyVoid } from "../src/Function.js";
 import {
@@ -24,14 +23,14 @@ import type {
   SqliteRow,
   SqliteValue,
 } from "../src/Sqlite.js";
-import { createPreparedStatementsCache, createSqlite } from "../src/Sqlite.js";
+import {
+  createPreparedStatementsCache,
+  testCreateRunWithSqlite as createTestRunWithSqlite,
+} from "../src/Sqlite.js";
 import type { Run } from "../src/Task.js";
-import { type TestDeps, testCreateRun } from "../src/Test.js";
-import { SimpleName } from "../src/Type.js";
+import type { TestDeps } from "../src/Test.js";
 
 const require = createRequire(import.meta.url);
-
-export const testSimpleName = /*#__PURE__*/ SimpleName.orThrow("Test");
 
 export const testTimingSafeEqual: TimingSafeEqual = timingSafeEqual;
 
@@ -40,27 +39,15 @@ export const testCreateSqliteDeps = (): CreateSqliteDriverDep => ({
 });
 
 export const testCreateRunWithSqlite = async (): Promise<
-  Run<TestDeps & SqliteDep>
+  Run<TestDeps & CreateSqliteDriverDep & SqliteDep>
 > => {
-  const run = testCreateRun<CreateSqliteDriverDep>({
-    createSqliteDriver: testCreateSqliteDriver,
-  });
-
-  const sqlite = await run(createSqlite(testSimpleName));
-  assert(sqlite.ok, "bug");
-
-  run.defer(() => {
-    sqlite.value[Symbol.dispose]();
-    return ok();
-  });
-
-  return run.addDeps({ sqlite: sqlite.value });
+  return createTestRunWithSqlite(testCreateSqliteDeps());
 };
 
 /** Creates a test Run with relay storage and SQLite deps. */
 export const testCreateRunWithSqliteAndRelayStorage = async (
   config?: Partial<StorageConfig>,
-): Promise<Run<TestDeps & SqliteDep & StorageDep>> => {
+): Promise<Run<TestDeps & CreateSqliteDriverDep & SqliteDep & StorageDep>> => {
   const run = await testCreateRunWithSqlite();
 
   createBaseSqliteStorageTables(run.deps);
