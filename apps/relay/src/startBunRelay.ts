@@ -73,15 +73,13 @@ const toUint8Array = (
     return new globalThis.Uint8Array(message);
   }
 
-  if (globalThis.ArrayBuffer.isView(message)) {
-    return new globalThis.Uint8Array(
-      message.buffer,
-      message.byteOffset,
-      message.byteLength,
-    );
-  }
+  if (!globalThis.ArrayBuffer.isView(message)) return null;
 
-  return null;
+  return new globalThis.Uint8Array(
+    message.buffer,
+    message.byteOffset,
+    message.byteLength,
+  );
 };
 
 export const startBunRelay =
