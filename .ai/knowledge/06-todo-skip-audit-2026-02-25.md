@@ -2,7 +2,7 @@
 
 ## Current totals
 
-- `TODO` in `packages/*`: `48` (down from `56`)
+- `TODO` in `packages/*`: `47` (down from `56`)
 - `FIXME` in `packages/*`: `0`
 - skipped tests (`test.skip`, `it.skip`, `describe.skip`, `test.todo`, `it.todo`): `5` (down from `9`)
 
@@ -25,6 +25,8 @@
 - Removed stale heartbeat TODOs already covered by implemented failover logic:
   - `packages/common/src/local-first/Db.ts`
   - `packages/common/src/local-first/Shared.ts`
+- Removed unused `Db` client-storage stub (including obsolete collaborative quota TODO):
+  - `packages/common/src/local-first/Db.ts`
 
 ## Remaining skipped tests (intentional)
 
@@ -50,14 +52,6 @@
 
 Recommended scope: **M**
 
-### C) Shared quota/accounting parity
-
-- `packages/common/src/local-first/Db.ts:590`
-  - Quota checks for collaborative scenarios.
-
-Recommended scope: **M**
-
 ## Suggested execution order
 
-1. Quota checks in Db worker path (C).
-2. Sync refactor for owners API (A).
+1. Sync refactor for owners API (A).
