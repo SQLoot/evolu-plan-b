@@ -487,7 +487,7 @@ export const createBaseSqliteStorageTables = (deps: SqliteDep): void => {
      * - `l` – Skiplist level (1 to 10)
      */
     sql`
-      create table evolu_timestamp (
+      create table if not exists evolu_timestamp (
         "ownerId" blob not null,
         "t" blob not null,
         "h1" integer,
@@ -500,7 +500,7 @@ export const createBaseSqliteStorageTables = (deps: SqliteDep): void => {
     `,
 
     sql`
-      create index evolu_timestamp_index on evolu_timestamp (
+      create index if not exists evolu_timestamp_index on evolu_timestamp (
         "ownerId",
         "l",
         "t",
@@ -521,7 +521,7 @@ export const createBaseSqliteStorageTables = (deps: SqliteDep): void => {
      * - `lastTimestamp` – for timestamp insertion strategies
      */
     sql`
-      create table evolu_usage (
+      create table if not exists evolu_usage (
         "ownerId" blob primary key,
         "storedBytes" integer not null,
         "firstTimestamp" blob,
@@ -1626,6 +1626,17 @@ export const getOwnerUsage =
       lastTimestamp: row.lastTimestamp,
     });
   };
+
+/**
+ * Computes cumulative stored bytes after processing incoming messages.
+ *
+ * Stored bytes track logical encrypted payload bytes and are used for quota
+ * enforcement and monitoring.
+ */
+export const getNextStoredBytes = (
+  storedBytes: NonNegativeInt | null,
+  incomingBytes: PositiveInt,
+): PositiveInt => PositiveInt.orThrow((storedBytes ?? 0) + incomingBytes);
 
 /**
  * Updates timestamp bounds in evolu_usage table.

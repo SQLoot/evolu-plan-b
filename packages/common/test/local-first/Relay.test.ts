@@ -78,8 +78,11 @@ test("deleteOwner", async () => {
 
 describe("writeMessages", () => {
   const deps = testCreateDeps();
-  const createTestMessage = (length = 3): EncryptedCrdtMessage => ({
-    timestamp: createInitialTimestamp(deps),
+  const createTestMessage = (
+    length = 3,
+    timestamp = createInitialTimestamp(deps),
+  ): EncryptedCrdtMessage => ({
+    timestamp,
     change: new Uint8Array(length) as EncryptedDbChange,
   });
 
@@ -94,7 +97,10 @@ describe("writeMessages", () => {
       return usageResult.rows[0].storedBytes as NonNegativeInt;
     };
 
-  const message = createTestMessage();
+  const message = createTestMessage(
+    3,
+    timestampBytesToTimestamp(testTimestampsAsc[0]),
+  );
 
   test("calculates storedBytes correctly", async () => {
     await using run = await testCreateRunWithSqliteAndRelayStorage();
@@ -108,9 +114,13 @@ describe("writeMessages", () => {
   test("accumulates storedBytes across multiple writes", async () => {
     await using run = await testCreateRunWithSqliteAndRelayStorage();
     const { storage, sqlite } = run.deps;
+    const message2 = createTestMessage(
+      3,
+      timestampBytesToTimestamp(testTimestampsAsc[1]),
+    );
 
     await run(storage.writeMessages(testAppOwnerIdBytes, [message]));
-    await run(storage.writeMessages(testAppOwnerIdBytes, [message]));
+    await run(storage.writeMessages(testAppOwnerIdBytes, [message2]));
 
     expect(getStoredBytes({ sqlite })(testAppOwnerIdBytes)).toBe(6);
   });

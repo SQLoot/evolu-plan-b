@@ -5,7 +5,12 @@
  */
 
 import type { NonEmptyArray, NonEmptyReadonlyArray } from "../Array.js";
-import { appendToArray, firstInArray, isNonEmptyArray } from "../Array.js";
+import {
+  appendToArray,
+  firstInArray,
+  isNonEmptyArray,
+  mapArray,
+} from "../Array.js";
 import { assert, assertNonEmptyReadonlyArray } from "../Assert.js";
 import type { Brand } from "../Brand.js";
 import type { ConsoleDep } from "../Console.js";
@@ -14,12 +19,15 @@ import type {
   RandomBytesDep,
 } from "../Crypto.js";
 import type { UnknownError } from "../Error.js";
-import { lazyFalse, lazyVoid, todo } from "../Function.js";
+import { createUnknownError } from "../Error.js";
+import { lazyFalse, lazyVoid } from "../Function.js";
+import { createInstances } from "../Instances.js";
 import { createRecord, getProperty, objectToEntries } from "../Object.js";
 import type { RandomDep } from "../Random.js";
+import { createRefCount } from "../RefCount.js";
 import { createResources } from "../Resources.js";
 import type { Result } from "../Result.js";
-import { ok } from "../Result.js";
+import { err, ok } from "../Result.js";
 import type { SqliteDep } from "../Sqlite.js";
 import {
   booleanToSqliteBoolean,
@@ -28,7 +36,7 @@ import {
   sql,
   sqliteBooleanToBoolean,
 } from "../Sqlite.js";
-import { createMutex } from "../Task.js";
+import { createMutex, createRun } from "../Task.js";
 import type { Millis, TimeDep } from "../Time.js";
 import { millisToDateIso } from "../Time.js";
 import type { Typed } from "../Type.js";
@@ -37,8 +45,9 @@ import {
   type IdBytes,
   idBytesToId,
   idToIdBytes,
-  type PositiveInt,
+  PositiveInt,
 } from "../Type.js";
+import { isPromiseLike } from "../Types.js";
 import type { CreateWebSocketDep, WebSocket } from "../WebSocket.js";
 import type {
   AppOwner,
@@ -56,6 +65,8 @@ import {
 import type {
   ProtocolError,
   ProtocolInvalidDataError,
+  ProtocolQuotaError,
+  ProtocolSyncError,
   ProtocolTimestampMismatchError,
 } from "./Protocol.js";
 import {
@@ -68,10 +79,16 @@ import {
 } from "./Protocol.js";
 import type { DbSchemaDep, MutationChange } from "./Schema.js";
 import { systemColumns } from "./Schema.js";
-import type { BaseSqliteStorage, CrdtMessage, Storage } from "./Storage.js";
+import type {
+  BaseSqliteStorage,
+  CrdtMessage,
+  Storage,
+  StorageConfig,
+} from "./Storage.js";
 import {
   createBaseSqliteStorage,
   DbChange,
+  getNextStoredBytes,
   getOwnerUsage,
   getTimestampInsertStrategy,
   updateOwnerUsage,
@@ -132,6 +149,8 @@ export interface SyncConfig {
 
   readonly transports: ReadonlyArray<OwnerTransport>;
 
+  readonly isOwnerWithinQuota?: StorageConfig["isOwnerWithinQuota"];
+
   /**
    * Delay in milliseconds before disposing unused WebSocket connections.
    * Defaults to 100ms.
@@ -188,84 +207,130 @@ export const createSync =
         url: transport.url,
       });
 
-      return todo();
+      const run = createRun(deps);
+      let socket: WebSocket | null = null;
+      let isDisposed = false;
+      const pendingSends: Array<
+        string | ArrayBufferLike | Blob | ArrayBufferView
+      > = [];
 
-      // return deps.createWebSocket(transport.url, {
-      //   binaryType: "arraybuffer",
+      const flushPendingSends = (): void => {
+        if (isDisposed || !socket || pendingSends.length === 0) return;
 
-      //   onOpen: () => {
-      //     if (isDisposed) return;
+        for (const data of pendingSends.splice(0, pendingSends.length)) {
+          const result = socket.send(data);
+          if (!result.ok) {
+            deps.console.warn("[sync]", "flushPendingSendFailed", {
+              transportKey,
+            });
+            break;
+          }
+        }
+      };
 
-      //     const webSocket = resources.getResource(transportKey);
-      //     if (!webSocket) return;
+      const webSocket: WebSocket = {
+        send: (data) => {
+          if (isDisposed) return err({ type: "WebSocketSendError" });
+          if (!socket) {
+            pendingSends.push(data);
+            return ok();
+          }
+          return socket.send(data);
+        },
 
-      //     const ownerIds = resources.getConsumersForResource(transportKey);
-      //     deps.console.log("[sync]", "onOpen", { transportKey, ownerIds });
+        getReadyState: () => {
+          if (isDisposed) return "closed";
+          return socket?.getReadyState() ?? "connecting";
+        },
 
-      //     for (const ownerId of ownerIds) {
-      //       const message = createProtocolMessageForSync({ storage })(
-      //         ownerId,
-      //         SubscriptionFlags.Subscribe,
-      //       );
-      //       if (!message) continue;
-      //       deps.console.log("[sync]", "send", { message });
-      //       webSocket.send(message);
-      //     }
-      //   },
+        isOpen: () => !isDisposed && (socket?.isOpen() ?? false),
 
-      //   onClose: (event) => {
-      //     deps.console.log("[sync]", "onClose", {
-      //       transportKey,
-      //       code: event.code,
-      //       reason: event.reason,
-      //       wasClean: event.wasClean,
-      //     });
-      //   },
+        [Symbol.dispose]: () => {
+          if (isDisposed) return;
+          isDisposed = true;
+          pendingSends.length = 0;
+          socket?.[Symbol.dispose]();
+          void run[Symbol.asyncDispose]();
+        },
+      };
 
-      //   onError: (error) => {
-      //     deps.console.warn("[sync]", "onError", { transportKey, error });
-      //   },
+      void run(
+        deps.createWebSocket(transport.url, {
+          binaryType: "arraybuffer",
 
-      //   onMessage: (data: string | ArrayBuffer | Blob) => {
-      //     // Only handle ArrayBuffer data for sync messages
-      //     if (isDisposed || !(data instanceof ArrayBuffer)) return;
+          onOpen: () => {
+            if (isDisposed) return;
 
-      //     const webSocket = resources.getResource(transportKey);
-      //     if (!webSocket) return;
+            const currentWebSocket = resources.getResource(transportKey);
+            if (!currentWebSocket) return;
 
-      //     const input = new Uint8Array(data);
-      //     deps.console.log("[sync]", "onMessage", {
-      //       transportKey,
-      //       message: input,
-      //     });
+            const ownerIds = resources.getConsumersForResource(transportKey);
+            deps.console.log("[sync]", "onOpen", { transportKey, ownerIds });
 
-      //     // applyProtocolMessageAsClient({ storage })(input, {
-      //     //   // No write key, no sync (for a case when an owner was unused).
-      //     //   getWriteKey: (ownerId) => getSyncOwner(ownerId)?.writeKey ?? null,
-      //     // })
-      //     //   .then((message) => {
-      //     //     if (!message.ok) {
-      //     //       config.onError(message.error);
-      //     //       return;
-      //     //     }
+            for (const ownerId of ownerIds) {
+              const message = createProtocolMessageForSync({
+                storage,
+                console: deps.console,
+              })(ownerId, SubscriptionFlags.Subscribe);
+              if (!message) continue;
+              deps.console.log("[sync]", "send", { message });
+              currentWebSocket.send(message);
+            }
+          },
 
-      //     //     switch (message.value.type) {
-      //     //       case "response":
-      //     //         webSocket.send(message.value.message);
-      //     //         break;
-      //     //       case "no-response":
-      //     //         // Sync complete, no response needed
-      //     //         break;
-      //     //       case "broadcast":
-      //     //         // This was a broadcast message, don't affect sync counter
-      //     //         break;
-      //     //     }
-      //     //   })
-      //     //   .catch((error: unknown) => {
-      //     //     config.onError(createUnknownError(error));
-      //     //   });
-      //   },
-      // });
+          onClose: (event) => {
+            deps.console.log("[sync]", "onClose", {
+              transportKey,
+              code: event.code,
+              reason: event.reason,
+              wasClean: event.wasClean,
+            });
+          },
+
+          onError: (error) => {
+            deps.console.warn("[sync]", "onError", { transportKey, error });
+          },
+
+          onMessage: (data: string | ArrayBuffer | Blob) => {
+            // Only handle ArrayBuffer data for sync messages.
+            if (isDisposed || !(data instanceof ArrayBuffer)) return;
+
+            const currentWebSocket = resources.getResource(transportKey);
+            if (!currentWebSocket) return;
+
+            const input = new Uint8Array(data);
+            deps.console.log("[sync]", "onMessage", {
+              transportKey,
+              message: input,
+            });
+
+            // TODO: Re-enable protocol message application once worker bridge is ready.
+            // Keep current behavior explicit and observable for transport lifecycle tests.
+          },
+        }),
+      ).then(
+        (result) => {
+          if (!result.ok) {
+            if (result.error.type !== "AbortError") {
+              config.onError(createUnknownError(result.error));
+            }
+            return;
+          }
+
+          socket = result.value;
+          flushPendingSends();
+
+          if (isDisposed) {
+            socket[Symbol.dispose]();
+          }
+        },
+        (error: unknown) => {
+          if (isDisposed) return;
+          config.onError(createUnknownError(error));
+        },
+      );
+
+      return webSocket;
     };
 
     const resources = createResources<
@@ -357,9 +422,20 @@ export const createSync =
         }
 
         for (const [ownerId, messages] of ownerMessages) {
-          applyMessages({ ...deps, storage })(ownerId, messages);
-
           const owner = getSyncOwner(ownerId);
+          const encryptionKey =
+            owner?.encryptionKey ?? config.appOwner.encryptionKey;
+          const incomingBytes = PositiveInt.orThrow(
+            messages.reduce(
+              (sum, message) =>
+                sum +
+                encodeAndEncryptDbChange(deps)(message, encryptionKey).length,
+              0,
+            ),
+          );
+
+          applyMessages({ ...deps, storage })(ownerId, messages, incomingBytes);
+
           if (!owner?.writeKey) continue;
 
           const message = createProtocolMessageFromCrdtMessages(deps)(
@@ -450,22 +526,16 @@ const createClientStorage =
       TimeDep &
       TimestampConfigDep,
   ) =>
-  (config: {
-    onError: (
-      error:
-        | ProtocolInvalidDataError
-        | ProtocolTimestampMismatchError
-        | DecryptWithXChaCha20Poly1305Error
-        | TimestampCounterOverflowError
-        | TimestampDriftError
-        | TimestampTimeOutOfRangeError,
-    ) => void;
-    onReceive: () => void;
-  }): ClientStorage => {
+  (
+    config: Pick<SyncConfig, "isOwnerWithinQuota" | "onError" | "onReceive">,
+  ): ClientStorage => {
     const sqliteStorageBase = createBaseSqliteStorage(deps);
 
-    // TODO: Mutex per OwnerId like in Relay to support more owners.
-    const mutex = createMutex();
+    const ownerMutexes = createInstances<
+      OwnerId,
+      ReturnType<typeof createMutex>
+    >();
+    const ownerMutexRefs = createRefCount<OwnerId>();
 
     const storage: ClientStorage = {
       ...sqliteStorageBase,
@@ -476,71 +546,172 @@ const createClientStorage =
 
       writeMessages: (ownerIdBytes, encryptedMessages) => async (run) => {
         const ownerId = ownerIdBytesToOwnerId(ownerIdBytes);
+        const ownerMutex = ownerMutexes.ensure(ownerId, createMutex);
+        ownerMutexRefs.increment(ownerId);
 
-        const result = await run(
-          mutex.withLock(
-            (): Result<
-              boolean,
-              | ProtocolInvalidDataError
-              | ProtocolTimestampMismatchError
-              | DecryptWithXChaCha20Poly1305Error
-              | TimestampCounterOverflowError
-              | TimestampDriftError
-              | TimestampTimeOutOfRangeError
-            > => {
-              const owner = deps.getSyncOwner(ownerId);
-              // Owner can be removed during syncing.
-              // `ok(true)` means success, we just skipped the write.
-              if (!owner) return ok(true);
+        const result = await (async () => {
+          try {
+            return await run(
+              ownerMutex.withLock(
+                async (): Promise<
+                  Result<
+                    boolean,
+                    | ProtocolInvalidDataError
+                    | ProtocolQuotaError
+                    | ProtocolSyncError
+                    | ProtocolTimestampMismatchError
+                    | DecryptWithXChaCha20Poly1305Error
+                    | TimestampCounterOverflowError
+                    | TimestampDriftError
+                    | TimestampTimeOutOfRangeError
+                  >
+                > => {
+                  const owner = deps.getSyncOwner(ownerId);
+                  // Owner can be removed during syncing.
+                  // `ok(true)` means success, we just skipped the write.
+                  if (!owner) return ok(true);
 
-              // TODO: Add quota checking for collaborative scenarios.
-              // When receiving messages from other owners via relay broadcast,
-              // check if this owner is within quota before accepting the data.
-              // This prevents an owner from exceeding storage limits when receiving
-              // data shared by other collaborators.
+                  // Check quota before accepting collaborative data.
 
-              const messages: Array<CrdtMessage> = [];
-
-              for (const message of encryptedMessages) {
-                const change = decryptAndDecodeDbChange(
-                  message,
-                  owner.encryptionKey,
-                );
-                if (!change.ok) return change;
-
-                messages.push({
-                  timestamp: message.timestamp,
-                  change: change.value,
-                });
-              }
-
-              const transaction = deps.sqlite.transaction(() => {
-                let clockTimestamp = deps.clock.get();
-
-                for (const message of messages) {
-                  const nextTimestamp = receiveTimestamp(deps)(
-                    clockTimestamp,
-                    message.timestamp,
+                  const messagesWithTimestampBytes = mapArray(
+                    encryptedMessages,
+                    (message) => ({
+                      message,
+                      timestampBytes: timestampToTimestampBytes(
+                        message.timestamp,
+                      ),
+                    }),
                   );
-                  if (!nextTimestamp.ok) return nextTimestamp;
+                  const existingTimestampsSet = new Set(
+                    sqliteStorageBase
+                      .getExistingTimestamps(
+                        ownerIdBytes,
+                        mapArray(
+                          messagesWithTimestampBytes,
+                          (item) => item.timestampBytes,
+                        ),
+                      )
+                      .map((timestamp) => timestamp.toString()),
+                  );
+                  const seenNewTimestamps = new Set<string>();
+                  const newMessagesWithTimestampBytes: Array<{
+                    message: (typeof encryptedMessages)[number];
+                    timestampBytes: TimestampBytes;
+                  }> = [];
+                  for (const item of messagesWithTimestampBytes) {
+                    const key = item.timestampBytes.toString();
+                    if (
+                      item.message.change.length === 0 ||
+                      existingTimestampsSet.has(key) ||
+                      seenNewTimestamps.has(key)
+                    ) {
+                      continue;
+                    }
+                    seenNewTimestamps.add(key);
+                    newMessagesWithTimestampBytes.push(item);
+                  }
+                  if (!isNonEmptyArray(newMessagesWithTimestampBytes))
+                    return ok(true);
 
-                  clockTimestamp = nextTimestamp.value;
-                }
+                  const incomingBytesSum = newMessagesWithTimestampBytes.reduce(
+                    (sum, { message }) => sum + message.change.length,
+                    0,
+                  );
+                  if (incomingBytesSum <= 0) return ok(true);
+                  const incomingBytesResult =
+                    PositiveInt.from(incomingBytesSum);
+                  if (!incomingBytesResult.ok) {
+                    return err<ProtocolSyncError>({
+                      type: "ProtocolSyncError",
+                      ownerId,
+                    });
+                  }
+                  const incomingBytes = incomingBytesResult.value;
+                  const usage = getOwnerUsage(deps)(
+                    ownerIdBytes,
+                    firstInArray(newMessagesWithTimestampBytes).timestampBytes,
+                  );
+                  if (!usage.ok) {
+                    return err<ProtocolSyncError>({
+                      type: "ProtocolSyncError",
+                      ownerId,
+                    });
+                  }
 
-                if (isNonEmptyArray(messages)) {
-                  applyMessages({ ...deps, storage })(owner.id, messages);
-                }
+                  const requiredBytes = getNextStoredBytes(
+                    usage.value.storedBytes,
+                    incomingBytes,
+                  );
+                  const quotaResult = config.isOwnerWithinQuota?.(
+                    ownerId,
+                    requiredBytes,
+                  );
+                  const isWithinQuota =
+                    quotaResult == null
+                      ? true
+                      : isPromiseLike(quotaResult)
+                        ? await quotaResult
+                        : quotaResult;
+                  if (!isWithinQuota) {
+                    return err<ProtocolQuotaError>({
+                      type: "ProtocolQuotaError",
+                      ownerId,
+                    });
+                  }
 
-                deps.clock.save(clockTimestamp);
-                return ok();
-              });
+                  const messages: Array<CrdtMessage> = [];
 
-              if (!transaction.ok) return transaction;
+                  for (const { message } of newMessagesWithTimestampBytes) {
+                    const change = decryptAndDecodeDbChange(
+                      message,
+                      owner.encryptionKey,
+                    );
+                    if (!change.ok) return change;
 
-              return ok(true);
-            },
-          ),
-        );
+                    messages.push({
+                      timestamp: message.timestamp,
+                      change: change.value,
+                    });
+                  }
+
+                  const transaction = deps.sqlite.transaction(() => {
+                    let clockTimestamp = deps.clock.get();
+
+                    for (const message of messages) {
+                      const nextTimestamp = receiveTimestamp(deps)(
+                        clockTimestamp,
+                        message.timestamp,
+                      );
+                      if (!nextTimestamp.ok) return nextTimestamp;
+
+                      clockTimestamp = nextTimestamp.value;
+                    }
+
+                    if (isNonEmptyArray(messages)) {
+                      applyMessages({ ...deps, storage })(
+                        owner.id,
+                        messages,
+                        incomingBytes,
+                      );
+                    }
+
+                    deps.clock.save(clockTimestamp);
+                    return ok();
+                  });
+
+                  if (!transaction.ok) return transaction;
+
+                  return ok(true);
+                },
+              ),
+            );
+          } finally {
+            ownerMutexRefs.decrement(ownerId);
+            if (!ownerMutexRefs.has(ownerId)) {
+              ownerMutexes.delete(ownerId);
+            }
+          }
+        })();
 
         if (!result.ok) {
           if (result.error.type !== "AbortError") {
@@ -675,7 +846,11 @@ const applyMessages =
       RandomDep &
       SqliteDep,
   ) =>
-  (ownerId: OwnerId, messages: NonEmptyReadonlyArray<CrdtMessage>): void => {
+  (
+    ownerId: OwnerId,
+    messages: NonEmptyReadonlyArray<CrdtMessage>,
+    incomingBytes: PositiveInt,
+  ): void => {
     const ownerIdBytes = ownerIdToOwnerIdBytes(ownerId);
     const firstMessageTimestamp = timestampToTimestampBytes(
       firstInArray(messages).timestamp,
@@ -736,17 +911,16 @@ const applyMessages =
         lastTimestamp,
       );
 
-      // TODO: Rethink and maybe refactor.
       deps.storage.insertTimestamp(ownerIdBytes, timestampBytes, strategy);
     }
 
-    /**
-     * TODO: Implement proper storedBytes tracking for client using received and
-     * sent encrypted message sizes.
-     */
+    const nextStoredBytes = getNextStoredBytes(
+      usage.value.storedBytes,
+      incomingBytes,
+    );
     updateOwnerUsage(deps)(
       ownerIdBytes,
-      1 as PositiveInt, // Placeholder until proper tracking implemented
+      nextStoredBytes,
       firstTimestamp,
       lastTimestamp,
     );
@@ -756,9 +930,11 @@ const applyMessages =
  * System columns that can appear in sync messages. Excludes `ownerId` because
  * it's handled separately (stored per-row, not per-column in messages).
  */
-const systemColumnsWithoutOwnerId = systemColumns.difference(
-  new Set(["ownerId"]),
-);
+const systemColumnsWithoutOwnerId: ReadonlySet<string> = (() => {
+  const columns = new Set(systemColumns);
+  columns.delete("ownerId");
+  return columns;
+})();
 
 const validateColumnValue =
   (deps: DbSchemaDep) =>
@@ -865,10 +1041,7 @@ export const tryApplyQuarantinedMessages =
   };
 
 /**
- * TODO: Rework for the new owners API.
- *
- * The possible states of a synchronization process. The `SyncState` can be one
- * of the following:
+ * The possible states of a synchronization process.
  *
  * - {@link SyncStateInitial}
  * - {@link SyncStateIsSyncing}
@@ -906,6 +1079,3 @@ export interface ServerError extends Typed<"ServerError"> {
 export interface PaymentRequiredError extends Typed<"PaymentRequiredError"> {}
 
 export const initialSyncState: SyncStateInitial = { type: "SyncStateInitial" };
-
-// TODO:
-// export const createSyncState, jasny, a ten si vezme taky shared worker, jasny

@@ -62,3 +62,18 @@ test("Callbacks dispose clears pending callbacks", () => {
 
   expect(called).toBe(false);
 });
+
+test("Callbacks cancel removes pending callback", () => {
+  const deps = testCreateDeps();
+  const callbacks = createCallbacks<string>(deps);
+
+  let called = false;
+  const id = callbacks.register(() => {
+    called = true;
+  });
+
+  callbacks.cancel(id);
+  callbacks.execute(id, "ignored");
+
+  expect(called).toBe(false);
+});

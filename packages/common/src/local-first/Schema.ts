@@ -513,7 +513,8 @@ export const ensureDbSchema =
       if (!currentColumns) {
         queries.push(createAppTable(tableName, newColumns));
       } else {
-        for (const newColumn of newColumns.difference(currentColumns)) {
+        for (const newColumn of newColumns) {
+          if (currentColumns.has(newColumn)) continue;
           queries.push(sql`
             alter table ${sql.identifier(tableName)}
             add column ${sql.identifier(newColumn)} any;

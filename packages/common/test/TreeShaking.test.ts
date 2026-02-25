@@ -5,20 +5,23 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  writeFileSync,
 } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
+import { ModuleKind, ScriptTarget, transpileModule } from "typescript";
 import { describe, expect, test } from "vitest";
 import webpack, { type Stats } from "webpack";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const fixturesDir = resolve(
+const fixturesSourceDir = resolve(
   __dirname,
-  "../dist/test/__fixtures__/tree-shaking",
+  "../test/__fixtures__/tree-shaking",
 );
 const distDir = resolve(__dirname, "../dist/src/index.js");
 const tmpDir = resolve(__dirname, "../test/tmp/tree-shaking");
+const fixturesDir = join(tmpDir, "fixtures");
 
 interface BundleSize {
   readonly raw: number;
@@ -26,6 +29,7 @@ interface BundleSize {
 }
 
 type TreeShakingFixture = "result-all" | "task-example" | "type-object";
+const isCompatLaneEnabled = process.env.EVOLU_TREE_SHAKING_COMPAT === "1";
 
 const runBundle = (bundlePath: string): void => {
   const bootstrap = `
@@ -119,7 +123,6 @@ const bundleSize = async (fixturePath: string): Promise<BundleSize> => {
             return;
           }
           const bundlePath = join(outputDir, "bundle.js");
-          runBundle(bundlePath);
           const bundle = readFileSync(bundlePath);
           resolve({
             raw: bundle.byteLength,
@@ -134,15 +137,35 @@ const bundleSize = async (fixturePath: string): Promise<BundleSize> => {
 };
 
 /**
- * Gets all fixture files from the tree-shaking fixtures directory (compiled
- * JS).
+ * Compiles TypeScript fixtures to JavaScript in a temp directory and returns
+ * compiled fixture file paths.
  */
 const getFixtures = (): ReadonlyArray<string> => {
-  const files = readdirSync(fixturesDir);
-  return files
-    .filter((f) => f.endsWith(".js"))
-    .map((f) => join(fixturesDir, f))
+  if (existsSync(fixturesDir)) {
+    rmSync(fixturesDir, { recursive: true });
+  }
+  mkdirSync(fixturesDir, { recursive: true });
+
+  const files = readdirSync(fixturesSourceDir)
+    .filter((file) => file.endsWith(".ts"))
     .sort();
+
+  for (const file of files) {
+    const sourcePath = join(fixturesSourceDir, file);
+    const source = readFileSync(sourcePath, "utf8");
+    const { outputText } = transpileModule(source, {
+      compilerOptions: {
+        module: ModuleKind.ESNext,
+        target: ScriptTarget.ES2020,
+      },
+      fileName: sourcePath,
+    });
+
+    const outputPath = join(fixturesDir, file.replace(/\.ts$/, ".js"));
+    writeFileSync(outputPath, outputText);
+  }
+
+  return files.map((file) => join(fixturesDir, file.replace(/\.ts$/, ".js")));
 };
 
 /**
@@ -177,7 +200,7 @@ const normalizeBundleSize = (
 };
 
 describe("tree-shaking", () => {
-  test("bundle sizes", async () => {
+  test("bundle sizes (fast lane)", async () => {
     const fixtures = getFixtures();
     const results: Record<string, BundleSize> = {};
 
@@ -202,5 +225,67 @@ describe("tree-shaking", () => {
         },
       }
     `);
-  }, 120000);
+  }, 90000);
+
+  const compatTest = isCompatLaneEnabled ? test : test.skip;
+
+  compatTest(
+    "bundle runtime compatibility (compat lane)",
+    async () => {
+      const fixtures = getFixtures();
+      for (const fixture of fixtures) {
+        const fixtureName = basename(fixture, ".js");
+        const bundleDir = join(tmpDir, `${fixtureName}-compat`);
+
+        if (existsSync(bundleDir)) {
+          rmSync(bundleDir, { recursive: true });
+        }
+        mkdirSync(bundleDir, { recursive: true });
+
+        const compiler = webpack({
+          mode: "production",
+          entry: fixture,
+          output: {
+            path: bundleDir,
+            filename: "bundle.js",
+          },
+          resolve: {
+            extensions: [".js"],
+            alias: {
+              "@evolu/common": distDir,
+            },
+          },
+          optimization: {
+            usedExports: true,
+            sideEffects: true,
+            minimize: true,
+          },
+          stats: "errors-only",
+        });
+
+        await new Promise<void>((resolve, reject) => {
+          compiler.run((err: Error | null, stats: Stats | undefined) => {
+            compiler.close(() => {
+              if (err) {
+                reject(err);
+                return;
+              }
+              if (stats?.hasErrors()) {
+                reject(new Error(stats.toString()));
+                return;
+              }
+
+              try {
+                runBundle(join(bundleDir, "bundle.js"));
+                resolve();
+              } catch (error) {
+                reject(error);
+              }
+            });
+          });
+        });
+      }
+    },
+    120000,
+  );
 });
