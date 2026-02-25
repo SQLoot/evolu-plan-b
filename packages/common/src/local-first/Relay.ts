@@ -37,6 +37,7 @@ import type {
 } from "./Storage.js";
 import {
   createBaseSqliteStorage,
+  getNextStoredBytes,
   getOwnerUsage,
   getTimestampInsertStrategy,
   updateOwnerUsage,
@@ -202,12 +203,12 @@ export const createRelaySqliteStorage =
 
                   const { storedBytes } = usage.value;
 
-                  const incomingBytes = newMessages.reduce(
-                    (sum, m) => sum + m.change.length,
-                    0,
+                  const incomingBytes = PositiveInt.orThrow(
+                    newMessages.reduce((sum, m) => sum + m.change.length, 0),
                   );
-                  const newStoredBytes = PositiveInt.orThrow(
-                    (storedBytes ?? 0) + incomingBytes,
+                  const newStoredBytes = getNextStoredBytes(
+                    storedBytes,
+                    incomingBytes,
                   );
 
                   const quotaResult = config.isOwnerWithinQuota(
