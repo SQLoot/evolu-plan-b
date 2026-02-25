@@ -120,7 +120,7 @@ export const initSharedWorker =
 
     await using stack = run.stack();
 
-    // TODO: Use heartbeat to detect and prune dead instances.
+    // Shared worker instance lifecycle is managed by per-evolu heartbeats.
     const sharedEvolus = stack.use(createInstances<Name, SharedEvolu>());
 
     const unsubscribeConsoleStoreOutputEntry =

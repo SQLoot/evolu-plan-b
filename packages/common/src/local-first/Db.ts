@@ -296,12 +296,6 @@ const startDbWorker =
     };
 
     return ok(stack.move());
-
-    // TODO: Add parallel stale-leader detection.
-    // Heartbeat is emitted by the active DB worker and sent to
-    // SharedWorker. SharedWorker tracks last-seen heartbeat per Evolu
-    // name and if silent for 10 seconds, it waits for another DB worker
-    // to announce itself alive and then routes requests to that worker.
   };
 
 /**
