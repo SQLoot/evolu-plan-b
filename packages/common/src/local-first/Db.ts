@@ -229,12 +229,12 @@ const startDbWorker =
       readonly id: Id;
       readonly processedAt: Millis;
     }> = [];
-    const processedRequestIdTtl: Millis = 5 * 60 * 1000;
+    const processedRequestIdTtl = 5 * 60 * 1000;
 
     const { port } = run.deps;
 
     port.onMessage = ({ callbackId, request, evoluPortId }) => {
-      const now = clock.get();
+      const now = run.deps.time.now();
 
       // Evict expired callback IDs based on time-to-live.
       while (processedRequestIdsOrder.length > 0) {
@@ -493,9 +493,11 @@ const validateColumnValue =
     );
   };
 
-const systemColumnsWithoutOwnerId = systemColumns.difference(
-  new Set(["ownerId"]),
-);
+const systemColumnsWithoutOwnerId: ReadonlySet<string> = (() => {
+  const columns = new Set(systemColumns);
+  columns.delete("ownerId");
+  return columns;
+})();
 
 const applyColumnChange =
   (deps: SqliteDep) =>
