@@ -162,15 +162,14 @@ export const initDbWorker =
             return ok();
           }, spaced("5s")),
         );
-        stack.defer(() => {
+        try {
+          return await run.addDeps({
+            port,
+            timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+          })(startDbWorker(name, dbSchema, encryptionKey));
+        } finally {
           heartbeatFiber.abort();
-          return ok();
-        });
-
-        return run.addDeps({
-          port,
-          timestampConfig: { maxDrift: defaultTimestampMaxDrift },
-        })(startDbWorker(name, dbSchema, encryptionKey));
+        }
       });
     };
 
@@ -230,7 +229,7 @@ const startDbWorker =
     port.onMessage = ({ callbackId, request, evoluPortId }) => {
       if (processedRequestIds.has(callbackId)) return;
       processedRequestIds.add(callbackId);
-      appendToArray(processedRequestIdsOrder, callbackId);
+      processedRequestIdsOrder.push(callbackId);
       if (processedRequestIdsOrder.length > processedRequestIdsLimit) {
         const oldestCallbackId = processedRequestIdsOrder.shift();
         if (oldestCallbackId) processedRequestIds.delete(oldestCallbackId);

@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs";
 import {
   type CreateSqliteDriverDep,
   callback,
@@ -102,14 +101,11 @@ export const startBunRelay =
     const console = _run.deps.console.child("relay");
 
     const relayName = name ?? SimpleName.orThrow("evolu-relay");
-    const dbFileExists = existsSync(`${relayName}.db`);
     const sqlite = getOk(await stack.use(createSqlite(relayName)));
     const deps = { ..._run.deps, sqlite };
 
-    if (!dbFileExists) {
-      createBaseSqliteStorageTables(deps);
-      createRelayStorageTables(deps);
-    }
+    createBaseSqliteStorageTables(deps);
+    createRelayStorageTables(deps);
 
     const storage = createRelaySqliteStorage(deps)({ isOwnerWithinQuota });
     const run = _run.addDeps({ storage });
@@ -192,7 +188,7 @@ export const startBunRelay =
           }
         }
 
-        const didUpgrade = bunServer.upgrade(request);
+        const didUpgrade = bunServer.upgrade(request, { data: { ownerId } });
         if (!didUpgrade) {
           return new Response("Bad Request", { status: 400 });
         }
@@ -237,15 +233,19 @@ export const startBunRelay =
           };
 
           void (async () => {
-            const response = await run(
-              applyProtocolMessageAsRelay(message, options),
-            );
-            if (!response.ok) {
-              console.error(response);
-              return;
-            }
+            try {
+              const response = await run(
+                applyProtocolMessageAsRelay(message, options),
+              );
+              if (!response.ok) {
+                console.error(response);
+                return;
+              }
 
-            socket.send(response.value.message);
+              socket.send(response.value.message);
+            } catch (error) {
+              console.error("Error processing WebSocket message:", error);
+            }
           })();
         },
         close: (socket) => {

@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { createResources } from "../src/Resources.js";
 
 type ResourceKey = `resource:${string}`;
@@ -66,6 +66,14 @@ const unknownConsumer: TestConsumer = { id: "consumer:unknown" };
 const resource1: TestResourceConfig = { key: "resource:1" };
 
 describe("createResources", () => {
+  beforeEach(() => {
+    vi.useRealTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   test("shares one resource across consumers and tracks membership", () => {
     const { resources, created, added, removed } = createTestResources();
 
@@ -106,8 +114,6 @@ describe("createResources", () => {
 
     expect(resources.getResource(resource1.key)).toBe(resource);
     expect(resource?.disposed()).toBe(false);
-
-    vi.useRealTimers();
   });
 
   test("returns typed errors for unknown resource/consumer", () => {
@@ -151,7 +157,5 @@ describe("createResources", () => {
     expect(resource?.disposed()).toBe(true);
     expect(resources.getResource(resource1.key)).toBeNull();
     expect(resources.getConsumersForResource(resource1.key)).toEqual([]);
-
-    vi.useRealTimers();
   });
 });

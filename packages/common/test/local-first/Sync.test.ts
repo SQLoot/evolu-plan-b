@@ -273,6 +273,9 @@ test("createSync deduplicates shared transport across owners", async () => {
   sync.useOwner(true, { ...testAppOwner, transports: [transport] });
   sync.useOwner(true, { ...testAppOwner2, transports: [transport] });
 
+  await Promise.resolve();
+  await Promise.resolve();
+
   expect(createWebSocketCalls).toBe(1);
 
   sync.useOwner(false, { ...testAppOwner, transports: [transport] });

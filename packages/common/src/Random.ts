@@ -40,23 +40,50 @@ const shuffleInPlace = <T>(array: Array<T>, next: () => number): void => {
 };
 
 class Arc4Rng {
+  private static readonly stateSize = 256;
+
   private readonly seed: string | number;
   private i = 0;
   private j = 0;
   private readonly state: Array<number>;
 
-  constructor(seed: string | number = createDefaultSeed()) {
-    this.seed = seed;
-    const key = mixSeedIntoKey(seed, []);
-    const state = new Array<number>(256);
+  constructor(seed?: string | number);
+  constructor(snapshot?: {
+    readonly seed: string | number;
+    readonly i: number;
+    readonly j: number;
+    readonly state: ReadonlyArray<number>;
+  });
+  constructor(
+    seedOrSnapshot:
+      | string
+      | number
+      | {
+          readonly seed: string | number;
+          readonly i: number;
+          readonly j: number;
+          readonly state: ReadonlyArray<number>;
+        } = createDefaultSeed(),
+  ) {
+    if (typeof seedOrSnapshot === "object") {
+      this.seed = seedOrSnapshot.seed;
+      this.i = seedOrSnapshot.i;
+      this.j = seedOrSnapshot.j;
+      this.state = [...seedOrSnapshot.state];
+      return;
+    }
 
-    for (let index = 0; index <= 255; index++) {
+    this.seed = seedOrSnapshot;
+    const key = mixSeedIntoKey(seedOrSnapshot, []);
+    const state = new Array<number>(Arc4Rng.stateSize);
+
+    for (let index = 0; index < Arc4Rng.stateSize; index++) {
       state[index] = index;
     }
 
     const keyLength = key.length;
     let j = 0;
-    for (let i = 0; i <= 255; i++) {
+    for (let i = 0; i < Arc4Rng.stateSize; i++) {
       const t = state[i] as number;
       j = (j + (key[i % keyLength] as number) + t) & 255;
       state[i] = state[j] as number;
@@ -87,7 +114,13 @@ class Arc4Rng {
     return (numerator + carry) / denominator;
   };
 
-  clone = (): Arc4Rng => new Arc4Rng(this.seed);
+  clone = (): Arc4Rng =>
+    new Arc4Rng({
+      seed: this.seed,
+      i: this.i,
+      j: this.j,
+      state: this.state,
+    });
 
   private generate = (count: number): number => {
     let result = 0;
@@ -98,11 +131,12 @@ class Arc4Rng {
     while (count--) {
       i = (i + 1) & 255;
       const t = state[i] as number;
-      state[j] = t;
       j = (j + t) & 255;
       state[i] = state[j] as number;
+      state[j] = t;
       result =
-        result * 256 + (state[((state[i] as number) + t) & 255] as number);
+        result * 256 +
+        (state[((state[i] as number) + (state[j] as number)) & 255] as number);
     }
 
     this.i = i;
@@ -181,12 +215,11 @@ export interface RandomLib {
 }
 
 class Arc4RandomLib implements RandomLib {
-  private readonly seed: string | number;
   private readonly rng: Arc4Rng;
 
-  constructor(seed: string | number = createDefaultSeed()) {
-    this.seed = seed;
-    this.rng = new Arc4Rng(seed);
+  constructor(seedOrRng: string | number | Arc4Rng = createDefaultSeed()) {
+    this.rng =
+      seedOrRng instanceof Arc4Rng ? seedOrRng : new Arc4Rng(seedOrRng);
   }
 
   next = (): number => this.rng.next();
@@ -197,9 +230,14 @@ class Arc4RandomLib implements RandomLib {
       min = 0;
     }
 
-    const lowerBound = min ?? 0;
+    let lowerBound = min ?? 0;
+    let upperBound = max;
 
-    return Math.floor(this.next() * (max - lowerBound + 1) + lowerBound);
+    if (lowerBound > upperBound) {
+      [lowerBound, upperBound] = [upperBound, lowerBound];
+    }
+
+    return Math.floor(this.next() * (upperBound - lowerBound + 1) + lowerBound);
   };
 
   integer = (min?: number, max?: number): number => this.int(min, max);
@@ -212,7 +250,7 @@ class Arc4RandomLib implements RandomLib {
     return copy;
   };
 
-  clone = (): RandomLib => new Arc4RandomLib(this.seed);
+  clone = (): RandomLib => new Arc4RandomLib(this.rng.clone());
 }
 
 /** Creates seeded random utilities used by test fixtures and fuzz helpers. */
