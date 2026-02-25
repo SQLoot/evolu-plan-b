@@ -118,6 +118,28 @@ test("createSync does not create websocket for owner with no transports", async 
   expect(createWebSocketCalls).toBe(0);
 });
 
+test("createSync useOwner(false) is safe even if owner was never added", async () => {
+  await using run = await testCreateRunWithSqlite();
+  prepareSyncTables(run.deps);
+
+  const sync = createSync({
+    ...run.deps,
+    clock: createInMemoryClock(run.deps),
+    dbSchema: testDbSchema,
+    createWebSocket: () => () => {
+      throw new Error("createWebSocket task should not be executed");
+    },
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })({
+    appOwner: testAppOwner,
+    transports: [],
+    onError: () => {},
+    onReceive: () => {},
+  });
+
+  expect(() => sync.useOwner(false, testAppOwner)).not.toThrow();
+});
+
 test("createSync applyChanges persists local mutation without transports", async () => {
   await using run = await testCreateRunWithSqlite();
   prepareSyncTables(run.deps);
