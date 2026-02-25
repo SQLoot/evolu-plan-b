@@ -2,7 +2,7 @@
 
 ## Current totals
 
-- `TODO` in `packages/*`: `47` (down from `56`)
+- `TODO` in `packages/*`: `44` (down from `56`)
 - `FIXME` in `packages/*`: `0`
 - skipped tests (`test.skip`, `it.skip`, `describe.skip`, `test.todo`, `it.todo`): `5` (down from `9`)
 
@@ -27,6 +27,9 @@
   - `packages/common/src/local-first/Shared.ts`
 - Removed unused `Db` client-storage stub (including obsolete collaborative quota TODO):
   - `packages/common/src/local-first/Db.ts`
+- Removed stale Sync TODO stubs/comments and added baseline Sync tests:
+  - `packages/common/src/local-first/Sync.ts`
+  - `packages/common/test/local-first/Sync.test.ts`
 
 ## Remaining skipped tests (intentional)
 
@@ -43,15 +46,14 @@
 
 ## High-value TODO clusters for issue extraction
 
-### A) Sync correctness and scalability
+### A) Sync transport wiring
 
-- `packages/common/src/local-first/Sync.ts:858`
-  - Insert timestamp path marked for refactor/rethink.
-- `packages/common/src/local-first/Sync.ts:987`
-  - Rework for the new owners API.
+- `packages/common/src/local-first/Sync.ts:209`
+  - `createResource` still returns `todo()` for WebSocket transport creation.
+  - Current tests cover no-transport local apply path, but live transport path remains intentionally stubbed.
 
 Recommended scope: **M**
 
 ## Suggested execution order
 
-1. Sync refactor for owners API (A).
+1. Sync transport wiring completion (A).
