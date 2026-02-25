@@ -19,6 +19,7 @@ import type {
   RandomBytesDep,
 } from "../Crypto.js";
 import type { UnknownError } from "../Error.js";
+import { createUnknownError } from "../Error.js";
 import { lazyFalse, lazyVoid } from "../Function.js";
 import { createInstances } from "../Instances.js";
 import { createRecord, getProperty, objectToEntries } from "../Object.js";
@@ -35,7 +36,7 @@ import {
   sql,
   sqliteBooleanToBoolean,
 } from "../Sqlite.js";
-import { createMutex } from "../Task.js";
+import { createMutex, createRun } from "../Task.js";
 import type { Millis, TimeDep } from "../Time.js";
 import { millisToDateIso } from "../Time.js";
 import type { Typed } from "../Type.js";
@@ -206,87 +207,107 @@ export const createSync =
         url: transport.url,
       });
 
-      throw new Error(
-        `Sync transport wiring is not implemented yet for ${transportKey}. ` +
-          "Use local-only sync (no transports) or finish createWebSocket task bridge in createSync.",
+      const run = createRun(deps);
+      let socket: WebSocket | null = null;
+      let isDisposed = false;
+
+      const webSocket: WebSocket = {
+        send: (data) => {
+          if (isDisposed || !socket) return err({ type: "WebSocketSendError" });
+          return socket.send(data);
+        },
+
+        getReadyState: () => {
+          if (isDisposed) return "closed";
+          return socket?.getReadyState() ?? "connecting";
+        },
+
+        isOpen: () => !isDisposed && (socket?.isOpen() ?? false),
+
+        [Symbol.dispose]: () => {
+          if (isDisposed) return;
+          isDisposed = true;
+          socket?.[Symbol.dispose]();
+          void run[Symbol.asyncDispose]();
+        },
+      };
+
+      void run(
+        deps.createWebSocket(transport.url, {
+          binaryType: "arraybuffer",
+
+          onOpen: () => {
+            if (isDisposed) return;
+
+            const currentWebSocket = resources.getResource(transportKey);
+            if (!currentWebSocket) return;
+
+            const ownerIds = resources.getConsumersForResource(transportKey);
+            deps.console.log("[sync]", "onOpen", { transportKey, ownerIds });
+
+            for (const ownerId of ownerIds) {
+              const message = createProtocolMessageForSync({
+                storage,
+                console: deps.console,
+              })(ownerId, SubscriptionFlags.Subscribe);
+              if (!message) continue;
+              deps.console.log("[sync]", "send", { message });
+              currentWebSocket.send(message);
+            }
+          },
+
+          onClose: (event) => {
+            deps.console.log("[sync]", "onClose", {
+              transportKey,
+              code: event.code,
+              reason: event.reason,
+              wasClean: event.wasClean,
+            });
+          },
+
+          onError: (error) => {
+            deps.console.warn("[sync]", "onError", { transportKey, error });
+          },
+
+          onMessage: (data: string | ArrayBuffer | Blob) => {
+            // Only handle ArrayBuffer data for sync messages.
+            if (isDisposed || !(data instanceof ArrayBuffer)) return;
+
+            const currentWebSocket = resources.getResource(transportKey);
+            if (!currentWebSocket) return;
+
+            const input = new Uint8Array(data);
+            deps.console.log("[sync]", "onMessage", {
+              transportKey,
+              message: input,
+            });
+
+            // TODO: Re-enable protocol message application once worker bridge is ready.
+            // Keep current behavior explicit and observable for transport lifecycle tests.
+          },
+        }),
+      ).then(
+        (result) => {
+          if (!result.ok) {
+            if (result.error.type !== "AbortError") {
+              config.onError(createUnknownError(result.error));
+            }
+            return;
+          }
+
+          socket = result.value;
+
+          if (isDisposed) {
+            socket[Symbol.dispose]();
+          }
+        },
+        (error: unknown) => {
+          if (isDisposed) return;
+          config.onError(createUnknownError(error));
+        },
       );
 
-      // return deps.createWebSocket(transport.url, {
-      //   binaryType: "arraybuffer",
-
-      //   onOpen: () => {
-      //     if (isDisposed) return;
-
-      //     const webSocket = resources.getResource(transportKey);
-      //     if (!webSocket) return;
-
-      //     const ownerIds = resources.getConsumersForResource(transportKey);
-      //     deps.console.log("[sync]", "onOpen", { transportKey, ownerIds });
-
-      //     for (const ownerId of ownerIds) {
-      //       const message = createProtocolMessageForSync({ storage })(
-      //         ownerId,
-      //         SubscriptionFlags.Subscribe,
-      //       );
-      //       if (!message) continue;
-      //       deps.console.log("[sync]", "send", { message });
-      //       webSocket.send(message);
-      //     }
-      //   },
-
-      //   onClose: (event) => {
-      //     deps.console.log("[sync]", "onClose", {
-      //       transportKey,
-      //       code: event.code,
-      //       reason: event.reason,
-      //       wasClean: event.wasClean,
-      //     });
-      //   },
-
-      //   onError: (error) => {
-      //     deps.console.warn("[sync]", "onError", { transportKey, error });
-      //   },
-
-      //   onMessage: (data: string | ArrayBuffer | Blob) => {
-      //     // Only handle ArrayBuffer data for sync messages
-      //     if (isDisposed || !(data instanceof ArrayBuffer)) return;
-
-      //     const webSocket = resources.getResource(transportKey);
-      //     if (!webSocket) return;
-
-      //     const input = new Uint8Array(data);
-      //     deps.console.log("[sync]", "onMessage", {
-      //       transportKey,
-      //       message: input,
-      //     });
-
-      //     // applyProtocolMessageAsClient({ storage })(input, {
-      //     //   // No write key, no sync (for a case when an owner was unused).
-      //     //   getWriteKey: (ownerId) => getSyncOwner(ownerId)?.writeKey ?? null,
-      //     // })
-      //     //   .then((message) => {
-      //     //     if (!message.ok) {
-      //     //       config.onError(message.error);
-      //     //       return;
-      //     //     }
-
-      //     //     switch (message.value.type) {
-      //     //       case "response":
-      //     //         webSocket.send(message.value.message);
-      //     //         break;
-      //     //       case "no-response":
-      //     //         // Sync complete, no response needed
-      //     //         break;
-      //     //       case "broadcast":
-      //     //         // This was a broadcast message, don't affect sync counter
-      //     //         break;
-      //     //     }
-      //     //   })
-      //     //   .catch((error: unknown) => {
-      //     //     config.onError(createUnknownError(error));
-      //     //   });
-      //   },
-      // });
+      return webSocket;
     };
 
     const resources = createResources<
