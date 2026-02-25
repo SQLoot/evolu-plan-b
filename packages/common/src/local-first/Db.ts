@@ -7,21 +7,17 @@
 import {
   appendToArray,
   firstInArray,
-  isNonEmptyArray,
-  mapArray,
   type NonEmptyArray,
   type NonEmptyReadonlyArray,
 } from "../Array.js";
 import { assertNonEmptyReadonlyArray } from "../Assert.js";
 import type { ConsoleLevel } from "../Console.js";
 import type {
-  DecryptWithXChaCha20Poly1305Error,
   EncryptionKey,
   EncryptionKeyDep,
   RandomBytesDep,
 } from "../Crypto.js";
-import { lazyFalse, lazyVoid } from "../Function.js";
-import { createRecord, getProperty, objectToEntries } from "../Object.js";
+import { getProperty, objectToEntries } from "../Object.js";
 import type { LeaderLockDep } from "../Platform.js";
 import type { RandomDep } from "../Random.js";
 import { getOk, ok, type Result } from "../Result.js";
@@ -30,10 +26,8 @@ import type { CreateSqliteDriverDep, SqliteDep, SqliteRow } from "../Sqlite.js";
 import {
   booleanToSqliteBoolean,
   createSqlite,
-  SqliteBoolean,
   type SqliteValue,
   sql,
-  sqliteBooleanToBoolean,
 } from "../Sqlite.js";
 import { type AsyncDisposableStack, repeat, type Task } from "../Task.js";
 import { type Millis, millisToDateIso, type TimeDep } from "../Time.js";
@@ -55,13 +49,7 @@ import type {
 } from "../Worker.js";
 import type { OwnerId, OwnerIdBytes } from "./Owner.js";
 import { ownerIdBytesToOwnerId, ownerIdToOwnerIdBytes } from "./Owner.js";
-import {
-  decryptAndDecodeDbChange,
-  encodeAndEncryptDbChange,
-  type ProtocolInvalidDataError,
-  type ProtocolTimestampMismatchError,
-  protocolVersion,
-} from "./Protocol.js";
+import { encodeAndEncryptDbChange, protocolVersion } from "./Protocol.js";
 import { deserializeQuery, type Query } from "./Query.js";
 import type { DbSchema, DbSchemaDep, MutationChange } from "./Schema.js";
 import { ensureDbSchema, getDbSchema, systemColumns } from "./Schema.js";
@@ -72,16 +60,14 @@ import type {
   QueuedResponse,
 } from "./Shared.js";
 import {
-  type BaseSqliteStorage,
   type BaseSqliteStorageDep,
   type CrdtMessage,
   createBaseSqliteStorage,
   createBaseSqliteStorageTables,
-  DbChange,
+  type DbChange,
   getNextStoredBytes,
   getOwnerUsage,
   getTimestampInsertStrategy,
-  type Storage,
   updateOwnerUsage,
 } from "./Storage.js";
 import type {
@@ -93,7 +79,6 @@ import type {
 import {
   createInitialTimestamp,
   defaultTimestampMaxDrift,
-  receiveTimestamp,
   sendTimestamp,
   type TimestampBytes,
   type TimestampConfigDep,
@@ -544,185 +529,6 @@ const applyColumnChange =
         )
       on conflict do nothing;
     `);
-  };
-
-interface ClientStorage extends Storage, BaseSqliteStorage {}
-
-const _createClientStorage =
-  (
-    deps: BaseSqliteStorageDep &
-      ClockDep &
-      DbSchemaDep &
-      EncryptionKeyDep &
-      RandomBytesDep &
-      RandomDep &
-      SqliteDep &
-      TimeDep &
-      TimestampConfigDep,
-  ) =>
-  ({
-    onError,
-  }: {
-    onError: (
-      error:
-        | ProtocolInvalidDataError
-        | ProtocolTimestampMismatchError
-        | DecryptWithXChaCha20Poly1305Error
-        | TimestampCounterOverflowError
-        | TimestampDriftError
-        | TimestampTimeOutOfRangeError,
-    ) => void;
-  }): ClientStorage => {
-    const storage: ClientStorage = {
-      ...deps.baseSqliteStorage,
-
-      // Not implemented yet.
-      validateWriteKey: lazyFalse,
-      setWriteKey: lazyVoid,
-
-      writeMessages: (ownerIdBytes, encryptedMessages) => () => {
-        // TODO: Add quota checking for collaborative scenarios.
-        // When receiving messages from other owners via relay broadcast,
-        // check if this owner is within quota before accepting the data.
-        // This prevents an owner from exceeding storage limits when receiving
-        // data shared by other collaborators.
-
-        const messagesWithTimestampBytes = mapArray(
-          encryptedMessages,
-          (message) => ({
-            message,
-            timestampBytes: timestampToTimestampBytes(message.timestamp),
-          }),
-        );
-        const existingTimestampsSet = new Set(
-          deps.baseSqliteStorage
-            .getExistingTimestamps(
-              ownerIdBytes,
-              mapArray(
-                messagesWithTimestampBytes,
-                (item) => item.timestampBytes,
-              ),
-            )
-            .map((timestamp) => timestamp.toString()),
-        );
-        const seenNewTimestamps = new Set<string>();
-        const newMessagesWithTimestampBytes: Array<{
-          message: (typeof encryptedMessages)[number];
-          timestampBytes: TimestampBytes;
-        }> = [];
-        for (const item of messagesWithTimestampBytes) {
-          const key = item.timestampBytes.toString();
-          if (existingTimestampsSet.has(key) || seenNewTimestamps.has(key)) {
-            continue;
-          }
-          seenNewTimestamps.add(key);
-          appendToArray(newMessagesWithTimestampBytes, item);
-        }
-        if (!isNonEmptyArray(newMessagesWithTimestampBytes)) return ok();
-
-        const incomingBytes = PositiveInt.orThrow(
-          newMessagesWithTimestampBytes.reduce(
-            (sum, { message }) => sum + message.change.length,
-            0,
-          ),
-        );
-
-        const messages: Array<CrdtMessage> = [];
-
-        for (const { message } of newMessagesWithTimestampBytes) {
-          const change = decryptAndDecodeDbChange(message, deps.encryptionKey);
-          if (!change.ok) {
-            onError(change.error);
-            return ok();
-          }
-          messages.push({ timestamp: message.timestamp, change: change.value });
-        }
-
-        let clockTimestamp = deps.clock.get();
-
-        for (const message of messages) {
-          const nextTimestamp = receiveTimestamp(deps)(
-            clockTimestamp,
-            message.timestamp,
-          );
-          if (!nextTimestamp.ok) {
-            onError(nextTimestamp.error);
-            return ok();
-          }
-          clockTimestamp = nextTimestamp.value;
-        }
-
-        assertNonEmptyReadonlyArray(messages);
-
-        return deps.sqlite.transaction(() => {
-          applyMessages(deps)(
-            ownerIdBytesToOwnerId(ownerIdBytes),
-            messages,
-            incomingBytes,
-          );
-          deps.clock.save(clockTimestamp);
-          return ok();
-        });
-      },
-
-      readDbChange: (ownerId, timestamp) => {
-        const result = deps.sqlite.exec<{
-          readonly table: string;
-          readonly id: IdBytes;
-          readonly column: string;
-          readonly value: SqliteValue;
-        }>(sql`
-          select "table", "id", "column", "value"
-          from evolu_history
-          where "ownerId" = ${ownerId} and "timestamp" = ${timestamp}
-          union all
-          select "table", "id", "column", "value"
-          from evolu_message_quarantine
-          where "ownerId" = ${ownerId} and "timestamp" = ${timestamp};
-        `);
-
-        const { rows } = result;
-        assertNonEmptyReadonlyArray(rows, "Every timestamp must have rows");
-        const firstRow = firstInArray(rows);
-
-        const values = createRecord<string, SqliteValue>();
-        let isInsert: DbChange["isInsert"] = false;
-        let isDelete: DbChange["isDelete"] = null;
-
-        for (const r of rows) {
-          switch (r.column) {
-            case "createdAt":
-              isInsert = true;
-              break;
-            case "updatedAt":
-              isInsert = false;
-              break;
-            case "isDeleted":
-              if (SqliteBoolean.is(r.value)) {
-                isDelete = sqliteBooleanToBoolean(r.value);
-              }
-              break;
-            default:
-              values[r.column] = r.value;
-          }
-        }
-
-        const message: CrdtMessage = {
-          timestamp: timestampBytesToTimestamp(timestamp),
-          change: DbChange.orThrow({
-            table: firstRow.table,
-            id: idBytesToId(firstRow.id),
-            values,
-            isInsert,
-            isDelete,
-          }),
-        };
-
-        return encodeAndEncryptDbChange(deps)(message, deps.encryptionKey);
-      },
-    };
-
-    return storage;
   };
 
 const handleMutation =
