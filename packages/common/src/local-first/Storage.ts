@@ -15,8 +15,9 @@ import type { RandomDep } from "../Random.js";
 import type { Result } from "../Result.js";
 import { err, ok } from "../Result.js";
 import type { SqliteDep } from "../Sqlite.js";
-import { SqliteValue, sql } from "../Sqlite.js";
+import { sql, SqliteValue } from "../Sqlite.js";
 import type { Task } from "../Task.js";
+import { Millis } from "../Time.js";
 import type { InferType, Int64String, Typed, TypeError } from "../Type.js";
 import {
   Boolean,
@@ -30,18 +31,14 @@ import {
   String,
 } from "../Type.js";
 import type { Awaitable } from "../Types.js";
-import type {
-  Owner,
-  OwnerError,
-  OwnerId,
-  OwnerIdBytes,
-  OwnerWriteKey,
-} from "./Owner.js";
+import type { Owner, OwnerError, OwnerIdBytes } from "./Owner.js";
+import { OwnerId, OwnerWriteKey } from "./Owner.js";
 import { systemColumnsWithId } from "./Schema.js";
 import {
+  createTimestamp,
   orderTimestampBytes,
-  type Timestamp,
-  type TimestampBytes,
+  Timestamp,
+  TimestampBytes,
 } from "./Timestamp.js";
 
 export interface StorageConfig {
@@ -176,8 +173,7 @@ export interface StorageDep {
 
 /** Error when storage or billing quota is exceeded. */
 export interface StorageQuotaError
-  extends OwnerError,
-    Typed<"StorageQuotaError"> {}
+  extends OwnerError, Typed<"StorageQuotaError"> {}
 
 /**
  * A cryptographic hash used for efficiently comparing collections of
@@ -253,6 +249,25 @@ export interface CrdtMessage {
   readonly change: DbChange;
 }
 
+/** Test helper for creating a simple {@link CrdtMessage}. */
+export const testCreateCrdtMessage = (
+  id: Id,
+  millis: number,
+  name: string,
+): CrdtMessage => ({
+  timestamp: createTimestamp({
+    millis: Millis.orThrow(millis),
+    counter: 0 as never,
+  }),
+  change: DbChange.orThrow({
+    table: "testTable",
+    id,
+    values: { name },
+    isInsert: true,
+    isDelete: false,
+  }),
+});
+
 export const DbChangeValues = /*#__PURE__*/ record(String, SqliteValue);
 export type DbChangeValues = typeof DbChangeValues.Type;
 
@@ -273,8 +288,7 @@ export const ValidDbChangeValues = /*#__PURE__*/ brand(
 );
 export type ValidDbChangeValues = typeof ValidDbChangeValues.Type;
 
-export interface ValidDbChangeValuesError
-  extends TypeError<"ValidDbChangeValues"> {
+export interface ValidDbChangeValuesError extends TypeError<"ValidDbChangeValues"> {
   readonly invalidColumns: ReadonlyArray<string>;
 }
 
@@ -324,16 +338,15 @@ export interface DbChange extends InferType<typeof DbChange> {}
  * users, and when it goes down, nothing happens, because it will be
  * synchronized later.
  */
-export interface BaseSqliteStorage
-  extends Pick<
-    Storage,
-    | "getSize"
-    | "fingerprint"
-    | "fingerprintRanges"
-    | "findLowerBound"
-    | "iterate"
-    | "deleteOwner"
-  > {
+export interface BaseSqliteStorage extends Pick<
+  Storage,
+  | "getSize"
+  | "fingerprint"
+  | "fingerprintRanges"
+  | "findLowerBound"
+  | "iterate"
+  | "deleteOwner"
+> {
   /** Inserts a timestamp for an owner into the skiplist-based storage. */
   readonly insertTimestamp: (
     ownerId: OwnerIdBytes,
@@ -434,14 +447,13 @@ export const createBaseSqliteStorage = (
     if (length === 1) return;
 
     /**
-     * TODO: In rare cases, we might overfetch a lot of rows here, but we
-     * don't have real usage numbers yet. Fetching one row at a time would
-     * probably be slower in almost all cases. In the future, we should fetch
-     * in chunks (e.g., 1,000 rows at a time). For now, consider logging
-     * unused rows to gather data and calculate an average, then use that
-     * information to determine an optimal chunk size. Before implementing
-     * chunking, be sure to run performance tests (including fetching one by
-     * one).
+     * TODO: In rare cases, we might overfetch a lot of rows here, but we don't
+     * have real usage numbers yet. Fetching one row at a time would probably be
+     * slower in almost all cases. In the future, we should fetch in chunks
+     * (e.g., 1,000 rows at a time). For now, consider logging unused rows to
+     * gather data and calculate an average, then use that information to
+     * determine an optimal chunk size. Before implementing chunking, be sure to
+     * run performance tests (including fetching one by one).
      */
     const result = deps.sqlite.exec<{ t: TimestampBytes }>(sql`
       select t
@@ -487,7 +499,7 @@ export const createBaseSqliteStorageTables = (deps: SqliteDep): void => {
      * - `l` – Skiplist level (1 to 10)
      */
     sql`
-      create table if not exists evolu_timestamp (
+      create table evolu_timestamp (
         "ownerId" blob not null,
         "t" blob not null,
         "h1" integer,
@@ -500,7 +512,7 @@ export const createBaseSqliteStorageTables = (deps: SqliteDep): void => {
     `,
 
     sql`
-      create index if not exists evolu_timestamp_index on evolu_timestamp (
+      create index evolu_timestamp_index on evolu_timestamp (
         "ownerId",
         "l",
         "t",
@@ -521,7 +533,7 @@ export const createBaseSqliteStorageTables = (deps: SqliteDep): void => {
      * - `lastTimestamp` – for timestamp insertion strategies
      */
     sql`
-      create table if not exists evolu_usage (
+      create table evolu_usage (
         "ownerId" blob primary key,
         "storedBytes" integer not null,
         "firstTimestamp" blob,
@@ -1323,32 +1335,12 @@ const fingerprint =
       return zeroFingerprint;
     }
 
-    const getFingerprintFromRanges = (
-      ranges: ReadonlyArray<FingerprintRange>,
-      index: number,
-    ): Fingerprint => {
-      const range = ranges[index];
-      if (range) return range.fingerprint;
-      throw new Error(
-        [
-          "Missing fingerprint range",
-          `ownerId=${globalThis.Array.from(ownerId).join(",")}`,
-          `begin=${begin}`,
-          `end=${end}`,
-          `index=${index}`,
-          `rangesLength=${ranges.length}`,
-        ].join(" "),
-      );
-    };
-
     if (begin === 0) {
-      const ranges = fingerprintRanges(deps)(ownerId, [end]);
-      return getFingerprintFromRanges(ranges, 0);
+      return fingerprintRanges(deps)(ownerId, [end])[0].fingerprint;
     }
 
     // We should have a param to skip the first result.
-    const ranges = fingerprintRanges(deps)(ownerId, [begin, end]);
-    return getFingerprintFromRanges(ranges, 1);
+    return fingerprintRanges(deps)(ownerId, [begin, end])[1].fingerprint;
   };
 
 /**
@@ -1484,21 +1476,14 @@ const fingerprintRanges =
     `);
 
     const fingerprintRanges = result.rows.map(
-      (row, i, arr): FingerprintRange => {
-        const nextUpperBound = i === arr.length - 1 ? upperBound : row.b;
-        assert(
-          nextUpperBound != null,
-          "Missing fingerprint upperBound row value",
-        );
-        return {
-          type: RangeType.Fingerprint,
-          upperBound: nextUpperBound,
-          fingerprint: sqliteFingerprintToFingerprint([
-            row.h1,
-            row.h2,
-          ] as SqliteFingerprint),
-        };
-      },
+      (row, i, arr): FingerprintRange => ({
+        type: RangeType.Fingerprint,
+        upperBound: i === arr.length - 1 ? upperBound : row.b!,
+        fingerprint: sqliteFingerprintToFingerprint([
+          row.h1,
+          row.h2,
+        ] as SqliteFingerprint),
+      }),
     );
 
     return fingerprintRanges;
@@ -1626,17 +1611,6 @@ export const getOwnerUsage =
       lastTimestamp: row.lastTimestamp,
     });
   };
-
-/**
- * Computes cumulative stored bytes after processing incoming messages.
- *
- * Stored bytes track logical encrypted payload bytes and are used for quota
- * enforcement and monitoring.
- */
-export const getNextStoredBytes = (
-  storedBytes: NonNegativeInt | null,
-  incomingBytes: PositiveInt,
-): PositiveInt => PositiveInt.orThrow((storedBytes ?? 0) + incomingBytes);
 
 /**
  * Updates timestamp bounds in evolu_usage table.
