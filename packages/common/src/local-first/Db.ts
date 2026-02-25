@@ -7,6 +7,8 @@
 import {
   appendToArray,
   firstInArray,
+  isNonEmptyArray,
+  mapArray,
   type NonEmptyArray,
   type NonEmptyReadonlyArray,
 } from "../Array.js";
@@ -41,7 +43,7 @@ import {
   type IdBytes,
   idBytesToId,
   idToIdBytes,
-  minPositiveInt,
+  PositiveInt,
 } from "../Type.js";
 import type { ExtractType } from "../Types.js";
 import type {
@@ -76,6 +78,7 @@ import {
   createBaseSqliteStorage,
   createBaseSqliteStorageTables,
   DbChange,
+  getNextStoredBytes,
   getOwnerUsage,
   getTimestampInsertStrategy,
   type Storage,
@@ -212,7 +215,13 @@ const startDbWorker =
 
     const baseSqliteStorage = createBaseSqliteStorage({ sqlite, ...run.deps });
 
-    const deps = { ...run.deps, sqlite, dbSchema, baseSqliteStorage };
+    const deps = {
+      ...run.deps,
+      sqlite,
+      dbSchema,
+      baseSqliteStorage,
+      encryptionKey,
+    };
 
     const currentSchema = getDbSchema(deps)();
     const dbIsInitialized = "evolu_version" in currentSchema.tables;
@@ -584,9 +593,49 @@ const _createClientStorage =
         // This prevents an owner from exceeding storage limits when receiving
         // data shared by other collaborators.
 
+        const messagesWithTimestampBytes = mapArray(
+          encryptedMessages,
+          (message) => ({
+            message,
+            timestampBytes: timestampToTimestampBytes(message.timestamp),
+          }),
+        );
+        const existingTimestampsSet = new Set(
+          deps.baseSqliteStorage
+            .getExistingTimestamps(
+              ownerIdBytes,
+              mapArray(
+                messagesWithTimestampBytes,
+                (item) => item.timestampBytes,
+              ),
+            )
+            .map((timestamp) => timestamp.toString()),
+        );
+        const seenNewTimestamps = new Set<string>();
+        const newMessagesWithTimestampBytes: Array<{
+          message: (typeof encryptedMessages)[number];
+          timestampBytes: TimestampBytes;
+        }> = [];
+        for (const item of messagesWithTimestampBytes) {
+          const key = item.timestampBytes.toString();
+          if (existingTimestampsSet.has(key) || seenNewTimestamps.has(key)) {
+            continue;
+          }
+          seenNewTimestamps.add(key);
+          appendToArray(newMessagesWithTimestampBytes, item);
+        }
+        if (!isNonEmptyArray(newMessagesWithTimestampBytes)) return ok();
+
+        const incomingBytes = PositiveInt.orThrow(
+          newMessagesWithTimestampBytes.reduce(
+            (sum, { message }) => sum + message.change.length,
+            0,
+          ),
+        );
+
         const messages: Array<CrdtMessage> = [];
 
-        for (const message of encryptedMessages) {
+        for (const { message } of newMessagesWithTimestampBytes) {
           const change = decryptAndDecodeDbChange(message, deps.encryptionKey);
           if (!change.ok) {
             onError(change.error);
@@ -612,7 +661,11 @@ const _createClientStorage =
         assertNonEmptyReadonlyArray(messages);
 
         return deps.sqlite.transaction(() => {
-          applyMessages(deps)(ownerIdBytesToOwnerId(ownerIdBytes), messages);
+          applyMessages(deps)(
+            ownerIdBytesToOwnerId(ownerIdBytes),
+            messages,
+            incomingBytes,
+          );
           deps.clock.save(clockTimestamp);
           return ok();
         });
@@ -683,7 +736,9 @@ const handleMutation =
     deps: BaseSqliteStorageDep &
       ClockDep &
       DbSchemaDep &
+      EncryptionKeyDep &
       RandomDep &
+      RandomBytesDep &
       SqliteDep &
       TimeDep &
       TimestampConfigDep,
@@ -725,7 +780,16 @@ const handleMutation =
       }
 
       for (const [ownerId, messages] of messagesByOwnerId) {
-        applyMessages(deps)(ownerId, messages);
+        const incomingBytes = PositiveInt.orThrow(
+          messages.reduce(
+            (sum, message) =>
+              sum +
+              encodeAndEncryptDbChange(deps)(message, deps.encryptionKey)
+                .length,
+            0,
+          ),
+        );
+        applyMessages(deps)(ownerId, messages, incomingBytes);
       }
 
       if (clockChanged) deps.clock.save(clockTimestamp);
@@ -767,7 +831,11 @@ const applyMessages =
   (
     deps: BaseSqliteStorageDep & ClockDep & DbSchemaDep & RandomDep & SqliteDep,
   ) =>
-  (ownerId: OwnerId, messages: NonEmptyReadonlyArray<CrdtMessage>): void => {
+  (
+    ownerId: OwnerId,
+    messages: NonEmptyReadonlyArray<CrdtMessage>,
+    incomingBytes: PositiveInt,
+  ): void => {
     const ownerIdBytes = ownerIdToOwnerIdBytes(ownerId);
 
     const usage = getOwnerUsage(deps)(
@@ -827,13 +895,13 @@ const applyMessages =
       );
     }
 
-    /**
-     * TODO: Implement proper storedBytes tracking for client using received and
-     * sent encrypted message sizes.
-     */
+    const nextStoredBytes = getNextStoredBytes(
+      usage.value.storedBytes,
+      incomingBytes,
+    );
     updateOwnerUsage(deps)(
       ownerIdBytes,
-      minPositiveInt, // Placeholder until proper tracking implemented
+      nextStoredBytes,
       firstTimestamp,
       lastTimestamp,
     );

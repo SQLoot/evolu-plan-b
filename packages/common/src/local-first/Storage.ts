@@ -1628,6 +1628,17 @@ export const getOwnerUsage =
   };
 
 /**
+ * Computes cumulative stored bytes after processing incoming messages.
+ *
+ * Stored bytes track logical encrypted payload bytes and are used for quota
+ * enforcement and monitoring.
+ */
+export const getNextStoredBytes = (
+  storedBytes: NonNegativeInt | null,
+  incomingBytes: PositiveInt,
+): PositiveInt => PositiveInt.orThrow((storedBytes ?? 0) + incomingBytes);
+
+/**
  * Updates timestamp bounds in evolu_usage table.
  *
  * Used by both relay and client to maintain firstTimestamp/lastTimestamp after
