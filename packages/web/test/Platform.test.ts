@@ -1,7 +1,6 @@
-import { SimpleName, testName } from "@evolu/common";
+import { Name, testName } from "@evolu/common";
 import { describe, expect, test } from "vitest";
-import { leaderLock } from "../src/Platform.js";
-import { createRun } from "../src/Task.js";
+import { createLeaderLock, createRun } from "../src/Task.js";
 
 const withNavigator = async (
   navigator: typeof globalThis.navigator | undefined,
@@ -28,6 +27,7 @@ const withNavigator = async (
 
 const expectSequentialAcquireForSameName = async (): Promise<void> => {
   await using run = createRun();
+  const leaderLock = createLeaderLock();
 
   const first = await run(leaderLock.acquire(testName));
   expect(first.ok).toBe(true);
@@ -58,9 +58,10 @@ describe("leaderLock", () => {
 
   test("different names acquire independently", async () => {
     await using run = createRun();
+    const leaderLock = createLeaderLock();
 
-    const aName = SimpleName.orThrow("LeaderLockA");
-    const bName = SimpleName.orThrow("LeaderLockB");
+    const aName = Name.orThrow("LeaderLockA");
+    const bName = Name.orThrow("LeaderLockB");
 
     const [a, b] = await Promise.all([
       run(leaderLock.acquire(aName)),

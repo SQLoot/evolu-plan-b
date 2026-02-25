@@ -35,6 +35,10 @@ export const testSimpleName = /*#__PURE__*/ SimpleName.orThrow("Test");
 
 export const testTimingSafeEqual: TimingSafeEqual = timingSafeEqual;
 
+export const testCreateSqliteDeps = (): CreateSqliteDriverDep => ({
+  createSqliteDriver: testCreateSqliteDriver,
+});
+
 export const testCreateRunWithSqlite = async (): Promise<
   Run<TestDeps & SqliteDep>
 > => {
@@ -74,7 +78,7 @@ export const testCreateRunWithSqliteAndRelayStorage = async (
 };
 
 /** In-memory better-sqlite3 driver for tests. */
-const testCreateSqliteDriver: CreateSqliteDriver = (name) =>
+export const testCreateSqliteDriver: CreateSqliteDriver = (name) =>
   createBetterSqliteDriver(name, { mode: "memory" });
 
 interface StatementLike {
