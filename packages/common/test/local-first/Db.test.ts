@@ -54,7 +54,7 @@ test("initDbWorker registers onMessage handler", async () => {
 //   worker.postMessage({
 //     type: "init",
 //     config: { ...defaultDbConfig, externalAppOwner: appOwner },
-//     dbSchema: {
+//     sqliteSchema: {
 //       tables: {
 //         testTable: new Set(["name"]),
 //         _localTable: new Set(["value"]),
