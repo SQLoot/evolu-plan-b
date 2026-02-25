@@ -3,7 +3,11 @@ import type { Ref } from "vue";
 import { ref } from "vue";
 import { useEvolu } from "./useEvolu.js";
 
-/** Subscribe to {@link SyncState} changes. */
+/**
+ * Temporary stub returning a static fallback {@link SyncState}.
+ *
+ * TODO: Wire real SyncState subscription from the owner API.
+ */
 export const useSyncState = (): Ref<SyncState> => {
   const _unused = useEvolu();
   void _unused;

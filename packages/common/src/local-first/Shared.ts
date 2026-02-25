@@ -298,6 +298,34 @@ const createSharedEvolu = ({
     if (queue[0]?.evoluPortId === evoluPortId) queue.shift();
   };
 
+  const cleanupEvoluPort = (
+    evoluPortId: Id,
+    disposeDbWorkerPort: boolean,
+  ): void => {
+    dropQueuedRequestsForEvoluPort(evoluPortId);
+    cancelActiveQueueForEvoluPort(evoluPortId);
+
+    const dbWorkerPortForEvolu = dbWorkerPortByEvoluPortId.get(evoluPortId);
+    if (dbWorkerPortForEvolu) {
+      dbWorkerPortByEvoluPortId.delete(evoluPortId);
+
+      if (disposeDbWorkerPort) {
+        dbWorkerPorts.delete(dbWorkerPortForEvolu);
+
+        if (activeDbWorkerPort === dbWorkerPortForEvolu) {
+          cancelActiveQueue();
+          activeDbWorkerPort = null;
+        }
+
+        lastHeartbeatByDbWorkerPort.delete(dbWorkerPortForEvolu);
+        dbWorkerPortForEvolu[Symbol.dispose]();
+      }
+    }
+
+    evoluPorts.delete(evoluPortId);
+    rowsByQueryByEvoluPortId.delete(evoluPortId);
+  };
+
   const cancelActiveQueue = (): void => {
     if (activeQueueCallback) {
       callbacks.cancel(activeQueueCallback.callbackId);
@@ -352,12 +380,17 @@ const createSharedEvolu = ({
         cancelActiveQueue();
       }
 
+      const staleEvoluPortIds: Array<Id> = [];
       for (const [
         evoluPortId,
         mappedDbWorkerPort,
       ] of dbWorkerPortByEvoluPortId) {
-        if (mappedDbWorkerPort === dbWorkerPort)
-          dbWorkerPortByEvoluPortId.delete(evoluPortId);
+        if (mappedDbWorkerPort === dbWorkerPort) {
+          staleEvoluPortIds.push(evoluPortId);
+        }
+      }
+      for (const evoluPortId of staleEvoluPortIds) {
+        cleanupEvoluPort(evoluPortId, false);
       }
 
       lastHeartbeatByDbWorkerPort.delete(dbWorkerPort);
@@ -369,6 +402,11 @@ const createSharedEvolu = ({
         timeoutMs: dbWorkerHeartbeatTimeoutMs,
         elapsedMs: elapsed,
       });
+
+      if (evoluPorts.size === 0) {
+        onDispose();
+        return;
+      }
     }
   };
 
@@ -534,26 +572,7 @@ const createSharedEvolu = ({
               hadLastPort: evoluPorts.size === 1,
             });
 
-            dropQueuedRequestsForEvoluPort(evoluPortId);
-            cancelActiveQueueForEvoluPort(evoluPortId);
-
-            const dbWorkerPortForEvolu =
-              dbWorkerPortByEvoluPortId.get(evoluPortId);
-            if (dbWorkerPortForEvolu) {
-              dbWorkerPortByEvoluPortId.delete(evoluPortId);
-              dbWorkerPorts.delete(dbWorkerPortForEvolu);
-
-              if (activeDbWorkerPort === dbWorkerPortForEvolu) {
-                cancelActiveQueue();
-                activeDbWorkerPort = null;
-              }
-
-              lastHeartbeatByDbWorkerPort.delete(dbWorkerPortForEvolu);
-              dbWorkerPortForEvolu[Symbol.dispose]();
-            }
-
-            evoluPorts.delete(evoluPortId);
-            rowsByQueryByEvoluPortId.delete(evoluPortId);
+            cleanupEvoluPort(evoluPortId, true);
 
             if (activeDbWorkerPort) ensureQueueProcessing();
             if (evoluPorts.size === 0) onDispose();

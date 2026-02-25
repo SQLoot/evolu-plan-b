@@ -57,7 +57,7 @@
   - `onMessage` currently logs and returns; protocol message application is still disabled.
   - Transport lifecycle is now wired, but inbound relay sync processing is not yet active in this path.
 
-Recommended scope: **M**
+Recommended scope: **M** _(Medium — roughly 1–3 days of focused implementation work)_
 
 ## Suggested execution order
 

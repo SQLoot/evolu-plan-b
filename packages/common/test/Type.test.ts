@@ -944,7 +944,7 @@ test("id", () => {
 test("createId", () => {
   const deps = testCreateDeps();
   const id = createId(deps);
-  expect(id).toMatchInlineSnapshot(`"IGNl5t4ulaaQpdnwDhgoCA"`);
+  expect(id).toMatchInlineSnapshot(`"XOJG1XbFwiv8jsH4ctVC6w"`);
 
   const _todoId = createId<"Todo">(deps);
 

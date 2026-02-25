@@ -68,6 +68,9 @@ describe("RandomLib", () => {
     const ranged = Array.from({ length: 200 }, () => random.int(-3, 3));
     expect(ranged.every((value) => value >= -3 && value <= 3)).toBe(true);
 
+    const swapped = Array.from({ length: 200 }, () => random.int(5, 2));
+    expect(swapped.every((value) => value >= 2 && value <= 5)).toBe(true);
+
     const integers = Array.from({ length: 100 }, () => random.integer(5, 9));
     expect(integers.every((value) => value >= 5 && value <= 9)).toBe(true);
   });
@@ -85,14 +88,15 @@ describe("RandomLib", () => {
     expect(source).toEqual([1, 2, 3, 4, 5, 6]);
   });
 
-  test("clone restarts sequence from original seed", () => {
+  test("clone keeps sequence position and remains deterministic", () => {
     const random = testCreateRandomLib("clone-seed");
-    const first = random.next();
+    random.next();
     random.next();
     random.int(0, 1000);
 
     const clone = random.clone();
-    expect(clone.next()).toBe(first);
+    expect(clone.next()).toBe(random.next());
+    expect(clone.next()).toBe(random.next());
   });
 
   test("createRandomLib creates values in expected ranges", () => {

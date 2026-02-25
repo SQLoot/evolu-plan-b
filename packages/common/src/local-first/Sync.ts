@@ -210,10 +210,31 @@ export const createSync =
       const run = createRun(deps);
       let socket: WebSocket | null = null;
       let isDisposed = false;
+      const pendingSends: Array<
+        string | ArrayBufferLike | Blob | ArrayBufferView
+      > = [];
+
+      const flushPendingSends = (): void => {
+        if (isDisposed || !socket || pendingSends.length === 0) return;
+
+        for (const data of pendingSends.splice(0, pendingSends.length)) {
+          const result = socket.send(data);
+          if (!result.ok) {
+            deps.console.warn("[sync]", "flushPendingSendFailed", {
+              transportKey,
+            });
+            break;
+          }
+        }
+      };
 
       const webSocket: WebSocket = {
         send: (data) => {
-          if (isDisposed || !socket) return err({ type: "WebSocketSendError" });
+          if (isDisposed) return err({ type: "WebSocketSendError" });
+          if (!socket) {
+            pendingSends.push(data);
+            return ok();
+          }
           return socket.send(data);
         },
 
@@ -227,6 +248,7 @@ export const createSync =
         [Symbol.dispose]: () => {
           if (isDisposed) return;
           isDisposed = true;
+          pendingSends.length = 0;
           socket?.[Symbol.dispose]();
           void run[Symbol.asyncDispose]();
         },
@@ -296,6 +318,7 @@ export const createSync =
           }
 
           socket = result.value;
+          flushPendingSends();
 
           if (isDisposed) {
             socket[Symbol.dispose]();
@@ -578,23 +601,32 @@ const createClientStorage =
                   for (const item of messagesWithTimestampBytes) {
                     const key = item.timestampBytes.toString();
                     if (
+                      item.message.change.length === 0 ||
                       existingTimestampsSet.has(key) ||
                       seenNewTimestamps.has(key)
                     ) {
                       continue;
                     }
                     seenNewTimestamps.add(key);
-                    appendToArray(newMessagesWithTimestampBytes, item);
+                    newMessagesWithTimestampBytes.push(item);
                   }
                   if (!isNonEmptyArray(newMessagesWithTimestampBytes))
                     return ok(true);
 
-                  const incomingBytes = PositiveInt.orThrow(
-                    newMessagesWithTimestampBytes.reduce(
-                      (sum, { message }) => sum + message.change.length,
-                      0,
-                    ),
+                  const incomingBytesSum = newMessagesWithTimestampBytes.reduce(
+                    (sum, { message }) => sum + message.change.length,
+                    0,
                   );
+                  if (incomingBytesSum <= 0) return ok(true);
+                  const incomingBytesResult =
+                    PositiveInt.from(incomingBytesSum);
+                  if (!incomingBytesResult.ok) {
+                    return err<ProtocolSyncError>({
+                      type: "ProtocolSyncError",
+                      ownerId,
+                    });
+                  }
+                  const incomingBytes = incomingBytesResult.value;
                   const usage = getOwnerUsage(deps)(
                     ownerIdBytes,
                     firstInArray(newMessagesWithTimestampBytes).timestampBytes,
@@ -898,9 +930,11 @@ const applyMessages =
  * System columns that can appear in sync messages. Excludes `ownerId` because
  * it's handled separately (stored per-row, not per-column in messages).
  */
-const systemColumnsWithoutOwnerId = systemColumns.difference(
-  new Set(["ownerId"]),
-);
+const systemColumnsWithoutOwnerId: ReadonlySet<string> = (() => {
+  const columns = new Set(systemColumns);
+  columns.delete("ownerId");
+  return columns;
+})();
 
 const validateColumnValue =
   (deps: DbSchemaDep) =>
