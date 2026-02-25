@@ -19,7 +19,7 @@ import type {
   RandomBytesDep,
 } from "../Crypto.js";
 import type { UnknownError } from "../Error.js";
-import { lazyFalse, lazyVoid, todo } from "../Function.js";
+import { lazyFalse, lazyVoid } from "../Function.js";
 import { createInstances } from "../Instances.js";
 import { createRecord, getProperty, objectToEntries } from "../Object.js";
 import type { RandomDep } from "../Random.js";
@@ -206,7 +206,10 @@ export const createSync =
         url: transport.url,
       });
 
-      return todo();
+      throw new Error(
+        `Sync transport wiring is not implemented yet for ${transportKey}. ` +
+          "Use local-only sync (no transports) or finish createWebSocket task bridge in createSync.",
+      );
 
       // return deps.createWebSocket(transport.url, {
       //   binaryType: "arraybuffer",
