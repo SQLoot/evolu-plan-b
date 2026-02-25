@@ -2,7 +2,7 @@
 
 ## Current totals
 
-- `TODO` in `packages/*`: `42` (down from `56`)
+- `TODO` in `packages/*`: `43` (down from `56`)
 - `FIXME` in `packages/*`: `0`
 - skipped tests (`test.skip`, `it.skip`, `describe.skip`, `test.todo`, `it.todo`): `5` (down from `9`)
 
@@ -30,7 +30,7 @@
 - Removed stale Sync TODO stubs/comments and added baseline Sync tests:
   - `packages/common/src/local-first/Sync.ts`
   - `packages/common/test/local-first/Sync.test.ts`
-- Replaced transport `todo()` runtime crash with explicit error and added guard test:
+- Replaced transport `todo()` stub with task bridge and added transport lifecycle tests:
   - `packages/common/src/local-first/Sync.ts`
   - `packages/common/test/local-first/Sync.test.ts`
 - Removed stale/invalid TODO text from `Evolu` API docs:
@@ -51,14 +51,14 @@
 
 ## High-value TODO clusters for issue extraction
 
-### A) Sync transport wiring
+### A) Sync transport inbound protocol handling
 
-- `packages/common/src/local-first/Sync.ts:209`
-  - `createResource` still returns `todo()` for WebSocket transport creation.
-  - Current tests cover no-transport local apply path, but live transport path remains intentionally stubbed.
+- `packages/common/src/local-first/Sync.ts:282`
+  - `onMessage` currently logs and returns; protocol message application is still disabled.
+  - Transport lifecycle is now wired, but inbound relay sync processing is not yet active in this path.
 
 Recommended scope: **M**
 
 ## Suggested execution order
 
-1. Sync transport wiring completion (A).
+1. Sync transport inbound protocol handling (A).

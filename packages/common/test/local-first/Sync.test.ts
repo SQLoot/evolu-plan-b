@@ -9,6 +9,7 @@ import {
   createInitialTimestamp,
   type Timestamp,
 } from "../../src/local-first/Timestamp.js";
+import { ok } from "../../src/Result.js";
 import type { SqliteDep } from "../../src/Sqlite.js";
 import { sql } from "../../src/Sqlite.js";
 import { createId } from "../../src/Type.js";
@@ -183,26 +184,60 @@ test("createSync applyChanges persists local mutation without transports", async
   expect(historyCount).toBeGreaterThan(0);
 });
 
-test("createSync throws explicit error when transport wiring is requested", async () => {
+test("createSync creates websocket resource for configured transport", async () => {
   await using run = await testCreateRunWithSqlite();
   prepareSyncTables(run.deps);
+
+  let createWebSocketCalls = 0;
+  let isOpen = false;
+  const errors: Array<unknown> = [];
 
   const sync = createSync({
     ...run.deps,
     clock: createInMemoryClock(run.deps),
     dbSchema: testDbSchema,
-    createWebSocket: () => () => {
-      throw new Error("createWebSocket task should not be executed");
+    createWebSocket: (url, options) => async () => {
+      createWebSocketCalls += 1;
+      expect(url).toBe("ws://localhost:4000");
+      expect(options?.binaryType).toBe("arraybuffer");
+
+      const webSocket = {
+        send: (_data: string | ArrayBufferLike | Blob | ArrayBufferView) => {
+          return ok();
+        },
+        getReadyState: () => (isOpen ? "open" : "connecting"),
+        isOpen: () => isOpen,
+        [Symbol.dispose]: () => {
+          isOpen = false;
+        },
+      } as const;
+
+      queueMicrotask(() => {
+        isOpen = true;
+        options?.onOpen?.();
+      });
+
+      return ok(webSocket);
     },
     timestampConfig: { maxDrift: defaultTimestampMaxDrift },
   })({
     appOwner: testAppOwner,
-    transports: [{ type: "ws", url: "ws://localhost:4000" }],
-    onError: () => {},
+    transports: [{ type: "WebSocket", url: "ws://localhost:4000" }],
+    onError: (error) => {
+      errors.push(error);
+    },
     onReceive: () => {},
   });
 
-  expect(() => sync.useOwner(true, testAppOwner)).toThrowError(
-    /Sync transport wiring is not implemented yet/,
-  );
+  expect(() => sync.useOwner(true, testAppOwner)).not.toThrow();
+
+  await Promise.resolve();
+  await Promise.resolve();
+
+  expect(createWebSocketCalls).toBe(1);
+  expect(errors).toEqual([]);
+
+  sync.useOwner(false, testAppOwner);
+
+  sync[Symbol.dispose]();
 });
