@@ -515,12 +515,6 @@ export const getSqliteSchema =
       (tables[tableName] ??= new Set()).add(columnName);
     });
 
-    const indexNamePrefixFilter =
-      excludeIndexNamePrefix != null
-        ? ` and name not like '${excludeIndexNamePrefix.replaceAll("'", "''")}%'
-`
-        : "";
-
     const indexesRows = deps.sqlite.exec<{ name: string; sql: string | null }>(
       sql`
         select name, sql
@@ -530,7 +524,11 @@ export const getSqliteSchema =
           ${sql.raw(
             excludeSqliteInternalIndexes ? "and name not like 'sqlite_%'" : "",
           )}
-          ${sql.raw(indexNamePrefixFilter)};
+          ${
+            excludeIndexNamePrefix != null
+              ? sql`and name not like ${`${excludeIndexNamePrefix}%`} escape '\\'`
+              : sql.raw("")
+          };
       `,
     );
 
