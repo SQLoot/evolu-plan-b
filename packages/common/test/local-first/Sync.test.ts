@@ -64,7 +64,7 @@ const prepareSyncTables = ({ sqlite }: SqliteDep): void => {
   `);
 };
 
-const testDbSchema = {
+const testSqliteSchema = {
   tables: {
     todo: new Set(["title"]),
   },
@@ -102,7 +102,7 @@ test("createSync does not create websocket for owner with no transports", async 
   const sync = createSync({
     ...run.deps,
     clock: createInMemoryClock(run.deps),
-    dbSchema: testDbSchema,
+    sqliteSchema: testSqliteSchema,
     createWebSocket,
     timestampConfig: { maxDrift: defaultTimestampMaxDrift },
   })({
@@ -126,7 +126,7 @@ test("createSync useOwner(false) is safe even if owner was never added", async (
   const sync = createSync({
     ...run.deps,
     clock: createInMemoryClock(run.deps),
-    dbSchema: testDbSchema,
+    sqliteSchema: testSqliteSchema,
     createWebSocket: () => () => {
       throw new Error("createWebSocket task should not be executed");
     },
@@ -148,7 +148,7 @@ test("createSync applyChanges persists local mutation without transports", async
   const sync = createSync({
     ...run.deps,
     clock: createInMemoryClock(run.deps),
-    dbSchema: testDbSchema,
+    sqliteSchema: testSqliteSchema,
     createWebSocket: () => () => {
       throw new Error("createWebSocket task should not be executed");
     },
@@ -195,7 +195,7 @@ test("createSync creates websocket resource for configured transport", async () 
   const sync = createSync({
     ...run.deps,
     clock: createInMemoryClock(run.deps),
-    dbSchema: testDbSchema,
+    sqliteSchema: testSqliteSchema,
     createWebSocket: (url, options) => async () => {
       createWebSocketCalls += 1;
       expect(url).toBe("ws://localhost:4000");
@@ -252,7 +252,7 @@ test("createSync deduplicates shared transport across owners", async () => {
   const sync = createSync({
     ...run.deps,
     clock: createInMemoryClock(run.deps),
-    dbSchema: testDbSchema,
+    sqliteSchema: testSqliteSchema,
     createWebSocket: () => async () => {
       createWebSocketCalls += 1;
       return ok({
