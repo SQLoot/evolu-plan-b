@@ -18,7 +18,7 @@ import {
   testCreateRandomLib,
 } from "./Random.js";
 import { createRunner, type Runner } from "./Task.js";
-import { type TimeDep, testCreateTime } from "./Time.js";
+import { minMillis, setTimeout, type TimeDep, testCreateTime } from "./Time.js";
 import { SimpleName } from "./Type.js";
 
 /** Test deps created by {@link testCreateDeps}. */
@@ -117,3 +117,5 @@ export const testOwnerSecret = /*#__PURE__*/ OwnerSecret.orThrow(testEntropy32);
 export const testAppOwner = /*#__PURE__*/ createAppOwner(testOwnerSecret);
 
 export const testName = /*#__PURE__*/ SimpleName.orThrow("Name");
+/** Returns a Promise that resolves on the next macrotask. */
+export const testWaitForMacrotask = (): Promise<void> => setTimeout(minMillis);
