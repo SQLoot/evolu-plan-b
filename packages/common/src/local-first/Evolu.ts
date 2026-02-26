@@ -20,12 +20,7 @@ import { isNonEmptySet } from "../Set.js";
 import { SqliteBoolean, sqliteBooleanToBoolean } from "../Sqlite.js";
 import type { ReadonlyStore } from "../Store.js";
 import { createStore } from "../Store.js";
-import {
-  createDeferred,
-  type createRun,
-  type Deferred,
-  type Task,
-} from "../Task.js";
+import { type createRun, type Task } from "../Task.js";
 import type { Id, TypeError } from "../Type.js";
 import {
   brand,
@@ -400,8 +395,11 @@ export interface Evolu<S extends EvoluSchema = EvoluSchema>
    *
    * Exports are sequential: concurrent calls share one pending export instead
    * of starting parallel exports.
+   *
+   * The pending promise rejects if this {@link Evolu} instance is disposed
+   * before export completion.
    */
-  readonly exportDatabase: Task<Uint8Array<ArrayBuffer>>;
+  readonly exportDatabase: () => Promise<Uint8Array<ArrayBuffer>>;
 
   /**
    * Use a {@link SyncOwner}. Returns a {@link UnuseOwner}.
@@ -590,7 +588,7 @@ export const createEvolu =
 
     const onMutateCompleteCallbacks = stack.use(createCallbacks(run.deps));
 
-    let exportDatabaseDeferred = null as Deferred<
+    let exportDatabasePending = null as PromiseWithResolvers<
       Uint8Array<ArrayBuffer>
     > | null;
 
@@ -763,11 +761,11 @@ export const createEvolu =
           }
           case "OnExport": {
             assert(
-              exportDatabaseDeferred,
+              exportDatabasePending,
               "OnExport received without pending export.",
             );
-            exportDatabaseDeferred.resolve(ok(message.file));
-            exportDatabaseDeferred = null;
+            exportDatabasePending.resolve(message.file);
+            exportDatabasePending = null;
             break;
           }
           default:
@@ -877,19 +875,21 @@ export const createEvolu =
       },
       getQueryRows,
 
-      exportDatabase: (run) => {
-        if (!exportDatabaseDeferred) {
-          exportDatabaseDeferred = createDeferred<Uint8Array<ArrayBuffer>>();
+      exportDatabase: () => {
+        if (!exportDatabasePending) {
+          exportDatabasePending =
+            Promise.withResolvers<Uint8Array<ArrayBuffer>>();
           postMessage({ type: "Export" });
         }
-        return run(exportDatabaseDeferred.task);
+        return exportDatabasePending.promise;
       },
 
       useOwner: todo,
 
       [Symbol.asyncDispose]: () => {
         console.info("disposeEvolu");
-        exportDatabaseDeferred?.[Symbol.dispose]();
+        exportDatabasePending?.reject({ type: "EvoluDisposedError" });
+        exportDatabasePending = null;
         // Cancel queued microtask batches before sending dispose.
         mutateBatch[Symbol.dispose]();
         queryBatch[Symbol.dispose]();
