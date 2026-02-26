@@ -15,7 +15,7 @@ import type { RandomDep } from "../Random.js";
 import type { Result } from "../Result.js";
 import { err, ok } from "../Result.js";
 import type { SqliteDep } from "../Sqlite.js";
-import { sql, SqliteValue } from "../Sqlite.js";
+import { SqliteValue, sql } from "../Sqlite.js";
 import type { Task } from "../Task.js";
 import { Millis } from "../Time.js";
 import type { InferType, Int64String, Typed, TypeError } from "../Type.js";
@@ -31,14 +31,19 @@ import {
   String,
 } from "../Type.js";
 import type { Awaitable } from "../Types.js";
-import type { Owner, OwnerError, OwnerIdBytes } from "./Owner.js";
-import { OwnerId, OwnerWriteKey } from "./Owner.js";
+import type {
+  Owner,
+  OwnerError,
+  OwnerId,
+  OwnerIdBytes,
+  OwnerWriteKey,
+} from "./Owner.js";
 import { systemColumnsWithId } from "./Schema.js";
 import {
   createTimestamp,
   orderTimestampBytes,
-  Timestamp,
-  TimestampBytes,
+  type Timestamp,
+  type TimestampBytes,
 } from "./Timestamp.js";
 
 export interface StorageConfig {
@@ -1490,14 +1495,19 @@ const fingerprintRanges =
     `);
 
     const fingerprintRanges = result.rows.map(
-      (row, i, arr): FingerprintRange => ({
-        type: RangeType.Fingerprint,
-        upperBound: i === arr.length - 1 ? upperBound : row.b!,
-        fingerprint: sqliteFingerprintToFingerprint([
-          row.h1,
-          row.h2,
-        ] as SqliteFingerprint),
-      }),
+      (row, i, arr): FingerprintRange => {
+        const nextUpperBound = i === arr.length - 1 ? upperBound : row.b;
+        assert(nextUpperBound, "Expected fingerprint upper bound.");
+
+        return {
+          type: RangeType.Fingerprint,
+          upperBound: nextUpperBound,
+          fingerprint: sqliteFingerprintToFingerprint([
+            row.h1,
+            row.h2,
+          ] as SqliteFingerprint),
+        };
+      },
     );
 
     return fingerprintRanges;
