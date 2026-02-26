@@ -26,16 +26,11 @@ import {
 import { type TestTime } from "../../src/Time.js";
 import type { Id } from "../../src/Type.js";
 import {
+  testWaitForWorkerMessage,
   testCreateMessageChannel,
   testCreateMessagePort,
   testCreateSharedWorker,
 } from "../../src/Worker.js";
-
-const waitForMessagePipeline = async (): Promise<void> => {
-  await testWaitForMacrotask();
-  await testWaitForMacrotask();
-  await testWaitForMacrotask();
-};
 
 describe("initSharedWorker", () => {
   const setupWorker = async (
@@ -103,7 +98,7 @@ describe("initSharedWorker", () => {
     };
 
     consoleStoreOutputEntry.set(secondEntry);
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     expect(receivedOutputs).toEqual([
       { type: "OnConsoleEntry", entry: firstEntry },
@@ -138,7 +133,7 @@ describe("initSharedWorker", () => {
     };
 
     consoleStoreOutputEntry.set(liveEntry);
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     expect(receivedOutputs).toEqual([
       { type: "OnConsoleEntry", entry: liveEntry },
@@ -173,7 +168,7 @@ describe("initSharedWorker", () => {
 
     consoleStoreOutputEntry.set(entry);
     consoleStoreOutputEntry.set(null);
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     expect(receivedOutputs).toEqual([{ type: "OnConsoleEntry", entry }]);
   });
@@ -206,7 +201,7 @@ describe("initSharedWorker", () => {
     };
 
     consoleStoreOutputEntry.set(entry);
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     expect(receivedOutputs).toEqual([{ type: "OnConsoleEntry", entry }]);
   });
@@ -238,7 +233,7 @@ describe("initSharedWorker", () => {
     };
 
     consoleStoreOutputEntry.set(entry);
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     expect(receivedOutputs).toEqual([{ type: "OnConsoleEntry", entry }]);
   });
@@ -270,7 +265,7 @@ describe("initSharedWorker", () => {
     };
 
     consoleStoreOutputEntry.set(entry);
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     expect(receivedOutputs).toEqual([{ type: "OnConsoleEntry", entry }]);
   });
@@ -302,7 +297,7 @@ describe("initSharedWorker", () => {
     };
 
     consoleStoreOutputEntry.set(entry);
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     expect(receivedOutputs).toEqual([{ type: "OnConsoleEntry", entry }]);
   });
@@ -365,7 +360,7 @@ describe("initSharedWorker", () => {
     };
 
     dbWorkerChannel.port2.postMessage({ type: "OnConsoleEntry", entry });
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     expect(receivedOutputs).toContainEqual({ type: "OnConsoleEntry", entry });
   });
@@ -493,7 +488,7 @@ describe("initSharedWorker", () => {
       subscribedQueries: new Set([query]),
     });
     time.advance("10s");
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     const mutateInput = dbInputs.at(-1);
     assert(mutateInput);
@@ -514,7 +509,7 @@ describe("initSharedWorker", () => {
       queries: createSet([query]),
     });
     time.advance("10s");
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     const queryInput = dbInputs.at(-1);
     assert(queryInput);
@@ -528,7 +523,7 @@ describe("initSharedWorker", () => {
         rowsByQuery: new Map([[query, [{ value: 2 }]]]),
       },
     });
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     const mutateOutput = outputs[0];
     const queryOutput = outputs[1];
@@ -583,7 +578,7 @@ describe("initSharedWorker", () => {
 
     evoluChannel.port2.postMessage({ type: "Export" });
     time.advance("10s");
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     const exportInput = dbInputs.at(-1);
     assert(exportInput);
@@ -598,7 +593,7 @@ describe("initSharedWorker", () => {
         file,
       },
     });
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     const output = outputs[0];
     assert(output.type === "OnExport");
@@ -664,7 +659,7 @@ describe("initSharedWorker", () => {
     });
 
     time.advance("10s");
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     const mutateInput = dbInputs1.at(-1);
     assert(mutateInput);
@@ -679,7 +674,7 @@ describe("initSharedWorker", () => {
         rowsByQuery: new Map([[query, [{ value: 1 }]]]),
       },
     });
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     const output1 = outputs1[0];
     const output2 = outputs2[0];
@@ -723,7 +718,7 @@ describe("initSharedWorker", () => {
     } as const;
 
     dbWorkerChannel.port2.postMessage(errorOutput);
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     expect(receivedOutputs).toContainEqual(errorOutput);
   });
@@ -768,7 +763,7 @@ describe("initSharedWorker", () => {
     });
 
     time.advance("10s");
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     const firstInput = dbInputs[0];
     assert(firstInput);
@@ -783,7 +778,7 @@ describe("initSharedWorker", () => {
     });
 
     time.advance("10s");
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     const secondInput = dbInputs[1];
     assert(secondInput);
@@ -839,7 +834,7 @@ describe("initSharedWorker", () => {
       queries: createSet([query]),
     });
     time.advance("10s");
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     const queuedInput = dbInputs.at(-1);
     assert(queuedInput);
@@ -1085,7 +1080,7 @@ describe("initSharedWorker", () => {
       queries: createSet([query]),
     });
     time.advance("10s");
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     const queuedInput2 = dbInputs2.at(-1);
     assert(queuedInput2);
@@ -1099,7 +1094,7 @@ describe("initSharedWorker", () => {
         rowsByQuery: new Map([[query, [{ value: 1 }]]]),
       },
     });
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     const output2 = outputs2[0];
     assert(output2.type === "OnPatchesByQuery");
@@ -1155,7 +1150,7 @@ describe("initSharedWorker", () => {
       queries: createSet([query]),
     });
     time.advance("10s");
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     const queuedInput = dbInputs1.at(-1);
     assert(queuedInput);
@@ -1221,7 +1216,7 @@ describe("initSharedWorker", () => {
 
     evoluChannel1.port2.postMessage({ type: "Export" });
     time.advance("10s");
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     const queuedInput = dbInputs1.at(-1);
     assert(queuedInput);
@@ -1276,7 +1271,7 @@ describe("initSharedWorker", () => {
 
     evoluChannel.port2.postMessage({ type: "Export" });
     time.advance("10s");
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     const exportInput = dbInputs.at(-1);
     assert(exportInput);
@@ -1353,7 +1348,7 @@ describe("initSharedWorker", () => {
     });
 
     time.advance("10s");
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     const queuedInput = dbInputs.at(-1);
     assert(queuedInput);
@@ -1427,7 +1422,7 @@ describe("initSharedWorker", () => {
     });
 
     time.advance("10s");
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
     expect(dbInputs).toEqual([]);
 
     dbWorkerChannel.port2.postMessage({
@@ -1436,7 +1431,7 @@ describe("initSharedWorker", () => {
     });
 
     time.advance("10s");
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
     expect(dbInputs.length).toBeGreaterThan(0);
   });
 
@@ -1479,13 +1474,13 @@ describe("initSharedWorker", () => {
     });
 
     time.advance("10s");
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     const firstInput = dbInputs.at(-1);
     assert(firstInput);
 
     time.advance("10s");
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
 
     const repeatedFirstInput = dbInputs.at(-1);
     assert(repeatedFirstInput);
