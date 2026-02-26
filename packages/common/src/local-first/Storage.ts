@@ -573,6 +573,17 @@ export const getTimestampInsertStrategy = (
 };
 
 /**
+ * Computes the next stored byte usage after accepting an incoming payload.
+ *
+ * `currentStoredBytes` can be null when no usage record exists yet.
+ */
+export const getNextStoredBytes = (
+  currentStoredBytes: NonNegativeInt | null,
+  incomingBytes: PositiveInt,
+): PositiveInt =>
+  PositiveInt.orThrow((currentStoredBytes ?? 0) + incomingBytes);
+
+/**
  * AFAIK, we can't do both insert and update in one query, and that's probably
  * why append is 2x faster than insert. Prepend also has to update parents, but
  * it's constantly fast. Insert degrades for reversed (yet LIMIT X magically

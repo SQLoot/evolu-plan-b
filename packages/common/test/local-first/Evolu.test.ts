@@ -385,14 +385,14 @@ describe("unit tests", () => {
       );
 
       expect(evolu.appOwner).toMatchInlineSnapshot(`
-      {
-        "encryptionKey": uint8:[50,42,177,193,76,197,92,240,100,30,92,209,205,42,108,45,195,37,118,158,238,206,161,144,11,241,190,167,14,254,186,53],
-        "id": "t_xEbmXuICrgDm3Ob0_afw",
-        "mnemonic": "old jungle over boy ankle suggest service source civil insane end silver polar swap flight diagram keep fix gauge social wink subway bronze leader",
-        "type": "AppOwner",
-        "writeKey": uint8:[129,228,239,103,127,237,0,59,174,241,77,12,26,180,213,14],
-      }
-    `);
+        {
+          "encryptionKey": uint8:[51,231,177,91,230,145,176,109,130,148,152,121,45,182,111,94,53,215,154,110,96,244,72,84,84,159,250,76,118,95,103,5],
+          "id": "SUVItd3dEQ8CLSsCqwJahA",
+          "mnemonic": "duck still purse lock purpose orchard silver differ clean night measure jewel accident visual knee spring extra winner inner fade estate cushion flock live",
+          "type": "AppOwner",
+          "writeKey": uint8:[107,116,39,189,145,48,68,79,11,181,104,47,132,89,107,220],
+        }
+      `);
     });
   });
 
@@ -870,6 +870,7 @@ describe("unit tests", () => {
             changes: [
               {
                 id: expect.any(String),
+                ownerId: expect.any(String),
               },
             ],
           },
@@ -882,7 +883,7 @@ describe("unit tests", () => {
               "id": Any<String>,
               "isDelete": null,
               "isInsert": true,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": Any<String>,
               "table": "todo",
               "values": {
                 "title": "Todo 1",
@@ -931,9 +932,11 @@ describe("unit tests", () => {
             changes: [
               {
                 id: updateId,
+                ownerId: expect.any(String),
               },
               {
                 id: upsertId,
+                ownerId: expect.any(String),
               },
             ],
           },
@@ -946,7 +949,7 @@ describe("unit tests", () => {
               "id": "VPIPiOGb2m2OlsM-pg18CA",
               "isDelete": true,
               "isInsert": false,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": Any<String>,
               "table": "todo",
               "values": {
                 "title": "Updated",
@@ -956,7 +959,7 @@ describe("unit tests", () => {
               "id": "j4rh6UkYDIqXKLCOX4ru2A",
               "isDelete": null,
               "isInsert": true,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": Any<String>,
               "table": "todo",
               "values": {
                 "title": "Upserted",
@@ -1007,12 +1010,15 @@ describe("unit tests", () => {
             changes: [
               {
                 id: expect.any(String),
+                ownerId: expect.any(String),
               },
               {
                 id: updateId,
+                ownerId: expect.any(String),
               },
               {
                 id: upsertId,
+                ownerId: expect.any(String),
               },
             ],
           },
@@ -1025,7 +1031,7 @@ describe("unit tests", () => {
               "id": Any<String>,
               "isDelete": null,
               "isInsert": true,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": Any<String>,
               "table": "todo",
               "values": {
                 "title": "A",
@@ -1035,7 +1041,7 @@ describe("unit tests", () => {
               "id": "fOTG65tQ_ZYHpSBp3GbogA",
               "isDelete": null,
               "isInsert": false,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": Any<String>,
               "table": "todo",
               "values": {
                 "title": "B",
@@ -1045,7 +1051,7 @@ describe("unit tests", () => {
               "id": "3I1Sfwp5IxdacWcpAna5qg",
               "isDelete": null,
               "isInsert": true,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": Any<String>,
               "table": "todo",
               "values": {
                 "title": "C",
@@ -1081,6 +1087,7 @@ describe("unit tests", () => {
             changes: [
               {
                 id: expect.any(String),
+                ownerId: expect.any(String),
               },
             ],
             onCompleteIds: [expect.any(String)],
@@ -1094,7 +1101,7 @@ describe("unit tests", () => {
               "id": Any<String>,
               "isDelete": null,
               "isInsert": true,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": Any<String>,
               "table": "todo",
               "values": {
                 "title": "With callback",
@@ -1352,7 +1359,7 @@ describe("integration tests", () => {
             "name": "evolu_config",
             "rows": [
               {
-                "clock": uint8:[0,0,0,0,0,0,0,0,37,188,91,250,231,27,86,22],
+                "clock": uint8:[0,0,0,0,0,0,0,0,83,41,235,120,117,41,166,190],
               },
             ],
           },
