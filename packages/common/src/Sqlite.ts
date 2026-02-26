@@ -251,15 +251,24 @@ export const createSqlite =
       [Symbol.dispose]: () => {
         if (isDisposed) return;
         isDisposed = true;
+        daemonSignal.removeEventListener("abort", disposeOnAbort);
         driver[Symbol.dispose]();
       },
     };
 
-    // Ensure Sqlite never outlives the root run even when callers forget to
-    // dispose it explicitly. Disposal is idempotent.
-    run.daemon.onAbort(() => {
+    const daemonSignal = run.daemon.signal;
+    const disposeOnAbort = () => {
       sqlite[Symbol.dispose]();
-    });
+    };
+
+    // Ensure Sqlite never outlives the root run even when callers forget to
+    // dispose it explicitly. When Sqlite is disposed manually, remove the abort
+    // listener so long-lived root runs do not accumulate stale hooks.
+    if (daemonSignal.aborted) {
+      disposeOnAbort();
+    } else {
+      daemonSignal.addEventListener("abort", disposeOnAbort, { once: true });
+    }
 
     return ok(sqlite);
   };
