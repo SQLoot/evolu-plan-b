@@ -108,6 +108,11 @@ const runGitLines = (
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
 
+const getCurrentBranchShortName = (): string | null => {
+  const current = runGit(["branch", "--show-current"], { allowFailure: true }).trim();
+  return current.length > 0 ? current : null;
+};
+
 const isAncestor = (candidateRef: string, targetRef: string): boolean => {
   const result = spawnSync("git", ["merge-base", "--is-ancestor", candidateRef, targetRef], {
     encoding: "utf8",
@@ -150,6 +155,7 @@ const getCommonV8BranchIssues = (mainRef: string): ReadonlyArray<BranchIssue> =>
     "refs/heads",
     "refs/remotes/origin",
   ]);
+  const currentBranch = getCurrentBranchShortName();
 
   const candidateByCanonicalRef = new Map<string, string>();
   for (const ref of refs) {
@@ -167,7 +173,20 @@ const getCommonV8BranchIssues = (mainRef: string): ReadonlyArray<BranchIssue> =>
   const candidates = [...candidateByCanonicalRef.values()];
 
   return candidates
-    .filter((ref) => !isAncestor(ref, mainRef))
+    .filter((ref) => {
+      const canonicalRef = ref.startsWith("origin/") ? ref.slice(7) : ref;
+
+      // Active sync branch is expected to be unmerged while work is in progress.
+      if (
+        currentBranch &&
+        canonicalRef === currentBranch &&
+        /^sync\/common-v8/.test(canonicalRef)
+      ) {
+        return false;
+      }
+
+      return !isAncestor(ref, mainRef);
+    })
     .map((ref) => ({
       ref,
       tip: runGit(["show", "-s", "--format=%h %cs %s", ref]).trim(),
@@ -208,6 +227,8 @@ const getDanglingIssues = (options: GuardOptions): ReadonlyArray<DanglingIssue> 
     const body = runGit(["show", "-s", "--format=%b", sha]).trim();
     // Ignore synthetic stash commits (WIP/index) that are not actionable sync history.
     if (/^(WIP on |index on )/.test(subject)) continue;
+    // Ignore temporary local sync markers created during manual conflict work.
+    if (/temp-before-common-v8-wave\d+/i.test(subject)) continue;
 
     const patchId = commitPatchId(sha);
     const inMain = patchId ? mainPatchMap.get(patchId) : undefined;
