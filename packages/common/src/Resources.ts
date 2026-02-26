@@ -245,6 +245,7 @@ export const createResources =
     > = {
       addConsumer: (consumer, resourceConfigs) => {
         if (isDisposed) return;
+        if (resourceConfigs.length === 0) return;
 
         const consumerId = config.getConsumerId(consumer);
 
@@ -279,24 +280,45 @@ export const createResources =
         if (isDisposed) return ok();
 
         const consumerId = config.getConsumerId(consumer);
+        const removeCountsByResourceKey = new Map<TResourceKey, number>();
 
         for (const resourceConfig of resourceConfigs) {
           const key = config.getResourceKey(resourceConfig);
+          const removeCount = (removeCountsByResourceKey.get(key) ?? 0) + 1;
+          removeCountsByResourceKey.set(key, removeCount);
+        }
+
+        const validatedRemovals = new Map<
+          TResourceKey,
+          {
+            readonly counts: Map<TConsumerId, PositiveInt>;
+            readonly currentCount: PositiveInt;
+            readonly removeCount: number;
+          }
+        >();
+
+        for (const [key, removeCount] of removeCountsByResourceKey) {
           const counts = consumerCounts.get(key);
           if (!counts) {
             return err({ type: "ResourceNotFoundError", resourceKey: key });
           }
 
           const currentCount = counts.get(consumerId);
-          if (currentCount == null) {
+          if (currentCount == null || currentCount < removeCount) {
             return err({
               type: "ConsumerNotFoundError",
               consumerId: consumerId,
               resourceKey: key,
             });
           }
+          validatedRemovals.set(key, { counts, currentCount, removeCount });
+        }
 
-          if (currentCount === 1) {
+        for (const [key, removal] of validatedRemovals) {
+          const { counts, currentCount, removeCount } = removal;
+          const nextCount = currentCount - removeCount;
+
+          if (nextCount === 0) {
             counts.delete(consumerId);
 
             // Call onConsumerRemoved callback only when consumer is completely removed (1 -> 0)
@@ -312,7 +334,7 @@ export const createResources =
               scheduleDisposal(key);
             }
           } else {
-            counts.set(consumerId, PositiveInt.orThrow(currentCount - 1));
+            counts.set(consumerId, PositiveInt.orThrow(nextCount));
           }
         }
 
