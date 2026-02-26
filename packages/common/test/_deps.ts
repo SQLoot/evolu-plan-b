@@ -34,39 +34,29 @@ const require = createRequire(import.meta.url);
 
 export const testTimingSafeEqual: TimingSafeEqual = timingSafeEqual;
 
-export const testCreateSqliteDeps = (): CreateSqliteDriverDep => ({
+/** In-memory better-sqlite3 driver for tests. */
+export const testCreateSqliteDriver: CreateSqliteDriver = (name) =>
+  createBetterSqliteDriver(name, { mode: "memory" });
+
+const sqliteDeps = {
   createSqliteDriver: testCreateSqliteDriver,
-});
+} satisfies CreateSqliteDriverDep;
+
+type TestCreateSqliteDeps = CreateSqliteDriverDep & (() => CreateSqliteDriverDep);
+
+// Keep backward compatibility for both call styles:
+// - testCreateSqliteDeps()
+// - testCreateSqliteDeps.createSqliteDriver(...)
+export const testCreateSqliteDeps: TestCreateSqliteDeps = Object.assign(
+  () => sqliteDeps,
+  sqliteDeps,
+);
 
 export const testCreateRunWithSqlite = async (): Promise<
   Run<TestDeps & CreateSqliteDriverDep & SqliteDep>
 > => {
-  return createTestRunWithSqlite(testCreateSqliteDeps());
+  return createTestRunWithSqlite(testCreateSqliteDeps);
 };
-
-/** Creates a test Run with relay storage and SQLite deps. */
-export const testCreateRunWithSqliteAndRelayStorage = async (
-  config?: Partial<StorageConfig>,
-): Promise<Run<TestDeps & CreateSqliteDriverDep & SqliteDep & StorageDep>> => {
-  const run = await testCreateRunWithSqlite();
-
-  createBaseSqliteStorageTables(run.deps);
-  createRelayStorageTables(run.deps);
-
-  const storage = createRelaySqliteStorage({
-    ...run.deps,
-    timingSafeEqual: testTimingSafeEqual,
-  })({
-    isOwnerWithinQuota: lazyTrue,
-    ...config,
-  });
-
-  return run.addDeps<StorageDep>({ storage });
-};
-
-/** In-memory better-sqlite3 driver for tests. */
-export const testCreateSqliteDriver: CreateSqliteDriver = (name) =>
-  createBetterSqliteDriver(name, { mode: "memory" });
 
 interface StatementLike {
   readonly reader?: boolean;
@@ -260,4 +250,24 @@ const createBetterSqliteDriver: CreateSqliteDriver = (name, options) => () => {
   };
 
   return ok(driver);
+};
+
+/** Creates a test Run with relay storage and SQLite deps. */
+export const testCreateRunWithSqliteAndRelayStorage = async (
+  config?: Partial<StorageConfig>,
+): Promise<Run<TestDeps & CreateSqliteDriverDep & SqliteDep & StorageDep>> => {
+  const runWithSqlite = await testCreateRunWithSqlite();
+
+  createBaseSqliteStorageTables(runWithSqlite.deps);
+  createRelayStorageTables(runWithSqlite.deps);
+
+  const storage = createRelaySqliteStorage({
+    ...runWithSqlite.deps,
+    timingSafeEqual: testTimingSafeEqual,
+  })({
+    isOwnerWithinQuota: lazyTrue,
+    ...config,
+  });
+
+  return runWithSqlite.addDeps<StorageDep>({ storage });
 };
