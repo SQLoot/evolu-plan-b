@@ -173,7 +173,8 @@ export interface StorageDep {
 
 /** Error when storage or billing quota is exceeded. */
 export interface StorageQuotaError
-  extends OwnerError, Typed<"StorageQuotaError"> {}
+  extends OwnerError,
+    Typed<"StorageQuotaError"> {}
 
 /**
  * A cryptographic hash used for efficiently comparing collections of
@@ -288,7 +289,8 @@ export const ValidDbChangeValues = /*#__PURE__*/ brand(
 );
 export type ValidDbChangeValues = typeof ValidDbChangeValues.Type;
 
-export interface ValidDbChangeValuesError extends TypeError<"ValidDbChangeValues"> {
+export interface ValidDbChangeValuesError
+  extends TypeError<"ValidDbChangeValues"> {
   readonly invalidColumns: ReadonlyArray<string>;
 }
 
@@ -338,15 +340,16 @@ export interface DbChange extends InferType<typeof DbChange> {}
  * users, and when it goes down, nothing happens, because it will be
  * synchronized later.
  */
-export interface BaseSqliteStorage extends Pick<
-  Storage,
-  | "getSize"
-  | "fingerprint"
-  | "fingerprintRanges"
-  | "findLowerBound"
-  | "iterate"
-  | "deleteOwner"
-> {
+export interface BaseSqliteStorage
+  extends Pick<
+    Storage,
+    | "getSize"
+    | "fingerprint"
+    | "fingerprintRanges"
+    | "findLowerBound"
+    | "iterate"
+    | "deleteOwner"
+  > {
   /** Inserts a timestamp for an owner into the skiplist-based storage. */
   readonly insertTimestamp: (
     ownerId: OwnerIdBytes,

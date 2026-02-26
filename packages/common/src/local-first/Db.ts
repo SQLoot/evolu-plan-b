@@ -22,7 +22,12 @@ import type { LeaderLockDep } from "../Task.js";
 import type { RandomDep } from "../Random.js";
 import { getOk, ok, type Result } from "../Result.js";
 import { spaced } from "../Schedule.js";
-import type { CreateSqliteDriverDep, SqliteDep, SqliteRow, SqliteSchema } from "../Sqlite.js";
+import type {
+  CreateSqliteDriverDep,
+  SqliteDep,
+  SqliteRow,
+  SqliteSchema,
+} from "../Sqlite.js";
 import {
   booleanToSqliteBoolean,
   createSqlite,
@@ -52,7 +57,11 @@ import { ownerIdBytesToOwnerId, ownerIdToOwnerIdBytes } from "./Owner.js";
 import { encodeAndEncryptDbChange, protocolVersion } from "./Protocol.js";
 import { deserializeQuery, type Query } from "./Query.js";
 import type { MutationChange, SqliteSchemaDep } from "./Schema.js";
-import { ensureSqliteSchema, getEvoluSqliteSchema, systemColumns } from "./Schema.js";
+import {
+  ensureSqliteSchema,
+  getEvoluSqliteSchema,
+  systemColumns,
+} from "./Schema.js";
 import type {
   DbWorkerInput,
   DbWorkerOutput,
@@ -444,7 +453,9 @@ const initializeDb =
     createBaseSqliteStorageTables({ sqlite });
   };
 
-const tryApplyQuarantinedMessages = (deps: SqliteDep & SqliteSchemaDep): void => {
+const tryApplyQuarantinedMessages = (
+  deps: SqliteDep & SqliteSchemaDep,
+): void => {
   const rows = deps.sqlite.exec<{
     readonly ownerId: OwnerIdBytes;
     readonly timestamp: TimestampBytes;
@@ -647,7 +658,11 @@ const applyLocalOnlyChange =
 
 const applyMessages =
   (
-    deps: BaseSqliteStorageDep & ClockDep & SqliteSchemaDep & RandomDep & SqliteDep,
+    deps: BaseSqliteStorageDep &
+      ClockDep &
+      SqliteSchemaDep &
+      RandomDep &
+      SqliteDep,
   ) =>
   (
     ownerId: OwnerId,

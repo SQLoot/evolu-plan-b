@@ -74,12 +74,7 @@ import {
 import { testCreateDeps, testCreateRunner, testName } from "../src/Test.js";
 import { createTime, Millis, msLongTask, testCreateTime } from "../src/Time.js";
 import type { Typed } from "../src/Type.js";
-import {
-  type Id,
-  minPositiveInt,
-  Name,
-  PositiveInt,
-} from "../src/Type.js";
+import { type Id, minPositiveInt, Name, PositiveInt } from "../src/Type.js";
 
 const eventsEnabled: RunnerConfigDep = {
   runnerConfig: { eventsEnabled: createRef(true) },
