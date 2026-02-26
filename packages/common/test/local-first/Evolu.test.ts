@@ -1079,7 +1079,9 @@ describe("unit tests", () => {
 
       await Promise.resolve();
 
-      expect(run.deps.evoluInputs[0]?.changes[0]?.ownerId).toBe(testAppOwner.id);
+      expect(run.deps.evoluInputs[0]?.changes[0]?.ownerId).toBe(
+        testAppOwner.id,
+      );
 
       expect(run.deps.evoluInputs).toMatchInlineSnapshot(
         [
