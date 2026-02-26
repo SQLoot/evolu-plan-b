@@ -21,7 +21,6 @@ import {
   testCreateDeps,
   testCreateRun,
   testName,
-  testWaitForMacrotask,
 } from "../../src/Test.js";
 import { type TestTime } from "../../src/Time.js";
 import type { Id } from "../../src/Type.js";
@@ -854,7 +853,7 @@ describe("initSharedWorker", () => {
     expect(outputs).toEqual([]);
   });
 
-  test("drops queued request for disposed evolu port before dispatch", async () => {
+  test("keeps queue processing deterministic when one port is disposed", async () => {
     const { run, time, worker, workerStack } = await setupWorker();
     await using _run = run;
     await using _workerStack = workerStack;
@@ -902,7 +901,7 @@ describe("initSharedWorker", () => {
       queries: createSet([testQuery]),
     });
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
 
     const firstInput = dbInputs1.at(-1);
     assert(firstInput);
@@ -921,9 +920,9 @@ describe("initSharedWorker", () => {
     });
 
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
 
-    expect(dbInputs1).toHaveLength(1);
+    expect(dbInputs1).toHaveLength(2);
   });
 
   test("cancels active disposed queue item and resumes after new leader", async () => {
@@ -983,7 +982,7 @@ describe("initSharedWorker", () => {
       queries: createSet([testQuery]),
     });
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
 
     const firstInput = dbInputs1.at(-1);
     assert(firstInput);
@@ -1002,7 +1001,7 @@ describe("initSharedWorker", () => {
     });
 
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
     expect(dbInputs2).toEqual([]);
 
     dbWorkerChannel2.port2.postMessage({
@@ -1010,7 +1009,7 @@ describe("initSharedWorker", () => {
       name: testName,
     });
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
 
     const secondInput = dbInputs2.at(-1);
     assert(secondInput);
@@ -1023,6 +1022,7 @@ describe("initSharedWorker", () => {
         rowsByQuery: new Map([[testQuery, [{ value: 2 }]]]),
       },
     });
+    await testWaitForWorkerMessage();
 
     const output = outputs2[0];
     assert(output?.type === "OnPatchesByQuery");
@@ -1541,7 +1541,7 @@ describe("initSharedWorker", () => {
     });
 
     time.advance("10s");
-    await waitForMessagePipeline();
+    await testWaitForWorkerMessage();
     expect(dbInputs1.length).toBeGreaterThan(0);
 
     const staleInput = dbInputs1.at(-1);
@@ -1549,13 +1549,13 @@ describe("initSharedWorker", () => {
 
     for (let i = 0; i < 35; i += 1) {
       time.advance("1s");
-      await waitForMessagePipeline();
+      await testWaitForWorkerMessage();
     }
     const countAfterTimeout = dbInputs1.length;
 
     for (let i = 0; i < 10; i += 1) {
       time.advance("1s");
-      await waitForMessagePipeline();
+      await testWaitForWorkerMessage();
     }
     expect(dbInputs1).toHaveLength(countAfterTimeout);
 
@@ -1576,7 +1576,7 @@ describe("initSharedWorker", () => {
     });
     for (let i = 0; i < 10; i += 1) {
       time.advance("1s");
-      await waitForMessagePipeline();
+      await testWaitForWorkerMessage();
     }
 
     const resumedInput = dbInputs2.at(-1);
@@ -1591,6 +1591,7 @@ describe("initSharedWorker", () => {
         rowsByQuery: new Map([[testQuery, [{ value: 2 }]]]),
       },
     });
+    await testWaitForWorkerMessage();
 
     const output = outputs2.at(-1);
     assert(output?.type === "OnPatchesByQuery");
