@@ -71,7 +71,7 @@ import {
   unabortableMask,
   yieldNow,
 } from "../src/Task.js";
-import { testCreateDeps, testCreateRunner } from "../src/Test.js";
+import { testCreateDeps, testCreateRunner, testName } from "../src/Test.js";
 import { createTime, Millis, msLongTask, testCreateTime } from "../src/Time.js";
 import type { Typed } from "../src/Type.js";
 import {
@@ -79,7 +79,6 @@ import {
   minPositiveInt,
   Name,
   PositiveInt,
-  testName,
 } from "../src/Type.js";
 
 const eventsEnabled: RunnerConfigDep = {
