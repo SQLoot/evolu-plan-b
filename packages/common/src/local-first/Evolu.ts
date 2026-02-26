@@ -20,7 +20,7 @@ import { isNonEmptySet } from "../Set.js";
 import { SqliteBoolean, sqliteBooleanToBoolean } from "../Sqlite.js";
 import type { ReadonlyStore } from "../Store.js";
 import { createStore } from "../Store.js";
-import { type createRun, type Task } from "../Task.js";
+import type { createRun, Task } from "../Task.js";
 import type { Id, TypeError } from "../Type.js";
 import {
   brand,

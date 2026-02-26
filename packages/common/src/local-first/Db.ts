@@ -18,7 +18,6 @@ import type {
   RandomBytesDep,
 } from "../Crypto.js";
 import { getProperty, objectToEntries } from "../Object.js";
-import type { LeaderLockDep } from "../Task.js";
 import type { RandomDep } from "../Random.js";
 import { getOk, ok, type Result } from "../Result.js";
 import { spaced } from "../Schedule.js";
@@ -34,6 +33,7 @@ import {
   type SqliteValue,
   sql,
 } from "../Sqlite.js";
+import type { LeaderLockDep } from "../Task.js";
 import { type AsyncDisposableStack, repeat, type Task } from "../Task.js";
 import { type Millis, millisToDateIso, type TimeDep } from "../Time.js";
 import type { Name } from "../Type.js";

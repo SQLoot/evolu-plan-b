@@ -11,20 +11,20 @@ import {
   eqSqliteIndex,
   getSqliteSchema,
   type SafeSql,
-  sql,
   SqliteBoolean,
   type SqliteDep,
   type SqliteIndex,
   type SqliteQuery,
   type SqliteQueryOptions,
   type SqliteSchema,
-  SqliteValue,
+  type SqliteValue,
+  sql,
 } from "../Sqlite.js";
 import type { InferType } from "../Type.js";
 import {
   DateIso,
   type Id,
-  IdBytes,
+  type IdBytes,
   nullOr,
   object,
   type StandardSchemaV1,
@@ -35,7 +35,7 @@ import { OwnerId } from "./Owner.js";
 import type { Query, Row } from "./Query.js";
 import { serializeQuery } from "./Query.js";
 import type { CrdtMessage, DbChange } from "./Storage.js";
-import { TimestampBytes } from "./Timestamp.js";
+import type { TimestampBytes } from "./Timestamp.js";
 
 /** Any {@link StandardSchemaV1}. */
 export type AnyStandardSchemaV1 = StandardSchemaV1<any, any>;

@@ -22,10 +22,10 @@ import {
 import { testQuery, testQuery2 } from "../../src/local-first/Query.js";
 import { createQueryBuilder } from "../../src/local-first/Schema.js";
 import {
-  initSharedWorker,
   type EvoluInput,
   type EvoluOutput,
   type EvoluTabOutput,
+  initSharedWorker,
   type SharedWorker,
   type SharedWorkerInput,
 } from "../../src/local-first/Shared.js";
@@ -50,17 +50,16 @@ import {
   createMessagePort,
   createSharedWorker,
   createWorker,
-  testWaitForWorkerMessage,
   testCreateMessageChannel,
   testCreateMessagePort,
   testCreateSharedWorker,
   testCreateWorker,
+  testWaitForWorkerMessage,
 } from "../../src/Worker.js";
 import { testCreateSqliteDeps } from "../_deps.js";
 import { testAppOwner } from "./_fixtures.js";
 
 const TodoId = id("Todo");
-type TodoId = typeof TodoId.Type;
 
 const Schema = {
   todo: {

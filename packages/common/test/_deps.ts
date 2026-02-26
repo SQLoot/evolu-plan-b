@@ -42,7 +42,8 @@ const sqliteDeps = {
   createSqliteDriver: testCreateSqliteDriver,
 } satisfies CreateSqliteDriverDep;
 
-type TestCreateSqliteDeps = CreateSqliteDriverDep & (() => CreateSqliteDriverDep);
+type TestCreateSqliteDeps = CreateSqliteDriverDep &
+  (() => CreateSqliteDriverDep);
 
 // Keep backward compatibility for both call styles:
 // - testCreateSqliteDeps()

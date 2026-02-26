@@ -65,9 +65,8 @@ export interface Resources<
 }
 
 /** Error when trying to remove a consumer from a resource that doesn't exist. */
-export interface ResourceNotFoundError<
-  TResourceKey extends string = string,
-> extends Typed<"ResourceNotFoundError"> {
+export interface ResourceNotFoundError<TResourceKey extends string = string>
+  extends Typed<"ResourceNotFoundError"> {
   readonly resourceKey: TResourceKey;
 }
 

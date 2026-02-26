@@ -17,18 +17,14 @@ import {
 import { createSet } from "../../src/Set.js";
 import type { ReadonlyStore } from "../../src/Store.js";
 import { createStore } from "../../src/Store.js";
-import {
-  testCreateDeps,
-  testCreateRun,
-  testName,
-} from "../../src/Test.js";
-import { type TestTime } from "../../src/Time.js";
+import { testCreateDeps, testCreateRun, testName } from "../../src/Test.js";
+import type { TestTime } from "../../src/Time.js";
 import type { Id } from "../../src/Type.js";
 import {
-  testWaitForWorkerMessage,
   testCreateMessageChannel,
   testCreateMessagePort,
   testCreateSharedWorker,
+  testWaitForWorkerMessage,
 } from "../../src/Worker.js";
 
 describe("initSharedWorker", () => {

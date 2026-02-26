@@ -1,6 +1,5 @@
 import type { NativeMessagePort } from "@evolu/common";
-import { lazyVoid } from "@evolu/common";
-import { testWaitForMacrotask } from "@evolu/common";
+import { lazyVoid, testWaitForMacrotask } from "@evolu/common";
 import { describe, expect, test } from "vitest";
 import {
   createMessageChannel,
