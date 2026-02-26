@@ -73,6 +73,15 @@ test("creates resources on demand when adding consumers", () => {
   );
 });
 
+test("ignores addConsumer calls with empty resource list", () => {
+  const { resources } = createTestResources();
+
+  resources.addConsumer(consumer1, []);
+
+  expect(resources.hasConsumerAnyResource(consumer1)).toBe(false);
+  expect(resources.getConsumer(consumer1.id)).toBeNull();
+});
+
 test("tracks consumers for each resource", () => {
   const { resources } = createTestResources();
 
@@ -321,7 +330,7 @@ test("getConsumer returns null when consumer is not using any resources", () => 
   expect(resources.getConsumer(consumer1.id)).toBeNull();
 });
 
-test("getConsumer returns null for stale consumer entry after partial remove failure", () => {
+test("removeConsumer does not partially mutate state when validation fails", () => {
   const { resources } = createTestResources();
   const consumer = { id: "consumer-stale" as ConsumerId, name: "Stale" };
   const existingResource = { key: "existing" as ResourceKey };
@@ -341,8 +350,35 @@ test("getConsumer returns null for stale consumer entry after partial remove fai
     }),
   );
 
-  expect(resources.hasConsumerAnyResource(consumer)).toBe(false);
-  expect(resources.getConsumer(consumer.id)).toBeNull();
+  expect(resources.hasConsumerAnyResource(consumer)).toBe(true);
+  expect(resources.getConsumer(consumer.id)).toEqual(consumer);
+  expect(resources.getConsumersForResource(existingResource.key)).toEqual([
+    consumer.id,
+  ]);
+});
+
+test("removeConsumer fails when remove count exceeds tracked references", () => {
+  const { resources } = createTestResources();
+
+  resources.addConsumer(consumer1, [resourceConfig1]);
+  const result = resources.removeConsumer(consumer1, [
+    resourceConfig1,
+    resourceConfig1,
+  ]);
+
+  expect(result).toEqual(
+    err({
+      type: "ConsumerNotFoundError",
+      consumerId: consumer1.id,
+      resourceKey: resourceConfig1.key,
+    }),
+  );
+
+  expect(resources.hasConsumerAnyResource(consumer1)).toBe(true);
+  expect(resources.getConsumer(consumer1.id)).toEqual(consumer1);
+  expect(resources.getConsumersForResource(resourceConfig1.key)).toEqual([
+    consumer1.id,
+  ]);
 });
 
 test("getConsumer returns updated consumer data when re-added", () => {

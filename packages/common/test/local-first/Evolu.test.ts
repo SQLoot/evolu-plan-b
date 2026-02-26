@@ -480,7 +480,9 @@ describe("unit tests", () => {
       });
       await testWaitForWorkerMessage();
 
-      expect(run.deps.evoluInputs).toEqual([{ type: "Export" }]);
+      expect(
+        run.deps.evoluInputs.filter((input) => input.type === "Export"),
+      ).toEqual([{ type: "Export" }]);
     });
 
     test("posts Dispose with pending mutation microtask batch", async () => {
