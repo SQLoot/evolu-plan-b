@@ -501,4 +501,154 @@ describe("runWebDbWorkerPort", () => {
       expect(queryAfterResetOutput.rows).toEqual([{ count: 0 }]);
     }
   });
+
+  test("returns null appOwner for invalid JSON metadata", async () => {
+    const name = SimpleName.orThrow("DbWorkerInvalidOwnerJson");
+    const channel = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    broker.port2.onMessage = () => {};
+
+    runWebDbWorkerPort({
+      name,
+      port: channel.port1,
+      brokerPort: broker.port1,
+    });
+
+    const init = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName: ":memory:",
+      schemaVersion: 1,
+    });
+    expect(await init).toMatchObject({
+      type: "DbWorkerInitResponse",
+      success: true,
+    });
+
+    const setOwner = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerMutate",
+      requestId: 1,
+      sql: "insert into __evolu_meta (key, value) values ('appOwner', ?)",
+      params: ["{not-json"],
+    });
+    expect(await setOwner).toMatchObject({ type: "DbWorkerMutateResponse" });
+
+    const getOwner = waitForOutput(channel.port2);
+    channel.port2.postMessage({ type: "DbWorkerGetAppOwner" });
+    const ownerOutput = await getOwner;
+    expect(ownerOutput).toEqual({ type: "DbWorkerAppOwner", appOwner: null });
+  });
+
+  test("rejects re-init on same worker with different dbName", async () => {
+    const name = SimpleName.orThrow("DbWorkerReinitDbName");
+    const channel = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    broker.port2.onMessage = () => {};
+
+    runWebDbWorkerPort({
+      name,
+      port: channel.port1,
+      brokerPort: broker.port1,
+    });
+
+    const initA = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName: ":memory:",
+      schemaVersion: 1,
+    });
+    expect(await initA).toMatchObject({
+      type: "DbWorkerInitResponse",
+      success: true,
+    });
+
+    const initB = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName: "another-db",
+      schemaVersion: 1,
+    });
+    const output = await initB;
+    expect(output.type).toBe("DbWorkerInitResponse");
+    if (output.type === "DbWorkerInitResponse") {
+      expect(output.success).toBe(false);
+      expect(output.error).toContain("cannot switch");
+    }
+  });
+
+  test("rejects re-init on same worker with different schema version", async () => {
+    const name = SimpleName.orThrow("DbWorkerReinitSchema");
+    const channel = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    broker.port2.onMessage = () => {};
+
+    runWebDbWorkerPort({
+      name,
+      port: channel.port1,
+      brokerPort: broker.port1,
+    });
+
+    const initA = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName: ":memory:",
+      schemaVersion: 1,
+    });
+    expect(await initA).toMatchObject({
+      type: "DbWorkerInitResponse",
+      success: true,
+    });
+
+    const initB = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName: ":memory:",
+      schemaVersion: 2,
+    });
+    const output = await initB;
+    expect(output.type).toBe("DbWorkerInitResponse");
+    if (output.type === "DbWorkerInitResponse") {
+      expect(output.success).toBe(false);
+      expect(output.error).toContain("schema version");
+    }
+  });
+
+  test("returns DbWorkerError for unknown message type", async () => {
+    const name = SimpleName.orThrow("DbWorkerUnknownMessage");
+    const channel = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    broker.port2.onMessage = () => {};
+
+    runWebDbWorkerPort({
+      name,
+      port: channel.port1,
+      brokerPort: broker.port1,
+    });
+
+    const output = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerUnknown",
+      requestId: 42,
+    } as unknown as DbWorkerInput);
+
+    const errorOutput = await output;
+    expect(errorOutput.type).toBe("DbWorkerError");
+    if (errorOutput.type === "DbWorkerError") {
+      expect(errorOutput.requestId).toBe(42);
+      expect(errorOutput.error).toContain("Unknown message type");
+    }
+  });
 });
