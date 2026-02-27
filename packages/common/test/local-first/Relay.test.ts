@@ -236,6 +236,67 @@ describe("writeMessages", () => {
     expect(usageResult.rows[0].count).toBe(0);
   });
 
+  test("ignores messages with zero-byte payloads", async () => {
+    await using run = await testCreateRunWithSqliteAndRelayStorage();
+    const { storage, sqlite } = run.deps;
+
+    const zeroMessage: EncryptedCrdtMessage = {
+      timestamp: timestampBytesToTimestamp(testTimestampsAsc[0]),
+      change: new Uint8Array(0) as EncryptedDbChange,
+    };
+
+    const result = await run(
+      storage.writeMessages(testAppOwnerIdBytes, [zeroMessage]),
+    );
+    assert(result.ok);
+
+    expect(storage.getSize(testAppOwnerIdBytes)).toBe(0);
+    const messageCount = sqlite.exec<{ count: number }>(sql`
+      select count(*) as count
+      from evolu_message
+      where ownerid = ${testAppOwnerIdBytes};
+    `);
+    expect(messageCount.rows[0].count).toBe(0);
+  });
+
+  test("propagates abort while waiting for owner mutex", async () => {
+    let resolveQuota: ((value: boolean) => void) | undefined;
+    const quotaPromise = new Promise<boolean>((resolve) => {
+      resolveQuota = resolve;
+    });
+
+    await using run = await testCreateRunWithSqliteAndRelayStorage({
+      isOwnerWithinQuota: () => quotaPromise,
+    });
+    const { storage } = run.deps;
+
+    const message1 = createTestMessage(
+      3,
+      timestampBytesToTimestamp(testTimestampsAsc[0]),
+    );
+    const message2 = createTestMessage(
+      3,
+      timestampBytesToTimestamp(testTimestampsAsc[1]),
+    );
+
+    const write1 = run(storage.writeMessages(testAppOwnerIdBytes, [message1]));
+    const write2 = run(storage.writeMessages(testAppOwnerIdBytes, [message2]));
+
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+    write2.abort("cancelled");
+    resolveQuota?.(true);
+
+    const result1 = await write1;
+    const result2 = await write2;
+
+    assert(result1.ok);
+    expect(result2.ok).toBe(false);
+    if (!result2.ok) {
+      expect(result2.error.type).toBe("AbortError");
+    }
+    expect(storage.getSize(testAppOwnerIdBytes)).toBe(1);
+  });
+
   describe("isOwnerWithinQuota", () => {
     test("succeeds when isOwnerWithinQuota returns true", async () => {
       let quotaCheckCalled = false;
