@@ -151,6 +151,65 @@ test("testHandleMutation writes local and shared changes", async () => {
   expect(localRows).toEqual([{ value: "local-only" }]);
 });
 
+test("testHandleMutation deletes local rows and quarantines unknown columns", async () => {
+  await using run = await testCreateRunWithSqlite();
+
+  const initialTimestamp = createInitialTimestamp(run.deps);
+  testInitializeDb(run.deps)(initialTimestamp);
+  prepareTodoTables(run.deps.sqlite.exec);
+
+  const deps = {
+    ...run.deps,
+    sqliteSchema,
+    encryptionKey: testAppOwner.encryptionKey,
+    baseSqliteStorage: createBaseSqliteStorage(run.deps),
+    clock: testCreateClock(run.deps)(true),
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  };
+
+  const localId = createId(run.deps);
+  run.deps.sqlite.exec(sql`
+    insert into _local_meta ("ownerId", "id", "value")
+    values (${testAppOwner.id}, ${localId}, ${"local-only"});
+  `);
+
+  const mutate = testHandleMutation(deps)({
+    type: "Mutate",
+    changes: [
+      {
+        ownerId: testAppOwner.id,
+        table: "_local_meta",
+        id: localId,
+        values: ValidDbChangeValues.orThrow({ value: "ignored-on-delete" }),
+        isInsert: false,
+        isDelete: true,
+      },
+      {
+        ownerId: testAppOwner.id,
+        table: "todo",
+        id: createId(run.deps),
+        values: ValidDbChangeValues.orThrow({ unknownColumn: "quarantined" }),
+        isInsert: true,
+        isDelete: false,
+      },
+    ],
+    onCompleteIds: [],
+    subscribedQueries: new Set(),
+  });
+
+  expect(mutate.ok).toBe(true);
+
+  const localRows = run.deps.sqlite.exec<{ count: number }>(sql`
+    select count(*) as count from _local_meta;
+  `).rows;
+  expect(localRows[0]?.count).toBe(0);
+
+  const quarantineRows = run.deps.sqlite.exec<{ count: number }>(sql`
+    select count(*) as count from evolu_message_quarantine;
+  `).rows;
+  expect(quarantineRows[0]?.count).toBe(1);
+});
+
 test("testTryApplyQuarantinedMessages applies known columns and keeps unknown", async () => {
   await using run = await testCreateRunWithSqlite();
 
@@ -302,4 +361,133 @@ test("testStartDbWorker handles Query, Mutate, Export and callback dedupe", asyn
       item.message.response.type === "Export",
   );
   expect(exportMessage?.transfer?.length).toBe(1);
+});
+
+test("testStartDbWorker evicts callback IDs by TTL and size limit", async () => {
+  await using run = await testCreateRunWithSqlite();
+  const { port, messages } = createDbPort();
+
+  let now = 0;
+  const originalNow = run.deps.time.now;
+  (run.deps.time as { now: () => number }).now = () => now;
+
+  const workerName = SimpleName.orThrow(`DbWorkerEviction${Date.now()}`);
+  const task = testStartDbWorker(
+    workerName,
+    sqliteSchema,
+    testAppOwner.encryptionKey,
+  );
+  const started = await run.addDeps({
+    port,
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })(task);
+  expect(started.ok).toBe(true);
+  if (!started.ok) return;
+
+  const query = serializeQuery(sql`select 'ok' as "value";`);
+  const evoluPortId = createId(run.deps);
+
+  const ttlId = createId(run.deps);
+  port.onMessage?.({
+    callbackId: ttlId,
+    evoluPortId,
+    request: { type: "Query", queries: new Set([query]) },
+  });
+
+  now = 5 * 60 * 1000 + 10;
+  port.onMessage?.({
+    callbackId: createId(run.deps),
+    evoluPortId,
+    request: { type: "Query", queries: new Set([query]) },
+  });
+
+  const beforeTtlReplay = messages.length;
+  port.onMessage?.({
+    callbackId: ttlId,
+    evoluPortId,
+    request: { type: "Query", queries: new Set([query]) },
+  });
+  expect(messages.length).toBeGreaterThan(beforeTtlReplay);
+
+  now = 0;
+  const oldestId = createId(run.deps);
+  port.onMessage?.({
+    callbackId: oldestId,
+    evoluPortId,
+    request: { type: "Query", queries: new Set([query]) },
+  });
+  for (let i = 0; i < 10_005; i += 1) {
+    port.onMessage?.({
+      callbackId: createId(run.deps),
+      evoluPortId,
+      request: { type: "Query", queries: new Set([query]) },
+    });
+  }
+
+  const beforeSizeReplay = messages.length;
+  port.onMessage?.({
+    callbackId: oldestId,
+    evoluPortId,
+    request: { type: "Query", queries: new Set([query]) },
+  });
+  expect(messages.length).toBeGreaterThan(beforeSizeReplay);
+
+  (run.deps.time as { now: () => number }).now = originalNow;
+});
+
+test("testStartDbWorker posts OnError when mutate timestamp is out of range", async () => {
+  await using run = await testCreateRunWithSqlite();
+  const { port, messages } = createDbPort();
+
+  const now = -1;
+  const originalNow = run.deps.time.now;
+  (run.deps.time as { now: () => number }).now = () => now;
+
+  const workerName = SimpleName.orThrow(`DbWorkerDrift${Date.now()}`);
+  const task = testStartDbWorker(
+    workerName,
+    sqliteSchema,
+    testAppOwner.encryptionKey,
+  );
+  const started = await run.addDeps({
+    port,
+    timestampConfig: { maxDrift: 1 },
+  })(task);
+  expect(started.ok).toBe(true);
+  if (!started.ok) return;
+
+  const evoluPortId = createId(run.deps);
+
+  const postMutate = (callbackId = createId(run.deps)) => {
+    port.onMessage?.({
+      callbackId,
+      evoluPortId,
+      request: {
+        type: "Mutate",
+        changes: [
+          {
+            ownerId: testAppOwner.id,
+            table: "todo",
+            id: createId(run.deps),
+            values: ValidDbChangeValues.orThrow({ title: "mutate" }),
+            isInsert: true,
+            isDelete: false,
+          },
+        ],
+        onCompleteIds: [],
+        subscribedQueries: new Set(),
+      },
+    });
+  };
+
+  postMutate();
+
+  const hasTimeOutOfRangeError = messages.some(
+    (item) =>
+      item.message.type === "OnError" &&
+      item.message.error.type === "TimestampTimeOutOfRangeError",
+  );
+  expect(hasTimeOutOfRangeError).toBe(true);
+
+  (run.deps.time as { now: () => number }).now = originalNow;
 });
