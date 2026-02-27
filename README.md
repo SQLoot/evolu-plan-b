@@ -27,6 +27,23 @@ Coverage snapshot date: `2026-02-27` (from `bun run test:coverage` and `bun run 
 | `@evolu/svelte` | Svelte `>=5.53.3`, `@evolu/web ^2.4.0` | Wrapper support | `0% / 0%` | Store-based wrappers; coverage expansion planned. |
 | `@evolu/bun` (private) | `@evolu/common ^7.4.1`, Bun `1.3.x` | Experimental adapter | `100% / 100%` | Measured via Bun coverage runner on `BunDbWorker.ts`. |
 
+## Planned Integrations (Roadmap View)
+
+| Integration | Fit | Priority | Expected Path | Main Risk / Blocker |
+| --- | --- | --- | --- | --- |
+| TanStack Start | Very high | P0 | Use `@evolu/react` + `@evolu/web`, focus on SSR/client boundary docs and example app. | SSR edge cases (worker lifecycle and hydration boundary). |
+| Astro | High | P0 | Client-island integration on top of `@evolu/web`, starter template + docs. | Island hydration timing and worker boot ordering. |
+| Tauri | High | P1 | Web runtime in WebView + optional Rust-side relay bridge for desktop sync scenarios. | Packaging/runtime differences across desktop targets. |
+| Flutter | Medium/Low | P2 | Separate adapter/SDK (likely not a thin wrapper) or protocol-level bridge. | Different runtime/language model (Dart), no direct reuse of TS hooks. |
+| Lynx | Medium/Low | P2 | Feasibility spike first; likely bridge approach instead of direct package reuse. | Ecosystem maturity and compatibility surface still evolving. |
+| Valdi (to be clarified) | Unknown | Discovery | Define target runtime first, then evaluate web/node adapter reuse potential. | Ambiguous target platform and unclear integration surface. |
+
+Current recommendation:
+
+- Build first-class examples for `TanStack Start`, `Astro`, and `Tauri`.
+- Treat `Flutter` and `Lynx` as separate SDK/bridge efforts, not quick wrappers.
+- Keep protocol/API parity first; add adapters only where lifecycle/storage semantics are clear.
+
 ## `@evolu/common` Compatibility and Third-Party Dependencies
 
 - Package version: `7.4.1`
