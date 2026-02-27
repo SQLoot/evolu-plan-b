@@ -192,8 +192,12 @@ test("initEvoluWorker forwards console store output to tab port", async () => {
     args: ["forwarded"],
   };
   entryStore.set(entry);
+  entryStore.set(null);
 
   expect(tabPort.sentMessages).toContainEqual({ type: "ConsoleEntry", entry });
+  expect(tabPort.sentMessages).toHaveLength(1);
+
+  await run[Symbol.asyncDispose]();
 });
 
 test("runEvoluWorkerScope queues output before InitTab and flushes on first tab", () => {
@@ -288,4 +292,25 @@ test("runEvoluWorkerScope broadcasts output to all registered tabs", () => {
 
   expect(tabPortA.sentMessages).toContainEqual(output);
   expect(tabPortB.sentMessages).toContainEqual(output);
+});
+
+test("runEvoluWorkerScope throws on unknown message type", () => {
+  const workerScope = createWorkerScope();
+  const workerConnection = createTrackedPort<never, EvoluWorkerInput>();
+
+  runEvoluWorkerScope({
+    console: createConsole(),
+    createMessagePort: (() => {
+      throw new Error("createMessagePort should not be called");
+    }) as CreateMessagePort,
+    runDbWorkerPort: vi.fn(),
+  })(workerScope);
+
+  workerScope.onConnect?.(workerConnection.port);
+
+  expect(() =>
+    workerConnection.emit({
+      type: "UnknownMessageType",
+    } as unknown as EvoluWorkerInput),
+  ).toThrow();
 });

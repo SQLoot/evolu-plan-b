@@ -2,7 +2,7 @@ import {
   MessageChannel as NodeMessageChannel,
   Worker as NodeWorker,
 } from "node:worker_threads";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import {
   createMessageChannel,
   createMessagePort,
@@ -122,5 +122,88 @@ test("createWorkerScope wraps createWorkerSelf and is disposable", () => {
 
   expect(scope.onError).toBeNull();
   scope[Symbol.dispose]();
+  nativeChannel.port2.close();
+});
+
+test("createMessagePort supports transfer list with ArrayBuffer", async () => {
+  const nativeChannel = new NodeMessageChannel();
+  const port = createMessagePort<
+    { readonly payload: ArrayBuffer },
+    { readonly payload: ArrayBuffer }
+  >(nativeChannel.port1 as never);
+
+  const payload = new ArrayBuffer(4);
+  const view = new Uint8Array(payload);
+  view.set([1, 2, 3, 4]);
+
+  const outgoing = new Promise<{ readonly payload: ArrayBuffer }>((resolve) => {
+    nativeChannel.port2.once("message", (message) => {
+      resolve(message as { readonly payload: ArrayBuffer });
+    });
+  });
+
+  port.postMessage({ payload }, [payload]);
+  const received = await outgoing;
+  expect(new Uint8Array(received.payload)).toEqual(
+    new Uint8Array([1, 2, 3, 4]),
+  );
+
+  port[Symbol.dispose]();
+  nativeChannel.port2.close();
+});
+
+test("createMessagePort supports transfer list with MessagePort", async () => {
+  const nativeChannel = new NodeMessageChannel();
+  const transferChannel = new NodeMessageChannel();
+  const port = createMessagePort<
+    { readonly transferredPort: NodeMessageChannel["port1"] },
+    { readonly transferredPort: NodeMessageChannel["port1"] }
+  >(nativeChannel.port1 as never);
+
+  const outgoing = new Promise<{
+    readonly transferredPort: NodeMessageChannel["port1"];
+  }>((resolve) => {
+    nativeChannel.port2.once("message", (message) => {
+      resolve(
+        message as { readonly transferredPort: NodeMessageChannel["port1"] },
+      );
+    });
+  });
+
+  port.postMessage({ transferredPort: transferChannel.port1 }, [
+    transferChannel.port1 as never,
+  ]);
+  const received = await outgoing;
+  expect(received.transferredPort).toBeDefined();
+
+  port[Symbol.dispose]();
+  nativeChannel.port2.close();
+  transferChannel.port2.close();
+});
+
+test("createWorkerScope forwards process errors and detaches handlers on dispose", () => {
+  const nativeChannel = new NodeMessageChannel();
+  const uncaughtBefore = process.listenerCount("uncaughtException");
+  const unhandledBefore = process.listenerCount("unhandledRejection");
+  const scope = createWorkerScope<
+    { readonly fromMain: string },
+    { readonly fromSelf: string }
+  >(nativeChannel.port1);
+  expect(process.listenerCount("uncaughtException")).toBe(uncaughtBefore + 1);
+  expect(process.listenerCount("unhandledRejection")).toBe(unhandledBefore + 1);
+
+  const onError = vi.fn();
+  scope.onError = onError;
+
+  const uncaught = new Error("uncaught");
+  const rejected = new Error("rejected");
+  process.emit("uncaughtException", uncaught);
+  process.emit("unhandledRejection", rejected, Promise.resolve());
+  expect(onError).toHaveBeenCalledTimes(2);
+
+  scope[Symbol.dispose]();
+  expect(process.listenerCount("uncaughtException")).toBe(uncaughtBefore);
+  expect(process.listenerCount("unhandledRejection")).toBe(unhandledBefore);
+
   nativeChannel.port2.close();
 });
