@@ -17,9 +17,9 @@ Coverage snapshot date: `2026-02-27` (from `bun run test:coverage` and `bun run 
 
 | Package | Supported Versions | Implementation Status | Coverage (Statements / Branches) | Notes |
 | --- | --- | --- | --- | --- |
-| `@evolu/common` | Node `>=24.0.0` | Stable core | `94.47% / 89.67%` | Main engine + local-first protocol/runtime. |
-| `@evolu/web` | `@evolu/common ^7.4.1` | Stable | `96.67% / 90.70%` | Browser runtime (Worker/SharedWorker/Web Locks path). |
-| `@evolu/nodejs` | Node `>=24.0.0`, `@evolu/common ^7.4.1` | Stable | Worker `100% / 100%`, Sqlite `100% / 87.5%` | Package aggregate is lower due to minimal shim files. |
+| `@evolu/common` | Node `>=24.0.0` | Stable core | `94.47% / 89.57%` | Main engine + local-first protocol/runtime. |
+| `@evolu/web` | `@evolu/common ^7.4.1` | Stable | `99.33% / 93.71%` | Browser runtime (Worker/SharedWorker/Web Locks path). |
+| `@evolu/nodejs` | Node `>=24.0.0`, `@evolu/common ^7.4.1` | Stable | `95.74% / 87.50%` | Includes relay adapter hardening (WS lifecycle + subscribe/broadcast/unsubscribe + restart coverage). |
 | `@evolu/react-web` | React `>=19`, React DOM `>=19`, `@evolu/web ^2.4.0` | Stable thin adapter | `100% / 100%` | Thin web integration wrapper. |
 | `@evolu/react-native` | React Native `>=0.81`, Expo `>=54`, `@op-engineering/op-sqlite >=12` | Active hardening | `20.65% / 13.11%` | Core adapters are covered; broader suite is backlog. |
 | `@evolu/react` | React `>=19` | Wrapper support | `0% / 0%` | Hook wrappers; coverage expansion planned. |

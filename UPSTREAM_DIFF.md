@@ -13,7 +13,7 @@ Scope: high-level product and engineering deltas, not a full commit-by-commit ch
 | Upstream sync process | Added sync guard tooling and explicit compatibility tracking for `common-v8` sync waves. | Keep upstream parity while avoiding accidental regressions in fork-specific work. |
 | Coverage governance | Added file-level coverage gates for critical local-first paths (`Sync`, `Db`, `Worker`, `DbWorker`, etc.). | Enforce reliability on highest-risk runtime paths before merges. |
 | Bun runtime adapter | Added Bun-specific worker/db adapter package (`@evolu/bun`, currently private). | Native Bun runtime support and experimentation without changing upstream APIs. |
-| Test expansion | Extra tests for sync/worker/sqlite/refactor edge cases in fork maintenance waves. | Protect against regressions during aggressive sync and refactor work. |
+| Test expansion | Extra tests for sync/worker/sqlite/refactor edge cases, including runtime adapter races (`DbWorker initPromise` cleanup, Relay WS lifecycle/broadcast flows). | Protect against regressions during aggressive sync and refactor work. |
 
 ## What Is Intentionally the Same
 
