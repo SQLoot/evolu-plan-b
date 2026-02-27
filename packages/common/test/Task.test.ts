@@ -5065,6 +5065,29 @@ describe("concurrency", () => {
       if (a.ok) a.value[Symbol.dispose]();
       if (b.ok) b.value[Symbol.dispose]();
     });
+
+    test("aborted waiter does not keep lock held", async () => {
+      await using run = createRun();
+      const leaderLock = createInMemoryLeaderLock();
+
+      const first = await run(leaderLock.acquire(testName));
+      expect(first.ok).toBe(true);
+      if (!first.ok) return;
+
+      const waiting = run(leaderLock.acquire(testName));
+      await run(yieldNow);
+
+      waiting.abort("cancelled");
+      first.value[Symbol.dispose]();
+
+      await expect(waiting).resolves.toEqual(
+        err({ type: "AbortError", reason: "cancelled" }),
+      );
+
+      const next = await run(timeout(leaderLock.acquire(testName), "100ms"));
+      expect(next.ok).toBe(true);
+      if (next.ok) next.value[Symbol.dispose]();
+    });
   });
 });
 

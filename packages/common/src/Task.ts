@@ -2757,12 +2757,18 @@ export const createInMemoryLeaderLock = (): LeaderLock => {
       void run.daemon(
         mutexes.ensure(name, createMutex).withLock(async () => {
           onAcquired.resolve();
+          if (run.signal.aborted) return ok();
           await onRelease.promise;
           return ok();
         }),
       );
 
       await onAcquired.promise;
+
+      if (run.signal.aborted) {
+        onRelease.resolve();
+        return err(run.signal.reason as AbortError);
+      }
 
       return ok({
         [Symbol.dispose]: () => {

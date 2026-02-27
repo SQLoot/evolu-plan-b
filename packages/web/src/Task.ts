@@ -46,7 +46,7 @@ export const createLeaderLock = (): LeaderLock => ({
     try {
       request = locks.request(
         `evolu-leaderlock-${name}`,
-        { mode: "exclusive" },
+        { mode: "exclusive", signal: run.signal },
         async () => {
           acquired.resolve();
           await release.promise;
