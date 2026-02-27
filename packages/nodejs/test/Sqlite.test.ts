@@ -430,6 +430,236 @@ describe("createBetterSqliteDriver", () => {
     }
   });
 
+  test("rethrows bun:sqlite error when all Bun runtime fallbacks fail", async () => {
+    vi.resetModules();
+    const originalBun = (globalThis as Record<string, unknown>).Bun;
+    (globalThis as Record<string, unknown>).Bun = {};
+
+    vi.doMock("node:module", () => ({
+      createRequire: () => (id: string) => {
+        if (id === "bun:sqlite") {
+          return {
+            Database: class BunSqliteBroken {
+              constructor() {
+                throw new Error("simulated bun:sqlite init failure");
+              }
+            },
+          };
+        }
+        if (id === "better-sqlite3") {
+          return class BetterSqliteBroken {
+            constructor() {
+              throw new Error("simulated better-sqlite3 init failure");
+            }
+          };
+        }
+        if (id === "node:sqlite") {
+          return {
+            DatabaseSync: class NodeSqliteBroken {
+              constructor() {
+                throw new Error("simulated node:sqlite init failure");
+              }
+            },
+          };
+        }
+        throw new Error(`Unexpected module request: ${id}`);
+      },
+    }));
+
+    try {
+      const modulePath = `../src/Sqlite.ts?bun-all-fail-${Date.now()}`;
+      const { createBetterSqliteDriver: createDriver } = await import(
+        modulePath
+      );
+
+      await using run = testCreateRun();
+      await expect(
+        run(createDriver(testName, { mode: "memory" })),
+      ).rejects.toThrow("simulated bun:sqlite init failure");
+    } finally {
+      vi.doUnmock("node:module");
+      vi.resetModules();
+      if (originalBun === undefined) {
+        delete (globalThis as Record<string, unknown>).Bun;
+      } else {
+        (globalThis as Record<string, unknown>).Bun = originalBun;
+      }
+    }
+  });
+
+  test("rethrows better-sqlite3 error when non-Bun fallbacks fail", async () => {
+    vi.resetModules();
+    const originalBun = (globalThis as Record<string, unknown>).Bun;
+    delete (globalThis as Record<string, unknown>).Bun;
+
+    vi.doMock("node:module", () => ({
+      createRequire: () => (id: string) => {
+        if (id === "better-sqlite3") {
+          return class BetterSqliteBroken {
+            constructor() {
+              throw new Error("simulated better-sqlite3 init failure");
+            }
+          };
+        }
+        if (id === "node:sqlite") {
+          return {
+            DatabaseSync: class NodeSqliteBroken {
+              constructor() {
+                throw new Error("simulated node:sqlite init failure");
+              }
+            },
+          };
+        }
+        throw new Error(`Unexpected module request: ${id}`);
+      },
+    }));
+
+    try {
+      const modulePath = `../src/Sqlite.ts?non-bun-all-fail-${Date.now()}`;
+      const { createBetterSqliteDriver: createDriver } = await import(
+        modulePath
+      );
+
+      await using run = testCreateRun();
+      await expect(
+        run(createDriver(testName, { mode: "memory" })),
+      ).rejects.toThrow("simulated better-sqlite3 init failure");
+    } finally {
+      vi.doUnmock("node:module");
+      vi.resetModules();
+      if (originalBun === undefined) {
+        delete (globalThis as Record<string, unknown>).Bun;
+      } else {
+        (globalThis as Record<string, unknown>).Bun = originalBun;
+      }
+    }
+  });
+
+  test("export handles SharedArrayBuffer-backed serialization in Bun path", async () => {
+    vi.resetModules();
+    const originalBun = (globalThis as Record<string, unknown>).Bun;
+    (globalThis as Record<string, unknown>).Bun = {};
+
+    class MockBunDatabase {
+      prepare() {
+        return {
+          all: () => [] as Array<SqliteRow>,
+          run: () => ({ changes: 0 }),
+        };
+      }
+
+      serialize(): Uint8Array {
+        const bytes = new Uint8Array(new SharedArrayBuffer(3));
+        bytes.set([11, 12, 13]);
+        return bytes;
+      }
+
+      close(): void {}
+    }
+
+    vi.doMock("node:module", () => ({
+      createRequire: () => (id: string) => {
+        if (id === "bun:sqlite") return { Database: MockBunDatabase };
+        throw new Error(`Unexpected module request: ${id}`);
+      },
+    }));
+
+    try {
+      const modulePath = `../src/Sqlite.ts?bun-shared-buffer-${Date.now()}`;
+      const { createBetterSqliteDriver: createDriver } = await import(
+        modulePath
+      );
+
+      await using run = testCreateRun();
+      const result = await run(createDriver(testName, { mode: "memory" }));
+      assert(result.ok);
+      const sqlite = result.value;
+
+      expect(sqlite.export()).toEqual(new Uint8Array([11, 12, 13]));
+      sqlite[Symbol.dispose]();
+    } finally {
+      vi.doUnmock("node:module");
+      vi.resetModules();
+      if (originalBun === undefined) {
+        delete (globalThis as Record<string, unknown>).Bun;
+      } else {
+        (globalThis as Record<string, unknown>).Bun = originalBun;
+      }
+    }
+  });
+
+  test("node serialize fallback handles non-ArrayBuffer file backing", async () => {
+    vi.resetModules();
+    const originalBun = (globalThis as Record<string, unknown>).Bun;
+    delete (globalThis as Record<string, unknown>).Bun;
+
+    class MockNodeDatabase {
+      prepare() {
+        return {
+          all: (..._parameters: ReadonlyArray<unknown>) =>
+            [] as Array<SqliteRow>,
+          run: (..._parameters: ReadonlyArray<unknown>) => ({ changes: 0 }),
+        };
+      }
+
+      exec(_sqlText: string): void {}
+
+      close(): void {}
+    }
+
+    vi.doMock("node:fs", () => ({
+      readFileSync: () => {
+        const bytes = new Uint8Array(new SharedArrayBuffer(3));
+        bytes.set([3, 4, 5]);
+        return bytes;
+      },
+      rmSync: () => {},
+      existsSync,
+      unlinkSync,
+      writeFileSync,
+    }));
+
+    vi.doMock("node:module", () => ({
+      createRequire: () => (id: string) => {
+        if (id === "better-sqlite3") {
+          return class BetterSqliteBroken {
+            constructor() {
+              throw new Error("simulated better-sqlite3 init failure");
+            }
+          };
+        }
+        if (id === "node:sqlite") {
+          return { DatabaseSync: MockNodeDatabase };
+        }
+        throw new Error(`Unexpected module request: ${id}`);
+      },
+    }));
+
+    try {
+      const modulePath = `../src/Sqlite.ts?node-serialize-fallback-${Date.now()}`;
+      const { createBetterSqliteDriver: createDriver } = await import(
+        modulePath
+      );
+
+      await using run = testCreateRun();
+      const result = await run(createDriver(testName, { mode: "memory" }));
+      assert(result.ok);
+      const sqlite = result.value;
+
+      expect(sqlite.export()).toEqual(new Uint8Array([3, 4, 5]));
+      sqlite[Symbol.dispose]();
+    } finally {
+      vi.doUnmock("node:module");
+      vi.doUnmock("node:fs");
+      vi.resetModules();
+      if (originalBun === undefined) {
+        delete (globalThis as Record<string, unknown>).Bun;
+      } else {
+        (globalThis as Record<string, unknown>).Bun = originalBun;
+      }
+    }
+  });
+
   describe("file-based database", () => {
     const dbPath = `${testName}.db`;
 
