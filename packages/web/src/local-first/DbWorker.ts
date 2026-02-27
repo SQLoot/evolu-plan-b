@@ -20,6 +20,7 @@ import { createWasmSqliteDriver } from "../Sqlite.js";
 import { createRun } from "../Task.js";
 
 const workerMemoryDbName = "evolu-worker-memory";
+type IntervalHandle = number | ReturnType<typeof globalThis.setInterval>;
 
 interface SharedDbState {
   driver: SqliteDriver | null;
@@ -176,10 +177,8 @@ export const runWebDbWorkerPortWithOptions = (
     readonly setInterval?: (
       callback: () => void,
       timeoutMs: number,
-    ) => ReturnType<typeof globalThis.setInterval>;
-    readonly clearInterval?: (
-      id: ReturnType<typeof globalThis.setInterval>,
-    ) => void;
+    ) => IntervalHandle;
+    readonly clearInterval?: (id: IntervalHandle) => void;
   },
 ): void => {
   const heartbeatTimeoutMs =
@@ -196,8 +195,7 @@ export const runWebDbWorkerPortWithOptions = (
   let dbName: string | null = null;
   let schemaVersion: number | null = null;
   let hasDbRef = false;
-  let heartbeatWatchdogId: ReturnType<typeof globalThis.setInterval> | null =
-    null;
+  let heartbeatWatchdogId: IntervalHandle | null = null;
   let lastHeartbeatAt = now();
 
   const markAlive = (): void => {
