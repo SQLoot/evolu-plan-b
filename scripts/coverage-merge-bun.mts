@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { isAbsolute, resolve } from "node:path";
+import { resolve } from "node:path";
 
 type Counter = {
   total: number;
@@ -126,8 +126,7 @@ const resolveCoverageKey = (
   return sourcePath;
 };
 
-const toAbsolutePath = (pathLike: string): string =>
-  isAbsolute(pathLike) ? resolve(pathLike) : resolve(pathLike);
+const toAbsolutePath = (pathLike: string): string => resolve(pathLike);
 
 const main = (): void => {
   const args = parseArgs(process.argv.slice(2));
