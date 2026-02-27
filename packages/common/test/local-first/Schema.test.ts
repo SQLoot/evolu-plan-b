@@ -1,6 +1,7 @@
 import { describe, expect, expectTypeOf, test } from "vitest";
 import * as z from "zod";
 import type { Brand } from "../../src/Brand.js";
+import { deserializeQuery } from "../../src/local-first/Query.js";
 import type {
   MutationValues,
   ValidateColumnTypes,
@@ -9,7 +10,12 @@ import type {
   ValidateSchema,
   ValidateSchemaHasId,
 } from "../../src/local-first/Schema.js";
-import { ensureSqliteSchema } from "../../src/local-first/Schema.js";
+import {
+  createQueryBuilder,
+  ensureSqliteSchema,
+  evoluSchemaToSqliteSchema,
+  getEvoluSqliteSchema,
+} from "../../src/local-first/Schema.js";
 import {
   getSqliteSchema,
   SqliteBoolean,
@@ -409,5 +415,121 @@ describe("ensureSqliteSchema", () => {
         ({ name }) => name === "evolu_internal_test",
       ),
     ).toBe(true);
+  });
+});
+
+describe("evoluSchemaToSqliteSchema", () => {
+  test("creates sqlite schema and excludes id column from table columns", () => {
+    const sqliteSchema = evoluSchemaToSqliteSchema({
+      todo: {
+        id: TodoId,
+        title: NonEmptyString100,
+        isCompleted: nullOr(SqliteBoolean),
+      },
+    });
+
+    expect(sqliteSchema.tables.todo).toEqual(new Set(["title", "isCompleted"]));
+    expect(sqliteSchema.indexes).toEqual([]);
+  });
+
+  test("compiles indexes from indexesConfig", () => {
+    const sqliteSchema = evoluSchemaToSqliteSchema(
+      {
+        todo: {
+          id: TodoId,
+          title: NonEmptyString100,
+        },
+      },
+      (create) => [create("todo_title").on("todo").column("title")],
+    );
+
+    expect(sqliteSchema.indexes).toHaveLength(1);
+    expect(sqliteSchema.indexes[0]).toEqual(
+      expect.objectContaining({
+        name: "todo_title",
+      }),
+    );
+    expect(sqliteSchema.indexes[0]?.sql).toContain("create index");
+  });
+});
+
+describe("createQueryBuilder", () => {
+  const createQuery = createQueryBuilder({
+    todo: {
+      id: TodoId,
+      title: NonEmptyString100,
+    },
+  });
+
+  test("serializes query with options", () => {
+    const query = createQuery(
+      (db) => db.selectFrom("todo").select(["id", "title"]),
+      { prepare: true },
+    );
+    const sqliteQuery = deserializeQuery(query);
+
+    expect(sqliteQuery.sql).toContain('select "id", "title" from "todo"');
+    expect(sqliteQuery.parameters).toEqual([]);
+    expect(sqliteQuery.options).toEqual({ prepare: true });
+  });
+});
+
+describe("getEvoluSqliteSchema", () => {
+  test("excludes evolu_ prefixed indexes", async () => {
+    await using run = await testCreateRunWithSqlite(testCreateSqliteDeps());
+
+    ensureSqliteSchema(run.deps)({
+      tables: { todo: new Set(["title"]) },
+      indexes: [],
+    });
+
+    run.deps.sqlite.exec(sql`create index evolu_internal on todo (title);`);
+    run.deps.sqlite.exec(sql`create index app_todo_title on todo (title);`);
+
+    const sqliteSchema = getEvoluSqliteSchema(run.deps)();
+    const indexNames = sqliteSchema.indexes.map((index) => index.name);
+
+    expect(indexNames).toContain("app_todo_title");
+    expect(indexNames).not.toContain("evolu_internal");
+  });
+
+  test("drops and adds app indexes when currentSchema is provided", async () => {
+    await using run = await testCreateRunWithSqlite(testCreateSqliteDeps());
+
+    ensureSqliteSchema(run.deps)({
+      tables: { todo: new Set(["title"]) },
+      indexes: [],
+    });
+
+    run.deps.sqlite.exec(sql`create index app_todo_old on todo (title);`);
+
+    ensureSqliteSchema(run.deps)(
+      {
+        tables: { todo: new Set(["title"]) },
+        indexes: [
+          {
+            name: "app_todo_new",
+            sql: "create index app_todo_new on todo (title)",
+          },
+        ],
+      },
+      {
+        tables: { todo: new Set(["title"]) },
+        indexes: [
+          {
+            name: "app_todo_old",
+            sql: "create index app_todo_old on todo (title)",
+          },
+        ],
+      },
+    );
+
+    const sqliteSchema = getSqliteSchema(run.deps)({
+      excludeSqliteInternalIndexes: false,
+    });
+    const indexNames = sqliteSchema.indexes.map((index) => index.name);
+
+    expect(indexNames).toContain("app_todo_new");
+    expect(indexNames).not.toContain("app_todo_old");
   });
 });
