@@ -18,6 +18,7 @@ import { createInstances } from "../Instances.js";
 import { ok } from "../Result.js";
 import { spaced } from "../Schedule.js";
 import type { NonEmptyReadonlySet } from "../Set.js";
+import type { SqliteExportFile } from "../Sqlite.js";
 import { type Fiber, type Run, repeat, type Task } from "../Task.js";
 import type { Millis, TimeDep } from "../Time.js";
 import { createId, type Id, type Name } from "../Type.js";
@@ -98,7 +99,7 @@ export type EvoluOutput =
     }
   | {
       readonly type: "OnExport";
-      readonly file: Uint8Array<ArrayBuffer>;
+      readonly file: SqliteExportFile;
     };
 
 export const initSharedWorker =
@@ -226,7 +227,7 @@ export type QueuedResponse =
     }
   | {
       readonly type: "Export";
-      readonly file: Uint8Array<ArrayBuffer>;
+      readonly file: SqliteExportFile;
     };
 
 export interface QueuedResult {
