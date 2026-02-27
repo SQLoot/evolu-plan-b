@@ -119,6 +119,14 @@ test("createWebAuthnStore secure path encrypts and decrypts auth payload", async
   expect(item?.metadata.accessControl).toBe("biometryCurrentSet");
 });
 
+test("createWebAuthnStore secure getItem returns null when entry is missing", async () => {
+  const store = createWebAuthnStore(createDeps());
+
+  expect(
+    await store.getItem("missing-key", { service: "missing-service" }),
+  ).toBe(null);
+});
+
 test("createWebAuthnStore returns null when secure credential cannot decrypt", async () => {
   const store = createWebAuthnStore(createDeps());
   const service = "decrypt-fail-service";
@@ -181,6 +189,26 @@ test("createWebAuthnStore returns null when userHandle is missing", async () => 
             userHandle: null,
           },
         } as PublicKeyCredential;
+      }),
+    } as CredentialContainer,
+  });
+
+  expect(await store.getItem("owner-1", { service })).toBeNull();
+});
+
+test("createWebAuthnStore returns null when credential response is missing", async () => {
+  const store = createWebAuthnStore(createDeps());
+  const service = "missing-credential-response-service";
+  const payload = JSON.stringify({ owner: undefined, username: "Alice" });
+
+  await store.setItem("owner-1", payload, { service });
+
+  Object.defineProperty(globalThis.navigator, "credentials", {
+    configurable: true,
+    value: {
+      create: vi.fn(),
+      get: vi.fn(async () => {
+        return {} as PublicKeyCredential;
       }),
     } as CredentialContainer,
   });

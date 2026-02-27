@@ -201,6 +201,10 @@ describe("createBetterSqliteDriver", () => {
               return { changes: 1 };
             }
 
+            if (normalized.startsWith("update")) {
+              return {};
+            }
+
             return { changes: 0 };
           },
         };
@@ -247,8 +251,10 @@ describe("createBetterSqliteDriver", () => {
       sqlite.exec(sql`create table t (name text);`);
       sqlite.exec(sql`insert into t (name) values (${"Alice"});`);
       const rows = sqlite.exec(sql`select name from t;`);
+      const updateResult = sqlite.exec(sql`update t set name = ${"Alice"};`);
 
       expect(rows.rows).toEqual([{ name: "Alice" }]);
+      expect(updateResult.changes).toBe(0);
 
       const exported = sqlite.export();
       expect(exported).toBeInstanceOf(Uint8Array);

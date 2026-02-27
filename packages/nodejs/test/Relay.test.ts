@@ -40,6 +40,27 @@ const waitForError = async (ws: WebSocket): Promise<Error> =>
     ws.once("error", (error) => resolve(error));
   });
 
+const waitForNoMessage = async (
+  ws: WebSocket,
+  timeoutMs = 120,
+): Promise<"timeout" | "message"> =>
+  await new Promise((resolve) => {
+    const timeout = setTimeout(() => resolve("timeout"), timeoutMs);
+    ws.once("message", () => {
+      clearTimeout(timeout);
+      resolve("message");
+    });
+  });
+
+const waitForClose = async (
+  ws: WebSocket,
+): Promise<{ code: number; reason: string }> =>
+  await new Promise((resolve) => {
+    ws.once("close", (code, reason) => {
+      resolve({ code, reason: reason.toString() });
+    });
+  });
+
 const closeSocket = async (ws: WebSocket): Promise<void> => {
   if (
     ws.readyState === WebSocket.CLOSED ||
@@ -159,5 +180,63 @@ describe("startRelay (nodejs adapter)", () => {
     expect(outcome).toBe("timeout");
     expect(ws.readyState).toBe(WebSocket.OPEN);
     await closeSocket(ws);
+  });
+
+  test("ignores non-binary websocket payloads", async () => {
+    const port = await getFreePort();
+    const name = "RelayNonBinary";
+    dbNames.add(name);
+
+    await using run = testCreateRun(createRelayDeps());
+    await using relay = getOk(
+      await run(
+        startRelay({
+          port,
+          name: SimpleName.orThrow(name),
+          isOwnerAllowed: () => true,
+        }),
+      ),
+    );
+    void relay;
+
+    const ws = new WebSocket(
+      `ws://127.0.0.1:${port}?ownerId=${testAppOwner.id}`,
+    );
+    await waitForOpen(ws);
+
+    ws.send("hello-text");
+
+    expect(await waitForNoMessage(ws)).toBe("timeout");
+    expect(ws.readyState).toBe(WebSocket.OPEN);
+    await closeSocket(ws);
+  });
+
+  test("closes open sockets when relay is disposed", async () => {
+    const port = await getFreePort();
+    const name = "RelayShutdown";
+    dbNames.add(name);
+
+    await using run = testCreateRun(createRelayDeps());
+    const relay = getOk(
+      await run(
+        startRelay({
+          port,
+          name: SimpleName.orThrow(name),
+          isOwnerAllowed: () => true,
+        }),
+      ),
+    );
+
+    const ws = new WebSocket(
+      `ws://127.0.0.1:${port}?ownerId=${testAppOwner.id}`,
+    );
+    await waitForOpen(ws);
+
+    const closePromise = waitForClose(ws);
+    await relay[Symbol.asyncDispose]();
+
+    const { code, reason } = await closePromise;
+    expect(code).toBe(1000);
+    expect(reason).toContain("shutting down");
   });
 });
