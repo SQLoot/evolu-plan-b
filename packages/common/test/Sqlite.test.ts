@@ -497,10 +497,7 @@ test("createSqlite disposes immediately when daemon is already aborted", async (
 
   const sqliteResult = await createSqlite(testName)(syntheticRun);
 
-  assert(sqliteResult.ok);
-  expect(driverDisposeCount).toBe(1);
-
-  sqliteResult.value[Symbol.dispose]();
+  expect(sqliteResult).toEqual(err({ type: "AbortError", reason: "test" }));
   expect(driverDisposeCount).toBe(1);
 });
 

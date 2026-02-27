@@ -10,7 +10,7 @@ import type { Eq } from "./Eq.js";
 import { createEqObject, eqArrayNumber, eqString } from "./Eq.js";
 import { createRecord } from "./Object.js";
 import type { Result } from "./Result.js";
-import { ok } from "./Result.js";
+import { err, ok } from "./Result.js";
 import type { Run, Task } from "./Task.js";
 import { type TestDeps, testCreateRun, testName } from "./Test.js";
 import type { InferType, Name, Typed } from "./Type.js";
@@ -274,6 +274,7 @@ export const createSqlite =
     // listener so long-lived root runs do not accumulate stale hooks.
     if (daemonSignal.aborted) {
       disposeOnAbort();
+      return err({ type: "AbortError", reason: daemonSignal.reason });
     } else {
       daemonSignal.addEventListener("abort", disposeOnAbort, { once: true });
     }
