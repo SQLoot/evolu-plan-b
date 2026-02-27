@@ -144,6 +144,90 @@ test("createWebAuthnStore returns null when secure credential cannot decrypt", a
   expect(item).toBeNull();
 });
 
+test("createWebAuthnStore returns null when credential retrieval throws", async () => {
+  const store = createWebAuthnStore(createDeps());
+  const service = "credential-throw-service";
+  const payload = JSON.stringify({ owner: undefined, username: "Alice" });
+
+  await store.setItem("owner-1", payload, { service });
+
+  Object.defineProperty(globalThis.navigator, "credentials", {
+    configurable: true,
+    value: {
+      create: vi.fn(),
+      get: vi.fn(async () => {
+        throw new Error("Auth failed");
+      }),
+    } as CredentialContainer,
+  });
+
+  expect(await store.getItem("owner-1", { service })).toBeNull();
+});
+
+test("createWebAuthnStore returns null when userHandle is missing", async () => {
+  const store = createWebAuthnStore(createDeps());
+  const service = "missing-user-handle-service";
+  const payload = JSON.stringify({ owner: undefined, username: "Alice" });
+
+  await store.setItem("owner-1", payload, { service });
+
+  Object.defineProperty(globalThis.navigator, "credentials", {
+    configurable: true,
+    value: {
+      create: vi.fn(),
+      get: vi.fn(async () => {
+        return {
+          response: {
+            userHandle: null,
+          },
+        } as PublicKeyCredential;
+      }),
+    } as CredentialContainer,
+  });
+
+  expect(await store.getItem("owner-1", { service })).toBeNull();
+});
+
+test("createWebAuthnStore getAllItems falls back metadata for legacy entries", async () => {
+  const store = createWebAuthnStore(createDeps());
+  const service = "legacy-service";
+  const storeKey = `${service}:evolu-auth`;
+  stores.set(storeKey, new Map([["legacy-key", { value: "legacy-value" }]]));
+
+  const items = await store.getAllItems({ service, includeValues: true });
+  expect(items).toHaveLength(1);
+  expect(items[0]).toMatchObject({
+    key: "legacy-key",
+    value: "legacy-value",
+    metadata: expect.objectContaining({
+      accessControl: "biometryCurrentSet",
+      backend: "keychain",
+      securityLevel: "biometry",
+    }),
+  });
+});
+
+test("createWebAuthnStore secure setItem throws when credential creation fails", async () => {
+  const store = createWebAuthnStore(createDeps());
+  const service = "create-null-service";
+  const payload = JSON.stringify({ owner: undefined, username: "Alice" });
+
+  Object.defineProperty(globalThis.navigator, "credentials", {
+    configurable: true,
+    value: {
+      create: vi.fn(async () => null),
+      get: vi.fn(),
+    } as CredentialContainer,
+  });
+
+  await expect(
+    store.setItem("owner-1", payload, {
+      service,
+      webAuthnUsername: "Alice",
+    }),
+  ).rejects.toThrow("Failed to create WebAuthn credential");
+});
+
 test("createWebAuthnStore clearService removes all entries", async () => {
   const store = createWebAuthnStore(createDeps());
   const service = "clear-service";

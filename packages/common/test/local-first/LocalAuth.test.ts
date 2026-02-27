@@ -1,11 +1,13 @@
 import { expect, test } from "vitest";
 import {
   createLocalAuth,
+  type LocalAuth,
   type MutationResult,
   type SecureStorage,
   type SensitiveInfoItem,
 } from "../../src/local-first/LocalAuth.js";
 import { testCreateRun } from "../../src/Test.js";
+import { Mnemonic } from "../../src/Type.js";
 
 const createInMemorySecureStorage = (): SecureStorage => {
   const stores = new Map<string, Map<string, SensitiveInfoItem>>();
@@ -66,6 +68,19 @@ const createInMemorySecureStorage = (): SecureStorage => {
       getStore(service).clear();
     },
   };
+};
+
+const createTestLocalAuth = async (): Promise<{
+  readonly localAuth: LocalAuth;
+  readonly secureStorage: SecureStorage;
+}> => {
+  const run = testCreateRun();
+  const secureStorage = createInMemorySecureStorage();
+  const localAuth = createLocalAuth({
+    randomBytes: run.deps.randomBytes,
+    secureStorage,
+  });
+  return { localAuth, secureStorage };
 };
 
 test("LocalAuth register/getProfiles/getOwner happy path", async () => {
@@ -141,4 +156,59 @@ test("LocalAuth clearAll clears owners and profiles", async () => {
 
   expect(profiles).toEqual([]);
   expect(owner).toBeNull();
+});
+
+test("LocalAuth register supports deterministic mnemonic path", async () => {
+  const mnemonic = Mnemonic.orThrow(
+    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+  );
+
+  const first = await createTestLocalAuth();
+  const second = await createTestLocalAuth();
+
+  const owner1 = await first.localAuth.register("Alice", { mnemonic });
+  const owner2 = await second.localAuth.register("Alice", { mnemonic });
+
+  expect(owner1?.owner?.id).toBe(owner2?.owner?.id);
+});
+
+test("LocalAuth login/getProfiles fall back to empty username when names are missing", async () => {
+  const { localAuth, secureStorage } = await createTestLocalAuth();
+  const registration = await localAuth.register("Alice");
+  expect(registration?.owner).toBeDefined();
+  if (!registration?.owner) return;
+
+  await secureStorage.setItem("_owner_names", "{}", {
+    service: "evolu",
+    accessControl: "none",
+  });
+
+  const login = await localAuth.login(registration.owner.id);
+  const profiles = await localAuth.getProfiles();
+
+  expect(login).toEqual({ owner: undefined, username: "" });
+  expect(profiles).toEqual([{ ownerId: registration.owner.id, username: "" }]);
+});
+
+test("LocalAuth unregister last owner without fallback clears current owner", async () => {
+  const { localAuth } = await createTestLocalAuth();
+  const registration = await localAuth.register("OnlyUser");
+  expect(registration?.owner).toBeDefined();
+  if (!registration?.owner) return;
+
+  await localAuth.unregister(registration.owner.id);
+
+  expect(await localAuth.getOwner()).toBeNull();
+  expect(await localAuth.getProfiles()).toEqual([]);
+});
+
+test("LocalAuth getOwner returns null when owner account is missing", async () => {
+  const { localAuth, secureStorage } = await createTestLocalAuth();
+  const registration = await localAuth.register("Alice");
+  expect(registration?.owner).toBeDefined();
+  if (!registration?.owner) return;
+
+  await secureStorage.deleteItem(registration.owner.id, { service: "evolu" });
+
+  expect(await localAuth.getOwner()).toBeNull();
 });
