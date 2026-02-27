@@ -163,6 +163,14 @@ export const runWebDbWorkerPortWithOptions = (
   options?: {
     readonly heartbeatTimeoutMs?: number;
     readonly heartbeatCheckIntervalMs?: number;
+    readonly now?: () => number;
+    readonly setInterval?: (
+      callback: () => void,
+      timeoutMs: number,
+    ) => ReturnType<typeof globalThis.setInterval>;
+    readonly clearInterval?: (
+      id: ReturnType<typeof globalThis.setInterval>,
+    ) => void;
   },
 ): void => {
   const heartbeatTimeoutMs =
@@ -170,6 +178,9 @@ export const runWebDbWorkerPortWithOptions = (
   const heartbeatCheckIntervalMs =
     options?.heartbeatCheckIntervalMs ??
     Math.max(1_000, heartbeatTimeoutMs / 3);
+  const now = options?.now ?? Date.now;
+  const setIntervalImpl = options?.setInterval ?? globalThis.setInterval;
+  const clearIntervalImpl = options?.clearInterval ?? globalThis.clearInterval;
   const { name, port, brokerPort } = config;
   let db: SqliteDriver | null = null;
   let dbName: string | null = null;
@@ -177,24 +188,22 @@ export const runWebDbWorkerPortWithOptions = (
   let hasDbRef = false;
   let heartbeatWatchdogId: ReturnType<typeof globalThis.setInterval> | null =
     null;
-  let lastHeartbeatAt = Date.now();
+  let lastHeartbeatAt = now();
 
   const markAlive = (): void => {
-    lastHeartbeatAt = Date.now();
+    lastHeartbeatAt = now();
   };
 
   const stopHeartbeatWatchdog = (): void => {
     if (!heartbeatWatchdogId) return;
-    globalThis.clearInterval(heartbeatWatchdogId);
+    clearIntervalImpl(heartbeatWatchdogId);
     heartbeatWatchdogId = null;
   };
 
   const startHeartbeatWatchdog = (): void => {
-    globalThis.clearInterval(
-      heartbeatWatchdogId as ReturnType<typeof globalThis.setInterval>,
-    );
-    heartbeatWatchdogId = globalThis.setInterval(() => {
-      if (Date.now() - lastHeartbeatAt > heartbeatTimeoutMs) {
+    if (heartbeatWatchdogId) clearIntervalImpl(heartbeatWatchdogId);
+    heartbeatWatchdogId = setIntervalImpl(() => {
+      if (now() - lastHeartbeatAt > heartbeatTimeoutMs) {
         // Stale client port: release shared DB ref.
         releaseDb({ keepConfig: true });
         stopHeartbeatWatchdog();
@@ -238,7 +247,8 @@ export const runWebDbWorkerPortWithOptions = (
   };
 
   const requireDb = (): SqliteDriver => {
-    return db as SqliteDriver;
+    assert(db, "Database not initialized");
+    return db;
   };
 
   const exec = (

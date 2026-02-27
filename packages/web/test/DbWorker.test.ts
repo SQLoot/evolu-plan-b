@@ -32,7 +32,7 @@ const waitForOutput = (
 
 const waitForLeader = (
   port: MessagePort<DbWorkerLeaderInput, DbWorkerLeaderOutput>,
-  timeoutMs = 2_000,
+  timeoutMs = 300,
 ): Promise<DbWorkerLeaderOutput | null> =>
   new Promise((resolve) => {
     const previous = port.onMessage;
@@ -48,8 +48,72 @@ const waitForLeader = (
     };
   });
 
+const flushAsync = async (): Promise<void> => {
+  await Promise.resolve();
+  await Promise.resolve();
+};
+
 const wait = (ms: number): Promise<void> =>
   new Promise((resolve) => globalThis.setTimeout(resolve, ms));
+
+const createManualClock = () => {
+  let currentTimeMs = 0;
+  let nextId = 1;
+  const intervals = new Map<
+    number,
+    { callback: () => void; intervalMs: number; nextTickMs: number }
+  >();
+
+  return {
+    now: (): number => currentTimeMs,
+    setInterval: (
+      callback: () => void,
+      timeoutMs: number,
+    ): ReturnType<typeof globalThis.setInterval> => {
+      const id = nextId++;
+      const intervalMs = Math.max(1, timeoutMs);
+      intervals.set(id, {
+        callback,
+        intervalMs,
+        nextTickMs: currentTimeMs + intervalMs,
+      });
+      return id as unknown as ReturnType<typeof globalThis.setInterval>;
+    },
+    clearInterval: (id: ReturnType<typeof globalThis.setInterval>): void => {
+      intervals.delete(id as unknown as number);
+    },
+    advance: (ms: number): void => {
+      const targetTimeMs = currentTimeMs + ms;
+
+      while (true) {
+        let nextIntervalId: number | null = null;
+        let nextTickMs = Number.POSITIVE_INFINITY;
+
+        for (const [id, interval] of intervals) {
+          if (interval.nextTickMs < nextTickMs) {
+            nextTickMs = interval.nextTickMs;
+            nextIntervalId = id;
+          }
+        }
+
+        if (nextIntervalId == null || nextTickMs > targetTimeMs) break;
+
+        currentTimeMs = nextTickMs;
+        const interval = intervals.get(nextIntervalId);
+        if (!interval) continue;
+
+        interval.callback();
+
+        const currentInterval = intervals.get(nextIntervalId);
+        if (currentInterval) {
+          currentInterval.nextTickMs += currentInterval.intervalMs;
+        }
+      }
+
+      currentTimeMs = targetTimeMs;
+    },
+  };
+};
 
 describe("runWebDbWorkerPort", () => {
   test("same dbName can initialize from multiple ports without blocking", async () => {
@@ -192,6 +256,7 @@ describe("runWebDbWorkerPort", () => {
   test("releases stale leader when no heartbeat arrives", async () => {
     const name = SimpleName.orThrow("DbWorkerStaleLeader");
     const dbName = ":memory:";
+    const clock = createManualClock();
 
     const channel1 = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
     const broker1 = createMessageChannel<
@@ -207,6 +272,9 @@ describe("runWebDbWorkerPort", () => {
       {
         heartbeatTimeoutMs: 80,
         heartbeatCheckIntervalMs: 20,
+        now: clock.now,
+        setInterval: clock.setInterval,
+        clearInterval: clock.clearInterval,
       },
     );
 
@@ -224,7 +292,8 @@ describe("runWebDbWorkerPort", () => {
     }
     expect(await leader1).toMatchObject({ type: "LeaderAcquired", name });
 
-    await wait(220);
+    clock.advance(220);
+    await flushAsync();
 
     const channel2 = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
     const broker2 = createMessageChannel<
@@ -241,6 +310,9 @@ describe("runWebDbWorkerPort", () => {
       {
         heartbeatTimeoutMs: 80,
         heartbeatCheckIntervalMs: 20,
+        now: clock.now,
+        setInterval: clock.setInterval,
+        clearInterval: clock.clearInterval,
       },
     );
 
@@ -328,7 +400,7 @@ describe("runWebDbWorkerPort", () => {
       },
     );
 
-    const leader2 = waitForLeader(broker2.port2, 200);
+    const leader2 = waitForLeader(broker2.port2, 25);
     const init2 = waitForOutput(channel2.port2);
     channel2.port2.postMessage({
       type: "DbWorkerInit",
@@ -714,6 +786,7 @@ describe("runWebDbWorkerPort", () => {
   test("reacquires shared db after watchdog releases stale leader", async () => {
     const name = SimpleName.orThrow("DbWorkerReacquireAfterWatchdog");
     const dbName = ":memory:";
+    const clock = createManualClock();
     const channel = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
     const broker = createMessageChannel<
       DbWorkerLeaderOutput,
@@ -730,6 +803,9 @@ describe("runWebDbWorkerPort", () => {
       {
         heartbeatTimeoutMs: 80,
         heartbeatCheckIntervalMs: 20,
+        now: clock.now,
+        setInterval: clock.setInterval,
+        clearInterval: clock.clearInterval,
       },
     );
 
@@ -745,7 +821,8 @@ describe("runWebDbWorkerPort", () => {
     });
     await waitForLeader(broker.port2);
 
-    await wait(220);
+    clock.advance(220);
+    await flushAsync();
 
     const leader2 = waitForLeader(broker.port2);
     const query = waitForOutput(channel.port2);
@@ -924,6 +1001,7 @@ describe("runWebDbWorkerPort", () => {
 
   test("stale worker rejects re-init with changed dbName", async () => {
     const name = SimpleName.orThrow("DbWorkerStaleReinitMismatch");
+    const clock = createManualClock();
     const channel = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
     const broker = createMessageChannel<
       DbWorkerLeaderOutput,
@@ -940,6 +1018,9 @@ describe("runWebDbWorkerPort", () => {
       {
         heartbeatTimeoutMs: 80,
         heartbeatCheckIntervalMs: 20,
+        now: clock.now,
+        setInterval: clock.setInterval,
+        clearInterval: clock.clearInterval,
       },
     );
 
@@ -954,7 +1035,8 @@ describe("runWebDbWorkerPort", () => {
       success: true,
     });
 
-    await wait(220);
+    clock.advance(220);
+    await flushAsync();
 
     const reinitDbName = waitForOutput(channel.port2);
     channel.port2.postMessage({
@@ -975,6 +1057,7 @@ describe("runWebDbWorkerPort", () => {
 
   test("stale worker rejects re-init with changed schemaVersion", async () => {
     const name = SimpleName.orThrow("DbWorkerStaleReinitSchemaMismatch");
+    const clock = createManualClock();
     const channel = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
     const broker = createMessageChannel<
       DbWorkerLeaderOutput,
@@ -991,6 +1074,9 @@ describe("runWebDbWorkerPort", () => {
       {
         heartbeatTimeoutMs: 80,
         heartbeatCheckIntervalMs: 20,
+        now: clock.now,
+        setInterval: clock.setInterval,
+        clearInterval: clock.clearInterval,
       },
     );
 
@@ -1005,7 +1091,8 @@ describe("runWebDbWorkerPort", () => {
       success: true,
     });
 
-    await wait(220);
+    clock.advance(220);
+    await flushAsync();
 
     const reinitSchema = waitForOutput(channel.port2);
     channel.port2.postMessage({
