@@ -10,9 +10,11 @@ import {
   ValidDbChangeValues,
 } from "../../src/local-first/Storage.js";
 import {
+  applyLocalOnlyChange,
   createSync,
   initialSyncState,
   testCreateClientStorage,
+  tryApplyQuarantinedMessages,
 } from "../../src/local-first/Sync.js";
 import {
   createInitialTimestamp,
@@ -24,7 +26,7 @@ import {
 import { err, ok } from "../../src/Result.js";
 import type { SqliteDep } from "../../src/Sqlite.js";
 import { sql } from "../../src/Sqlite.js";
-import { createId } from "../../src/Type.js";
+import { createId, idToIdBytes } from "../../src/Type.js";
 import type { CreateWebSocket } from "../../src/WebSocket.js";
 import { testCreateRunWithSqlite } from "../_deps.js";
 import { testAppOwner, testAppOwner2 } from "./_fixtures.js";
@@ -522,4 +524,425 @@ test("client storage writeMessages writes once, deduplicates, and readDbChange d
   if (!decoded.ok) return;
   expect(decoded.value.table).toBe("todo");
   expect(decoded.value.values.title).toBe("from relay");
+});
+
+test("createSync forwards thrown websocket task error unless already disposed", async () => {
+  await using run = await testCreateRunWithSqlite();
+  prepareSyncTables(run.deps);
+
+  const errors: Array<unknown> = [];
+  const sync = createSync({
+    ...run.deps,
+    clock: createInMemoryClock(run.deps),
+    sqliteSchema: testSqliteSchema,
+    createWebSocket: () => async () => {
+      throw new Error("socket-boom");
+    },
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })({
+    appOwner: testAppOwner,
+    transports: [{ type: "WebSocket", url: "ws://localhost:4000" }],
+    onError: (error) => {
+      errors.push(error);
+    },
+    onReceive: () => {},
+  });
+
+  sync.useOwner(true, testAppOwner);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(errors.length).toBe(1);
+
+  const disposedErrors: Array<unknown> = [];
+  const syncDisposedEarly = createSync({
+    ...run.deps,
+    clock: createInMemoryClock(run.deps),
+    sqliteSchema: testSqliteSchema,
+    createWebSocket: () => () =>
+      Promise.reject(new Error("socket-boom-after-dispose")),
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })({
+    appOwner: testAppOwner,
+    transports: [{ type: "WebSocket", url: "ws://localhost:4001" }],
+    onError: (error) => {
+      disposedErrors.push(error);
+    },
+    onReceive: () => {},
+  });
+
+  syncDisposedEarly.useOwner(true, testAppOwner);
+  syncDisposedEarly[Symbol.dispose]();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(disposedErrors).toEqual([]);
+});
+
+test("createSync flushes queued unsubscribe and tolerates send failure", async () => {
+  await using run = await testCreateRunWithSqlite();
+  prepareSyncTables(run.deps);
+
+  let resolveSocketTask:
+    | ((value: ReturnType<typeof ok<{ [Symbol.dispose]: () => void }>>) => void)
+    | null = null;
+  let sendCalls = 0;
+
+  const sync = createSync({
+    ...run.deps,
+    clock: createInMemoryClock(run.deps),
+    sqliteSchema: testSqliteSchema,
+    createWebSocket: () => () =>
+      new Promise((resolve) => {
+        resolveSocketTask = resolve;
+      }),
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })({
+    appOwner: testAppOwner,
+    transports: [{ type: "WebSocket", url: "ws://localhost:4002" }],
+    onError: () => {},
+    onReceive: () => {},
+  });
+
+  sync.useOwner(true, testAppOwner);
+  sync.useOwner(false, testAppOwner);
+  expect(resolveSocketTask).not.toBeNull();
+
+  resolveSocketTask?.(
+    ok({
+      send: () => {
+        sendCalls += 1;
+        return sendCalls === 1
+          ? err({ type: "WebSocketSendError" } as never)
+          : ok();
+      },
+      getReadyState: () => "open" as const,
+      isOpen: () => true,
+      [Symbol.dispose]: () => {},
+    }),
+  );
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  expect(sendCalls).toBeGreaterThan(0);
+});
+
+test("createSync applyChanges sends to open owner transport when writeKey is present", async () => {
+  await using run = await testCreateRunWithSqlite();
+  prepareSyncTables(run.deps);
+
+  let sendCalls = 0;
+  const sync = createSync({
+    ...run.deps,
+    clock: createInMemoryClock(run.deps),
+    sqliteSchema: testSqliteSchema,
+    createWebSocket: () => async () =>
+      ok({
+        send: () => {
+          sendCalls += 1;
+          return ok();
+        },
+        getReadyState: () => "open" as const,
+        isOpen: () => true,
+        [Symbol.dispose]: () => {},
+      }),
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })({
+    appOwner: testAppOwner,
+    transports: [{ type: "WebSocket", url: "ws://localhost:4003" }],
+    onError: () => {},
+    onReceive: () => {},
+  });
+
+  sync.useOwner(true, testAppOwner);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  sendCalls = 0;
+
+  const result = sync.applyChanges([
+    {
+      ownerId: testAppOwner.id,
+      table: "todo",
+      id: createId(run.deps),
+      values: ValidDbChangeValues.orThrow({ title: "send-open-owner" }),
+      isInsert: true,
+      isDelete: false,
+    },
+  ]);
+
+  expect(result.ok).toBe(true);
+  expect(sendCalls).toBeGreaterThan(0);
+});
+
+test("client storage writeMessages supports owner-missing and empty-message fast paths", async () => {
+  await using run = await testCreateRunWithSqlite();
+  prepareSyncTables(run.deps);
+
+  let missingOwnerReceiveCount = 0;
+  const missingOwnerStorage = testCreateClientStorage({
+    ...run.deps,
+    clock: createInMemoryClock(run.deps),
+    sqliteSchema: testSqliteSchema,
+    getSyncOwner: () => null,
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })({
+    isOwnerWithinQuota: () => true,
+    onError: () => {},
+    onReceive: () => {
+      missingOwnerReceiveCount += 1;
+    },
+  });
+
+  const timestamp = sendTimestamp({
+    ...run.deps,
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })(createInitialTimestamp(run.deps));
+  expect(timestamp.ok).toBe(true);
+  if (!timestamp.ok) return;
+
+  const change = DbChange.orThrow({
+    table: "todo",
+    id: createId(run.deps),
+    values: ValidDbChangeValues.orThrow({ title: "relay-fast-path" }),
+    isInsert: true,
+    isDelete: false,
+  });
+  const encrypted = encodeAndEncryptDbChange(run.deps)(
+    { timestamp: timestamp.value, change },
+    testAppOwner.encryptionKey,
+  );
+  const ownerId = ownerIdToOwnerIdBytes(testAppOwner.id);
+
+  const missingOwnerWrite = await run(
+    missingOwnerStorage.writeMessages(ownerId, [
+      { timestamp: timestamp.value, change: encrypted },
+    ]),
+  );
+  expect(missingOwnerWrite.ok).toBe(true);
+  expect(missingOwnerReceiveCount).toBe(1);
+
+  let emptyMessageReceiveCount = 0;
+  const ownerStorage = testCreateClientStorage({
+    ...run.deps,
+    clock: createInMemoryClock(run.deps),
+    sqliteSchema: testSqliteSchema,
+    getSyncOwner: (owner) => (owner === testAppOwner.id ? testAppOwner : null),
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })({
+    isOwnerWithinQuota: () => true,
+    onError: () => {},
+    onReceive: () => {
+      emptyMessageReceiveCount += 1;
+    },
+  });
+
+  const emptyWrite = await run(
+    ownerStorage.writeMessages(ownerId, [
+      {
+        timestamp: timestamp.value,
+        change: new Uint8Array(),
+      },
+    ]),
+  );
+  expect(emptyWrite.ok).toBe(true);
+  expect(emptyMessageReceiveCount).toBe(1);
+});
+
+test("client storage writeMessages handles async quota and quota rejection", async () => {
+  await using run = await testCreateRunWithSqlite();
+  prepareSyncTables(run.deps);
+
+  const timestamp = sendTimestamp({
+    ...run.deps,
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })(createInitialTimestamp(run.deps));
+  expect(timestamp.ok).toBe(true);
+  if (!timestamp.ok) return;
+
+  const change = DbChange.orThrow({
+    table: "todo",
+    id: createId(run.deps),
+    values: ValidDbChangeValues.orThrow({ title: "quota-check" }),
+    isInsert: true,
+    isDelete: false,
+  });
+  const encrypted = encodeAndEncryptDbChange(run.deps)(
+    { timestamp: timestamp.value, change },
+    testAppOwner.encryptionKey,
+  );
+  const ownerId = ownerIdToOwnerIdBytes(testAppOwner.id);
+
+  const asyncQuotaStorage = testCreateClientStorage({
+    ...run.deps,
+    clock: createInMemoryClock(run.deps),
+    sqliteSchema: testSqliteSchema,
+    getSyncOwner: (owner) => (owner === testAppOwner.id ? testAppOwner : null),
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })({
+    isOwnerWithinQuota: async () => true,
+    onError: () => {},
+    onReceive: () => {},
+  });
+
+  const asyncQuotaWrite = await run(
+    asyncQuotaStorage.writeMessages(ownerId, [
+      { timestamp: timestamp.value, change: encrypted },
+    ]),
+  );
+  expect(asyncQuotaWrite.ok).toBe(true);
+
+  const quotaErrors: Array<unknown> = [];
+  const quotaRejectingStorage = testCreateClientStorage({
+    ...run.deps,
+    clock: createInMemoryClock(run.deps),
+    sqliteSchema: testSqliteSchema,
+    getSyncOwner: (owner) => (owner === testAppOwner.id ? testAppOwner : null),
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })({
+    isOwnerWithinQuota: () => false,
+    onError: (error) => {
+      quotaErrors.push(error);
+    },
+    onReceive: () => {},
+  });
+
+  await expect(
+    run(
+      quotaRejectingStorage.writeMessages(ownerId, [
+        { timestamp: timestamp.value, change: encrypted },
+      ]),
+    ),
+  ).rejects.toThrow("ProtocolQuotaError");
+  expect(quotaErrors).toContainEqual({
+    type: "ProtocolQuotaError",
+    ownerId: testAppOwner.id,
+  });
+});
+
+test("client storage readDbChange decodes updatedAt and isDeleted columns", async () => {
+  await using run = await testCreateRunWithSqlite();
+  prepareSyncTables(run.deps);
+
+  const storage = testCreateClientStorage({
+    ...run.deps,
+    clock: createInMemoryClock(run.deps),
+    sqliteSchema: testSqliteSchema,
+    getSyncOwner: (owner) => (owner === testAppOwner.id ? testAppOwner : null),
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })({
+    isOwnerWithinQuota: () => true,
+    onError: () => {},
+    onReceive: () => {},
+  });
+
+  const timestamp = sendTimestamp({
+    ...run.deps,
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })(createInitialTimestamp(run.deps));
+  expect(timestamp.ok).toBe(true);
+  if (!timestamp.ok) return;
+
+  const ownerId = ownerIdToOwnerIdBytes(testAppOwner.id);
+  const id = createId(run.deps);
+  const idBytes = idToIdBytes(id);
+  const timestampBytes = timestampToTimestampBytes(timestamp.value);
+
+  run.deps.sqlite.exec(sql.prepared`
+    insert into evolu_history ("ownerId", "table", "id", "column", "timestamp", "value")
+    values (${ownerId}, ${"todo"}, ${idBytes}, ${"updatedAt"}, ${timestampBytes}, ${"1970-01-01T00:00:00.000Z"});
+  `);
+  run.deps.sqlite.exec(sql.prepared`
+    insert into evolu_history ("ownerId", "table", "id", "column", "timestamp", "value")
+    values (${ownerId}, ${"todo"}, ${idBytes}, ${"isDeleted"}, ${timestampBytes}, ${1});
+  `);
+  run.deps.sqlite.exec(sql.prepared`
+    insert into evolu_history ("ownerId", "table", "id", "column", "timestamp", "value")
+    values (${ownerId}, ${"todo"}, ${idBytes}, ${"title"}, ${timestampBytes}, ${"updated-row"});
+  `);
+
+  const encryptedRead = storage.readDbChange(ownerId, timestampBytes);
+  const decoded = decryptAndDecodeDbChange(
+    { timestamp: timestamp.value, change: encryptedRead },
+    testAppOwner.encryptionKey,
+  );
+  expect(decoded.ok).toBe(true);
+  if (!decoded.ok) return;
+  expect(decoded.value.isInsert).toBe(false);
+  expect(decoded.value.isDelete).toBe(true);
+  expect(decoded.value.values.title).toBe("updated-row");
+});
+
+test("applyLocalOnlyChange upserts and deletes local rows", async () => {
+  await using run = await testCreateRunWithSqlite();
+  prepareSyncTables(run.deps);
+
+  const id = createId(run.deps);
+  const apply = applyLocalOnlyChange({
+    ...run.deps,
+    appOwner: testAppOwner,
+  });
+
+  apply({
+    ownerId: testAppOwner.id,
+    table: "todo",
+    id,
+    values: ValidDbChangeValues.orThrow({ title: "local-insert" }),
+    isInsert: true,
+    isDelete: false,
+  });
+  apply({
+    ownerId: testAppOwner.id,
+    table: "todo",
+    id,
+    values: ValidDbChangeValues.orThrow({ title: "local-update" }),
+    isInsert: false,
+    isDelete: false,
+  });
+  apply({
+    ownerId: testAppOwner.id,
+    table: "todo",
+    id,
+    values: ValidDbChangeValues.orThrow({ title: "ignored-on-delete" }),
+    isInsert: false,
+    isDelete: true,
+  });
+
+  const rows = run.deps.sqlite.exec<{ count: number }>(sql`
+    select count(*) as count from todo where id = ${id};
+  `).rows;
+  expect(rows[0]?.count).toBe(0);
+});
+
+test("tryApplyQuarantinedMessages reapplies valid rows and keeps invalid ones", async () => {
+  await using run = await testCreateRunWithSqlite();
+  prepareSyncTables(run.deps);
+
+  const ownerId = ownerIdToOwnerIdBytes(testAppOwner.id);
+  const id = createId(run.deps);
+  const idBytes = idToIdBytes(id);
+  const timestamp = sendTimestamp({
+    ...run.deps,
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })(createInitialTimestamp(run.deps));
+  expect(timestamp.ok).toBe(true);
+  if (!timestamp.ok) return;
+  const timestampBytes = timestampToTimestampBytes(timestamp.value);
+
+  run.deps.sqlite.exec(sql.prepared`
+    insert into evolu_message_quarantine ("ownerId", "timestamp", "table", "id", "column", "value")
+    values (${ownerId}, ${timestampBytes}, ${"todo"}, ${idBytes}, ${"title"}, ${"known"});
+  `);
+  run.deps.sqlite.exec(sql.prepared`
+    insert into evolu_message_quarantine ("ownerId", "timestamp", "table", "id", "column", "value")
+    values (${ownerId}, ${timestampBytes}, ${"todo"}, ${idBytes}, ${"unknownColumn"}, ${"unknown"});
+  `);
+
+  tryApplyQuarantinedMessages({
+    sqlite: run.deps.sqlite,
+    sqliteSchema: testSqliteSchema,
+  })();
+
+  const todoRows = run.deps.sqlite.exec<{ title: string }>(sql`
+    select title from todo;
+  `).rows;
+  expect(todoRows).toEqual([{ title: "known" }]);
+
+  const remainingRows = run.deps.sqlite.exec<{ count: number }>(sql`
+    select count(*) as count from evolu_message_quarantine;
+  `).rows;
+  expect(remainingRows[0]?.count).toBe(1);
 });
