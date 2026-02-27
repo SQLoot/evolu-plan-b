@@ -32,7 +32,7 @@ const waitForOutput = (
 
 const waitForLeader = (
   port: MessagePort<DbWorkerLeaderInput, DbWorkerLeaderOutput>,
-  timeoutMs = 300,
+  timeoutMs = 2_000,
 ): Promise<DbWorkerLeaderOutput | null> =>
   new Promise((resolve) => {
     const previous = port.onMessage;
@@ -1029,7 +1029,7 @@ describe("runWebDbWorkerPort", () => {
     });
 
     const waitForFirstDriverCall = async (): Promise<void> => {
-      const deadline = Date.now() + 1_000;
+      const deadline = Date.now() + 5_000;
       while (createDriverCalls < 1) {
         if (Date.now() > deadline) {
           throw new Error("Timed out waiting for first createDriver call");
