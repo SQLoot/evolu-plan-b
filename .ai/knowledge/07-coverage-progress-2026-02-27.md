@@ -8,16 +8,16 @@ The new file-level gates are implemented by `scripts/coverage-file-gate.mts` and
 - `bun run coverage:gate:p0`
 - `bun run coverage:gate:p1`
 
-## Current Snapshot (from `bunx vitest run --coverage`)
+## Current Snapshot (from `bun run test:coverage` on branch `test-coverage`)
 
 ### P0 target files (target: `>=90% statements` and `>=90% branches`)
 
 | File | Statements | Branches | Status |
 |---|---:|---:|---|
-| `packages/common/src/local-first/Sync.ts` | 73.98% | 51.85% | ❌ |
-| `packages/common/src/local-first/Db.ts` | 91.05% | 68.75% | ❌ (branches) |
-| `packages/common/src/local-first/Worker.ts` | 92.85% | 77.77% | ❌ (branches) |
-| `packages/web/src/local-first/DbWorker.ts` | 81.91% | 61.85% | ❌ |
+| `packages/common/src/local-first/Sync.ts` | 96.83% | 90.83% | ✅ |
+| `packages/common/src/local-first/Db.ts` | 99.47% | 91.66% | ✅ |
+| `packages/common/src/local-first/Worker.ts` | 95.23% | 100.00% | ✅ |
+| `packages/web/src/local-first/DbWorker.ts` | 95.65% | 92.13% | ✅ |
 
 ### P1 target files
 
@@ -25,34 +25,50 @@ The new file-level gates are implemented by `scripts/coverage-file-gate.mts` and
 |---|---|---|---|
 | `packages/common/src/local-first/LocalAuth.ts` | `>=75 / >=60` | `98.57 / 73.52` | ✅ |
 | `packages/web/src/local-first/LocalAuth.ts` | `>=75 / >=60` | `94.18 / 82.69` | ✅ |
-| `packages/nodejs/src/Worker.ts` | `>=90 / >=85` | `88.88 / 62.50` | ❌ |
-| `packages/nodejs/src/Sqlite.ts` | `>=90 / >=85` | `90.69 / 75.00` | ❌ (branches) |
+| `packages/nodejs/src/Worker.ts` | `>=90 / >=85` | `100.00 / 100.00` | ✅ |
+| `packages/nodejs/src/Sqlite.ts` | `>=90 / >=85` | `100.00 / 87.50` | ✅ |
 
-## What was added in this wave
+Coverage gate status:
 
-- Sync hardening in `Sync.ts`:
-  - `validateWriteKey` and `setWriteKey` implemented (no `lazyFalse/lazyVoid` fallback).
-  - `evolu_writeKey` table bootstrap added in client storage path.
-  - `testCreateClientStorage` helper exported for direct storage-path tests.
-- New/expanded tests:
-  - `packages/common/test/local-first/Sync.test.ts`
-  - `packages/common/test/local-first/Db.internal.test.ts`
-  - `packages/common/test/local-first/Worker.test.ts`
-  - `packages/common/test/local-first/LocalAuth.test.ts`
-  - `packages/web/test/DbWorker.test.ts`
-  - `packages/web/test/LocalAuth.test.ts`
-  - `packages/nodejs/test/Worker.test.ts`
-  - `packages/nodejs/test/Sqlite.test.ts`
-- Node SQLite adapter fix:
-  - Better-sqlite variadic parameter forwarding corrected (`all/run(...parameters)`).
+- `bun run coverage:gate:p0` ✅
+- `bun run coverage:gate:p1` ✅
 
-## Next gap-focused actions
+## Recent Additions (latest wave)
 
-1. `Sync.ts` branch lift:
-   - Exercise unresolved protocol-application branches and write/quota/abort edge flows more directly (likely via additional test hooks).
-2. `Db.ts` branch lift:
-   - Cover remaining request error branches and clock/path edge cases around queued processing.
-3. `common Worker.ts` + `web DbWorker.ts` branch lift:
-   - Add error/default branch tests and heartbeat race corner cases.
-4. `nodejs Worker/Sqlite` branch lift:
-   - Explicitly hit transfer/error fallback branches not yet covered in current mocks.
+- Adapter/wrapper coverage:
+  - `packages/web/test/Evolu.test.ts`
+  - `packages/web/test/Worker.test.ts`
+  - `packages/react-web/test/local-first/Evolu.test.ts`
+  - `packages/nodejs/test/WebPlatform.test.ts`
+- Common helper/runtime branch coverage:
+  - `packages/common/test/local-first/Kysely.test.ts`
+  - `packages/common/test/local-first/Schema.test.ts` (index add/drop, `createQueryBuilder` options, `getEvoluSqliteSchema`)
+  - `packages/common/test/Error.test.ts` (`handleGlobalError` branches)
+  - `packages/common/test/String.test.ts` (new file)
+- Small runtime hardening:
+  - `packages/common/src/String.ts` now guarantees `string` return even when `JSON.stringify` returns `undefined` (`symbol` case).
+
+## Quick-Win Backlog (post P0/P1)
+
+Prioritized by risk + effort for next PR slices:
+
+1. `packages/web/src/Sqlite.ts` (`82.92% / 76.92%`, missing `3/13` branches)
+   - Add deterministic mocked init-path tests (`encrypted`/default OPFS and warning filter).
+   - Low branch count, high return.
+2. `packages/common/src/local-first/LocalAuth.ts` (`98.57% / 73.52%`, missing `9/34`)
+   - Focus decrypt-fail/null credential + metadata consistency edge branches.
+3. `packages/web/src/local-first/LocalAuth.ts` (`94.18% / 82.69%`, missing `9/52`)
+   - Add adapter error/null propagation branches mirroring common LocalAuth cases.
+4. `packages/common/src/local-first/Protocol.ts` (`92.93% / 88.83%`, missing `24/215`)
+   - Slightly below 90 branch; higher complexity than the three items above.
+5. `packages/common/src/Type.ts` (`73.50% / 68.32%`, missing `121/382`)
+   - Big-impact but not a quick win; needs dedicated focused campaign.
+
+## Commit Trace (current head segment)
+
+- `71ce2289` `fix(common): guarantee string fallback in safelyStringifyUnknownValue`
+- `c18a4777` `test(common): expand schema and error branch coverage`
+- `6653d541` `test(common): fix Kysely test import ordering for Biome`
+- `27363565` `test(web): cover worker wrappers and deprecated scopes`
+- `f283c0c7` `test(common): add coverage for Kysely JSON helpers`
+- `27f6d8d9` `test(web): cover evolu adapters and platform reload path`
