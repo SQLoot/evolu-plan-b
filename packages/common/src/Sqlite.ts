@@ -524,22 +524,35 @@ export const getSqliteSchema =
       (tables[tableName] ??= new Set()).add(columnName);
     });
 
-    const indexesRows = deps.sqlite.exec<{ name: string; sql: string | null }>(
-      sql`
-        select name, sql
-        from sqlite_master
-        where
-          type = 'index'
-          ${sql.raw(
-            excludeSqliteInternalIndexes ? "and name not like 'sqlite_%'" : "",
-          )}
-          ${
-            excludeIndexNamePrefix != null
-              ? sql`and name not like ${`${excludeIndexNamePrefix}%`} escape '\\'`
-              : sql.raw("")
-          };
-      `,
-    );
+    const indexesRows =
+      excludeIndexNamePrefix != null
+        ? deps.sqlite.exec<{ name: string; sql: string | null }>(
+            sql`
+              select name, sql
+              from sqlite_master
+              where
+                type = 'index'
+                ${sql.raw(
+                  excludeSqliteInternalIndexes
+                    ? "and name not like 'sqlite_%'"
+                    : "",
+                )}
+                and name not like ${`${excludeIndexNamePrefix}%`} escape '\\';
+            `,
+          )
+        : deps.sqlite.exec<{ name: string; sql: string | null }>(
+            sql`
+              select name, sql
+              from sqlite_master
+              where
+                type = 'index'
+                ${sql.raw(
+                  excludeSqliteInternalIndexes
+                    ? "and name not like 'sqlite_%'"
+                    : "",
+                )};
+            `,
+          );
 
     const indexes = indexesRows.rows.flatMap((row): Array<SqliteIndex> => {
       if (row.sql == null) return [];
