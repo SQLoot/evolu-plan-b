@@ -1238,7 +1238,7 @@ describe("unit tests", () => {
   });
 
   describe("exportDatabase", () => {
-    test("throws when OnExport arrives without pending export", async () => {
+    test("ignores OnExport when there is no pending export", async () => {
       const channels: Array<{
         readonly port1: {
           onMessage: ((message: EvoluOutput) => void) | null;
@@ -1263,7 +1263,9 @@ describe("unit tests", () => {
           type: "OnExport",
           file: new Uint8Array(),
         });
-      }).toThrow("OnExport received without pending export.");
+      }).not.toThrow();
+
+      expect(run.deps.evoluInputs).toEqual([]);
     });
 
     test("exports database for one caller", async () => {
