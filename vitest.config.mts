@@ -14,6 +14,9 @@ export default defineConfig({
       "packages/react-web",
       "packages/nodejs",
       "packages/react-native",
+      "packages/astro",
+      "packages/tanstack-start",
+      "packages/tauri",
     ],
     coverage: {
       provider: "v8",

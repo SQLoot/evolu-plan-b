@@ -21,7 +21,7 @@ Coverage snapshot date: `2026-02-27` (from `bun run test:coverage` and `bun run 
 | `@evolu/web` | `@evolu/common ^7.4.1` | Stable | `99.33% / 93.71%` | Browser runtime (Worker/SharedWorker/Web Locks path). |
 | `@evolu/nodejs` | Node `>=24.0.0`, `@evolu/common ^7.4.1` | Stable | `95.74% / 87.50%` | Includes relay adapter hardening (WS lifecycle + subscribe/broadcast/unsubscribe + restart coverage). |
 | `@evolu/react-web` | React `>=19`, React DOM `>=19`, `@evolu/web ^2.4.0` | Stable thin adapter | `100% / 100%` | Thin web integration wrapper. |
-| `@evolu/react-native` | React Native `>=0.81`, Expo `>=54`, `@op-engineering/op-sqlite >=12` | Active hardening | `20.65% / 13.11%` | Core adapters are covered; broader suite is backlog. |
+| `@evolu/react-native` | React Native `>=0.84`, Expo `>=55`, `@op-engineering/op-sqlite >=12` | Active hardening | `20.65% / 13.11%` | Core adapters are covered; broader suite is backlog. |
 | `@evolu/react` | React `>=19` | Wrapper support | `0% / 0%` | Hook wrappers; coverage expansion planned. |
 | `@evolu/vue` | Vue `>=3.5.29` | Wrapper support | `0% / 0%` | Composition API wrappers; coverage expansion planned. |
 | `@evolu/svelte` | Svelte `>=5.53.3`, `@evolu/web ^2.4.0` | Wrapper support | `0% / 0%` | Store-based wrappers; coverage expansion planned. |
@@ -99,7 +99,7 @@ To chat with other community members, you can join the [Evolu Discord](https://d
 Evolu monorepo uses [Bun](https://bun.sh).
 
 > [!NOTE]
-> The Evolu monorepo is verified to run under **Bun 1.3.10** in combination with **Node.js >=24.0.0**. This compatibility is explicitly tested in CI.
+> The Evolu monorepo is verified to run under **Bun 1.3.10** with **Node.js 24 (LTS)** and **Node.js 25 (current)** in CI.
 
 Install dependencies:
 
