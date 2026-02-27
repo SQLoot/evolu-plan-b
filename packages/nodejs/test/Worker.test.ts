@@ -7,6 +7,7 @@ import {
   createMessageChannel,
   createMessagePort,
   createWorker,
+  createWorkerScope,
   createWorkerSelf,
 } from "../src/Worker.js";
 
@@ -103,5 +104,23 @@ test("createWorkerSelf supports message exchange with explicit parent port", asy
   await expect(fromSelf).resolves.toEqual({ fromSelf: "pong" });
 
   self[Symbol.dispose]();
+  nativeChannel.port2.close();
+});
+
+test("createWorkerSelf throws when parent port is null", () => {
+  expect(() => createWorkerSelf(null)).toThrow(
+    "parentPort is null; createWorkerSelf must run inside a worker thread or receive explicit parent port",
+  );
+});
+
+test("createWorkerScope wraps createWorkerSelf and is disposable", () => {
+  const nativeChannel = new NodeMessageChannel();
+  const scope = createWorkerScope<
+    { readonly fromMain: string },
+    { readonly fromSelf: string }
+  >(nativeChannel.port1);
+
+  expect(scope.onError).toBeNull();
+  scope[Symbol.dispose]();
   nativeChannel.port2.close();
 });

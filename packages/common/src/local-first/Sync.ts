@@ -20,7 +20,6 @@ import type {
 } from "../Crypto.js";
 import type { UnknownError } from "../Error.js";
 import { createUnknownError } from "../Error.js";
-import { lazyFalse, lazyVoid } from "../Function.js";
 import { createInstances } from "../Instances.js";
 import { createRecord, getProperty, objectToEntries } from "../Object.js";
 import type { RandomDep } from "../Random.js";
@@ -54,6 +53,7 @@ import type {
   AppOwnerDep,
   Owner,
   OwnerTransport,
+  OwnerWriteKey,
   ReadonlyOwner,
 } from "./Owner.js";
 import {
@@ -540,6 +540,13 @@ const createClientStorage =
     config: Pick<SyncConfig, "isOwnerWithinQuota" | "onError" | "onReceive">,
   ): ClientStorage => {
     const sqliteStorageBase = createBaseSqliteStorage(deps);
+    deps.sqlite.exec(sql`
+      create table if not exists evolu_writeKey (
+        "ownerId" blob primary key,
+        "writeKey" blob not null
+      )
+      strict;
+    `);
 
     const ownerMutexes = createInstances<
       OwnerId,
@@ -550,9 +557,34 @@ const createClientStorage =
     const storage: ClientStorage = {
       ...sqliteStorageBase,
 
-      // Not implemented yet.
-      validateWriteKey: lazyFalse,
-      setWriteKey: lazyVoid,
+      validateWriteKey: (ownerId, writeKey) => {
+        const selectWriteKey = deps.sqlite.exec<{ writeKey: OwnerWriteKey }>(
+          sql`
+            select writeKey
+            from evolu_writeKey
+            where ownerId = ${ownerId};
+          `,
+        );
+
+        if (isNonEmptyArray(selectWriteKey.rows)) {
+          return isSameWriteKey(selectWriteKey.rows[0].writeKey, writeKey);
+        }
+
+        deps.sqlite.exec(sql`
+          insert into evolu_writeKey (ownerId, writeKey)
+          values (${ownerId}, ${writeKey});
+        `);
+        return true;
+      },
+
+      setWriteKey: (ownerId, writeKey) => {
+        deps.sqlite.exec(sql`
+          insert into evolu_writeKey (ownerId, writeKey)
+          values (${ownerId}, ${writeKey})
+          on conflict (ownerId) do update
+            set writeKey = excluded.writeKey;
+        `);
+      },
 
       writeMessages: (ownerIdBytes, encryptedMessages) => async (run) => {
         const ownerId = ownerIdBytesToOwnerId(ownerIdBytes);
@@ -798,6 +830,16 @@ const createClientStorage =
 
     return storage;
   };
+
+export const testCreateClientStorage = createClientStorage;
+
+const isSameWriteKey = (a: Uint8Array, b: Uint8Array): boolean => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+};
 
 type TransportKey = string & Brand<"TransportKey">;
 

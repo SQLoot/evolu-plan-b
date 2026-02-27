@@ -771,6 +771,12 @@ const loadQueries =
     return rowsByQuery;
   };
 
+export const testStartDbWorker = startDbWorker;
+export const testCreateClock = createClock;
+export const testInitializeDb = initializeDb;
+export const testTryApplyQuarantinedMessages = tryApplyQuarantinedMessages;
+export const testHandleMutation = handleMutation;
+
 //   reset: (deps) => (message) => {
 //     const result = deps.sqlite.transaction(() => {
 //       const sqliteSchema = getEvoluSqliteSchema(deps)();

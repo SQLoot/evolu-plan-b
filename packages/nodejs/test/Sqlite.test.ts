@@ -5,6 +5,7 @@ import {
   createSqlite,
   SimpleName,
   type SqliteRow,
+  type SqliteValue,
   sql,
   testCreateRun,
 } from "@evolu/common";
@@ -255,6 +256,177 @@ describe("createBetterSqliteDriver", () => {
     } finally {
       vi.doUnmock("node:module");
       vi.resetModules();
+    }
+  });
+
+  test("uses bun:sqlite driver when Bun runtime is available", async () => {
+    vi.resetModules();
+    const originalBun = (globalThis as Record<string, unknown>).Bun;
+    (globalThis as Record<string, unknown>).Bun = {};
+
+    interface MockStatement {
+      readonly all: (...parameters: ReadonlyArray<unknown>) => Array<SqliteRow>;
+      readonly run: (...parameters: ReadonlyArray<unknown>) => {
+        readonly changes: number;
+      };
+    }
+
+    class MockBunDatabase {
+      #rows = [] as { readonly name: unknown }[];
+
+      prepare(sqlText: string): MockStatement {
+        const normalized = sqlText.trim().toLowerCase();
+
+        return {
+          all: (..._parameters) => {
+            if (normalized.startsWith("select")) {
+              return this.#rows.map((row) => ({ ...row }));
+            }
+            return [];
+          },
+          run: (...parameters) => {
+            if (normalized.startsWith("insert")) {
+              this.#rows.push({ name: parameters[0] });
+              return { changes: 1 };
+            }
+            return { changes: 0 };
+          },
+        };
+      }
+
+      serialize(): Uint8Array {
+        return new Uint8Array([5, 6, 7]);
+      }
+
+      close(): void {}
+    }
+
+    vi.doMock("node:module", () => ({
+      createRequire: () => (id: string) => {
+        if (id === "bun:sqlite") return { Database: MockBunDatabase };
+        if (id === "better-sqlite3") {
+          throw new Error("better-sqlite3 should not be used in this test");
+        }
+        throw new Error(`Unexpected module request: ${id}`);
+      },
+    }));
+
+    try {
+      const modulePath = `../src/Sqlite.ts?bun-runtime-${Date.now()}`;
+      const { createBetterSqliteDriver: createDriver } = await import(
+        modulePath
+      );
+
+      await using run = testCreateRun();
+      const result = await run(createDriver(testName, { mode: "memory" }));
+      assert(result.ok);
+      const sqlite = result.value;
+
+      sqlite.exec(sql`insert into t (name) values (${"Alice"});`);
+      const rows = sqlite.exec(sql`select name from t;`);
+      expect(rows.rows).toEqual([{ name: "Alice" }]);
+      expect(sqlite.export()).toEqual(new Uint8Array([5, 6, 7]));
+    } finally {
+      vi.doUnmock("node:module");
+      vi.resetModules();
+      if (originalBun === undefined) {
+        delete (globalThis as Record<string, unknown>).Bun;
+      } else {
+        (globalThis as Record<string, unknown>).Bun = originalBun;
+      }
+    }
+  });
+
+  test("falls back to better-sqlite3 when bun:sqlite init fails in Bun runtime", async () => {
+    vi.resetModules();
+    const originalBun = (globalThis as Record<string, unknown>).Bun;
+    (globalThis as Record<string, unknown>).Bun = {};
+
+    interface MockStatement {
+      readonly reader: boolean;
+      readonly all: (
+        ...parameters: ReadonlyArray<SqliteValue>
+      ) => Array<SqliteRow>;
+      readonly run: (...parameters: ReadonlyArray<SqliteValue>) => {
+        readonly changes: number;
+      };
+    }
+
+    class MockBetterDatabase {
+      #rows = [] as { readonly name: unknown }[];
+
+      prepare(sqlText: string): MockStatement {
+        const normalized = sqlText.trim().toLowerCase();
+        return {
+          reader: normalized.startsWith("select"),
+          all: (...parameters) => {
+            if (normalized.startsWith("select")) {
+              return this.#rows.map((row) => ({ ...row }));
+            }
+            if (normalized.startsWith("insert") && parameters.length > 0) {
+              this.#rows.push({ name: parameters[0] });
+              return [];
+            }
+            return [];
+          },
+          run: (...parameters) => {
+            if (normalized.startsWith("insert")) {
+              this.#rows.push({ name: parameters[0] });
+              return { changes: 1 };
+            }
+            return { changes: 0 };
+          },
+        };
+      }
+
+      serialize(): Uint8Array {
+        return new Uint8Array([8, 9, 10]);
+      }
+
+      close(): void {}
+    }
+
+    vi.doMock("node:module", () => ({
+      createRequire: () => (id: string) => {
+        if (id === "bun:sqlite") {
+          return {
+            Database: class BunSqliteBroken {
+              constructor() {
+                throw new Error("simulated bun:sqlite init failure");
+              }
+            },
+          };
+        }
+        if (id === "better-sqlite3") {
+          return MockBetterDatabase;
+        }
+        throw new Error(`Unexpected module request: ${id}`);
+      },
+    }));
+
+    try {
+      const modulePath = `../src/Sqlite.ts?bun-fallback-${Date.now()}`;
+      const { createBetterSqliteDriver: createDriver } = await import(
+        modulePath
+      );
+
+      await using run = testCreateRun();
+      const result = await run(createDriver(testName, { mode: "memory" }));
+      assert(result.ok);
+      const sqlite = result.value;
+
+      sqlite.exec(sql`insert into t (name) values (${"Bob"});`);
+      const rows = sqlite.exec(sql`select name from t;`);
+      expect(rows.rows).toEqual([{ name: "Bob" }]);
+      expect(sqlite.export()).toEqual(new Uint8Array([8, 9, 10]));
+    } finally {
+      vi.doUnmock("node:module");
+      vi.resetModules();
+      if (originalBun === undefined) {
+        delete (globalThis as Record<string, unknown>).Bun;
+      } else {
+        (globalThis as Record<string, unknown>).Bun = originalBun;
+      }
     }
   });
 

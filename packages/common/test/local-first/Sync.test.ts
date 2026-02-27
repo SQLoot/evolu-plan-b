@@ -1,15 +1,27 @@
 import { expect, test } from "vitest";
+import { ownerIdToOwnerIdBytes } from "../../src/local-first/Owner.js";
+import {
+  decryptAndDecodeDbChange,
+  encodeAndEncryptDbChange,
+} from "../../src/local-first/Protocol.js";
 import {
   createBaseSqliteStorageTables,
+  DbChange,
   ValidDbChangeValues,
 } from "../../src/local-first/Storage.js";
-import { createSync, initialSyncState } from "../../src/local-first/Sync.js";
+import {
+  createSync,
+  initialSyncState,
+  testCreateClientStorage,
+} from "../../src/local-first/Sync.js";
 import {
   createInitialTimestamp,
   defaultTimestampMaxDrift,
+  sendTimestamp,
   type Timestamp,
+  timestampToTimestampBytes,
 } from "../../src/local-first/Timestamp.js";
-import { ok } from "../../src/Result.js";
+import { err, ok } from "../../src/Result.js";
 import type { SqliteDep } from "../../src/Sqlite.js";
 import { sql } from "../../src/Sqlite.js";
 import { createId } from "../../src/Type.js";
@@ -304,4 +316,210 @@ test("createSync deduplicates shared transport across owners", async () => {
   sync.useOwner(false, { ...testAppOwner, transports: [transport] });
   sync.useOwner(false, { ...testAppOwner2, transports: [transport] });
   sync[Symbol.dispose]();
+});
+
+test("createSync sends unsubscribe when owner is removed", async () => {
+  await using run = await testCreateRunWithSqlite();
+  prepareSyncTables(run.deps);
+
+  let sendCount = 0;
+  const sync = createSync({
+    ...run.deps,
+    clock: createInMemoryClock(run.deps),
+    sqliteSchema: testSqliteSchema,
+    createWebSocket: (_url, _options) => async () => {
+      const webSocket = {
+        send: () => {
+          sendCount += 1;
+          return ok();
+        },
+        getReadyState: () => "open" as const,
+        isOpen: () => true,
+        [Symbol.dispose]: () => {},
+      };
+      return ok(webSocket);
+    },
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })({
+    appOwner: testAppOwner,
+    transports: [{ type: "WebSocket", url: "ws://localhost:4000" }],
+    onError: () => {},
+    onReceive: () => {},
+  });
+
+  sync.useOwner(true, testAppOwner);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  sync.useOwner(false, testAppOwner);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  expect(sendCount).toBeGreaterThan(0);
+  sync[Symbol.dispose]();
+});
+
+test("createSync forwards non-abort websocket creation failures", async () => {
+  await using run = await testCreateRunWithSqlite();
+  prepareSyncTables(run.deps);
+
+  const errors: Array<unknown> = [];
+  let createWebSocketCalls = 0;
+  const sync = createSync({
+    ...run.deps,
+    clock: createInMemoryClock(run.deps),
+    sqliteSchema: testSqliteSchema,
+    createWebSocket: () => async () => {
+      createWebSocketCalls += 1;
+      return err({ type: "WebSocketInitFailed" } as never);
+    },
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })({
+    appOwner: testAppOwner,
+    transports: [{ type: "WebSocket", url: "ws://localhost:4000" }],
+    onError: (error) => {
+      errors.push(error);
+    },
+    onReceive: () => {},
+  });
+
+  sync.useOwner(true, testAppOwner);
+  await Promise.resolve();
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  expect(createWebSocketCalls).toBe(1);
+  expect(errors.length).toBe(1);
+  sync[Symbol.dispose]();
+});
+
+test("createSync ignores useOwner after dispose", async () => {
+  await using run = await testCreateRunWithSqlite();
+  prepareSyncTables(run.deps);
+
+  let createWebSocketCalls = 0;
+  const sync = createSync({
+    ...run.deps,
+    clock: createInMemoryClock(run.deps),
+    sqliteSchema: testSqliteSchema,
+    createWebSocket: () => async () => {
+      createWebSocketCalls += 1;
+      return ok({
+        send: () => ok(),
+        getReadyState: () => "open" as const,
+        isOpen: () => true,
+        [Symbol.dispose]: () => {},
+      });
+    },
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })({
+    appOwner: testAppOwner,
+    transports: [{ type: "WebSocket", url: "ws://localhost:4000" }],
+    onError: () => {},
+    onReceive: () => {},
+  });
+
+  sync[Symbol.dispose]();
+  sync.useOwner(true, testAppOwner);
+
+  await Promise.resolve();
+  expect(createWebSocketCalls).toBe(0);
+});
+
+test("client storage validates and updates owner write keys", async () => {
+  await using run = await testCreateRunWithSqlite();
+  prepareSyncTables(run.deps);
+
+  const storage = testCreateClientStorage({
+    ...run.deps,
+    clock: createInMemoryClock(run.deps),
+    sqliteSchema: testSqliteSchema,
+    getSyncOwner: (ownerId) =>
+      ownerId === testAppOwner.id ? testAppOwner : null,
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })({
+    isOwnerWithinQuota: () => true,
+    onError: () => {},
+    onReceive: () => {},
+  });
+
+  const ownerId = ownerIdToOwnerIdBytes(testAppOwner.id);
+  expect(storage.validateWriteKey(ownerId, testAppOwner.writeKey)).toBe(true);
+  expect(storage.validateWriteKey(ownerId, testAppOwner.writeKey)).toBe(true);
+  expect(storage.validateWriteKey(ownerId, testAppOwner2.writeKey)).toBe(false);
+
+  storage.setWriteKey(ownerId, testAppOwner2.writeKey);
+  expect(storage.validateWriteKey(ownerId, testAppOwner2.writeKey)).toBe(true);
+});
+
+test("client storage writeMessages writes once, deduplicates, and readDbChange decrypts", async () => {
+  await using run = await testCreateRunWithSqlite();
+  prepareSyncTables(run.deps);
+
+  let receivedCount = 0;
+  const owners = new Map([[testAppOwner.id, testAppOwner]]);
+  const storage = testCreateClientStorage({
+    ...run.deps,
+    clock: createInMemoryClock(run.deps),
+    sqliteSchema: testSqliteSchema,
+    getSyncOwner: (ownerId) => owners.get(ownerId) ?? null,
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })({
+    isOwnerWithinQuota: () => true,
+    onError: () => {},
+    onReceive: () => {
+      receivedCount += 1;
+    },
+  });
+
+  const ownerId = ownerIdToOwnerIdBytes(testAppOwner.id);
+  const timestamp = sendTimestamp({
+    ...run.deps,
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })(createInitialTimestamp(run.deps));
+  expect(timestamp.ok).toBe(true);
+  if (!timestamp.ok) return;
+
+  const change = DbChange.orThrow({
+    table: "todo",
+    id: createId(run.deps),
+    values: ValidDbChangeValues.orThrow({ title: "from relay" }),
+    isInsert: true,
+    isDelete: false,
+  });
+
+  const encrypted = encodeAndEncryptDbChange(run.deps)(
+    { timestamp: timestamp.value, change },
+    testAppOwner.encryptionKey,
+  );
+
+  const writeResult1 = await run(
+    storage.writeMessages(ownerId, [
+      { timestamp: timestamp.value, change: encrypted },
+    ]),
+  );
+  expect(writeResult1.ok).toBe(true);
+
+  const writeResult2 = await run(
+    storage.writeMessages(ownerId, [
+      { timestamp: timestamp.value, change: encrypted },
+    ]),
+  );
+  expect(writeResult2.ok).toBe(true);
+
+  const todoRows = run.deps.sqlite.exec<{ title: string }>(sql`
+    select title from todo;
+  `).rows;
+  expect(todoRows).toEqual([{ title: "from relay" }]);
+  expect(receivedCount).toBe(2);
+
+  const encryptedRead = storage.readDbChange(
+    ownerId,
+    timestampToTimestampBytes(timestamp.value),
+  );
+  const decoded = decryptAndDecodeDbChange(
+    { timestamp: timestamp.value, change: encryptedRead },
+    testAppOwner.encryptionKey,
+  );
+  expect(decoded.ok).toBe(true);
+  if (!decoded.ok) return;
+  expect(decoded.value.table).toBe("todo");
+  expect(decoded.value.values.title).toBe("from relay");
 });
