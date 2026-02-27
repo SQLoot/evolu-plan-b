@@ -9,7 +9,7 @@ export const safelyStringifyUnknownValue = (value: unknown): string => {
   if (value === undefined) return "undefined";
   if (typeof value === "string") return `"${value}"`;
   try {
-    return JSON.stringify(value);
+    return JSON.stringify(value) ?? globalThis.String(value);
   } catch {
     return globalThis.String(value);
   }

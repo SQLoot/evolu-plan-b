@@ -6,7 +6,7 @@ import type {
   SqliteDriver,
   SqliteValue,
 } from "@evolu/common";
-import { SimpleName as SimpleNameType } from "@evolu/common";
+import { assert, SimpleName as SimpleNameType } from "@evolu/common";
 import type {
   AppOwner,
   ExperimentalDbWorkerInput as DbWorkerInput,
@@ -40,6 +40,8 @@ const safeParseAppOwner = (value: string): AppOwner | null => {
 
 const toSimpleName = (dbName: string): SimpleName =>
   SimpleNameType.orThrow(dbName === ":memory:" ? workerMemoryDbName : dbName);
+
+type CreateDbDriver = (dbName: string) => Promise<SqliteDriver>;
 
 const createDriver = async (dbName: string): Promise<SqliteDriver> => {
   const mode =
@@ -79,10 +81,16 @@ const prepareDriver = (
   });
 };
 
-const acquireSharedDb = async (config: {
-  readonly dbName: string;
-  readonly schemaVersion: number;
-}): Promise<{ driver: SqliteDriver; isLeader: boolean }> => {
+const acquireSharedDb = async (
+  config: {
+    readonly dbName: string;
+    readonly schemaVersion: number;
+  },
+  createDbDriver: CreateDbDriver = createDriver,
+): Promise<{
+  driver: SqliteDriver;
+  isLeader: boolean;
+}> => {
   const { dbName, schemaVersion } = config;
   const existing = sharedDbStates.get(dbName);
   if (existing) {
@@ -95,7 +103,7 @@ const acquireSharedDb = async (config: {
     try {
       if (existing.driver) return { driver: existing.driver, isLeader: false };
       const initPromise = existing.initPromise;
-      if (!initPromise) throw new Error("Shared DB initialization missing");
+      assert(initPromise, "Shared DB initialization missing");
       const driver = await initPromise;
       return { driver, isLeader: false };
     } catch (error) {
@@ -114,7 +122,7 @@ const acquireSharedDb = async (config: {
   sharedDbStates.set(dbName, created);
 
   created.initPromise = (async () => {
-    const driver = await createDriver(dbName);
+    const driver = await createDbDriver(dbName);
     prepareDriver(driver, schemaVersion);
     created.driver = driver;
     return driver;
@@ -125,7 +133,7 @@ const acquireSharedDb = async (config: {
     return { driver, isLeader: true };
   } catch (error) {
     created.refs -= 1;
-    if (created.refs === 0) sharedDbStates.delete(dbName);
+    sharedDbStates.delete(dbName);
     throw error;
   } finally {
     created.initPromise = null;
@@ -134,12 +142,13 @@ const acquireSharedDb = async (config: {
 
 const releaseSharedDb = (dbName: string): void => {
   const state = sharedDbStates.get(dbName);
-  if (!state) return;
+  assert(state, "Shared DB state missing");
 
   state.refs -= 1;
   if (state.refs > 0) return;
 
-  if (state.driver) state.driver[Symbol.dispose]();
+  assert(state.driver, "Shared DB driver missing during release");
+  state.driver[Symbol.dispose]();
   sharedDbStates.delete(dbName);
 };
 
@@ -162,6 +171,15 @@ export const runWebDbWorkerPortWithOptions = (
   options?: {
     readonly heartbeatTimeoutMs?: number;
     readonly heartbeatCheckIntervalMs?: number;
+    readonly now?: () => number;
+    readonly createDriver?: CreateDbDriver;
+    readonly setInterval?: (
+      callback: () => void,
+      timeoutMs: number,
+    ) => ReturnType<typeof globalThis.setInterval>;
+    readonly clearInterval?: (
+      id: ReturnType<typeof globalThis.setInterval>,
+    ) => void;
   },
 ): void => {
   const heartbeatTimeoutMs =
@@ -169,6 +187,10 @@ export const runWebDbWorkerPortWithOptions = (
   const heartbeatCheckIntervalMs =
     options?.heartbeatCheckIntervalMs ??
     Math.max(1_000, heartbeatTimeoutMs / 3);
+  const now = options?.now ?? Date.now;
+  const createDriverImpl = options?.createDriver ?? createDriver;
+  const setIntervalImpl = options?.setInterval ?? globalThis.setInterval;
+  const clearIntervalImpl = options?.clearInterval ?? globalThis.clearInterval;
   const { name, port, brokerPort } = config;
   let db: SqliteDriver | null = null;
   let dbName: string | null = null;
@@ -176,23 +198,22 @@ export const runWebDbWorkerPortWithOptions = (
   let hasDbRef = false;
   let heartbeatWatchdogId: ReturnType<typeof globalThis.setInterval> | null =
     null;
-  let lastHeartbeatAt = Date.now();
+  let lastHeartbeatAt = now();
 
   const markAlive = (): void => {
-    lastHeartbeatAt = Date.now();
+    lastHeartbeatAt = now();
   };
 
   const stopHeartbeatWatchdog = (): void => {
     if (!heartbeatWatchdogId) return;
-    globalThis.clearInterval(heartbeatWatchdogId);
+    clearIntervalImpl(heartbeatWatchdogId);
     heartbeatWatchdogId = null;
   };
 
   const startHeartbeatWatchdog = (): void => {
-    if (heartbeatWatchdogId) return;
-    heartbeatWatchdogId = globalThis.setInterval(() => {
-      if (!dbName) return;
-      if (Date.now() - lastHeartbeatAt > heartbeatTimeoutMs) {
+    if (heartbeatWatchdogId) clearIntervalImpl(heartbeatWatchdogId);
+    heartbeatWatchdogId = setIntervalImpl(() => {
+      if (now() - lastHeartbeatAt > heartbeatTimeoutMs) {
         // Stale client port: release shared DB ref.
         releaseDb({ keepConfig: true });
         stopHeartbeatWatchdog();
@@ -217,7 +238,10 @@ export const runWebDbWorkerPortWithOptions = (
     if (db) return;
     if (dbName == null || schemaVersion == null)
       throw new Error("Database not initialized");
-    const acquired = await acquireSharedDb({ dbName, schemaVersion });
+    const acquired = await acquireSharedDb(
+      { dbName, schemaVersion },
+      createDriverImpl,
+    );
     db = acquired.driver;
     hasDbRef = true;
     startHeartbeatWatchdog();
@@ -236,7 +260,7 @@ export const runWebDbWorkerPortWithOptions = (
   };
 
   const requireDb = (): SqliteDriver => {
-    if (!db) throw new Error("Database not initialized");
+    assert(db, "Database not initialized");
     return db;
   };
 
@@ -277,10 +301,13 @@ export const runWebDbWorkerPortWithOptions = (
               );
             }
 
-            const acquired = await acquireSharedDb({
-              dbName: message.dbName,
-              schemaVersion: message.schemaVersion,
-            });
+            const acquired = await acquireSharedDb(
+              {
+                dbName: message.dbName,
+                schemaVersion: message.schemaVersion,
+              },
+              createDriverImpl,
+            );
             db = acquired.driver;
             hasDbRef = true;
             dbName = message.dbName;
