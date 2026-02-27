@@ -17,7 +17,11 @@ import type { FlushSyncDep, ReloadAppDep } from "../Platform.js";
 import { createRefCount } from "../RefCount.js";
 import { err, ok } from "../Result.js";
 import { isNonEmptySet } from "../Set.js";
-import { SqliteBoolean, sqliteBooleanToBoolean } from "../Sqlite.js";
+import {
+  SqliteBoolean,
+  type SqliteExportFile,
+  sqliteBooleanToBoolean,
+} from "../Sqlite.js";
 import type { ReadonlyStore } from "../Store.js";
 import { createStore } from "../Store.js";
 import type { createRun, Task } from "../Task.js";
@@ -399,7 +403,7 @@ export interface Evolu<S extends EvoluSchema = EvoluSchema>
    * The pending promise rejects if this {@link Evolu} instance is disposed
    * before export completion.
    */
-  readonly exportDatabase: () => Promise<Uint8Array<ArrayBuffer>>;
+  readonly exportDatabase: () => Promise<SqliteExportFile>;
 
   /**
    * Use a {@link SyncOwner}. Returns a {@link UnuseOwner}.
@@ -588,9 +592,8 @@ export const createEvolu =
 
     const onMutateCompleteCallbacks = stack.use(createCallbacks(run.deps));
 
-    let exportDatabasePending = null as PromiseWithResolvers<
-      Uint8Array<ArrayBuffer>
-    > | null;
+    let exportDatabasePending =
+      null as PromiseWithResolvers<SqliteExportFile> | null;
 
     /**
      * Mutations and refreshes invalidate query snapshots. Keep loading promises
@@ -877,8 +880,7 @@ export const createEvolu =
 
       exportDatabase: () => {
         if (!exportDatabasePending) {
-          exportDatabasePending =
-            Promise.withResolvers<Uint8Array<ArrayBuffer>>();
+          exportDatabasePending = Promise.withResolvers<SqliteExportFile>();
           postMessage({ type: "Export" });
         }
         return exportDatabasePending.promise;

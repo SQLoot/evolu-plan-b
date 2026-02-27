@@ -56,8 +56,16 @@ export interface Sqlite extends Disposable {
    * Exported databases are forwarded through worker `postMessage` transfer
    * lists, which require transferable `ArrayBuffer` backing.
    */
-  readonly export: () => Uint8Array<ArrayBuffer>;
+  readonly export: () => SqliteExportFile;
 }
+
+/**
+ * Exported SQLite bytes with transferable ArrayBuffer backing.
+ *
+ * Kept as an intersection instead of `Uint8Array<ArrayBuffer>` for broader
+ * TypeScript compatibility.
+ */
+export type SqliteExportFile = Uint8Array & { readonly buffer: ArrayBuffer };
 
 export interface SqliteDep {
   readonly sqlite: Sqlite;
@@ -149,7 +157,7 @@ export interface SqliteDriver extends Disposable {
    * Exported databases are forwarded through worker `postMessage` transfer
    * lists, which require transferable `ArrayBuffer` backing.
    */
-  readonly export: () => Uint8Array<ArrayBuffer>;
+  readonly export: () => SqliteExportFile;
 }
 
 /** Creates a {@link SqliteDriver}. */

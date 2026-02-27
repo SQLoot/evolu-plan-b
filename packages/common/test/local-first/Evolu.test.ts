@@ -964,9 +964,9 @@ describe("unit tests", () => {
 
       await testWaitForWorkerMessage();
 
-      expect(run.deps.evoluInputs[0]?.changes[0]?.ownerId).toBe(
-        evolu.appOwner.id,
-      );
+      const firstMutate = run.deps.evoluInputs[0];
+      assert(firstMutate?.type === "Mutate");
+      expect(firstMutate.changes[0]?.ownerId).toBe(evolu.appOwner.id);
 
       expect(run.deps.evoluInputs).toMatchInlineSnapshot(
         [
@@ -1025,12 +1025,10 @@ describe("unit tests", () => {
 
       await testWaitForWorkerMessage();
 
-      expect(run.deps.evoluInputs[0]?.changes[0]?.ownerId).toBe(
-        evolu.appOwner.id,
-      );
-      expect(run.deps.evoluInputs[0]?.changes[1]?.ownerId).toBe(
-        evolu.appOwner.id,
-      );
+      const firstMutate = run.deps.evoluInputs[0];
+      assert(firstMutate?.type === "Mutate");
+      expect(firstMutate.changes[0]?.ownerId).toBe(evolu.appOwner.id);
+      expect(firstMutate.changes[1]?.ownerId).toBe(evolu.appOwner.id);
 
       expect(run.deps.evoluInputs).toMatchInlineSnapshot(
         [
@@ -1102,15 +1100,11 @@ describe("unit tests", () => {
 
       await testWaitForWorkerMessage();
 
-      expect(run.deps.evoluInputs[0]?.changes[0]?.ownerId).toBe(
-        evolu.appOwner.id,
-      );
-      expect(run.deps.evoluInputs[0]?.changes[1]?.ownerId).toBe(
-        evolu.appOwner.id,
-      );
-      expect(run.deps.evoluInputs[0]?.changes[2]?.ownerId).toBe(
-        evolu.appOwner.id,
-      );
+      const firstMutate = run.deps.evoluInputs[0];
+      assert(firstMutate?.type === "Mutate");
+      expect(firstMutate.changes[0]?.ownerId).toBe(evolu.appOwner.id);
+      expect(firstMutate.changes[1]?.ownerId).toBe(evolu.appOwner.id);
+      expect(firstMutate.changes[2]?.ownerId).toBe(evolu.appOwner.id);
 
       expect(run.deps.evoluInputs).toMatchInlineSnapshot(
         [
@@ -1189,9 +1183,9 @@ describe("unit tests", () => {
 
       await testWaitForWorkerMessage();
 
-      expect(run.deps.evoluInputs[0]?.changes[0]?.ownerId).toBe(
-        testAppOwner.id,
-      );
+      const firstMutate = run.deps.evoluInputs[0];
+      assert(firstMutate?.type === "Mutate");
+      expect(firstMutate.changes[0]?.ownerId).toBe(testAppOwner.id);
 
       expect(run.deps.evoluInputs).toMatchInlineSnapshot(
         [
