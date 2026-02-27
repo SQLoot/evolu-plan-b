@@ -7,6 +7,17 @@ on:
     branches: ["main"]
   merge_group:
   workflow_dispatch:
+    inputs:
+      coverage_lane:
+        description: "Active integration coverage lane"
+        required: false
+        default: "expo"
+        type: choice
+        options:
+          - astro
+          - tanstack
+          - react-native
+          - expo
 
 permissions:
   contents: read
@@ -69,7 +80,7 @@ jobs:
   coverage-lane:
     runs-on: ubuntu-latest
     env:
-      EVOLU_ACTIVE_COVERAGE_LANE: expo
+      EVOLU_ACTIVE_COVERAGE_LANE: ${{ github.event.inputs.coverage_lane || vars.EVOLU_ACTIVE_COVERAGE_LANE || 'expo' }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 

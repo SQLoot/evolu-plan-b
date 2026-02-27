@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
 import { localAuthDefaultOptions } from "@evolu/common";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import { createExpoDeps } from "../src/createExpoDeps.js";
 
 const mocks = vi.hoisted(() => ({
