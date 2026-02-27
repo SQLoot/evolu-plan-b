@@ -107,6 +107,7 @@ test("testHandleMutation writes local and shared changes", async () => {
   };
 
   const todoId = createId(run.deps);
+  const todoId2 = createId(run.deps);
   const localId = createId(run.deps);
   const todoQuery = serializeQuery(sql`select title from todo order by title;`);
 
@@ -129,6 +130,14 @@ test("testHandleMutation writes local and shared changes", async () => {
         isInsert: true,
         isDelete: false,
       },
+      {
+        ownerId: testAppOwner.id,
+        table: "todo",
+        id: todoId2,
+        values: ValidDbChangeValues.orThrow({ title: "todo-null-delete-flag" }),
+        isInsert: true,
+        isDelete: null,
+      },
     ],
     onCompleteIds: [],
     subscribedQueries: new Set([todoQuery]),
@@ -143,7 +152,10 @@ test("testHandleMutation writes local and shared changes", async () => {
   const todoRows = run.deps.sqlite.exec<{ title: string }>(sql`
     select title from todo order by title;
   `).rows;
-  expect(todoRows).toEqual([{ title: "todo-from-mutate" }]);
+  expect(todoRows).toEqual([
+    { title: "todo-from-mutate" },
+    { title: "todo-null-delete-flag" },
+  ]);
 
   const localRows = run.deps.sqlite.exec<{ value: string }>(sql`
     select value from _local_meta;
