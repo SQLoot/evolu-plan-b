@@ -70,6 +70,7 @@ Third-party runtime dependencies used by `@evolu/common`:
 Dependency policy:
 
 - No dependency downgrades in sync waves.
+- Sync waves are periodic coordinated dependency sync batches across packages and CI lanes.
 - Prefer native Bun/runtime APIs where practical.
 - Keep API/protocol compatibility with upstream.
 

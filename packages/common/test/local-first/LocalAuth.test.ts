@@ -60,7 +60,7 @@ const createInMemorySecureStorage = (): SecureStorage => {
     getAllItems: async (options) => {
       const service = options?.service ?? "default";
       return [...getStore(service).values()].map((item) =>
-        options?.includeValues ? item : { ...item, value: undefined },
+        options?.includeValues === false ? { ...item, value: undefined } : item,
       );
     },
     clearService: async (options) => {

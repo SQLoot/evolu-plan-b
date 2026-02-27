@@ -29,20 +29,38 @@ const parseArgs = (args: ReadonlyArray<string>) => {
 };
 
 const parseThresholds = (raw: string): Map<string, Threshold> => {
-  const parsed = JSON.parse(raw) as Record<
-    string,
-    { statements: number; branches: number }
-  >;
+  const parsed: unknown = JSON.parse(raw);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(
+      "Invalid thresholds JSON: expected an object keyed by file path.",
+    );
+  }
 
-  return new Map(
-    Object.entries(parsed).map(([file, threshold]) => [
-      file,
-      {
-        statements: threshold.statements,
-        branches: threshold.branches,
-      } as const,
-    ]),
-  );
+  const thresholds = new Map<string, Threshold>();
+  for (const [file, threshold] of Object.entries(parsed)) {
+    if (!threshold || typeof threshold !== "object" || Array.isArray(threshold))
+      throw new Error(
+        `Invalid threshold for '${file}': expected object with numeric statements and branches.`,
+      );
+
+    const statements = (threshold as { statements?: unknown }).statements;
+    const branches = (threshold as { branches?: unknown }).branches;
+
+    if (
+      typeof statements !== "number" ||
+      !Number.isFinite(statements) ||
+      typeof branches !== "number" ||
+      !Number.isFinite(branches)
+    ) {
+      throw new Error(
+        `Invalid threshold for '${file}': statements and branches must be finite numbers.`,
+      );
+    }
+
+    thresholds.set(file, { statements, branches });
+  }
+
+  return thresholds;
 };
 
 const toPercent = (value: number): string => `${value.toFixed(2)}%`;
@@ -57,7 +75,13 @@ const resolveCoverageEntry = (
 
   const normalized = file.replaceAll("\\", "/");
   for (const [key, value] of Object.entries(coverageJson)) {
-    if (key.replaceAll("\\", "/").endsWith(normalized)) return value;
+    const keyNormalized = key.replaceAll("\\", "/");
+    if (
+      keyNormalized === normalized ||
+      keyNormalized.endsWith(`/${normalized}`)
+    ) {
+      return value;
+    }
   }
 
   return null;

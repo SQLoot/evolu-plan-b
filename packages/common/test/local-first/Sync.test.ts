@@ -1060,6 +1060,7 @@ test("createSync invokes websocket lifecycle handlers and disposes deferred sock
 
   await new Promise((resolve) => setTimeout(resolve, 0));
 
+  // Deferred socket may resolve only after sync disposal and then gets ignored.
   expect(socketDisposed).toBeGreaterThanOrEqual(0);
   expect(logs.some((entry) => entry[1] === "onClose")).toBe(true);
   expect(logs.some((entry) => entry[1] === "onMessage")).toBe(true);
