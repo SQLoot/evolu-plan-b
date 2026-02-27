@@ -31,17 +31,22 @@ Coverage snapshot date: `2026-02-27` (from `bun run test:coverage` and `bun run 
 
 | Integration | Fit | Priority | Expected Path | Main Risk / Blocker |
 | --- | --- | --- | --- | --- |
+| Next.js (App Router) | Very high | P0 | Official `@evolu/react-web` guide + production example for Server/Client boundaries. | SSR/client boundary handling and Worker lifecycle in edge runtimes. |
 | TanStack Start | Very high | P0 | Use `@evolu/react` + `@evolu/web`, focus on SSR/client boundary docs and example app. | SSR edge cases (worker lifecycle and hydration boundary). |
 | Astro | High | P0 | Client-island integration on top of `@evolu/web`, starter template + docs. | Island hydration timing and worker boot ordering. |
+| SvelteKit | High | P1 | `@evolu/svelte` + `@evolu/web` reference app with SSR-aware browser-only init. | Avoiding server-side execution for browser worker primitives. |
+| Nuxt 3 | High | P1 | Vue composables + client-only plugin/module (`@evolu/vue` + `@evolu/web`). | Nitro/SSR split and client plugin ordering. |
+| Remix / React Router | High | P1 | React adapter with explicit browser init boundaries and route loader guidance. | Loader/action patterns can accidentally cross server/client boundary. |
 | Tauri | High | P1 | Web runtime in WebView + optional Rust-side relay bridge for desktop sync scenarios. | Packaging/runtime differences across desktop targets. |
+| Electron | High | P1 | Reuse web runtime in renderer + optional Node relay bridge in main process. | Multi-process lifecycle and secure IPC boundaries. |
+| Capacitor (Ionic) | Medium | P2 | Reuse web runtime in WebView first, then mobile storage/perf hardening. | Mobile WebView storage consistency and background lifecycle constraints. |
 | Flutter | Medium/Low | P2 | Separate adapter/SDK (likely not a thin wrapper) or protocol-level bridge. | Different runtime/language model (Dart), no direct reuse of TS hooks. |
-| Lynx | Medium/Low | P2 | Feasibility spike first; likely bridge approach instead of direct package reuse. | Ecosystem maturity and compatibility surface still evolving. |
-| Valdi (to be clarified) | Unknown | Discovery | Define target runtime first, then evaluate web/node adapter reuse potential. | Ambiguous target platform and unclear integration surface. |
 
 Current recommendation:
 
-- Build first-class examples for `TanStack Start`, `Astro`, and `Tauri`.
-- Treat `Flutter` and `Lynx` as separate SDK/bridge efforts, not quick wrappers.
+- Build first-class examples for `Next.js`, `TanStack Start`, and `Astro`.
+- Follow with `SvelteKit`, `Nuxt`, `Remix`, and `Tauri/Electron` runtime guides.
+- Treat `Flutter` as a separate SDK/bridge effort, not a quick wrapper.
 - Keep protocol/API parity first; add adapters only where lifecycle/storage semantics are clear.
 
 ## `@evolu/common` Compatibility and Third-Party Dependencies
