@@ -533,6 +533,9 @@ export const getSqliteSchema =
       (tables[tableName] ??= new Set()).add(columnName);
     });
 
+    const escapeLikePattern = (s: string) =>
+      s.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+
     const indexesRows =
       excludeIndexNamePrefix != null
         ? deps.sqlite.exec<{ name: string; sql: string | null }>(
@@ -546,7 +549,7 @@ export const getSqliteSchema =
                     ? "and name not like 'sqlite_%'"
                     : "",
                 )}
-                and name not like ${`${excludeIndexNamePrefix}%`} escape '\\';
+                and name not like ${`${escapeLikePattern(excludeIndexNamePrefix)}%`} escape '\\';
             `,
           )
         : deps.sqlite.exec<{ name: string; sql: string | null }>(
