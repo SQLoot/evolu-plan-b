@@ -37,8 +37,8 @@ import {
   sqliteBooleanToBoolean,
 } from "../Sqlite.js";
 import { createMutex, createRun } from "../Task.js";
-import type { Millis, TimeDep } from "../Time.js";
-import { millisToDateIso } from "../Time.js";
+import type { TimeDep } from "../Time.js";
+import { Millis, millisToDateIso } from "../Time.js";
 import type { Typed } from "../Type.js";
 import {
   type Id,
@@ -77,7 +77,7 @@ import {
   encodeAndEncryptDbChange,
   SubscriptionFlags,
 } from "./Protocol.js";
-import type { DbSchemaDep, MutationChange } from "./Schema.js";
+import type { MutationChange, SqliteSchemaDep } from "./Schema.js";
 import { systemColumns } from "./Schema.js";
 import type {
   BaseSqliteStorage,
@@ -177,7 +177,7 @@ export const createSync =
     deps: ClockDep &
       ConsoleDep &
       CreateWebSocketDep &
-      DbSchemaDep &
+      SqliteSchemaDep &
       // PostMessageDep &
       RandomBytesDep &
       RandomDep &
@@ -187,6 +187,16 @@ export const createSync =
   ) =>
   (config: SyncConfig): Sync => {
     let isDisposed = false;
+    const disposalDelayResult =
+      config.disposalDelayMs == null
+        ? ok(Millis.orThrow(100))
+        : Millis.from(config.disposalDelayMs);
+
+    assert(
+      disposalDelayResult.ok,
+      "Invalid SyncConfig.disposalDelayMs: expected a non-negative integer.",
+    );
+    const disposalDelay = disposalDelayResult.value;
 
     /** Returns owner data only if actively assigned to at least one transport. */
     const getSyncOwner = (ownerId: OwnerId): SyncOwner | null => {
@@ -339,11 +349,11 @@ export const createSync =
       OwnerTransport,
       SyncOwner,
       OwnerId
-    >({
+    >(deps)({
       createResource,
       getResourceKey: createTransportKey,
       getConsumerId: (owner) => owner.id,
-      disposalDelay: config.disposalDelayMs ?? 100,
+      disposalDelay,
 
       onConsumerAdded: (owner, webSocket) => {
         deps.console.log("[sync]", "onConsumerAdded", {
@@ -518,7 +528,7 @@ const createClientStorage =
   (
     deps: ClockDep &
       ConsoleDep &
-      DbSchemaDep &
+      SqliteSchemaDep &
       GetSyncOwnerDep &
       RandomBytesDep &
       RandomDep &
@@ -842,7 +852,7 @@ const applyMessages =
     deps: ClientStorageDep &
       ClockDep &
       ConsoleDep &
-      DbSchemaDep &
+      SqliteSchemaDep &
       RandomDep &
       SqliteDep,
   ) =>
@@ -937,9 +947,9 @@ const systemColumnsWithoutOwnerId: ReadonlySet<string> = (() => {
 })();
 
 const validateColumnValue =
-  (deps: DbSchemaDep) =>
+  (deps: SqliteSchemaDep) =>
   (table: string, column: string, _value: SqliteValue): boolean => {
-    const schemaColumns = getProperty(deps.dbSchema.tables, table);
+    const schemaColumns = getProperty(deps.sqliteSchema.tables, table);
     return (
       schemaColumns != null &&
       (systemColumnsWithoutOwnerId.has(column) || schemaColumns.has(column))
@@ -1001,7 +1011,7 @@ const applyColumnChange =
  * don't exist in the current schema (e.g., from a newer app version).
  */
 export const tryApplyQuarantinedMessages =
-  (deps: DbSchemaDep & SqliteDep) => (): void => {
+  (deps: SqliteSchemaDep & SqliteDep) => (): void => {
     const rows = deps.sqlite.exec<{
       readonly ownerId: OwnerIdBytes;
       readonly timestamp: TimestampBytes;

@@ -46,6 +46,7 @@ import {
   createDeferred,
   createDeferreds,
   createGate,
+  createInMemoryLeaderLock,
   createMutex,
   createRun,
   createRunner,
@@ -70,10 +71,10 @@ import {
   unabortableMask,
   yieldNow,
 } from "../src/Task.js";
-import { testCreateDeps, testCreateRunner } from "../src/Test.js";
+import { testCreateDeps, testCreateRunner, testName } from "../src/Test.js";
 import { createTime, Millis, msLongTask, testCreateTime } from "../src/Time.js";
 import type { Typed } from "../src/Type.js";
-import { type Id, minPositiveInt, PositiveInt } from "../src/Type.js";
+import { type Id, minPositiveInt, Name, PositiveInt } from "../src/Type.js";
 
 const eventsEnabled: RunnerConfigDep = {
   runnerConfig: { eventsEnabled: createRef(true) },
@@ -5016,6 +5017,76 @@ describe("concurrency", () => {
       expect(events).toEqual(["start 1", "end 1", "start 2", "end 2"]);
 
       mutex[Symbol.dispose]();
+    });
+  });
+
+  describe("createInMemoryLeaderLock", () => {
+    test("acquire waits until previous lease is disposed", async () => {
+      await using run = createRun();
+      const leaderLock = createInMemoryLeaderLock();
+
+      const first = await run(leaderLock.acquire(testName));
+      expect(first.ok).toBe(true);
+      if (!first.ok) return;
+
+      let secondSettled = false;
+      const second = run(leaderLock.acquire(testName));
+      void second.then(() => {
+        secondSettled = true;
+      });
+
+      await run(yieldNow);
+      expect(secondSettled).toBe(false);
+
+      first.value[Symbol.dispose]();
+
+      const secondResult = await second;
+      expect(secondResult.ok).toBe(true);
+      if (!secondResult.ok) return;
+
+      secondResult.value[Symbol.dispose]();
+    });
+
+    test("different names acquire independently", async () => {
+      await using run = createRun();
+      const leaderLock = createInMemoryLeaderLock();
+
+      const aName = Name.orThrow("LeaderLockA");
+      const bName = Name.orThrow("LeaderLockB");
+
+      const [a, b] = await Promise.all([
+        run(leaderLock.acquire(aName)),
+        run(leaderLock.acquire(bName)),
+      ]);
+
+      expect(a.ok).toBe(true);
+      expect(b.ok).toBe(true);
+
+      if (a.ok) a.value[Symbol.dispose]();
+      if (b.ok) b.value[Symbol.dispose]();
+    });
+
+    test("aborted waiter does not keep lock held", async () => {
+      await using run = createRun();
+      const leaderLock = createInMemoryLeaderLock();
+
+      const first = await run(leaderLock.acquire(testName));
+      expect(first.ok).toBe(true);
+      if (!first.ok) return;
+
+      const waiting = run(leaderLock.acquire(testName));
+      await run(yieldNow);
+
+      waiting.abort("cancelled");
+      await expect(waiting).resolves.toEqual(
+        err({ type: "AbortError", reason: "cancelled" }),
+      );
+
+      first.value[Symbol.dispose]();
+
+      const next = await run(timeout(leaderLock.acquire(testName), "100ms"));
+      expect(next.ok).toBe(true);
+      if (next.ok) next.value[Symbol.dispose]();
     });
   });
 });

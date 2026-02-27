@@ -17,15 +17,14 @@ import type { FlushSyncDep, ReloadAppDep } from "../Platform.js";
 import { createRefCount } from "../RefCount.js";
 import { err, ok } from "../Result.js";
 import { isNonEmptySet } from "../Set.js";
-import { SqliteBoolean, sqliteBooleanToBoolean } from "../Sqlite.js";
+import {
+  SqliteBoolean,
+  type SqliteExportFile,
+  sqliteBooleanToBoolean,
+} from "../Sqlite.js";
 import type { ReadonlyStore } from "../Store.js";
 import { createStore } from "../Store.js";
-import {
-  createDeferred,
-  type createRun,
-  type Deferred,
-  type Task,
-} from "../Task.js";
+import type { createRun, Task } from "../Task.js";
 import type { Id, TypeError } from "../Type.js";
 import {
   brand,
@@ -60,7 +59,7 @@ import type {
   MutationChange,
   ValidateSchema,
 } from "./Schema.js";
-import { evoluSchemaToDbSchema } from "./Schema.js";
+import { evoluSchemaToSqliteSchema } from "./Schema.js";
 import type {
   DbWorkerInput,
   DbWorkerOutput,
@@ -400,8 +399,11 @@ export interface Evolu<S extends EvoluSchema = EvoluSchema>
    *
    * Exports are sequential: concurrent calls share one pending export instead
    * of starting parallel exports.
+   *
+   * The pending promise rejects if this {@link Evolu} instance is disposed
+   * before export completion.
    */
-  readonly exportDatabase: Task<Uint8Array<ArrayBuffer>>;
+  readonly exportDatabase: () => Promise<SqliteExportFile>;
 
   /**
    * Use a {@link SyncOwner}. Returns a {@link UnuseOwner}.
@@ -590,9 +592,8 @@ export const createEvolu =
 
     const onMutateCompleteCallbacks = stack.use(createCallbacks(run.deps));
 
-    let exportDatabaseDeferred = null as Deferred<
-      Uint8Array<ArrayBuffer>
-    > | null;
+    let exportDatabasePending =
+      null as PromiseWithResolvers<SqliteExportFile> | null;
 
     /**
      * Mutations and refreshes invalidate query snapshots. Keep loading promises
@@ -679,7 +680,7 @@ export const createEvolu =
           type: "Init",
           name,
           consoleLevel: console.getLevel(),
-          dbSchema: evoluSchemaToDbSchema(schema, config.indexes),
+          sqliteSchema: evoluSchemaToSqliteSchema(schema, config.indexes),
           encryptionKey: appOwner.encryptionKey,
           port: dbWorkerChannel.port1.native,
         },
@@ -762,12 +763,11 @@ export const createEvolu =
             break;
           }
           case "OnExport": {
-            assert(
-              exportDatabaseDeferred,
-              "OnExport received without pending export.",
-            );
-            exportDatabaseDeferred.resolve(ok(message.file));
-            exportDatabaseDeferred = null;
+            if (exportDatabasePending) {
+              exportDatabasePending.resolve(message.file);
+              exportDatabasePending = null;
+            }
+            // Silently ignore late OnExport after disposal
             break;
           }
           default:
@@ -877,19 +877,20 @@ export const createEvolu =
       },
       getQueryRows,
 
-      exportDatabase: (run) => {
-        if (!exportDatabaseDeferred) {
-          exportDatabaseDeferred = createDeferred<Uint8Array<ArrayBuffer>>();
+      exportDatabase: () => {
+        if (!exportDatabasePending) {
+          exportDatabasePending = Promise.withResolvers<SqliteExportFile>();
           postMessage({ type: "Export" });
         }
-        return run(exportDatabaseDeferred.task);
+        return exportDatabasePending.promise;
       },
 
       useOwner: todo,
 
       [Symbol.asyncDispose]: () => {
         console.info("disposeEvolu");
-        exportDatabaseDeferred?.[Symbol.dispose]();
+        exportDatabasePending?.reject({ type: "EvoluDisposedError" });
+        exportDatabasePending = null;
         // Cancel queued microtask batches before sending dispose.
         mutateBatch[Symbol.dispose]();
         queryBatch[Symbol.dispose]();
@@ -939,7 +940,7 @@ export const createEvolu =
 //   }
 // });
 
-// const dbSchema = evoluSchemaToDbSchema(schema, indexes);
+// const sqliteSchema = evoluSchemaToSqliteSchema(schema, indexes);
 
 // const processMutationQueue = () => {
 //   const changes: Array<MutationChange> = [];
@@ -1044,7 +1045,7 @@ export const createEvolu =
 //   //   type: "reset",
 //   //   onCompleteId,
 //   //   reload: options?.reload ?? true,
-//   //   restore: { mnemonic, dbSchema },
+//   //   restore: { mnemonic, sqliteSchema },
 //   // });
 //   return promise;
 // },
@@ -1056,8 +1057,8 @@ export const createEvolu =
 
 // ensureSchema: (schema) => {
 //   mutationTypesCache.clear();
-//   const dbSchema = evoluSchemaToDbSchema(schema);
-//   dbWorker.postMessage({ type: "ensureDbSchema", dbSchema });
+//   const sqliteSchema = evoluSchemaToSqliteSchema(schema);
+//   dbWorker.postMessage({ type: "ensureSqliteSchema", sqliteSchema });
 // },
 
 // useOwner: (owner) => {
