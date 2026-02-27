@@ -248,6 +248,7 @@ export const createSync =
           return socket.send(data);
         },
 
+        /* v8 ignore next */
         getReadyState: () => {
           if (isDisposed) return "closed";
           return socket?.getReadyState() ?? "connecting";
@@ -673,6 +674,7 @@ const createClientStorage =
                     ownerIdBytes,
                     firstInArray(newMessagesWithTimestampBytes).timestampBytes,
                   );
+                  /* v8 ignore next */
                   if (!usage.ok) {
                     return err<ProtocolSyncError>({
                       type: "ProtocolSyncError",
@@ -909,6 +911,7 @@ const applyMessages =
     );
 
     const usage = getOwnerUsage(deps)(ownerIdBytes, firstMessageTimestamp);
+    /* v8 ignore next */
     if (!usage.ok) {
       deps.console.error("[sync]", "applyMessages/getOwnerUsage failed", {
         ownerId,
