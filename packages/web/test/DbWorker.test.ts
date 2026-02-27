@@ -1,4 +1,4 @@
-import type { MessagePort } from "@evolu/common";
+import type { MessagePort, SqliteDriver } from "@evolu/common";
 import { SimpleName } from "@evolu/common";
 import type {
   ExperimentalDbWorkerInput as DbWorkerInput,
@@ -6,7 +6,7 @@ import type {
   ExperimentalDbWorkerLeaderOutput as DbWorkerLeaderOutput,
   ExperimentalDbWorkerOutput as DbWorkerOutput,
 } from "@evolu/common/local-first";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import {
   runWebDbWorkerPort,
   runWebDbWorkerPortWithOptions,
@@ -114,6 +114,27 @@ const createManualClock = () => {
     },
   };
 };
+
+const createDeferred = <T>() => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((innerResolve, innerReject) => {
+    resolve = innerResolve;
+    reject = innerReject;
+  });
+  return { promise, resolve, reject };
+};
+
+const createMockDriver = (): SqliteDriver => ({
+  exec: (query) => {
+    if (query.sql.includes("select 1 as value")) {
+      return { rows: [{ value: 1 }], changes: 0 };
+    }
+    return { rows: [], changes: 0 };
+  },
+  export: () => new Uint8Array([1, 2, 3]),
+  [Symbol.dispose]: () => {},
+});
 
 describe("runWebDbWorkerPort", () => {
   test("same dbName can initialize from multiple ports without blocking", async () => {
@@ -962,6 +983,137 @@ describe("runWebDbWorkerPort", () => {
       type: "DbWorkerInitResponse",
       success: false,
     });
+  });
+
+  test("cleans shared init state when follower waits on failing initPromise", async () => {
+    const name = SimpleName.orThrow("DbWorkerInitPromiseCleanup");
+    const dbName = ":memory:";
+    const firstDriver = createDeferred<SqliteDriver>();
+    void firstDriver.promise.catch(() => undefined);
+    let createDriverCalls = 0;
+    const createDriver = vi.fn(async (_dbName: string) => {
+      createDriverCalls += 1;
+      if (createDriverCalls === 1) {
+        return await firstDriver.promise;
+      }
+      return createMockDriver();
+    });
+
+    const channel1 = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker1 = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    broker1.port2.onMessage = () => {};
+    runWebDbWorkerPortWithOptions(
+      { name, port: channel1.port1, brokerPort: broker1.port1 },
+      { createDriver },
+    );
+
+    const channel2 = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker2 = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    broker2.port2.onMessage = () => {};
+    runWebDbWorkerPortWithOptions(
+      { name, port: channel2.port1, brokerPort: broker2.port1 },
+      { createDriver },
+    );
+
+    const init1 = waitForOutput(channel1.port2);
+    channel1.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName,
+      schemaVersion: 1,
+    });
+
+    const waitForFirstDriverCall = async (): Promise<void> => {
+      const deadline = Date.now() + 1_000;
+      while (createDriverCalls < 1) {
+        if (Date.now() > deadline) {
+          throw new Error("Timed out waiting for first createDriver call");
+        }
+        await flushAsync();
+        await wait(0);
+      }
+    };
+    await waitForFirstDriverCall();
+
+    const init2 = waitForOutput(channel2.port2);
+    channel2.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName,
+      schemaVersion: 1,
+    });
+
+    await wait(20);
+    firstDriver.reject(new Error("simulated shared init failure"));
+
+    const [init1Output, init2Output] = await Promise.all([init1, init2]);
+    expect(init1Output).toMatchObject({
+      type: "DbWorkerInitResponse",
+      success: false,
+    });
+    expect(init2Output).toMatchObject({
+      type: "DbWorkerInitResponse",
+      success: false,
+    });
+    if (init1Output.type === "DbWorkerInitResponse") {
+      expect(init1Output.error).toContain("simulated shared init failure");
+    }
+    if (init2Output.type === "DbWorkerInitResponse") {
+      expect(init2Output.error).toContain("simulated shared init failure");
+    }
+    expect(createDriverCalls).toBe(1);
+
+    const channel3 = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker3 = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    broker3.port2.onMessage = () => {};
+    runWebDbWorkerPortWithOptions(
+      { name, port: channel3.port1, brokerPort: broker3.port1 },
+      { createDriver },
+    );
+
+    const init3 = waitForOutput(channel3.port2);
+    channel3.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName,
+      schemaVersion: 1,
+    });
+    expect(await init3).toMatchObject({
+      type: "DbWorkerInitResponse",
+      success: true,
+    });
+    expect(createDriverCalls).toBe(2);
+
+    const query3 = waitForOutput(channel3.port2);
+    channel3.port2.postMessage({
+      type: "DbWorkerQuery",
+      requestId: 301,
+      sql: "select 1 as value",
+      params: [],
+    });
+    expect(await query3).toMatchObject({
+      type: "DbWorkerQueryResponse",
+      requestId: 301,
+      rows: [{ value: 1 }],
+    });
+
+    const close1 = waitForOutput(channel1.port2);
+    channel1.port2.postMessage({ type: "DbWorkerClose", requestId: 302 });
+    expect(await close1).toMatchObject({ type: "DbWorkerCloseResponse" });
+
+    const close2 = waitForOutput(channel2.port2);
+    channel2.port2.postMessage({ type: "DbWorkerClose", requestId: 303 });
+    expect(await close2).toMatchObject({ type: "DbWorkerCloseResponse" });
+
+    const close3 = waitForOutput(channel3.port2);
+    channel3.port2.postMessage({ type: "DbWorkerClose", requestId: 304 });
+    expect(await close3).toMatchObject({ type: "DbWorkerCloseResponse" });
   });
 
   test("close is idempotent for already released shared db", async () => {

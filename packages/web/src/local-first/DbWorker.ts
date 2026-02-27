@@ -41,6 +41,8 @@ const safeParseAppOwner = (value: string): AppOwner | null => {
 const toSimpleName = (dbName: string): SimpleName =>
   SimpleNameType.orThrow(dbName === ":memory:" ? workerMemoryDbName : dbName);
 
+type CreateDbDriver = (dbName: string) => Promise<SqliteDriver>;
+
 const createDriver = async (dbName: string): Promise<SqliteDriver> => {
   const mode =
     dbName === ":memory:" ? ({ mode: "memory" } as const) : undefined;
@@ -79,10 +81,16 @@ const prepareDriver = (
   });
 };
 
-const acquireSharedDb = async (config: {
-  readonly dbName: string;
-  readonly schemaVersion: number;
-}): Promise<{ driver: SqliteDriver; isLeader: boolean }> => {
+const acquireSharedDb = async (
+  config: {
+    readonly dbName: string;
+    readonly schemaVersion: number;
+  },
+  createDbDriver: CreateDbDriver = createDriver,
+): Promise<{
+  driver: SqliteDriver;
+  isLeader: boolean;
+}> => {
   const { dbName, schemaVersion } = config;
   const existing = sharedDbStates.get(dbName);
   if (existing) {
@@ -114,7 +122,7 @@ const acquireSharedDb = async (config: {
   sharedDbStates.set(dbName, created);
 
   created.initPromise = (async () => {
-    const driver = await createDriver(dbName);
+    const driver = await createDbDriver(dbName);
     prepareDriver(driver, schemaVersion);
     created.driver = driver;
     return driver;
@@ -164,6 +172,7 @@ export const runWebDbWorkerPortWithOptions = (
     readonly heartbeatTimeoutMs?: number;
     readonly heartbeatCheckIntervalMs?: number;
     readonly now?: () => number;
+    readonly createDriver?: CreateDbDriver;
     readonly setInterval?: (
       callback: () => void,
       timeoutMs: number,
@@ -179,6 +188,7 @@ export const runWebDbWorkerPortWithOptions = (
     options?.heartbeatCheckIntervalMs ??
     Math.max(1_000, heartbeatTimeoutMs / 3);
   const now = options?.now ?? Date.now;
+  const createDriverImpl = options?.createDriver ?? createDriver;
   const setIntervalImpl = options?.setInterval ?? globalThis.setInterval;
   const clearIntervalImpl = options?.clearInterval ?? globalThis.clearInterval;
   const { name, port, brokerPort } = config;
@@ -228,7 +238,10 @@ export const runWebDbWorkerPortWithOptions = (
     if (db) return;
     if (dbName == null || schemaVersion == null)
       throw new Error("Database not initialized");
-    const acquired = await acquireSharedDb({ dbName, schemaVersion });
+    const acquired = await acquireSharedDb(
+      { dbName, schemaVersion },
+      createDriverImpl,
+    );
     db = acquired.driver;
     hasDbRef = true;
     startHeartbeatWatchdog();
@@ -288,10 +301,13 @@ export const runWebDbWorkerPortWithOptions = (
               );
             }
 
-            const acquired = await acquireSharedDb({
-              dbName: message.dbName,
-              schemaVersion: message.schemaVersion,
-            });
+            const acquired = await acquireSharedDb(
+              {
+                dbName: message.dbName,
+                schemaVersion: message.schemaVersion,
+              },
+              createDriverImpl,
+            );
             db = acquired.driver;
             hasDbRef = true;
             dbName = message.dbName;
