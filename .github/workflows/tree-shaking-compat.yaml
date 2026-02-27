@@ -34,7 +34,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.1
         with:
-          bun-version: "1.3.9"
+          bun-version: "1.3.10"
 
       - name: Install dependencies
         run: bun install
@@ -43,4 +43,29 @@ jobs:
         run: bunx turbo --filter @evolu/common build
 
       - name: Run tree-shaking compatibility lane
+        run: bun run test:tree-shaking:compat
+
+  tree-shaking-compat-node25:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: 25
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.1
+        with:
+          bun-version: "1.3.10"
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build @evolu/common
+        run: bunx turbo --filter @evolu/common build
+
+      - name: Run tree-shaking compatibility lane (Node 25 compat)
         run: bun run test:tree-shaking:compat
