@@ -91,7 +91,7 @@ test("LocalAuth register/getProfiles/getOwner happy path", async () => {
   });
 
   const registration = await localAuth.register("Alice");
-  expect(registration).not.toBeNull();
+  expect(registration?.owner).toBeDefined();
   if (!registration?.owner) return;
 
   const profiles = await localAuth.getProfiles();

@@ -29,8 +29,15 @@ globalThis.sqlite3ApiConfig = {
 let initSqlite3Module: InitSqlite3Module = sqlite3InitModule;
 let sqlite3Promise: Promise<Sqlite3Module> | null = null;
 
-const getSqlite3 = (): Promise<Sqlite3Module> =>
-  (sqlite3Promise ??= initSqlite3Module());
+const getSqlite3 = (): Promise<Sqlite3Module> => {
+  if (!sqlite3Promise) {
+    sqlite3Promise = initSqlite3Module().catch((error) => {
+      sqlite3Promise = null;
+      throw error;
+    });
+  }
+  return sqlite3Promise;
+};
 
 // Init ASAP, keep promise cached for first driver use.
 void getSqlite3();
