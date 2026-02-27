@@ -4,8 +4,8 @@ import {
   ColumnNode,
   IdentifierNode,
   ReferenceNode,
+  type SelectionNode,
   SelectQueryNode as SelectQueryNodeType,
-  SelectionNode,
   TableNode,
   ValueNode,
 } from "kysely";
@@ -104,14 +104,16 @@ describe("Kysely helpers", () => {
       },
     ]);
 
-    expect(() => jsonArrayFrom(createSelectExpression(invalidNode) as never))
-      .toThrow(
-        "SQLite jsonArrayFrom and jsonObjectFrom functions can only handle explicit selections",
-      );
-    expect(() => jsonObjectFrom(createSelectExpression(invalidNode) as never))
-      .toThrow(
-        "SQLite jsonArrayFrom and jsonObjectFrom functions can only handle explicit selections",
-      );
+    expect(() =>
+      jsonArrayFrom(createSelectExpression(invalidNode) as never),
+    ).toThrow(
+      "SQLite jsonArrayFrom and jsonObjectFrom functions can only handle explicit selections",
+    );
+    expect(() =>
+      jsonObjectFrom(createSelectExpression(invalidNode) as never),
+    ).toThrow(
+      "SQLite jsonArrayFrom and jsonObjectFrom functions can only handle explicit selections",
+    );
   });
 
   test("jsonArrayFrom, jsonObjectFrom, and jsonBuildObject include Evolu JSON prefix", () => {
