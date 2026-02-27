@@ -31,8 +31,8 @@ interface DbLike {
 
 interface BetterSqliteStatementLike {
   readonly reader: boolean;
-  readonly all: (parameters?: ReadonlyArray<SqliteValue>) => Array<SqliteRow>;
-  readonly run: (parameters?: ReadonlyArray<SqliteValue>) => {
+  readonly all: (...parameters: ReadonlyArray<SqliteValue>) => Array<SqliteRow>;
+  readonly run: (...parameters: ReadonlyArray<SqliteValue>) => {
     readonly changes: number;
   };
 }
@@ -111,8 +111,8 @@ const createBetterDb = (filename: string): DbLike => {
       const statement = db.prepare(sql);
       return {
         reader: statement.reader,
-        all: (...parameters) => statement.all(parameters),
-        run: (...parameters) => statement.run(parameters),
+        all: (...parameters) => statement.all(...parameters),
+        run: (...parameters) => statement.run(...parameters),
       };
     },
     serialize: () => db.serialize(),

@@ -351,4 +351,154 @@ describe("runWebDbWorkerPort", () => {
     const close2Output = await close2;
     expect(close2Output.type).toBe("DbWorkerCloseResponse");
   });
+
+  test("returns DbWorkerError when request arrives before initialization", async () => {
+    const name = SimpleName.orThrow("DbWorkerNotInitialized");
+    const channel = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    broker.port2.onMessage = () => {};
+
+    runWebDbWorkerPort({
+      name,
+      port: channel.port1,
+      brokerPort: broker.port1,
+    });
+
+    const output = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerQuery",
+      requestId: 1,
+      sql: "select 1 as value",
+      params: [],
+    });
+
+    const errorOutput = await output;
+    expect(errorOutput.type).toBe("DbWorkerError");
+    if (errorOutput.type === "DbWorkerError") {
+      expect(errorOutput.requestId).toBe(1);
+      expect(errorOutput.error).toContain("not initialized");
+    }
+  });
+
+  test("supports getAppOwner, mutate, query, export and reset", async () => {
+    const name = SimpleName.orThrow("DbWorkerApiSurface");
+    const dbName = ":memory:";
+    const channel = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    broker.port2.onMessage = () => {};
+
+    runWebDbWorkerPort({
+      name,
+      port: channel.port1,
+      brokerPort: broker.port1,
+    });
+
+    const init = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName,
+      schemaVersion: 1,
+    });
+    const initOutput = await init;
+    expect(initOutput.type).toBe("DbWorkerInitResponse");
+    if (initOutput.type === "DbWorkerInitResponse") {
+      expect(initOutput.success).toBe(true);
+    }
+
+    const mutateCreate = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerMutate",
+      requestId: 2,
+      sql: "create table custom_table (id integer primary key, title text)",
+      params: [],
+    });
+    const mutateCreateOutput = await mutateCreate;
+    expect(mutateCreateOutput.type).toBe("DbWorkerMutateResponse");
+
+    const mutateInsert = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerMutate",
+      requestId: 3,
+      sql: "insert into custom_table (title) values (?)",
+      params: ["hello"],
+    });
+    const mutateInsertOutput = await mutateInsert;
+    expect(mutateInsertOutput.type).toBe("DbWorkerMutateResponse");
+    if (mutateInsertOutput.type === "DbWorkerMutateResponse") {
+      expect(mutateInsertOutput.changes).toBe(1);
+    }
+
+    const query = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerQuery",
+      requestId: 4,
+      sql: "select title from custom_table",
+      params: [],
+    });
+    const queryOutput = await query;
+    expect(queryOutput.type).toBe("DbWorkerQueryResponse");
+    if (queryOutput.type === "DbWorkerQueryResponse") {
+      expect(queryOutput.rows).toEqual([{ title: "hello" }]);
+    }
+
+    const setOwner = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerMutate",
+      requestId: 5,
+      sql: "insert into __evolu_meta (key, value) values ('appOwner', ?)",
+      params: [JSON.stringify({ id: "owner-1" })],
+    });
+    const setOwnerOutput = await setOwner;
+    expect(setOwnerOutput.type).toBe("DbWorkerMutateResponse");
+
+    const getOwner = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerGetAppOwner",
+    });
+    const getOwnerOutput = await getOwner;
+    expect(getOwnerOutput.type).toBe("DbWorkerAppOwner");
+    if (getOwnerOutput.type === "DbWorkerAppOwner") {
+      expect(getOwnerOutput.appOwner).not.toBeNull();
+      expect(getOwnerOutput.appOwner?.id).toBe("owner-1");
+    }
+
+    const exportDb = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerExport",
+      requestId: 6,
+    });
+    const exportOutput = await exportDb;
+    expect(exportOutput.type).toBe("DbWorkerExportResponse");
+    if (exportOutput.type === "DbWorkerExportResponse") {
+      expect(exportOutput.data).toBeInstanceOf(Uint8Array);
+      expect(exportOutput.data.length).toBeGreaterThan(0);
+    }
+
+    const reset = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerReset",
+      requestId: 7,
+    });
+    const resetOutput = await reset;
+    expect(resetOutput.type).toBe("DbWorkerResetResponse");
+
+    const queryAfterReset = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerQuery",
+      requestId: 8,
+      sql: "select count(*) as count from sqlite_master where type='table' and name='custom_table'",
+      params: [],
+    });
+    const queryAfterResetOutput = await queryAfterReset;
+    expect(queryAfterResetOutput.type).toBe("DbWorkerQueryResponse");
+    if (queryAfterResetOutput.type === "DbWorkerQueryResponse") {
+      expect(queryAfterResetOutput.rows).toEqual([{ count: 0 }]);
+    }
+  });
 });
