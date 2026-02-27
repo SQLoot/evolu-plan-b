@@ -1355,11 +1355,17 @@ const fingerprint =
     }
 
     if (begin === 0) {
-      return fingerprintRanges(deps)(ownerId, [end])[0].fingerprint;
+      const ranges = fingerprintRanges(deps)(ownerId, [end]);
+      const firstRange = ranges[0];
+      assert(firstRange, "Expected fingerprint range for begin=0.");
+      return firstRange.fingerprint;
     }
 
     // We should have a param to skip the first result.
-    return fingerprintRanges(deps)(ownerId, [begin, end])[1].fingerprint;
+    const ranges = fingerprintRanges(deps)(ownerId, [begin, end]);
+    const endRange = ranges[1];
+    assert(endRange, "Expected fingerprint range for non-zero begin.");
+    return endRange.fingerprint;
   };
 
 /**

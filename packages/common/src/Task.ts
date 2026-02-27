@@ -2753,17 +2753,35 @@ export const createInMemoryLeaderLock = (): LeaderLock => {
       // keep the lock held until lease disposal.
       const onAcquired = Promise.withResolvers<void>();
       const onRelease = Promise.withResolvers<void>();
+      const onAborted = Promise.withResolvers<AbortError>();
+      let isAcquired = false;
+
+      run.onAbort((reason) => {
+        if (isAcquired) return;
+        onRelease.resolve();
+        onAborted.resolve(createAbortError(reason));
+      });
 
       void run.daemon(
         mutexes.ensure(name, createMutex).withLock(async () => {
+          isAcquired = true;
           onAcquired.resolve();
-          if (run.signal.aborted) return ok();
           await onRelease.promise;
           return ok();
         }),
       );
 
-      await onAcquired.promise;
+      const acquiredOrAbort = await Promise.race([
+        onAcquired.promise.then(() => ({ type: "acquired" as const })),
+        onAborted.promise.then((error) => ({
+          type: "aborted" as const,
+          error,
+        })),
+      ]);
+
+      if (acquiredOrAbort.type === "aborted") {
+        return err(acquiredOrAbort.error);
+      }
 
       if (run.signal.aborted) {
         onRelease.resolve();
