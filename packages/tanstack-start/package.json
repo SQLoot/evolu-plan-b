@@ -1,0 +1,32 @@
+{
+  "name": "@evolu/tanstack-start",
+  "version": "0.1.0",
+  "description": "Evolu integration helpers for TanStack Start client boundaries",
+  "private": true,
+  "type": "module",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    }
+  },
+  "files": [
+    "dist/src/**",
+    "src/**",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "rimraf dist && tsc --build tsconfig.build.json",
+    "test": "bunx vitest run",
+    "clean": "rimraf .turbo node_modules dist"
+  },
+  "devDependencies": {
+    "@evolu/tsconfig": "workspace:*",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}
