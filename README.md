@@ -11,6 +11,50 @@ Primary goals:
 
 Evolu is a TypeScript library and local-first platform.
 
+## Integration Matrix
+
+Coverage snapshot date: `2026-02-27` (from `bun run test:coverage` and `bun run test:coverage:bun`).
+
+| Package | Supported Versions | Implementation Status | Coverage (Statements / Branches) | Notes |
+| --- | --- | --- | --- | --- |
+| `@evolu/common` | Node `>=24.0.0` | Stable core | `94.47% / 89.67%` | Main engine + local-first protocol/runtime. |
+| `@evolu/web` | `@evolu/common ^7.4.1` | Stable | `96.67% / 90.70%` | Browser runtime (Worker/SharedWorker/Web Locks path). |
+| `@evolu/nodejs` | Node `>=24.0.0`, `@evolu/common ^7.4.1` | Stable | Worker `100% / 100%`, Sqlite `100% / 87.5%` | Package aggregate is lower due to minimal shim files. |
+| `@evolu/react-web` | React `>=19`, React DOM `>=19`, `@evolu/web ^2.4.0` | Stable thin adapter | `100% / 100%` | Thin web integration wrapper. |
+| `@evolu/react-native` | React Native `>=0.81`, Expo `>=54`, `@op-engineering/op-sqlite >=12` | Active hardening | `20.65% / 13.11%` | Core adapters are covered; broader suite is backlog. |
+| `@evolu/react` | React `>=19` | Wrapper support | `0% / 0%` | Hook wrappers; coverage expansion planned. |
+| `@evolu/vue` | Vue `>=3.5.29` | Wrapper support | `0% / 0%` | Composition API wrappers; coverage expansion planned. |
+| `@evolu/svelte` | Svelte `>=5.53.3`, `@evolu/web ^2.4.0` | Wrapper support | `0% / 0%` | Store-based wrappers; coverage expansion planned. |
+| `@evolu/bun` (private) | `@evolu/common ^7.4.1`, Bun `1.3.x` | Experimental adapter | `100% / 100%` | Measured via Bun coverage runner on `BunDbWorker.ts`. |
+
+## `@evolu/common` Compatibility and Third-Party Dependencies
+
+- Package version: `7.4.1`
+- Runtime baseline: Node `>=24.0.0`
+- Monorepo toolchain baseline: Bun `1.3.10`
+
+Third-party runtime dependencies used by `@evolu/common`:
+
+| Dependency | Why It Is Used |
+| --- | --- |
+| `@noble/ciphers` | Audited cryptographic ciphers for encryption flows. |
+| `@noble/hashes` | Audited hash primitives used by protocol/auth internals. |
+| `@scure/bip39` | Mnemonic handling for owner/account recovery flows. |
+| `disposablestack` | Disposable stack compatibility utility for cleanup semantics. |
+| `kysely` | Typed SQL query builder integration. |
+| `msgpackr` | Binary message serialization for protocol payloads. |
+| `zod` | Runtime schema validation and parsing. |
+
+Dependency policy:
+
+- No dependency downgrades in sync waves.
+- Prefer native Bun/runtime APIs where practical.
+- Keep API/protocol compatibility with upstream.
+
+## Fork Diff vs Upstream
+
+For a concise overview of what this fork changes, why, and what is intentionally extra, see [UPSTREAM_DIFF.md](./UPSTREAM_DIFF.md).
+
 ## Documentation
 
 For detailed information and usage examples, please visit [evolu.dev](https://www.evolu.dev).
@@ -32,7 +76,7 @@ To chat with other community members, you can join the [Evolu Discord](https://d
 Evolu monorepo uses [Bun](https://bun.sh).
 
 > [!NOTE]
-> The Evolu monorepo is verified to run under **Bun 1.3.9** in combination with **Node.js >=24.0.0**. This compatibility is explicitly tested in CI.
+> The Evolu monorepo is verified to run under **Bun 1.3.10** in combination with **Node.js >=24.0.0**. This compatibility is explicitly tested in CI.
 
 Install dependencies:
 
