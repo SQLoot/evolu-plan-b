@@ -36,6 +36,28 @@ const toMetric = ({ total, covered }: Counter): CoverageMetric => ({
   pct: total === 0 ? 100 : (covered / total) * 100,
 });
 
+const sumMetric = (
+  entries: ReadonlyArray<CoverageEntry>,
+  metric: keyof CoverageEntry,
+): CoverageMetric => {
+  let total = 0;
+  let covered = 0;
+  let skipped = 0;
+
+  for (const entry of entries) {
+    total += entry[metric].total;
+    covered += entry[metric].covered;
+    skipped += entry[metric].skipped;
+  }
+
+  return {
+    total,
+    covered,
+    skipped,
+    pct: total === 0 ? 100 : (covered / total) * 100,
+  };
+};
+
 const parseArgs = (args: ReadonlyArray<string>): Map<string, string> => {
   const config = new Map<string, string>();
   for (let index = 0; index < args.length; index += 2) {
@@ -172,6 +194,16 @@ const main = (): void => {
     };
     mergedFiles++;
   }
+
+  const nonTotalEntries = Object.entries(summary)
+    .filter(([file]) => file !== "total")
+    .map(([, entry]) => entry);
+  summary.total = {
+    lines: sumMetric(nonTotalEntries, "lines"),
+    functions: sumMetric(nonTotalEntries, "functions"),
+    statements: sumMetric(nonTotalEntries, "statements"),
+    branches: sumMetric(nonTotalEntries, "branches"),
+  };
 
   writeFileSync(outputPath, `${JSON.stringify(summary, null, 2)}\n`);
   console.log(

@@ -331,9 +331,12 @@ export const createSync =
           socket = result.value;
           flushPendingSends();
 
+          /* v8 ignore start */
+          // Defensive cleanup for a resolved socket after disposal.
           if (isDisposed) {
             socket[Symbol.dispose]();
           }
+          /* v8 ignore stop */
         },
         (error: unknown) => {
           if (isDisposed) return;
@@ -836,10 +839,10 @@ const createClientStorage =
 export const testCreateClientStorage = createClientStorage;
 
 const isSameWriteKey = (a: Uint8Array, b: Uint8Array): boolean => {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i += 1) {
-    diff |= a[i] ^ b[i];
+  let diff = a.length ^ b.length;
+  const maxLength = Math.max(a.length, b.length);
+  for (let i = 0; i < maxLength; i += 1) {
+    diff |= (a[i] | 0) ^ (b[i] | 0);
   }
   return diff === 0;
 };
