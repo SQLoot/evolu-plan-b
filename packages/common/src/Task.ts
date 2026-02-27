@@ -17,6 +17,7 @@ import type { RandomBytes, RandomBytesDep } from "./Crypto.js";
 import { createRandomBytes } from "./Crypto.js";
 import { eqArrayStrict } from "./Eq.js";
 import { lazyTrue, lazyVoid } from "./Function.js";
+import { createInstances } from "./Instances.js";
 import { decrement, increment } from "./Number.js";
 import {
   createRecord,
@@ -43,6 +44,7 @@ import {
   type InferType,
   maxPositiveInt,
   minPositiveInt,
+  type Name,
   NonNegativeInt,
   object,
   PositiveInt,
@@ -2712,6 +2714,86 @@ export const createMutex = (): Mutex => {
   return {
     withLock: semaphore.withPermit,
     [Symbol.dispose]: semaphore[Symbol.dispose],
+  };
+};
+
+/**
+ * Cross-platform leader lock abstraction.
+ *
+ * `acquire` blocks until leadership is acquired.
+ *
+ * Returns {@link Disposable} lease. Dispose it to release leadership.
+ *
+ * @group Concurrency primitives
+ */
+export interface LeaderLock {
+  readonly acquire: (name: Name) => Task<Disposable>;
+}
+
+/** @group Concurrency primitives */
+export interface LeaderLockDep {
+  readonly leaderLock: LeaderLock;
+}
+
+/**
+ * Creates an in-process {@link LeaderLock}.
+ *
+ * Uses one {@link Mutex} per {@link Name}. Suitable for runtimes without a
+ * cross-process lock manager (for example in-memory worker tests or React
+ * Native).
+ *
+ * @group Concurrency primitives
+ */
+export const createInMemoryLeaderLock = (): LeaderLock => {
+  const mutexes = createInstances<Name, Mutex>();
+
+  return {
+    acquire: (name) => async (run) => {
+      // Two gates are needed: one to wait until lock acquisition and one to
+      // keep the lock held until lease disposal.
+      const onAcquired = Promise.withResolvers<void>();
+      const onRelease = Promise.withResolvers<void>();
+      const onAborted = Promise.withResolvers<AbortError>();
+      let isAcquired = false;
+
+      run.onAbort((reason) => {
+        if (isAcquired) return;
+        onRelease.resolve();
+        onAborted.resolve(createAbortError(reason));
+      });
+
+      void run.daemon(
+        mutexes.ensure(name, createMutex).withLock(async () => {
+          isAcquired = true;
+          onAcquired.resolve();
+          await onRelease.promise;
+          return ok();
+        }),
+      );
+
+      const acquiredOrAbort = await Promise.race([
+        onAcquired.promise.then(() => ({ type: "acquired" as const })),
+        onAborted.promise.then((error) => ({
+          type: "aborted" as const,
+          error,
+        })),
+      ]);
+
+      if (acquiredOrAbort.type === "aborted") {
+        return err(acquiredOrAbort.error);
+      }
+
+      if (run.signal.aborted) {
+        onRelease.resolve();
+        return err(run.signal.reason as AbortError);
+      }
+
+      return ok({
+        [Symbol.dispose]: () => {
+          onRelease.resolve();
+        },
+      });
+    },
   };
 };
 

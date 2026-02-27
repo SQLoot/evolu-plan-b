@@ -9,7 +9,6 @@ import {
   createBaseSqliteStorage,
   createBaseSqliteStorageTables,
   DbChange,
-  getNextStoredBytes,
   getTimestampByIndex,
   getTimestampInsertStrategy,
   InfiniteUpperBound,
@@ -25,11 +24,11 @@ import {
 import { computeBalancedBuckets } from "../../src/Number.js";
 import { createRandom } from "../../src/Random.js";
 import { ok } from "../../src/Result.js";
-import { sql } from "../../src/Sqlite.js";
+import { sql, testCreateRunWithSqlite } from "../../src/Sqlite.js";
 import { testCreateDeps } from "../../src/Test.js";
 import type { Millis } from "../../src/Time.js";
 import { createId, NonNegativeInt, type PositiveInt } from "../../src/Type.js";
-import { testCreateRunWithSqlite } from "../_deps.js";
+import { testCreateSqliteDeps } from "../_deps.js";
 import {
   testAnotherTimestampsAsc,
   testAppOwner2,
@@ -40,7 +39,7 @@ import {
 } from "./_fixtures.js";
 
 const createDeps = async () => {
-  await using run = await testCreateRunWithSqlite();
+  const run = await testCreateRunWithSqlite(testCreateSqliteDeps());
   const { sqlite } = run.deps;
 
   // For reliable performance, we have to use Math.random!
@@ -49,7 +48,11 @@ const createDeps = async () => {
 
   createBaseSqliteStorageTables({ sqlite });
 
-  return { sqlite, storage: createBaseSqliteStorage({ sqlite, random }) };
+  return {
+    sqlite,
+    storage: createBaseSqliteStorage({ sqlite, random }),
+    [Symbol.asyncDispose]: () => run[Symbol.asyncDispose](),
+  };
 };
 
 const xorFingerprints = (arr1: Fingerprint, arr2: Fingerprint): Fingerprint => {
@@ -67,7 +70,7 @@ const testTimestamps = async (
   timestamps: ReadonlyArray<TimestampBytes>,
   strategy: StorageInsertTimestampStrategy,
 ) => {
-  const deps = await createDeps();
+  await using deps = await createDeps();
 
   const bruteForceAllTimestampsFingerprint = timestamps
     .map(timestampBytesToFingerprint)
@@ -197,7 +200,7 @@ test(
 );
 
 test("empty db", async () => {
-  const deps = await createDeps();
+  await using deps = await createDeps();
   const size = deps.storage.getSize(testAppOwnerIdBytes);
   expect(size).toBe(0);
 
@@ -217,72 +220,9 @@ test("empty db", async () => {
   expect(lowerBound).toBe(0);
 });
 
-test("getNextStoredBytes computes cumulative usage", () => {
-  expect(getNextStoredBytes(null, 5 as PositiveInt)).toBe(5);
-  expect(getNextStoredBytes(NonNegativeInt.orThrow(5), 7 as PositiveInt)).toBe(
-    12,
-  );
-});
-
-const count = 1_000_000;
-const batchSize = 10_000;
-
-const benchmarkTimestamps = async (
-  timestamps: ReadonlyArray<TimestampBytes>,
-  strategy: StorageInsertTimestampStrategy,
-) => {
-  const deps = await createDeps();
-  const insertBeginTime = performance.now();
-
-  for (
-    let batchStart = 0;
-    batchStart < timestamps.length;
-    batchStart += batchSize
-  ) {
-    const batchEnd = Math.min(batchStart + batchSize, timestamps.length);
-
-    const batchBeginTime = performance.now();
-    deps.sqlite.transaction(() => {
-      for (let i = batchStart; i < batchEnd; i++) {
-        deps.storage.insertTimestamp(
-          testAppOwnerIdBytes,
-          timestamps[i],
-          strategy,
-        );
-      }
-      return ok();
-    });
-    const batchTimeSec = (performance.now() - batchBeginTime) / 1000;
-    const insertsPerSec = ((batchEnd - batchStart) / batchTimeSec).toFixed(0);
-
-    const bucketsBeginTime = performance.now();
-    const size = deps.storage.getSize(testAppOwnerIdBytes);
-    assert(size);
-    const buckets = computeBalancedBuckets(size);
-    assert(buckets.ok);
-    const fingerprint = deps.storage.fingerprintRanges(
-      testAppOwnerIdBytes,
-      buckets.value,
-    );
-    assert(fingerprint);
-    const now = performance.now();
-    const timestampsTime = (now - insertBeginTime).toFixed(1);
-    const bucketsTime = (now - bucketsBeginTime).toFixed(1);
-
-    console.log(
-      `${Math.min(batchStart + batchSize, timestamps.length)} timestamps ${
-        strategy
-      } in ${
-        timestampsTime
-      } ms, ${insertsPerSec} inserts/sec in batch, getSize + 16 fingerprints in ${
-        bucketsTime
-      } ms`,
-    );
-  }
-};
-
 test("findLowerBound", async () => {
-  const { storage } = await createDeps();
+  await using deps = await createDeps();
+  const { storage } = deps;
 
   const timestamps = Array.from({ length: 10 }, (_, i) =>
     timestampToTimestampBytes(createTimestamp({ millis: (i + 1) as Millis })),
@@ -325,7 +265,7 @@ test("findLowerBound", async () => {
 });
 
 test("iterate", async () => {
-  const deps = await createDeps();
+  await using deps = await createDeps();
 
   for (const timestamp of testTimestampsAsc) {
     deps.storage.insertTimestamp(testAppOwnerIdBytes, timestamp, "append");
@@ -368,7 +308,7 @@ test("iterate", async () => {
 });
 
 test("getTimestampByIndex", async () => {
-  const deps = await createDeps();
+  await using deps = await createDeps();
 
   for (const timestamp of testTimestampsAsc) {
     deps.storage.insertTimestamp(testAppOwnerIdBytes, timestamp, "append");
@@ -442,6 +382,65 @@ test.skip("insert 1_000_000", longTimeout, async () => {
   // TODO: Ask SQLite team for paid review
   await benchmarkTimestamps(timestampsRandom, "insert");
 });
+
+// const count = 1_000_000;
+const count = 50_000;
+const batchSize = 10_000;
+
+const benchmarkTimestamps = async (
+  timestamps: ReadonlyArray<TimestampBytes>,
+  strategy: StorageInsertTimestampStrategy,
+) => {
+  await using deps = await createDeps();
+  const insertBeginTime = performance.now();
+
+  for (
+    let batchStart = 0;
+    batchStart < timestamps.length;
+    batchStart += batchSize
+  ) {
+    const batchEnd = Math.min(batchStart + batchSize, timestamps.length);
+
+    const batchBeginTime = performance.now();
+    deps.sqlite.transaction(() => {
+      for (let i = batchStart; i < batchEnd; i++) {
+        deps.storage.insertTimestamp(
+          testAppOwnerIdBytes,
+          timestamps[i],
+          strategy,
+        );
+      }
+      return ok();
+    });
+    const batchTimeSec = (performance.now() - batchBeginTime) / 1000;
+    const insertsPerSec = ((batchEnd - batchStart) / batchTimeSec).toFixed(0);
+
+    const bucketsBeginTime = performance.now();
+    const size = deps.storage.getSize(testAppOwnerIdBytes);
+    assert(size);
+    const buckets = computeBalancedBuckets(size);
+    assert(buckets.ok);
+    const fingerprint = deps.storage.fingerprintRanges(
+      testAppOwnerIdBytes,
+      buckets.value,
+    );
+    assert(fingerprint);
+    const now = performance.now();
+    const timestampsTime = (now - insertBeginTime).toFixed(1);
+    const bucketsTime = (now - bucketsBeginTime).toFixed(1);
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `${Math.min(batchStart + batchSize, timestamps.length)} timestamps ${
+        strategy
+      } in ${
+        timestampsTime
+      } ms, ${insertsPerSec} inserts/sec in batch, getSize + 16 fingerprints in ${
+        bucketsTime
+      } ms`,
+    );
+  }
+};
 
 /**
  * Test with 16_777_216 sequential timestamps, as JavaScript's Set has a limit

@@ -18,17 +18,22 @@ import type {
   RandomBytesDep,
 } from "../Crypto.js";
 import { getProperty, objectToEntries } from "../Object.js";
-import type { LeaderLockDep } from "../Platform.js";
 import type { RandomDep } from "../Random.js";
 import { getOk, ok, type Result } from "../Result.js";
 import { spaced } from "../Schedule.js";
-import type { CreateSqliteDriverDep, SqliteDep, SqliteRow } from "../Sqlite.js";
+import type {
+  CreateSqliteDriverDep,
+  SqliteDep,
+  SqliteRow,
+  SqliteSchema,
+} from "../Sqlite.js";
 import {
   booleanToSqliteBoolean,
   createSqlite,
   type SqliteValue,
   sql,
 } from "../Sqlite.js";
+import type { LeaderLockDep } from "../Task.js";
 import { type AsyncDisposableStack, repeat, type Task } from "../Task.js";
 import { type Millis, millisToDateIso, type TimeDep } from "../Time.js";
 import type { Name } from "../Type.js";
@@ -51,8 +56,12 @@ import type { OwnerId, OwnerIdBytes } from "./Owner.js";
 import { ownerIdBytesToOwnerId, ownerIdToOwnerIdBytes } from "./Owner.js";
 import { encodeAndEncryptDbChange, protocolVersion } from "./Protocol.js";
 import { deserializeQuery, type Query } from "./Query.js";
-import type { DbSchema, DbSchemaDep, MutationChange } from "./Schema.js";
-import { ensureDbSchema, getDbSchema, systemColumns } from "./Schema.js";
+import type { MutationChange, SqliteSchemaDep } from "./Schema.js";
+import {
+  ensureSqliteSchema,
+  getEvoluSqliteSchema,
+  systemColumns,
+} from "./Schema.js";
 import type {
   DbWorkerInput,
   DbWorkerOutput,
@@ -92,7 +101,7 @@ export interface DbWorkerInit {
   readonly type: "Init";
   readonly name: Name;
   readonly consoleLevel: ConsoleLevel;
-  readonly dbSchema: DbSchema;
+  readonly sqliteSchema: SqliteSchema;
   readonly encryptionKey: EncryptionKey;
   readonly port: NativeMessagePort<DbWorkerOutput, DbWorkerInput>;
 }
@@ -124,7 +133,7 @@ export const initDbWorker =
     self.onMessage = ({
       name,
       consoleLevel,
-      dbSchema,
+      sqliteSchema,
       encryptionKey,
       port: nativeLeaderPort,
     }) => {
@@ -166,7 +175,7 @@ export const initDbWorker =
           return await run.addDeps({
             port,
             timestampConfig: { maxDrift: defaultTimestampMaxDrift },
-          })(startDbWorker(name, dbSchema, encryptionKey));
+          })(startDbWorker(name, sqliteSchema, encryptionKey));
         } finally {
           heartbeatFiber.abort();
         }
@@ -179,7 +188,7 @@ export const initDbWorker =
 const startDbWorker =
   (
     name: Name,
-    dbSchema: DbSchema,
+    sqliteSchema: SqliteSchema,
     encryptionKey: EncryptionKey,
   ): Task<
     globalThis.AsyncDisposableStack,
@@ -202,18 +211,18 @@ const startDbWorker =
     const deps = {
       ...run.deps,
       sqlite,
-      dbSchema,
+      sqliteSchema,
       baseSqliteStorage,
       encryptionKey,
     };
 
-    const currentSchema = getDbSchema(deps)();
+    const currentSchema = getEvoluSqliteSchema(deps)();
     const dbIsInitialized = "evolu_version" in currentSchema.tables;
     const clock = createClock(deps)(dbIsInitialized);
 
     sqlite.transaction(() => {
       if (!dbIsInitialized) initializeDb(deps)(clock.get());
-      ensureDbSchema(deps)(dbSchema, currentSchema);
+      ensureSqliteSchema(deps)(sqliteSchema, currentSchema);
       tryApplyQuarantinedMessages(deps);
     });
 
@@ -444,7 +453,9 @@ const initializeDb =
     createBaseSqliteStorageTables({ sqlite });
   };
 
-const tryApplyQuarantinedMessages = (deps: SqliteDep & DbSchemaDep): void => {
+const tryApplyQuarantinedMessages = (
+  deps: SqliteDep & SqliteSchemaDep,
+): void => {
   const rows = deps.sqlite.exec<{
     readonly ownerId: OwnerIdBytes;
     readonly timestamp: TimestampBytes;
@@ -484,9 +495,9 @@ const tryApplyQuarantinedMessages = (deps: SqliteDep & DbSchemaDep): void => {
 };
 
 const validateColumnValue =
-  (deps: DbSchemaDep) =>
+  (deps: SqliteSchemaDep) =>
   (table: string, column: string, _value: SqliteValue): boolean => {
-    const schemaColumns = getProperty(deps.dbSchema.tables, table);
+    const schemaColumns = getProperty(deps.sqliteSchema.tables, table);
     return (
       schemaColumns != null &&
       (systemColumnsWithoutOwnerId.has(column) || schemaColumns.has(column))
@@ -553,7 +564,7 @@ const handleMutation =
   (
     deps: BaseSqliteStorageDep &
       ClockDep &
-      DbSchemaDep &
+      SqliteSchemaDep &
       EncryptionKeyDep &
       RandomDep &
       RandomBytesDep &
@@ -647,7 +658,11 @@ const applyLocalOnlyChange =
 
 const applyMessages =
   (
-    deps: BaseSqliteStorageDep & ClockDep & DbSchemaDep & RandomDep & SqliteDep,
+    deps: BaseSqliteStorageDep &
+      ClockDep &
+      SqliteSchemaDep &
+      RandomDep &
+      SqliteDep,
   ) =>
   (
     ownerId: OwnerId,
@@ -758,10 +773,10 @@ const loadQueries =
 
 //   reset: (deps) => (message) => {
 //     const result = deps.sqlite.transaction(() => {
-//       const dbSchema = getDbSchema(deps)();
-//       if (!dbSchema.ok) return dbSchema;
+//       const sqliteSchema = getEvoluSqliteSchema(deps)();
+//       if (!sqliteSchema.ok) return sqliteSchema;
 
-//       for (const tableName in dbSchema.value.tables) {
+//       for (const tableName in sqliteSchema.value.tables) {
 //         /**
 //          * The dropped table is completely removed from the database schema and
 //          * the disk file. The table can not be recovered. All indices and
@@ -775,7 +790,7 @@ const loadQueries =
 //       }
 
 //       if (message.restore) {
-//         const result = ensureDbSchema(deps)(message.restore.dbSchema);
+//         const result = ensureSqliteSchema(deps)(message.restore.sqliteSchema);
 //         if (!result.ok) return result;
 
 //         const secret = mnemonicToOwnerSecret(message.restore.mnemonic);
@@ -800,9 +815,9 @@ const loadQueries =
 //     });
 //   },
 
-//   ensureDbSchema: (deps) => (message) => {
+//   ensureSqliteSchema: (deps) => (message) => {
 //     const result = deps.sqlite.transaction(() =>
-//       ensureDbSchema(deps)(message.dbSchema),
+//       ensureSqliteSchema(deps)(message.sqliteSchema),
 //     );
 
 //     if (!result.ok) {

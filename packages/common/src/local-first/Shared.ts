@@ -14,11 +14,11 @@ import {
 import { assert } from "../Assert.js";
 import { createCallbacks } from "../Callbacks.js";
 import type { Console, ConsoleEntry, ConsoleLevel } from "../Console.js";
-import { exhaustiveCheck } from "../Function.js";
 import { createInstances } from "../Instances.js";
 import { ok } from "../Result.js";
 import { spaced } from "../Schedule.js";
 import type { NonEmptyReadonlySet } from "../Set.js";
+import type { SqliteExportFile } from "../Sqlite.js";
 import { type Fiber, type Run, repeat, type Task } from "../Task.js";
 import type { Millis, TimeDep } from "../Time.js";
 import { createId, type Id, type Name } from "../Type.js";
@@ -99,7 +99,7 @@ export type EvoluOutput =
     }
   | {
       readonly type: "OnExport";
-      readonly file: Uint8Array<ArrayBuffer>;
+      readonly file: SqliteExportFile;
     };
 
 export const initSharedWorker =
@@ -171,7 +171,7 @@ export const initSharedWorker =
             break;
           }
           default:
-            exhaustiveCheck(message);
+            console.error("Unknown shared worker input", message);
         }
       };
     };
@@ -227,7 +227,7 @@ export type QueuedResponse =
     }
   | {
       readonly type: "Export";
-      readonly file: Uint8Array<ArrayBuffer>;
+      readonly file: SqliteExportFile;
     };
 
 export interface QueuedResult {
@@ -472,7 +472,7 @@ const createSharedEvolu = ({
 
           break;
         default:
-          exhaustiveCheck(response);
+          console.error("Unknown queued response", response);
       }
 
       // Complete the current queue item and continue with the next one.
@@ -559,7 +559,7 @@ const createSharedEvolu = ({
             break;
           }
           default:
-            exhaustiveCheck(message);
+            console.error("Unknown db worker output", message);
         }
       };
 
@@ -588,7 +588,7 @@ const createSharedEvolu = ({
             break;
           }
           default:
-            exhaustiveCheck(evoluMessage);
+            console.error("Unknown evolu input", evoluMessage);
         }
       };
     },
@@ -614,12 +614,12 @@ const createSharedEvolu = ({
 //       readonly onCompleteId: CallbackId;
 //       readonly reload: boolean;
 //       readonly restore?: {
-//         readonly dbSchema: DbSchema;
+//         readonly sqliteSchema: SqliteSchema;
 //         readonly mnemonic: Mnemonic;
 //       };
 //     })
-//   | (Typed<"ensureDbSchema"> & {
-//       readonly dbSchema: DbSchema;
+//   | (Typed<"ensureSqliteSchema"> & {
+//       readonly sqliteSchema: SqliteSchema;
 //     })
 //   | (Typed<"export"> & {
 //       readonly onCompleteId: CallbackId;

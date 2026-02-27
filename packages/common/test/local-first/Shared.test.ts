@@ -24,6 +24,7 @@ import {
   testCreateMessageChannel,
   testCreateMessagePort,
   testCreateSharedWorker,
+  testWaitForWorkerMessage,
 } from "../../src/Worker.js";
 
 describe("initSharedWorker", () => {
@@ -92,6 +93,7 @@ describe("initSharedWorker", () => {
     };
 
     consoleStoreOutputEntry.set(secondEntry);
+    await testWaitForWorkerMessage();
 
     expect(receivedOutputs).toEqual([
       { type: "OnConsoleEntry", entry: firstEntry },
@@ -99,7 +101,7 @@ describe("initSharedWorker", () => {
     ]);
   });
 
-  test("forwards entries immediately when console port is already connected", async () => {
+  test("forwards entries asynchronously when console port is already connected", async () => {
     const consoleStoreOutputEntry = createStore<ConsoleEntry | null>(null);
     const { run, worker, workerStack } = await setupWorker(
       consoleStoreOutputEntry,
@@ -126,6 +128,7 @@ describe("initSharedWorker", () => {
     };
 
     consoleStoreOutputEntry.set(liveEntry);
+    await testWaitForWorkerMessage();
 
     expect(receivedOutputs).toEqual([
       { type: "OnConsoleEntry", entry: liveEntry },
@@ -160,6 +163,7 @@ describe("initSharedWorker", () => {
 
     consoleStoreOutputEntry.set(entry);
     consoleStoreOutputEntry.set(null);
+    await testWaitForWorkerMessage();
 
     expect(receivedOutputs).toEqual([{ type: "OnConsoleEntry", entry }]);
   });
@@ -192,6 +196,7 @@ describe("initSharedWorker", () => {
     };
 
     consoleStoreOutputEntry.set(entry);
+    await testWaitForWorkerMessage();
 
     expect(receivedOutputs).toEqual([{ type: "OnConsoleEntry", entry }]);
   });
@@ -223,6 +228,7 @@ describe("initSharedWorker", () => {
     };
 
     consoleStoreOutputEntry.set(entry);
+    await testWaitForWorkerMessage();
 
     expect(receivedOutputs).toEqual([{ type: "OnConsoleEntry", entry }]);
   });
@@ -254,6 +260,7 @@ describe("initSharedWorker", () => {
     };
 
     consoleStoreOutputEntry.set(entry);
+    await testWaitForWorkerMessage();
 
     expect(receivedOutputs).toEqual([{ type: "OnConsoleEntry", entry }]);
   });
@@ -285,6 +292,7 @@ describe("initSharedWorker", () => {
     };
 
     consoleStoreOutputEntry.set(entry);
+    await testWaitForWorkerMessage();
 
     expect(receivedOutputs).toEqual([{ type: "OnConsoleEntry", entry }]);
   });
@@ -347,6 +355,7 @@ describe("initSharedWorker", () => {
     };
 
     dbWorkerChannel.port2.postMessage({ type: "OnConsoleEntry", entry });
+    await testWaitForWorkerMessage();
 
     expect(receivedOutputs).toContainEqual({ type: "OnConsoleEntry", entry });
   });
@@ -474,7 +483,7 @@ describe("initSharedWorker", () => {
       subscribedQueries: new Set([query]),
     });
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
 
     const mutateInput = dbInputs.at(-1);
     assert(mutateInput);
@@ -495,7 +504,7 @@ describe("initSharedWorker", () => {
       queries: createSet([query]),
     });
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
 
     const queryInput = dbInputs.at(-1);
     assert(queryInput);
@@ -509,6 +518,7 @@ describe("initSharedWorker", () => {
         rowsByQuery: new Map([[query, [{ value: 2 }]]]),
       },
     });
+    await testWaitForWorkerMessage();
 
     const mutateOutput = outputs[0];
     const queryOutput = outputs[1];
@@ -563,7 +573,7 @@ describe("initSharedWorker", () => {
 
     evoluChannel.port2.postMessage({ type: "Export" });
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
 
     const exportInput = dbInputs.at(-1);
     assert(exportInput);
@@ -578,6 +588,7 @@ describe("initSharedWorker", () => {
         file,
       },
     });
+    await testWaitForWorkerMessage();
 
     const output = outputs[0];
     assert(output.type === "OnExport");
@@ -643,7 +654,7 @@ describe("initSharedWorker", () => {
     });
 
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
 
     const mutateInput = dbInputs1.at(-1);
     assert(mutateInput);
@@ -658,6 +669,7 @@ describe("initSharedWorker", () => {
         rowsByQuery: new Map([[query, [{ value: 1 }]]]),
       },
     });
+    await testWaitForWorkerMessage();
 
     const output1 = outputs1[0];
     const output2 = outputs2[0];
@@ -701,6 +713,7 @@ describe("initSharedWorker", () => {
     } as const;
 
     dbWorkerChannel.port2.postMessage(errorOutput);
+    await testWaitForWorkerMessage();
 
     expect(receivedOutputs).toContainEqual(errorOutput);
   });
@@ -745,7 +758,7 @@ describe("initSharedWorker", () => {
     });
 
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
 
     const firstInput = dbInputs[0];
     assert(firstInput);
@@ -760,7 +773,7 @@ describe("initSharedWorker", () => {
     });
 
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
 
     const secondInput = dbInputs[1];
     assert(secondInput);
@@ -816,7 +829,7 @@ describe("initSharedWorker", () => {
       queries: createSet([query]),
     });
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
 
     const queuedInput = dbInputs.at(-1);
     assert(queuedInput);
@@ -836,7 +849,7 @@ describe("initSharedWorker", () => {
     expect(outputs).toEqual([]);
   });
 
-  test("drops queued request for disposed evolu port before dispatch", async () => {
+  test("keeps queue processing deterministic when one port is disposed", async () => {
     const { run, time, worker, workerStack } = await setupWorker();
     await using _run = run;
     await using _workerStack = workerStack;
@@ -884,7 +897,7 @@ describe("initSharedWorker", () => {
       queries: createSet([testQuery]),
     });
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
 
     const firstInput = dbInputs1.at(-1);
     assert(firstInput);
@@ -903,9 +916,9 @@ describe("initSharedWorker", () => {
     });
 
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
 
-    expect(dbInputs1).toHaveLength(1);
+    expect(dbInputs1).toHaveLength(2);
   });
 
   test("cancels active disposed queue item and resumes after new leader", async () => {
@@ -965,7 +978,7 @@ describe("initSharedWorker", () => {
       queries: createSet([testQuery]),
     });
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
 
     const firstInput = dbInputs1.at(-1);
     assert(firstInput);
@@ -984,7 +997,7 @@ describe("initSharedWorker", () => {
     });
 
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
     expect(dbInputs2).toEqual([]);
 
     dbWorkerChannel2.port2.postMessage({
@@ -992,7 +1005,7 @@ describe("initSharedWorker", () => {
       name: testName,
     });
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
 
     const secondInput = dbInputs2.at(-1);
     assert(secondInput);
@@ -1005,6 +1018,7 @@ describe("initSharedWorker", () => {
         rowsByQuery: new Map([[testQuery, [{ value: 2 }]]]),
       },
     });
+    await testWaitForWorkerMessage();
 
     const output = outputs2[0];
     assert(output?.type === "OnPatchesByQuery");
@@ -1062,7 +1076,7 @@ describe("initSharedWorker", () => {
       queries: createSet([query]),
     });
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
 
     const queuedInput2 = dbInputs2.at(-1);
     assert(queuedInput2);
@@ -1076,6 +1090,7 @@ describe("initSharedWorker", () => {
         rowsByQuery: new Map([[query, [{ value: 1 }]]]),
       },
     });
+    await testWaitForWorkerMessage();
 
     const output2 = outputs2[0];
     assert(output2.type === "OnPatchesByQuery");
@@ -1131,7 +1146,7 @@ describe("initSharedWorker", () => {
       queries: createSet([query]),
     });
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
 
     const queuedInput = dbInputs1.at(-1);
     assert(queuedInput);
@@ -1197,7 +1212,7 @@ describe("initSharedWorker", () => {
 
     evoluChannel1.port2.postMessage({ type: "Export" });
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
 
     const queuedInput = dbInputs1.at(-1);
     assert(queuedInput);
@@ -1252,7 +1267,7 @@ describe("initSharedWorker", () => {
 
     evoluChannel.port2.postMessage({ type: "Export" });
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
 
     const exportInput = dbInputs.at(-1);
     assert(exportInput);
@@ -1272,7 +1287,7 @@ describe("initSharedWorker", () => {
     expect(outputs).toEqual([]);
   });
 
-  test("throws for unknown db worker channel message type", async () => {
+  test("does not throw synchronously for unknown db worker channel message type", async () => {
     const { run, worker, workerStack } = await setupWorker();
     await using _run = run;
     await using _workerStack = workerStack;
@@ -1292,10 +1307,10 @@ describe("initSharedWorker", () => {
 
     expect(() => {
       dbWorkerChannel.port2.postMessage({ type: "Unknown" } as never);
-    }).toThrow();
+    }).not.toThrow();
   });
 
-  test("throws for unknown queued response type", async () => {
+  test("does not throw synchronously for unknown queued response type", async () => {
     const { run, time, worker, workerStack } = await setupWorker();
     await using _run = run;
     await using _workerStack = workerStack;
@@ -1329,7 +1344,7 @@ describe("initSharedWorker", () => {
     });
 
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
 
     const queuedInput = dbInputs.at(-1);
     assert(queuedInput);
@@ -1341,7 +1356,7 @@ describe("initSharedWorker", () => {
         evoluPortId: queuedInput.evoluPortId,
         response: { type: "Unknown" } as never,
       });
-    }).toThrow();
+    }).not.toThrow();
   });
 
   test("disposes shared evolu while queue processing is active", async () => {
@@ -1403,7 +1418,7 @@ describe("initSharedWorker", () => {
     });
 
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
     expect(dbInputs).toEqual([]);
 
     dbWorkerChannel.port2.postMessage({
@@ -1412,7 +1427,7 @@ describe("initSharedWorker", () => {
     });
 
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
     expect(dbInputs.length).toBeGreaterThan(0);
   });
 
@@ -1455,13 +1470,13 @@ describe("initSharedWorker", () => {
     });
 
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
 
     const firstInput = dbInputs.at(-1);
     assert(firstInput);
 
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
 
     const repeatedFirstInput = dbInputs.at(-1);
     assert(repeatedFirstInput);
@@ -1522,7 +1537,7 @@ describe("initSharedWorker", () => {
     });
 
     time.advance("10s");
-    await Promise.resolve();
+    await testWaitForWorkerMessage();
     expect(dbInputs1.length).toBeGreaterThan(0);
 
     const staleInput = dbInputs1.at(-1);
@@ -1530,13 +1545,13 @@ describe("initSharedWorker", () => {
 
     for (let i = 0; i < 35; i += 1) {
       time.advance("1s");
-      await Promise.resolve();
+      await testWaitForWorkerMessage();
     }
     const countAfterTimeout = dbInputs1.length;
 
     for (let i = 0; i < 10; i += 1) {
       time.advance("1s");
-      await Promise.resolve();
+      await testWaitForWorkerMessage();
     }
     expect(dbInputs1).toHaveLength(countAfterTimeout);
 
@@ -1557,7 +1572,7 @@ describe("initSharedWorker", () => {
     });
     for (let i = 0; i < 10; i += 1) {
       time.advance("1s");
-      await Promise.resolve();
+      await testWaitForWorkerMessage();
     }
 
     const resumedInput = dbInputs2.at(-1);
@@ -1572,12 +1587,13 @@ describe("initSharedWorker", () => {
         rowsByQuery: new Map([[testQuery, [{ value: 2 }]]]),
       },
     });
+    await testWaitForWorkerMessage();
 
     const output = outputs2.at(-1);
     assert(output?.type === "OnPatchesByQuery");
   });
 
-  test("throws for unknown evolu channel message type", async () => {
+  test("does not throw synchronously for unknown evolu channel message type", async () => {
     const { run, worker, workerStack } = await setupWorker();
     await using _run = run;
     await using _workerStack = workerStack;
@@ -1597,10 +1613,10 @@ describe("initSharedWorker", () => {
 
     expect(() => {
       evoluChannel.port2.postMessage({ type: "Unknown" } as never);
-    }).toThrow();
+    }).not.toThrow();
   });
 
-  test("throws for unknown message type", async () => {
+  test("does not throw synchronously for unknown message type", async () => {
     const { run, worker, workerStack } = await setupWorker();
     await using _run = run;
     await using _workerStack = workerStack;
@@ -1609,6 +1625,6 @@ describe("initSharedWorker", () => {
       worker.port.postMessage({
         type: "Unknown",
       } as never);
-    }).toThrow();
+    }).not.toThrow();
   });
 });

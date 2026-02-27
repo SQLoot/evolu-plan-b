@@ -1,5 +1,5 @@
 import type { NativeMessagePort } from "@evolu/common";
-import { lazyVoid } from "@evolu/common";
+import { lazyVoid, testWaitForMacrotask } from "@evolu/common";
 import { describe, expect, test } from "vitest";
 import {
   createMessageChannel,
@@ -9,7 +9,7 @@ import {
 } from "../src/Worker.js";
 
 describe("createWorker", () => {
-  test("worker and self communicate", () => {
+  test("worker and self communicate asynchronously", async () => {
     const receivedByWorker: Array<number> = [];
     const receivedBySelf: Array<string> = [];
 
@@ -21,13 +21,15 @@ describe("createWorker", () => {
     worker.onMessage = (message) => receivedByWorker.push(message);
     worker.postMessage("hello");
 
+    await testWaitForMacrotask();
+
     expect(receivedBySelf).toEqual(["hello"]);
     expect(receivedByWorker).toEqual([123]);
   });
 });
 
 describe("createSharedWorker", () => {
-  test("connects and allows client communication", () => {
+  test("connects and allows client communication asynchronously", async () => {
     const receivedByWorker: Array<string> = [];
     const receivedByClient: Array<number> = [];
 
@@ -41,6 +43,8 @@ describe("createSharedWorker", () => {
     worker.port.onMessage = (message) => receivedByClient.push(message);
     worker.port.postMessage("ping");
 
+    await testWaitForMacrotask();
+
     expect(receivedByWorker).toEqual(["ping"]);
     expect(receivedByClient).toEqual([42]);
   });
@@ -53,7 +57,7 @@ describe("createSharedWorker", () => {
 });
 
 describe("createMessageChannel", () => {
-  test("creates connected ports", () => {
+  test("creates connected ports with asynchronous delivery", async () => {
     const channel = createMessageChannel<string, number>();
     const strings: Array<string> = [];
     const numbers: Array<number> = [];
@@ -63,6 +67,8 @@ describe("createMessageChannel", () => {
 
     channel.port1.postMessage("hello");
     channel.port2.postMessage(7);
+
+    await testWaitForMacrotask();
 
     expect(strings).toEqual(["hello"]);
     expect(numbers).toEqual([7]);

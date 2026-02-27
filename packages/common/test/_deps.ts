@@ -3,7 +3,6 @@ import { readFileSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { assert } from "../src/Assert.js";
 import type { TimingSafeEqual } from "../src/Crypto.js";
 import { lazyTrue, lazyVoid } from "../src/Function.js";
 import {
@@ -24,63 +23,46 @@ import type {
   SqliteRow,
   SqliteValue,
 } from "../src/Sqlite.js";
-import { createPreparedStatementsCache, createSqlite } from "../src/Sqlite.js";
+import {
+  createPreparedStatementsCache,
+  testCreateRunWithSqlite as createTestRunWithSqlite,
+} from "../src/Sqlite.js";
 import type { Run } from "../src/Task.js";
-import { type TestDeps, testCreateRun } from "../src/Test.js";
-import { SimpleName } from "../src/Type.js";
+import type { TestDeps } from "../src/Test.js";
 
 const require = createRequire(import.meta.url);
 
-export const testSimpleName = /*#__PURE__*/ SimpleName.orThrow("Test");
-
 export const testTimingSafeEqual: TimingSafeEqual = timingSafeEqual;
 
-export const testCreateRunWithSqlite = async (): Promise<
-  Run<TestDeps & SqliteDep>
-> => {
-  const run = testCreateRun<CreateSqliteDriverDep>({
-    createSqliteDriver: testCreateSqliteDriver,
-  });
-
-  const sqlite = await run(createSqlite(testSimpleName));
-  assert(sqlite.ok, "bug");
-
-  run.defer(() => {
-    sqlite.value[Symbol.dispose]();
-    return ok();
-  });
-
-  return run.addDeps({ sqlite: sqlite.value });
-};
-
-/** Creates a test Run with relay storage and SQLite deps. */
-export const testCreateRunWithSqliteAndRelayStorage = async (
-  config?: Partial<StorageConfig>,
-): Promise<Run<TestDeps & SqliteDep & StorageDep>> => {
-  const run = await testCreateRunWithSqlite();
-
-  createBaseSqliteStorageTables(run.deps);
-  createRelayStorageTables(run.deps);
-
-  const storage = createRelaySqliteStorage({
-    ...run.deps,
-    timingSafeEqual: testTimingSafeEqual,
-  })({
-    isOwnerWithinQuota: lazyTrue,
-    ...config,
-  });
-
-  return run.addDeps<StorageDep>({ storage });
-};
-
 /** In-memory better-sqlite3 driver for tests. */
-const testCreateSqliteDriver: CreateSqliteDriver = (name) =>
+export const testCreateSqliteDriver: CreateSqliteDriver = (name) =>
   createBetterSqliteDriver(name, { mode: "memory" });
+
+const sqliteDeps = {
+  createSqliteDriver: testCreateSqliteDriver,
+} satisfies CreateSqliteDriverDep;
+
+type TestCreateSqliteDeps = CreateSqliteDriverDep &
+  (() => CreateSqliteDriverDep);
+
+// Keep backward compatibility for both call styles:
+// - testCreateSqliteDeps()
+// - testCreateSqliteDeps.createSqliteDriver(...)
+export const testCreateSqliteDeps: TestCreateSqliteDeps = Object.assign(
+  () => sqliteDeps,
+  sqliteDeps,
+);
+
+export const testCreateRunWithSqlite = async (): Promise<
+  Run<TestDeps & CreateSqliteDriverDep & SqliteDep>
+> => {
+  return createTestRunWithSqlite(testCreateSqliteDeps);
+};
 
 interface StatementLike {
   readonly reader?: boolean;
-  readonly all: (...parameters: ReadonlyArray<unknown>) => Array<SqliteRow>;
-  readonly run: (...parameters: ReadonlyArray<unknown>) => {
+  readonly all: (...parameters: ReadonlyArray<SqliteValue>) => Array<SqliteRow>;
+  readonly run: (...parameters: ReadonlyArray<SqliteValue>) => {
     readonly changes: number;
   };
 }
@@ -93,8 +75,8 @@ interface DbLike {
 
 interface BetterSqliteStatementLike {
   readonly reader: boolean;
-  readonly all: (parameters?: ReadonlyArray<SqliteValue>) => Array<SqliteRow>;
-  readonly run: (parameters?: ReadonlyArray<SqliteValue>) => {
+  readonly all: (...parameters: ReadonlyArray<SqliteValue>) => Array<SqliteRow>;
+  readonly run: (...parameters: ReadonlyArray<SqliteValue>) => {
     readonly changes: number;
   };
 }
@@ -174,8 +156,8 @@ const createDb = (filename: string): DbLike => {
         const statement = db.prepare(sql);
         return {
           reader: statement.reader,
-          all: (...parameters) => statement.all(parameters),
-          run: (...parameters) => statement.run(parameters),
+          all: (...parameters) => statement.all(...parameters),
+          run: (...parameters) => statement.run(...parameters),
         };
       },
       serialize: () => db.serialize(),
@@ -269,4 +251,24 @@ const createBetterSqliteDriver: CreateSqliteDriver = (name, options) => () => {
   };
 
   return ok(driver);
+};
+
+/** Creates a test Run with relay storage and SQLite deps. */
+export const testCreateRunWithSqliteAndRelayStorage = async (
+  config?: Partial<StorageConfig>,
+): Promise<Run<TestDeps & CreateSqliteDriverDep & SqliteDep & StorageDep>> => {
+  const runWithSqlite = await testCreateRunWithSqlite();
+
+  createBaseSqliteStorageTables(runWithSqlite.deps);
+  createRelayStorageTables(runWithSqlite.deps);
+
+  const storage = createRelaySqliteStorage({
+    ...runWithSqlite.deps,
+    timingSafeEqual: testTimingSafeEqual,
+  })({
+    isOwnerWithinQuota: lazyTrue,
+    ...config,
+  });
+
+  return runWithSqlite.addDeps<StorageDep>({ storage });
 };

@@ -1,12 +1,12 @@
 import { expect, test } from "vitest";
-import { createBaseSqliteStorageTables } from "../../src/local-first/Storage.js";
 import {
-  createSync,
-  defaultTimestampMaxDrift,
-  initialSyncState,
-} from "../../src/local-first/Sync.js";
+  createBaseSqliteStorageTables,
+  ValidDbChangeValues,
+} from "../../src/local-first/Storage.js";
+import { createSync, initialSyncState } from "../../src/local-first/Sync.js";
 import {
   createInitialTimestamp,
+  defaultTimestampMaxDrift,
   type Timestamp,
 } from "../../src/local-first/Timestamp.js";
 import { ok } from "../../src/Result.js";
@@ -64,7 +64,7 @@ const prepareSyncTables = ({ sqlite }: SqliteDep): void => {
   `);
 };
 
-const testDbSchema = {
+const testSqliteSchema = {
   tables: {
     todo: new Set(["title"]),
   },
@@ -87,6 +87,29 @@ test("initialSyncState is SyncStateInitial", () => {
   expect(initialSyncState).toEqual({ type: "SyncStateInitial" });
 });
 
+test("createSync validates disposalDelayMs", async () => {
+  await using run = await testCreateRunWithSqlite();
+  prepareSyncTables(run.deps);
+
+  expect(() =>
+    createSync({
+      ...run.deps,
+      clock: createInMemoryClock(run.deps),
+      sqliteSchema: testSqliteSchema,
+      createWebSocket: () => () => {
+        throw new Error("createWebSocket task should not be executed");
+      },
+      timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+    })({
+      appOwner: testAppOwner,
+      transports: [],
+      disposalDelayMs: -1,
+      onError: () => {},
+      onReceive: () => {},
+    }),
+  ).toThrow("Invalid SyncConfig.disposalDelayMs");
+});
+
 test("createSync does not create websocket for owner with no transports", async () => {
   await using run = await testCreateRunWithSqlite();
   prepareSyncTables(run.deps);
@@ -102,7 +125,7 @@ test("createSync does not create websocket for owner with no transports", async 
   const sync = createSync({
     ...run.deps,
     clock: createInMemoryClock(run.deps),
-    dbSchema: testDbSchema,
+    sqliteSchema: testSqliteSchema,
     createWebSocket,
     timestampConfig: { maxDrift: defaultTimestampMaxDrift },
   })({
@@ -126,7 +149,7 @@ test("createSync useOwner(false) is safe even if owner was never added", async (
   const sync = createSync({
     ...run.deps,
     clock: createInMemoryClock(run.deps),
-    dbSchema: testDbSchema,
+    sqliteSchema: testSqliteSchema,
     createWebSocket: () => () => {
       throw new Error("createWebSocket task should not be executed");
     },
@@ -148,7 +171,7 @@ test("createSync applyChanges persists local mutation without transports", async
   const sync = createSync({
     ...run.deps,
     clock: createInMemoryClock(run.deps),
-    dbSchema: testDbSchema,
+    sqliteSchema: testSqliteSchema,
     createWebSocket: () => () => {
       throw new Error("createWebSocket task should not be executed");
     },
@@ -165,7 +188,7 @@ test("createSync applyChanges persists local mutation without transports", async
       ownerId: testAppOwner.id,
       table: "todo",
       id: createId(run.deps),
-      values: { title: "Sync local insert" },
+      values: ValidDbChangeValues.orThrow({ title: "Sync local insert" }),
       isInsert: true,
       isDelete: false,
     },
@@ -195,7 +218,7 @@ test("createSync creates websocket resource for configured transport", async () 
   const sync = createSync({
     ...run.deps,
     clock: createInMemoryClock(run.deps),
-    dbSchema: testDbSchema,
+    sqliteSchema: testSqliteSchema,
     createWebSocket: (url, options) => async () => {
       createWebSocketCalls += 1;
       expect(url).toBe("ws://localhost:4000");
@@ -252,7 +275,7 @@ test("createSync deduplicates shared transport across owners", async () => {
   const sync = createSync({
     ...run.deps,
     clock: createInMemoryClock(run.deps),
-    dbSchema: testDbSchema,
+    sqliteSchema: testSqliteSchema,
     createWebSocket: () => async () => {
       createWebSocketCalls += 1;
       return ok({
