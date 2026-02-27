@@ -23,8 +23,8 @@ The new file-level gates are implemented by `scripts/coverage-file-gate.mts` and
 
 | File | Target | Current | Status |
 |---|---|---|---|
-| `packages/common/src/local-first/LocalAuth.ts` | `>=75 / >=60` | `98.57 / 73.52` | ✅ |
-| `packages/web/src/local-first/LocalAuth.ts` | `>=75 / >=60` | `94.18 / 82.69` | ✅ |
+| `packages/common/src/local-first/LocalAuth.ts` | `>=75 / >=60` | `100.00 / 94.11` | ✅ |
+| `packages/web/src/local-first/LocalAuth.ts` | `>=75 / >=60` | `97.67 / 88.46` | ✅ |
 | `packages/nodejs/src/Worker.ts` | `>=90 / >=85` | `100.00 / 100.00` | ✅ |
 | `packages/nodejs/src/Sqlite.ts` | `>=90 / >=85` | `100.00 / 87.50` | ✅ |
 
@@ -45,6 +45,9 @@ Coverage gate status:
   - `packages/common/test/local-first/Schema.test.ts` (index add/drop, `createQueryBuilder` options, `getEvoluSqliteSchema`)
   - `packages/common/test/Error.test.ts` (`handleGlobalError` branches)
   - `packages/common/test/String.test.ts` (new file)
+  - `packages/common/test/local-first/LocalAuth.test.ts` (mnemonic path, missing account, username fallback, unregister without fallback owner)
+  - `packages/web/test/LocalAuth.test.ts` (credential throw/missing userHandle/legacy metadata/create-null branches)
+  - `packages/common/test/local-first/Relay.test.ts` (zero-byte write path and mutex-abort propagation)
 - Small runtime hardening:
   - `packages/common/src/String.ts` now guarantees `string` return even when `JSON.stringify` returns `undefined` (`symbol` case).
 
@@ -53,22 +56,21 @@ Coverage gate status:
 Prioritized by risk + effort for next PR slices:
 
 1. `packages/web/src/Sqlite.ts` (`82.92% / 76.92%`, missing `3/13` branches)
-   - Add deterministic mocked init-path tests (`encrypted`/default OPFS and warning filter).
-   - Low branch count, high return.
-2. `packages/common/src/local-first/LocalAuth.ts` (`98.57% / 73.52%`, missing `9/34`)
-   - Focus decrypt-fail/null credential + metadata consistency edge branches.
-3. `packages/web/src/local-first/LocalAuth.ts` (`94.18% / 82.69%`, missing `9/52`)
-   - Add adapter error/null propagation branches mirroring common LocalAuth cases.
-4. `packages/common/src/local-first/Protocol.ts` (`92.93% / 88.83%`, missing `24/215`)
+   - Remaining branches are OPFS init paths in main thread (`encrypted/default`) and warning fallback; deterministic coverage likely needs injectable sqlite-wasm facade.
+2. `packages/common/src/local-first/Protocol.ts` (`92.93% / 88.83%`, missing `24/215`)
    - Slightly below 90 branch; higher complexity than the three items above.
+3. `packages/common/src/Console.ts` (`84.21% / 84.00%`, missing `8/50`)
+   - Moderate complexity; mostly branch-focused unit tests.
+4. `packages/common/src/local-first/Relay.ts` (`96.00% / 85.00%`, missing `3/20`)
+   - Small remaining branch gap after latest write-path additions.
 5. `packages/common/src/Type.ts` (`73.50% / 68.32%`, missing `121/382`)
    - Big-impact but not a quick win; needs dedicated focused campaign.
 
 ## Commit Trace (current head segment)
 
+- `67f34c74` `test(relay): cover zero-byte and mutex-abort write paths`
+- `69e3811d` `test(local-auth): expand common and web edge-case coverage`
+- `4ddb510c` `docs(ai): refresh coverage progress snapshot and quick-win backlog`
 - `71ce2289` `fix(common): guarantee string fallback in safelyStringifyUnknownValue`
 - `c18a4777` `test(common): expand schema and error branch coverage`
 - `6653d541` `test(common): fix Kysely test import ordering for Biome`
-- `27363565` `test(web): cover worker wrappers and deprecated scopes`
-- `f283c0c7` `test(common): add coverage for Kysely JSON helpers`
-- `27f6d8d9` `test(web): cover evolu adapters and platform reload path`
