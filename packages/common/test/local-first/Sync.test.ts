@@ -87,6 +87,29 @@ test("initialSyncState is SyncStateInitial", () => {
   expect(initialSyncState).toEqual({ type: "SyncStateInitial" });
 });
 
+test("createSync validates disposalDelayMs", async () => {
+  await using run = await testCreateRunWithSqlite();
+  prepareSyncTables(run.deps);
+
+  expect(() =>
+    createSync({
+      ...run.deps,
+      clock: createInMemoryClock(run.deps),
+      sqliteSchema: testSqliteSchema,
+      createWebSocket: () => () => {
+        throw new Error("createWebSocket task should not be executed");
+      },
+      timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+    })({
+      appOwner: testAppOwner,
+      transports: [],
+      disposalDelayMs: -1,
+      onError: () => {},
+      onReceive: () => {},
+    }),
+  ).toThrow("Invalid SyncConfig.disposalDelayMs");
+});
+
 test("createSync does not create websocket for owner with no transports", async () => {
   await using run = await testCreateRunWithSqlite();
   prepareSyncTables(run.deps);

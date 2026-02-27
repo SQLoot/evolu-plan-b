@@ -5078,11 +5078,11 @@ describe("concurrency", () => {
       await run(yieldNow);
 
       waiting.abort("cancelled");
-      first.value[Symbol.dispose]();
-
       await expect(waiting).resolves.toEqual(
         err({ type: "AbortError", reason: "cancelled" }),
       );
+
+      first.value[Symbol.dispose]();
 
       const next = await run(timeout(leaderLock.acquire(testName), "100ms"));
       expect(next.ok).toBe(true);

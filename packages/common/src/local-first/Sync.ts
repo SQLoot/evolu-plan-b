@@ -187,6 +187,16 @@ export const createSync =
   ) =>
   (config: SyncConfig): Sync => {
     let isDisposed = false;
+    const disposalDelayResult =
+      config.disposalDelayMs == null
+        ? ok(Millis.orThrow(100))
+        : Millis.from(config.disposalDelayMs);
+
+    assert(
+      disposalDelayResult.ok,
+      "Invalid SyncConfig.disposalDelayMs: expected a non-negative integer.",
+    );
+    const disposalDelay = disposalDelayResult.value;
 
     /** Returns owner data only if actively assigned to at least one transport. */
     const getSyncOwner = (ownerId: OwnerId): SyncOwner | null => {
@@ -343,7 +353,7 @@ export const createSync =
       createResource,
       getResourceKey: createTransportKey,
       getConsumerId: (owner) => owner.id,
-      disposalDelay: Millis.orThrow(config.disposalDelayMs ?? 100),
+      disposalDelay,
 
       onConsumerAdded: (owner, webSocket) => {
         deps.console.log("[sync]", "onConsumerAdded", {
