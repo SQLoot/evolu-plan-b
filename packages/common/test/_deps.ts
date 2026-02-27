@@ -61,8 +61,8 @@ export const testCreateRunWithSqlite = async (): Promise<
 
 interface StatementLike {
   readonly reader?: boolean;
-  readonly all: (...parameters: ReadonlyArray<unknown>) => Array<SqliteRow>;
-  readonly run: (...parameters: ReadonlyArray<unknown>) => {
+  readonly all: (...parameters: ReadonlyArray<SqliteValue>) => Array<SqliteRow>;
+  readonly run: (...parameters: ReadonlyArray<SqliteValue>) => {
     readonly changes: number;
   };
 }
@@ -75,8 +75,8 @@ interface DbLike {
 
 interface BetterSqliteStatementLike {
   readonly reader: boolean;
-  readonly all: (parameters?: ReadonlyArray<SqliteValue>) => Array<SqliteRow>;
-  readonly run: (parameters?: ReadonlyArray<SqliteValue>) => {
+  readonly all: (...parameters: ReadonlyArray<SqliteValue>) => Array<SqliteRow>;
+  readonly run: (...parameters: ReadonlyArray<SqliteValue>) => {
     readonly changes: number;
   };
 }
@@ -156,8 +156,8 @@ const createDb = (filename: string): DbLike => {
         const statement = db.prepare(sql);
         return {
           reader: statement.reader,
-          all: (...parameters) => statement.all(parameters),
-          run: (...parameters) => statement.run(parameters),
+          all: (...parameters) => statement.all(...parameters),
+          run: (...parameters) => statement.run(...parameters),
         };
       },
       serialize: () => db.serialize(),

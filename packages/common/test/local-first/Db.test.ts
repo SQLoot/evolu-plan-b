@@ -1,10 +1,6 @@
 import { expect, test } from "vitest";
 import { createConsoleStoreOutput } from "../../src/Console.js";
-import {
-  type DbWorkerDeps,
-  type DbWorkerInit,
-  initDbWorker,
-} from "../../src/local-first/Db.js";
+import { type DbWorkerInit, initDbWorker } from "../../src/local-first/Db.js";
 import { ok } from "../../src/Result.js";
 import type { CreateSqliteDriver } from "../../src/Sqlite.js";
 import { testCreateRun } from "../../src/Test.js";
@@ -18,7 +14,7 @@ test("initDbWorker registers onMessage handler", async () => {
   const worker = testCreateWorker<DbWorkerInit>();
   const storeOutput = createConsoleStoreOutput();
 
-  await using run = testCreateRun<DbWorkerDeps>({
+  await using run = testCreateRun({
     leaderLock: {
       acquire: () => () => ok({ [Symbol.dispose]: () => undefined }),
     },

@@ -36,13 +36,12 @@ import {
   SqliteBoolean,
 } from "../../src/Sqlite.js";
 import { createInMemoryLeaderLock } from "../../src/Task.js";
-import { testCreateRun } from "../../src/Test.js";
+import { testCreateRun, testName } from "../../src/Test.js";
 import {
   createIdFromString,
   id,
   NonEmptyString100,
   nullOr,
-  testName,
 } from "../../src/Type.js";
 import type { ExtractType } from "../../src/Types.js";
 import {
@@ -965,7 +964,10 @@ describe("unit tests", () => {
       await testWaitForWorkerMessage();
 
       const firstMutate = run.deps.evoluInputs[0];
-      assert(firstMutate?.type === "Mutate");
+      assert(
+        firstMutate?.type === "Mutate",
+        "Expected first input to be Mutate",
+      );
       expect(firstMutate.changes[0]?.ownerId).toBe(evolu.appOwner.id);
 
       expect(run.deps.evoluInputs).toMatchInlineSnapshot(
@@ -1026,7 +1028,10 @@ describe("unit tests", () => {
       await testWaitForWorkerMessage();
 
       const firstMutate = run.deps.evoluInputs[0];
-      assert(firstMutate?.type === "Mutate");
+      assert(
+        firstMutate?.type === "Mutate",
+        "Expected first input to be Mutate",
+      );
       expect(firstMutate.changes[0]?.ownerId).toBe(evolu.appOwner.id);
       expect(firstMutate.changes[1]?.ownerId).toBe(evolu.appOwner.id);
 
@@ -1101,7 +1106,10 @@ describe("unit tests", () => {
       await testWaitForWorkerMessage();
 
       const firstMutate = run.deps.evoluInputs[0];
-      assert(firstMutate?.type === "Mutate");
+      assert(
+        firstMutate?.type === "Mutate",
+        "Expected first input to be Mutate",
+      );
       expect(firstMutate.changes[0]?.ownerId).toBe(evolu.appOwner.id);
       expect(firstMutate.changes[1]?.ownerId).toBe(evolu.appOwner.id);
       expect(firstMutate.changes[2]?.ownerId).toBe(evolu.appOwner.id);
@@ -1184,7 +1192,10 @@ describe("unit tests", () => {
       await testWaitForWorkerMessage();
 
       const firstMutate = run.deps.evoluInputs[0];
-      assert(firstMutate?.type === "Mutate");
+      assert(
+        firstMutate?.type === "Mutate",
+        "Expected first input to be Mutate",
+      );
       expect(firstMutate.changes[0]?.ownerId).toBe(testAppOwner.id);
 
       expect(run.deps.evoluInputs).toMatchInlineSnapshot(

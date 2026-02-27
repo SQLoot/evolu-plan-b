@@ -1,12 +1,12 @@
 import { expect, test } from "vitest";
-import { createBaseSqliteStorageTables } from "../../src/local-first/Storage.js";
 import {
-  createSync,
-  defaultTimestampMaxDrift,
-  initialSyncState,
-} from "../../src/local-first/Sync.js";
+  createBaseSqliteStorageTables,
+  ValidDbChangeValues,
+} from "../../src/local-first/Storage.js";
+import { createSync, initialSyncState } from "../../src/local-first/Sync.js";
 import {
   createInitialTimestamp,
+  defaultTimestampMaxDrift,
   type Timestamp,
 } from "../../src/local-first/Timestamp.js";
 import { ok } from "../../src/Result.js";
@@ -165,7 +165,7 @@ test("createSync applyChanges persists local mutation without transports", async
       ownerId: testAppOwner.id,
       table: "todo",
       id: createId(run.deps),
-      values: { title: "Sync local insert" },
+      values: ValidDbChangeValues.orThrow({ title: "Sync local insert" }),
       isInsert: true,
       isDelete: false,
     },
