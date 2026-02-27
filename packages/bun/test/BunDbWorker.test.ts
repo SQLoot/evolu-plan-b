@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type {
   ExperimentalDbWorkerInput as DbWorkerInput,
   ExperimentalDbWorkerOutput as DbWorkerOutput,
@@ -83,7 +85,10 @@ describe("runBunDbWorkerScope", () => {
 
   test("supports file-backed db name initialization", () => {
     const { send } = createHarness();
-    const dbName = `/tmp/evolu-bun-db-worker-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const dbName = join(
+      tmpdir(),
+      `evolu-bun-db-worker-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    );
     const dbPath = `${dbName}.sqlite`;
     const walPath = `${dbPath}-wal`;
     const shmPath = `${dbPath}-shm`;

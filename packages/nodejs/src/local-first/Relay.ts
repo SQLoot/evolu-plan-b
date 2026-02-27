@@ -170,7 +170,7 @@ export const startRelay =
           let broadcastCount = 0;
           for (const socket of sockets) {
             if (socket !== ws && socket.readyState === WebSocket.OPEN) {
-              socket.send(Buffer.from(message), { binary: true });
+              socket.send(message, { binary: true });
               broadcastCount++;
             }
           }
@@ -190,7 +190,7 @@ export const startRelay =
             console.error(response);
             return;
           }
-          ws.send(Buffer.from(response.value.message), { binary: true });
+          ws.send(response.value.message, { binary: true });
         })();
       });
 
