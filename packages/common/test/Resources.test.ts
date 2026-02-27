@@ -330,6 +330,30 @@ test("getConsumer returns null when consumer is not using any resources", () => 
   expect(resources.getConsumer(consumer1.id)).toBeNull();
 });
 
+test("getConsumer returns null when consumer has no associated resources", () => {
+  const resources = createResources<
+    Resource,
+    ResourceKey,
+    ResourceConfig,
+    Consumer,
+    ConsumerId
+  >({ time: testCreateTime() })({
+    createResource: () => {
+      throw new Error("createResource failed");
+    },
+    getResourceKey: (config) => config.key,
+    getConsumerId: (consumer) => consumer.id,
+    disposalDelay: "10ms",
+  });
+
+  expect(() => resources.addConsumer(consumer1, [resourceConfig1])).toThrow(
+    "createResource failed",
+  );
+
+  expect(resources.hasConsumerAnyResource(consumer1)).toBe(false);
+  expect(resources.getConsumer(consumer1.id)).toBeNull();
+});
+
 test("removeConsumer does not partially mutate state when validation fails", () => {
   const { resources } = createTestResources();
   const consumer = { id: "consumer-stale" as ConsumerId, name: "Stale" };

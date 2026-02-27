@@ -474,6 +474,37 @@ test("manual sqlite dispose removes daemon abort listener", async () => {
   removeSpy.mockRestore();
 });
 
+test("createSqlite disposes immediately when daemon is already aborted", async () => {
+  let driverDisposeCount = 0;
+
+  await using run = testCreateRun({
+    createSqliteDriver: () => () =>
+      ok({
+        exec: () => ({ rows: [], changes: 0 }),
+        export: () => new Uint8Array(),
+        [Symbol.dispose]: () => {
+          driverDisposeCount++;
+        },
+      }),
+  });
+
+  const daemonController = new AbortController();
+  daemonController.abort("test");
+
+  const syntheticRun = Object.assign(
+    ((task: Parameters<typeof run>[0]) => run(task)) as typeof run,
+    { deps: run.deps, daemon: { signal: daemonController.signal } },
+  );
+
+  const sqliteResult = await createSqlite(testName)(syntheticRun);
+
+  assert(sqliteResult.ok);
+  expect(driverDisposeCount).toBe(1);
+
+  sqliteResult.value[Symbol.dispose]();
+  expect(driverDisposeCount).toBe(1);
+});
+
 test("createSqlite returns error when driver creation is aborted", async () => {
   const createSlowDriver: CreateSqliteDriver = () => async (run) => {
     await run(sleep("10s"));
@@ -863,6 +894,24 @@ describe("getSqliteSchema", () => {
         },
       }
     `);
+  });
+
+  test("excludeIndexNamePrefix works when internal index filtering is disabled", async () => {
+    await using run = await testCreateRunWithSqlite(testCreateSqliteDeps());
+    const { sqlite } = run.deps;
+
+    sqlite.exec(sql`create table t2 (id text primary key, value text unique);`);
+    sqlite.exec(sql`create index evolu_idx_t2_value on t2 (value);`);
+    sqlite.exec(sql`create index app_idx_t2_value on t2 (value);`);
+
+    const schema = getSqliteSchema(run.deps)({
+      excludeIndexNamePrefix: "evolu_",
+      excludeSqliteInternalIndexes: false,
+    });
+
+    expect(schema.indexes.map((index) => index.name).sort()).toEqual([
+      "app_idx_t2_value",
+    ]);
   });
 });
 
