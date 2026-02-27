@@ -20,7 +20,8 @@ vi.mock("../src/Platform.js", () => ({
 }));
 
 vi.mock("@evolu/common/local-first", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@evolu/common/local-first")>();
+  const actual =
+    await importOriginal<typeof import("@evolu/common/local-first")>();
   return {
     ...actual,
     createEvoluDeps: mocks.createCommonEvoluDeps,
@@ -121,7 +122,9 @@ describe("createEvoluDeps (web)", () => {
     expect(mocks.createWorker).toHaveBeenCalledTimes(1);
     const dbWorkerNative = mocks.createWorker.mock.calls[0]?.[0];
     expect(dbWorkerNative).toBeInstanceOf(MockWorker);
-    expect(String((dbWorkerNative as MockWorker).url)).toContain("Db.worker.js");
+    expect(String((dbWorkerNative as MockWorker).url)).toContain(
+      "Db.worker.js",
+    );
     expect((dbWorkerNative as MockWorker).options).toEqual({ type: "module" });
     expect(dbWorker).toBe(wrappedDbWorker);
     expect(result).toBe(passed);

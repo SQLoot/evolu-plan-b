@@ -135,7 +135,9 @@ describe("Worker wrappers", () => {
       };
     });
     port.postMessage({ payload: new Uint8Array([1, 2, 3]) });
-    await expect(normal).resolves.toEqual({ payload: new Uint8Array([1, 2, 3]) });
+    await expect(normal).resolves.toEqual({
+      payload: new Uint8Array([1, 2, 3]),
+    });
 
     const buffer = new ArrayBuffer(4);
     new Uint8Array(buffer).set([9, 8, 7, 6]);
@@ -165,11 +167,11 @@ describe("Worker wrappers", () => {
         { readonly echo: { readonly value: string } }
       >(nativeWorker);
 
-      const response = new Promise<{ readonly echo: { readonly value: string } }>(
-        (resolve) => {
-          worker.onMessage = resolve;
-        },
-      );
+      const response = new Promise<{
+        readonly echo: { readonly value: string };
+      }>((resolve) => {
+        worker.onMessage = resolve;
+      });
       worker.postMessage({ value: "ok" });
       await expect(response).resolves.toEqual({ echo: { value: "ok" } });
 
@@ -181,9 +183,10 @@ describe("Worker wrappers", () => {
 
   test("createSharedWorker wraps provided shared worker port", async () => {
     const channel = new MessageChannel();
-    const shared = createSharedWorker<{ readonly ping: number }, { readonly pong: number }>(
-      { port: channel.port1 } as unknown as globalThis.SharedWorker,
-    );
+    const shared = createSharedWorker<
+      { readonly ping: number },
+      { readonly pong: number }
+    >({ port: channel.port1 } as unknown as globalThis.SharedWorker);
 
     const response = new Promise<{ readonly ping: number }>((resolve) => {
       shared.port.onMessage = resolve;
@@ -197,9 +200,10 @@ describe("Worker wrappers", () => {
 
   test("createWorkerSelf enforces onMessage before receiving messages", () => {
     const fake = createFakeWorkerSelf();
-    const self = createWorkerSelf<{ readonly input: string }, { readonly output: string }>(
-      fake.nativeSelf as unknown as globalThis.DedicatedWorkerGlobalScope,
-    );
+    const self = createWorkerSelf<
+      { readonly input: string },
+      { readonly output: string }
+    >(fake.nativeSelf as unknown as globalThis.DedicatedWorkerGlobalScope);
 
     expect(() => fake.emitMessage({ input: "x" })).toThrow(
       "onMessage must be set before receiving messages",
@@ -211,7 +215,9 @@ describe("Worker wrappers", () => {
     expect(onMessage).toHaveBeenCalledWith({ input: "ok" });
 
     self.postMessage({ output: "pong" });
-    expect(fake.nativeSelf.postMessage).toHaveBeenCalledWith({ output: "pong" });
+    expect(fake.nativeSelf.postMessage).toHaveBeenCalledWith({
+      output: "pong",
+    });
 
     self[Symbol.dispose]();
     expect(fake.nativeSelf.close).toHaveBeenCalledTimes(1);
