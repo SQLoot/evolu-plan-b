@@ -1,6 +1,21 @@
 import { existsSync, unlinkSync } from "node:fs";
 import { createServer } from "node:http";
-import { getOk, SimpleName, testAppOwner, testCreateRun } from "@evolu/common";
+import {
+  createId,
+  createRandomBytes,
+  getOk,
+  SimpleName,
+  testAppOwner,
+  testCreateRun,
+} from "@evolu/common";
+import {
+  createProtocolMessageBuffer,
+  createProtocolMessageForUnsubscribe,
+  createProtocolMessageFromCrdtMessages,
+  MessageType,
+  SubscriptionFlags,
+  testCreateCrdtMessage,
+} from "@evolu/common/local-first";
 import { afterEach, describe, expect, test } from "vitest";
 import { WebSocket } from "ws";
 import { createRelayDeps, startRelay } from "../src/local-first/Relay.js";
@@ -30,14 +45,58 @@ const getFreePort = async (): Promise<number> =>
   });
 
 const waitForOpen = async (ws: WebSocket): Promise<void> =>
-  await new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     ws.once("open", () => resolve());
     ws.once("error", reject);
+  }).then(waitForMacrotask);
+
+const waitForMacrotask = async (): Promise<void> =>
+  await new Promise((resolve) => {
+    setTimeout(resolve, 0);
   });
 
 const waitForError = async (ws: WebSocket): Promise<Error> =>
   await new Promise((resolve) => {
     ws.once("error", (error) => resolve(error));
+  });
+
+const waitForMessage = async (
+  ws: WebSocket,
+  timeoutMs = 1_000,
+): Promise<unknown> =>
+  await new Promise((resolve, reject) => {
+    const cleanup = () => {
+      clearTimeout(timeout);
+      ws.removeListener("message", onMessage);
+      ws.removeListener("close", onClose);
+      ws.removeListener("error", onError);
+    };
+
+    const onMessage = (message: unknown) => {
+      cleanup();
+      resolve(message);
+    };
+
+    const onClose = (code: number, reason: Buffer) => {
+      cleanup();
+      reject(
+        new Error(`Socket closed before message: ${code} ${reason.toString()}`),
+      );
+    };
+
+    const onError = (error: Error) => {
+      cleanup();
+      reject(error);
+    };
+
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error("Timed out waiting for websocket message"));
+    }, timeoutMs);
+
+    ws.once("message", onMessage);
+    ws.once("close", onClose);
+    ws.once("error", onError);
   });
 
 const waitForNoMessage = async (
@@ -80,6 +139,8 @@ afterEach(() => {
 });
 
 describe("startRelay (nodejs adapter)", () => {
+  const isOwnerWithinQuota = () => true;
+
   test("accepts ws connection when owner check is not configured", async () => {
     const port = await getFreePort();
     const name = "RelayNoAuth";
@@ -87,7 +148,13 @@ describe("startRelay (nodejs adapter)", () => {
 
     await using run = testCreateRun(createRelayDeps());
     await using relay = getOk(
-      await run(startRelay({ port, name: SimpleName.orThrow(name) })),
+      await run(
+        startRelay({
+          port,
+          name: SimpleName.orThrow(name),
+          isOwnerWithinQuota,
+        }),
+      ),
     );
     void relay;
 
@@ -108,6 +175,7 @@ describe("startRelay (nodejs adapter)", () => {
           port,
           name: SimpleName.orThrow(name),
           isOwnerAllowed: () => true,
+          isOwnerWithinQuota,
         }),
       ),
     );
@@ -131,6 +199,7 @@ describe("startRelay (nodejs adapter)", () => {
           port,
           name: SimpleName.orThrow(name),
           isOwnerAllowed: () => false,
+          isOwnerWithinQuota,
         }),
       ),
     );
@@ -156,6 +225,7 @@ describe("startRelay (nodejs adapter)", () => {
           port,
           name: SimpleName.orThrow(name),
           isOwnerAllowed: () => true,
+          isOwnerWithinQuota,
         }),
       ),
     );
@@ -194,6 +264,7 @@ describe("startRelay (nodejs adapter)", () => {
           port,
           name: SimpleName.orThrow(name),
           isOwnerAllowed: () => true,
+          isOwnerWithinQuota,
         }),
       ),
     );
@@ -223,6 +294,7 @@ describe("startRelay (nodejs adapter)", () => {
           port,
           name: SimpleName.orThrow(name),
           isOwnerAllowed: () => true,
+          isOwnerWithinQuota,
         }),
       ),
     );
@@ -238,5 +310,126 @@ describe("startRelay (nodejs adapter)", () => {
     const { code, reason } = await closePromise;
     expect(code).toBe(1000);
     expect(reason).toContain("shutting down");
+  });
+
+  test("handles subscribe, broadcast, and unsubscribe flow for same owner", async () => {
+    const port = await getFreePort();
+    const name = "RelaySubscribeBroadcastUnsubscribe";
+    dbNames.add(name);
+    const randomBytes = createRandomBytes();
+    const protocolDeps = { randomBytes };
+
+    await using run = testCreateRun(createRelayDeps());
+    await using relay = getOk(
+      await run(
+        startRelay({
+          port,
+          name: SimpleName.orThrow(name),
+          isOwnerAllowed: () => true,
+          isOwnerWithinQuota,
+        }),
+      ),
+    );
+    void relay;
+
+    const ws1 = new WebSocket(
+      `ws://127.0.0.1:${port}?ownerId=${testAppOwner.id}`,
+    );
+    const ws2 = new WebSocket(
+      `ws://127.0.0.1:${port}?ownerId=${testAppOwner.id}`,
+    );
+
+    await Promise.all([waitForOpen(ws1), waitForOpen(ws2)]);
+
+    const subscribeMessage = createProtocolMessageBuffer(testAppOwner.id, {
+      messageType: MessageType.Request,
+      subscriptionFlag: SubscriptionFlags.Subscribe,
+    }).unwrap();
+    const subscribe1Response = waitForMessage(ws1);
+    const subscribe2Response = waitForMessage(ws2);
+    ws1.send(Buffer.from(subscribeMessage), { binary: true });
+    ws2.send(Buffer.from(subscribeMessage), { binary: true });
+    await Promise.all([subscribe1Response, subscribe2Response]);
+
+    const syncMessage1 = createProtocolMessageFromCrdtMessages(protocolDeps)(
+      testAppOwner,
+      [testCreateCrdtMessage(createId(protocolDeps), 1, "first")],
+    );
+    const sync1SenderResponse = waitForMessage(ws1);
+    const sync1PeerBroadcast = waitForMessage(ws2);
+    ws1.send(Buffer.from(syncMessage1), { binary: true });
+    await Promise.all([sync1SenderResponse, sync1PeerBroadcast]);
+
+    const unsubscribeMessage = createProtocolMessageForUnsubscribe(
+      testAppOwner.id,
+    );
+    const unsubscribeResponse = waitForMessage(ws2);
+    ws2.send(Buffer.from(unsubscribeMessage), { binary: true });
+    await unsubscribeResponse;
+
+    const syncMessage2 = createProtocolMessageFromCrdtMessages(protocolDeps)(
+      testAppOwner,
+      [testCreateCrdtMessage(createId(protocolDeps), 2, "second")],
+    );
+    const sync2SenderResponse = waitForMessage(ws1);
+    ws1.send(Buffer.from(syncMessage2), { binary: true });
+    await sync2SenderResponse;
+    expect(await waitForNoMessage(ws2)).toBe("timeout");
+
+    await Promise.all([closeSocket(ws1), closeSocket(ws2)]);
+  });
+
+  test("restarts with existing database file and still serves protocol messages", async () => {
+    const port = await getFreePort();
+    const name = "RelayExistingDb";
+    dbNames.add(name);
+
+    {
+      await using run = testCreateRun(createRelayDeps());
+      await using relay = getOk(
+        await run(
+          startRelay({
+            port,
+            name: SimpleName.orThrow(name),
+            isOwnerAllowed: () => true,
+            isOwnerWithinQuota,
+          }),
+        ),
+      );
+      void relay;
+
+      const ws = new WebSocket(
+        `ws://127.0.0.1:${port}?ownerId=${testAppOwner.id}`,
+      );
+      await waitForOpen(ws);
+      await closeSocket(ws);
+    }
+
+    await using run = testCreateRun(createRelayDeps());
+    await using relay = getOk(
+      await run(
+        startRelay({
+          port,
+          name: SimpleName.orThrow(name),
+          isOwnerAllowed: () => true,
+          isOwnerWithinQuota,
+        }),
+      ),
+    );
+    void relay;
+
+    const ws = new WebSocket(
+      `ws://127.0.0.1:${port}?ownerId=${testAppOwner.id}`,
+    );
+    await waitForOpen(ws);
+
+    const subscribeMessage = createProtocolMessageBuffer(testAppOwner.id, {
+      messageType: MessageType.Request,
+      subscriptionFlag: SubscriptionFlags.Subscribe,
+    }).unwrap();
+    const subscribeResponse = waitForMessage(ws);
+    ws.send(Buffer.from(subscribeMessage), { binary: true });
+    await subscribeResponse;
+    await closeSocket(ws);
   });
 });

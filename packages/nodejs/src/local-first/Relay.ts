@@ -45,6 +45,78 @@ export const createRelayDeps = (): RelayDeps => ({
   timingSafeEqual: createTimingSafeEqual(),
 });
 
+const toUint8Array = async (
+  message: unknown,
+): Promise<globalThis.Uint8Array | null> => {
+  if (Uint8Array.is(message)) return message;
+
+  if (ArrayBuffer.isView(message)) {
+    return new globalThis.Uint8Array(
+      message.buffer,
+      message.byteOffset,
+      message.byteLength,
+    );
+  }
+
+  if (message instanceof ArrayBuffer) {
+    return new globalThis.Uint8Array(message);
+  }
+
+  if (message instanceof Blob) {
+    return new globalThis.Uint8Array(await message.arrayBuffer());
+  }
+
+  if (Array.isArray(message)) {
+    const chunks = [] as Array<globalThis.Uint8Array>;
+
+    for (const chunk of message) {
+      if (Uint8Array.is(chunk)) {
+        chunks.push(chunk);
+        continue;
+      }
+
+      if (ArrayBuffer.isView(chunk)) {
+        chunks.push(
+          new globalThis.Uint8Array(
+            chunk.buffer,
+            chunk.byteOffset,
+            chunk.byteLength,
+          ),
+        );
+        continue;
+      }
+
+      if (chunk instanceof ArrayBuffer) {
+        chunks.push(new globalThis.Uint8Array(chunk));
+        continue;
+      }
+
+      if (chunk instanceof Blob) {
+        chunks.push(new globalThis.Uint8Array(await chunk.arrayBuffer()));
+        continue;
+      }
+
+      return null;
+    }
+
+    const totalLength = chunks.reduce(
+      (sum, chunk) => sum + chunk.byteLength,
+      0,
+    );
+    const result = new globalThis.Uint8Array(totalLength);
+
+    let offset = 0;
+    for (const chunk of chunks) {
+      result.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+
+    return result;
+  }
+
+  return null;
+};
+
 /**
  * Starts an Evolu relay server using Node.js.
  *
@@ -89,7 +161,10 @@ export const startRelay =
       isOwnerWithinQuota,
     });
 
-    const run = _run.addDeps({ storage });
+    // Use root daemon runner for WS callbacks; task-scoped runner closes
+    // after startRelay returns and would reject message handling with
+    // RunnerClosingError.
+    const run = _run.daemon.addDeps({ storage });
 
     const server = createServer();
     const wss = new WebSocketServer({
@@ -167,7 +242,7 @@ export const startRelay =
           let broadcastCount = 0;
           for (const socket of sockets) {
             if (socket !== ws && socket.readyState === WebSocket.OPEN) {
-              socket.send(message, { binary: true });
+              socket.send(Buffer.from(message), { binary: true });
               broadcastCount++;
             }
           }
@@ -177,17 +252,18 @@ export const startRelay =
       };
 
       ws.on("message", (message) => {
-        if (!Uint8Array.is(message)) return;
-
         void (async () => {
+          const inputMessage = await toUint8Array(message);
+          if (!inputMessage) return;
+
           const response = await run(
-            applyProtocolMessageAsRelay(message, options),
+            applyProtocolMessageAsRelay(inputMessage, options),
           );
           if (!response.ok) {
             console.error(response);
             return;
           }
-          ws.send(response.value.message, { binary: true });
+          ws.send(Buffer.from(response.value.message), { binary: true });
         })();
       });
 
