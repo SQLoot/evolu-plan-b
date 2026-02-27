@@ -1,0 +1,23 @@
+---
+import { TodoApp } from "../components/TodoApp.tsx";
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Evolu + Astro Integration Example</title>
+  </head>
+  <body>
+    <main style="max-width: 880px; margin: 0 auto; padding: 24px;">
+      <h1 style="font-size: 1.8rem; margin-bottom: 0.5rem;">
+        Evolu + Astro (Client-Only Island)
+      </h1>
+      <p style="color: #555; margin-bottom: 1.5rem;">
+        Local-first Todo with offline indicator and sync status rendered in a
+        React island.
+      </p>
+      <TodoApp client:only="react" />
+    </main>
+  </body>
+</html>
