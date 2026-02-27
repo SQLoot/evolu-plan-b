@@ -32,7 +32,7 @@ const waitForOutput = (
 
 const waitForLeader = (
   port: MessagePort<DbWorkerLeaderInput, DbWorkerLeaderOutput>,
-  timeoutMs = 2_000,
+  timeoutMs = 300,
 ): Promise<DbWorkerLeaderOutput | null> =>
   new Promise((resolve) => {
     const previous = port.onMessage;
@@ -46,6 +46,56 @@ const waitForLeader = (
       port.onMessage = previous;
       resolve(message);
     };
+  });
+
+const waitForRequiredLeader = async (
+  port: MessagePort<DbWorkerLeaderInput, DbWorkerLeaderOutput>,
+  timeoutMs = 2_000,
+): Promise<DbWorkerLeaderOutput> => {
+  const output = await waitForLeader(port, timeoutMs);
+  if (output != null) return output;
+  throw new Error("Timed out waiting for LeaderAcquired");
+};
+
+const waitForLeaderBurst = (
+  ports: ReadonlyArray<MessagePort<DbWorkerLeaderInput, DbWorkerLeaderOutput>>,
+  timeoutMs = 2_000,
+  settleMs = 30,
+): Promise<ReadonlyArray<DbWorkerLeaderOutput>> =>
+  new Promise((resolve, reject) => {
+    const previousHandlers = ports.map((port) => port.onMessage);
+    const outputs: Array<DbWorkerLeaderOutput> = [];
+    let settledTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+
+    const cleanup = (): void => {
+      clearTimeout(timeoutId);
+      if (settledTimer != null) clearTimeout(settledTimer);
+      for (const [index, port] of ports.entries()) {
+        port.onMessage = previousHandlers[index];
+      }
+    };
+
+    const timeoutId = globalThis.setTimeout(() => {
+      cleanup();
+      reject(new Error("Timed out waiting for leader output"));
+    }, timeoutMs);
+
+    const settle = (): void => {
+      if (settledTimer != null) clearTimeout(settledTimer);
+      settledTimer = globalThis.setTimeout(() => {
+        cleanup();
+        resolve(outputs);
+      }, settleMs);
+    };
+
+    for (const [index, port] of ports.entries()) {
+      const previous = previousHandlers[index];
+      port.onMessage = (message) => {
+        outputs.push(message);
+        if (previous != null) previous(message);
+        settle();
+      };
+    }
   });
 
 const flushAsync = async (): Promise<void> => {
@@ -165,8 +215,7 @@ describe("runWebDbWorkerPort", () => {
       brokerPort: broker2.port1,
     });
 
-    const leader1 = waitForLeader(broker1.port2);
-    const leader2 = waitForLeader(broker2.port2);
+    const leadersPromise = waitForLeaderBurst([broker1.port2, broker2.port2]);
 
     const init1 = waitForOutput(channel1.port2);
     channel1.port2.postMessage({
@@ -192,9 +241,7 @@ describe("runWebDbWorkerPort", () => {
       expect(init2Output.success).toBe(true);
     }
 
-    const leaders = (await Promise.all([leader1, leader2])).filter(
-      (output): output is DbWorkerLeaderOutput => output !== null,
-    );
+    const leaders = await leadersPromise;
     expect(leaders).toHaveLength(1);
     expect(leaders[0].type).toBe("LeaderAcquired");
     expect(leaders[0].name).toBe(name);
@@ -299,7 +346,7 @@ describe("runWebDbWorkerPort", () => {
       },
     );
 
-    const leader1 = waitForLeader(broker1.port2);
+    const leader1 = waitForRequiredLeader(broker1.port2);
     const init1 = waitForOutput(channel1.port2);
     channel1.port2.postMessage({
       type: "DbWorkerInit",
@@ -337,7 +384,7 @@ describe("runWebDbWorkerPort", () => {
       },
     );
 
-    const leader2 = waitForLeader(broker2.port2);
+    const leader2 = waitForRequiredLeader(broker2.port2);
     const init2 = waitForOutput(channel2.port2);
     channel2.port2.postMessage({
       type: "DbWorkerInit",
@@ -383,7 +430,7 @@ describe("runWebDbWorkerPort", () => {
       },
     );
 
-    const leader1 = waitForLeader(broker1.port2);
+    const leader1 = waitForRequiredLeader(broker1.port2);
     const init1 = waitForOutput(channel1.port2);
     channel1.port2.postMessage({
       type: "DbWorkerInit",
@@ -830,6 +877,7 @@ describe("runWebDbWorkerPort", () => {
       },
     );
 
+    const leader1 = waitForLeader(broker.port2, 2_000);
     const init = waitForOutput(channel.port2);
     channel.port2.postMessage({
       type: "DbWorkerInit",
@@ -840,12 +888,15 @@ describe("runWebDbWorkerPort", () => {
       type: "DbWorkerInitResponse",
       success: true,
     });
-    await waitForLeader(broker.port2);
+    expect(await leader1).toMatchObject({
+      type: "LeaderAcquired",
+      name,
+    });
 
     clock.advance(220);
     await flushAsync();
 
-    const leader2 = waitForLeader(broker.port2);
+    const leader2 = waitForLeader(broker.port2, 120);
     const query = waitForOutput(channel.port2);
     channel.port2.postMessage({
       type: "DbWorkerQuery",
@@ -990,10 +1041,16 @@ describe("runWebDbWorkerPort", () => {
     const dbName = ":memory:";
     const firstDriver = createDeferred<SqliteDriver>();
     void firstDriver.promise.catch(() => undefined);
+    const firstCreateDriverCall = createDeferred<void>();
+    let firstCreateDriverCallResolved = false;
     let createDriverCalls = 0;
     const createDriver = vi.fn(async (_dbName: string) => {
       createDriverCalls += 1;
       if (createDriverCalls === 1) {
+        if (!firstCreateDriverCallResolved) {
+          firstCreateDriverCallResolved = true;
+          firstCreateDriverCall.resolve();
+        }
         return await firstDriver.promise;
       }
       return createMockDriver();
@@ -1028,17 +1085,12 @@ describe("runWebDbWorkerPort", () => {
       schemaVersion: 1,
     });
 
-    const waitForFirstDriverCall = async (): Promise<void> => {
-      const deadline = Date.now() + 5_000;
-      while (createDriverCalls < 1) {
-        if (Date.now() > deadline) {
-          throw new Error("Timed out waiting for first createDriver call");
-        }
-        await flushAsync();
-        await wait(0);
-      }
-    };
-    await waitForFirstDriverCall();
+    await Promise.race([
+      firstCreateDriverCall.promise,
+      wait(2_000).then(() => {
+        throw new Error("Timed out waiting for first createDriver call");
+      }),
+    ]);
 
     const init2 = waitForOutput(channel2.port2);
     channel2.port2.postMessage({
