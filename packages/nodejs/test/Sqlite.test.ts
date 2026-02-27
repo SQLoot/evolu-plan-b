@@ -202,7 +202,7 @@ describe("createBetterSqliteDriver", () => {
             }
 
             if (normalized.startsWith("update")) {
-              return {};
+              return { changes: 0 };
             }
 
             return { changes: 0 };

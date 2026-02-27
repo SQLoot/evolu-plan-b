@@ -559,6 +559,12 @@ const createClientStorage =
       ...sqliteStorageBase,
 
       validateWriteKey: (ownerId, writeKey) => {
+        deps.sqlite.exec(sql`
+          insert into evolu_writeKey (ownerId, writeKey)
+          values (${ownerId}, ${writeKey})
+          on conflict (ownerId) do nothing;
+        `);
+
         const selectWriteKey = deps.sqlite.exec<{ writeKey: OwnerWriteKey }>(
           sql`
             select writeKey
@@ -567,15 +573,9 @@ const createClientStorage =
           `,
         );
 
-        if (isNonEmptyArray(selectWriteKey.rows)) {
-          return isSameWriteKey(selectWriteKey.rows[0].writeKey, writeKey);
-        }
+        if (!isNonEmptyArray(selectWriteKey.rows)) return false;
 
-        deps.sqlite.exec(sql`
-          insert into evolu_writeKey (ownerId, writeKey)
-          values (${ownerId}, ${writeKey});
-        `);
-        return true;
+        return isSameWriteKey(selectWriteKey.rows[0].writeKey, writeKey);
       },
 
       setWriteKey: (ownerId, writeKey) => {
@@ -837,10 +837,11 @@ export const testCreateClientStorage = createClientStorage;
 
 const isSameWriteKey = (a: Uint8Array, b: Uint8Array): boolean => {
   if (a.length !== b.length) return false;
+  let diff = 0;
   for (let i = 0; i < a.length; i += 1) {
-    if (a[i] !== b[i]) return false;
+    diff |= a[i] ^ b[i];
   }
-  return true;
+  return diff === 0;
 };
 
 type TransportKey = string & Brand<"TransportKey">;

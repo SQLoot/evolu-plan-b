@@ -108,7 +108,7 @@ const acquireSharedDb = async (
       return { driver, isLeader: false };
     } catch (error) {
       existing.refs -= 1;
-      sharedDbStates.delete(dbName);
+      if (existing.refs === 0) sharedDbStates.delete(dbName);
       throw error;
     }
   }

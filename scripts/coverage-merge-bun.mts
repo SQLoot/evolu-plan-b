@@ -167,7 +167,7 @@ const main = (): void => {
       lines,
       functions,
       // lcov has no statements metric; use line counters for pragmatic merge.
-      statements: lines,
+      statements: { ...lines },
       branches,
     };
     mergedFiles++;
