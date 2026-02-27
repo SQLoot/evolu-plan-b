@@ -1,4 +1,4 @@
-import { assert, describe, expect, expectTypeOf, test } from "vitest";
+import { assert, describe, expect, expectTypeOf, test, vi } from "vitest";
 import { lazyVoid } from "../src/Function.js";
 import { err, ok } from "../src/Result.js";
 import {
@@ -433,6 +433,45 @@ test("run disposal disposes sqlite automatically", async () => {
 
   sqlite[Symbol.dispose]();
   expect(driverDisposeCount).toBe(1);
+});
+
+test("manual sqlite dispose removes daemon abort listener", async () => {
+  await using run = testCreateRun({
+    createSqliteDriver: () => () =>
+      ok({
+        exec: () => ({ rows: [], changes: 0 }),
+        export: () => new Uint8Array(),
+        [Symbol.dispose]: lazyVoid,
+      }),
+  });
+
+  const addSpy = vi.spyOn(run.daemon.signal, "addEventListener");
+  const removeSpy = vi.spyOn(run.daemon.signal, "removeEventListener");
+
+  const sqliteResult = await run(createSqlite(testName));
+  assert(sqliteResult.ok);
+
+  const abortAddCall = addSpy.mock.calls.find(
+    ([type, listener, options]) =>
+      type === "abort" &&
+      typeof listener === "function" &&
+      typeof options === "object" &&
+      options != null &&
+      "once" in options,
+  );
+  expect(abortAddCall).toBeDefined();
+
+  const abortListener = abortAddCall?.[1];
+  sqliteResult.value[Symbol.dispose]();
+
+  expect(
+    removeSpy.mock.calls.some(
+      ([type, listener]) => type === "abort" && listener === abortListener,
+    ),
+  ).toBe(true);
+
+  addSpy.mockRestore();
+  removeSpy.mockRestore();
 });
 
 test("createSqlite returns error when driver creation is aborted", async () => {
