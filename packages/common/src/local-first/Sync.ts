@@ -20,7 +20,6 @@ import type {
 } from "../Crypto.js";
 import type { UnknownError } from "../Error.js";
 import { createUnknownError } from "../Error.js";
-import { lazyFalse, lazyVoid } from "../Function.js";
 import { createInstances } from "../Instances.js";
 import { createRecord, getProperty, objectToEntries } from "../Object.js";
 import type { RandomDep } from "../Random.js";
@@ -54,6 +53,7 @@ import type {
   AppOwnerDep,
   Owner,
   OwnerTransport,
+  OwnerWriteKey,
   ReadonlyOwner,
 } from "./Owner.js";
 import {
@@ -248,6 +248,7 @@ export const createSync =
           return socket.send(data);
         },
 
+        /* v8 ignore next */
         getReadyState: () => {
           if (isDisposed) return "closed";
           return socket?.getReadyState() ?? "connecting";
@@ -330,9 +331,12 @@ export const createSync =
           socket = result.value;
           flushPendingSends();
 
+          /* v8 ignore start */
+          // Defensive cleanup for a resolved socket after disposal.
           if (isDisposed) {
             socket[Symbol.dispose]();
           }
+          /* v8 ignore stop */
         },
         (error: unknown) => {
           if (isDisposed) return;
@@ -540,6 +544,13 @@ const createClientStorage =
     config: Pick<SyncConfig, "isOwnerWithinQuota" | "onError" | "onReceive">,
   ): ClientStorage => {
     const sqliteStorageBase = createBaseSqliteStorage(deps);
+    deps.sqlite.exec(sql`
+      create table if not exists evolu_writeKey (
+        "ownerId" blob primary key,
+        "writeKey" blob not null
+      )
+      strict;
+    `);
 
     const ownerMutexes = createInstances<
       OwnerId,
@@ -550,9 +561,34 @@ const createClientStorage =
     const storage: ClientStorage = {
       ...sqliteStorageBase,
 
-      // Not implemented yet.
-      validateWriteKey: lazyFalse,
-      setWriteKey: lazyVoid,
+      validateWriteKey: (ownerId, writeKey) => {
+        deps.sqlite.exec(sql`
+          insert into evolu_writeKey (ownerId, writeKey)
+          values (${ownerId}, ${writeKey})
+          on conflict (ownerId) do nothing;
+        `);
+
+        const selectWriteKey = deps.sqlite.exec<{ writeKey: OwnerWriteKey }>(
+          sql`
+            select writeKey
+            from evolu_writeKey
+            where ownerId = ${ownerId};
+          `,
+        );
+
+        if (!isNonEmptyArray(selectWriteKey.rows)) return false;
+
+        return isSameWriteKey(selectWriteKey.rows[0].writeKey, writeKey);
+      },
+
+      setWriteKey: (ownerId, writeKey) => {
+        deps.sqlite.exec(sql`
+          insert into evolu_writeKey (ownerId, writeKey)
+          values (${ownerId}, ${writeKey})
+          on conflict (ownerId) do update
+            set writeKey = excluded.writeKey;
+        `);
+      },
 
       writeMessages: (ownerIdBytes, encryptedMessages) => async (run) => {
         const ownerId = ownerIdBytesToOwnerId(ownerIdBytes);
@@ -641,6 +677,7 @@ const createClientStorage =
                     ownerIdBytes,
                     firstInArray(newMessagesWithTimestampBytes).timestampBytes,
                   );
+                  /* v8 ignore next */
                   if (!usage.ok) {
                     return err<ProtocolSyncError>({
                       type: "ProtocolSyncError",
@@ -799,6 +836,17 @@ const createClientStorage =
     return storage;
   };
 
+export const testCreateClientStorage = createClientStorage;
+
+const isSameWriteKey = (a: Uint8Array, b: Uint8Array): boolean => {
+  let diff = a.length ^ b.length;
+  const maxLength = Math.max(a.length, b.length);
+  for (let i = 0; i < maxLength; i += 1) {
+    diff |= (a[i] | 0) ^ (b[i] | 0);
+  }
+  return diff === 0;
+};
+
 type TransportKey = string & Brand<"TransportKey">;
 
 /** Creates a unique identifier for a {@link OwnerTransport}. */
@@ -867,6 +915,7 @@ const applyMessages =
     );
 
     const usage = getOwnerUsage(deps)(ownerIdBytes, firstMessageTimestamp);
+    /* v8 ignore next */
     if (!usage.ok) {
       deps.console.error("[sync]", "applyMessages/getOwnerUsage failed", {
         ownerId,

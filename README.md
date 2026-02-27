@@ -11,6 +11,73 @@ Primary goals:
 
 Evolu is a TypeScript library and local-first platform.
 
+## Integration Matrix
+
+Coverage snapshot date: `2026-02-27` (from `bun run test:coverage` and `bun run test:coverage:bun`).
+
+| Package | Supported Versions | Implementation Status | Coverage (Statements / Branches) | Notes |
+| --- | --- | --- | --- | --- |
+| `@evolu/common` | Node `>=24.0.0` | Stable core | `94.47% / 89.57%` | Main engine + local-first protocol/runtime. |
+| `@evolu/web` | `@evolu/common ^7.4.1` | Stable | `99.33% / 93.71%` | Browser runtime (Worker/SharedWorker/Web Locks path). |
+| `@evolu/nodejs` | Node `>=24.0.0`, `@evolu/common ^7.4.1` | Stable | `95.74% / 87.50%` | Includes relay adapter hardening (WS lifecycle + subscribe/broadcast/unsubscribe + restart coverage). |
+| `@evolu/react-web` | React `>=19`, React DOM `>=19`, `@evolu/web ^2.4.0` | Stable thin adapter | `100% / 100%` | Thin web integration wrapper. |
+| `@evolu/react-native` | React Native `>=0.81`, Expo `>=54`, `@op-engineering/op-sqlite >=12` | Active hardening | `20.65% / 13.11%` | Core adapters are covered; broader suite is backlog. |
+| `@evolu/react` | React `>=19` | Wrapper support | `0% / 0%` | Hook wrappers; coverage expansion planned. |
+| `@evolu/vue` | Vue `>=3.5.29` | Wrapper support | `0% / 0%` | Composition API wrappers; coverage expansion planned. |
+| `@evolu/svelte` | Svelte `>=5.53.3`, `@evolu/web ^2.4.0` | Wrapper support | `0% / 0%` | Store-based wrappers; coverage expansion planned. |
+| `@evolu/bun` (private) | `@evolu/common ^7.4.1`, Bun `1.3.x` | Experimental adapter | `100% / 100%` | Measured via Bun coverage runner on `BunDbWorker.ts`. |
+
+## Planned Integrations (Roadmap View)
+
+| Integration | Fit | Priority | Expected Path | Main Risk / Blocker |
+| --- | --- | --- | --- | --- |
+| Next.js (App Router) | Very high | P0 | Official `@evolu/react-web` guide + production example for Server/Client boundaries. | SSR/client boundary handling and Worker lifecycle in edge runtimes. |
+| TanStack Start | Very high | P0 | Use `@evolu/react` + `@evolu/web`, focus on SSR/client boundary docs and example app. | SSR edge cases (worker lifecycle and hydration boundary). |
+| Astro | High | P0 | Client-island integration on top of `@evolu/web`, starter template + docs. | Island hydration timing and worker boot ordering. |
+| SvelteKit | High | P1 | `@evolu/svelte` + `@evolu/web` reference app with SSR-aware browser-only init. | Avoiding server-side execution for browser worker primitives. |
+| Nuxt 3 | High | P1 | Vue composables + client-only plugin/module (`@evolu/vue` + `@evolu/web`). | Nitro/SSR split and client plugin ordering. |
+| Remix / React Router | High | P1 | React adapter with explicit browser init boundaries and route loader guidance. | Loader/action patterns can accidentally cross server/client boundary. |
+| Tauri | High | P1 | Web runtime in WebView + optional Rust-side relay bridge for desktop sync scenarios. | Packaging/runtime differences across desktop targets. |
+| Electron | High | P1 | Reuse web runtime in renderer + optional Node relay bridge in main process. | Multi-process lifecycle and secure IPC boundaries. |
+| Capacitor (Ionic) | Medium | P2 | Reuse web runtime in WebView first, then mobile storage/perf hardening. | Mobile WebView storage consistency and background lifecycle constraints. |
+| Flutter | Medium/Low | P2 | Separate adapter/SDK (likely not a thin wrapper) or protocol-level bridge. | Different runtime/language model (Dart), no direct reuse of TS hooks. |
+
+Current recommendation:
+
+- Build first-class examples for `Next.js`, `TanStack Start`, and `Astro`.
+- Follow with `SvelteKit`, `Nuxt`, `Remix`, and `Tauri/Electron` runtime guides.
+- Treat `Flutter` as a separate SDK/bridge effort, not a quick wrapper.
+- Keep protocol/API parity first; add adapters only where lifecycle/storage semantics are clear.
+
+## `@evolu/common` Compatibility and Third-Party Dependencies
+
+- Package version: `7.4.1`
+- Runtime baseline: Node `>=24.0.0`
+- Monorepo toolchain baseline: Bun `1.3.10`
+
+Third-party runtime dependencies used by `@evolu/common`:
+
+| Dependency | Why It Is Used |
+| --- | --- |
+| `@noble/ciphers` | Audited cryptographic ciphers for encryption flows. |
+| `@noble/hashes` | Audited hash primitives used by protocol/auth internals. |
+| `@scure/bip39` | Mnemonic handling for owner/account recovery flows. |
+| `disposablestack` | Disposable stack compatibility utility for cleanup semantics. |
+| `kysely` | Typed SQL query builder integration. |
+| `msgpackr` | Binary message serialization for protocol payloads. |
+| `zod` | Runtime schema validation and parsing. |
+
+Dependency policy:
+
+- No dependency downgrades in sync waves.
+- Sync waves are periodic coordinated dependency sync batches across packages and CI lanes.
+- Prefer native Bun/runtime APIs where practical.
+- Keep API/protocol compatibility with upstream.
+
+## Fork Diff vs Upstream
+
+For a concise overview of what this fork changes, why, and what is intentionally extra, see [UPSTREAM_DIFF.md](./UPSTREAM_DIFF.md).
+
 ## Documentation
 
 For detailed information and usage examples, please visit [evolu.dev](https://www.evolu.dev).
@@ -32,7 +99,7 @@ To chat with other community members, you can join the [Evolu Discord](https://d
 Evolu monorepo uses [Bun](https://bun.sh).
 
 > [!NOTE]
-> The Evolu monorepo is verified to run under **Bun 1.3.9** in combination with **Node.js >=24.0.0**. This compatibility is explicitly tested in CI.
+> The Evolu monorepo is verified to run under **Bun 1.3.10** in combination with **Node.js >=24.0.0**. This compatibility is explicitly tested in CI.
 
 Install dependencies:
 

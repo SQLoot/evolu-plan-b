@@ -5,9 +5,12 @@ import sqlite3InitModule, {
   type PreparedStatement,
 } from "@evolu/sqlite-wasm";
 
-// @ts-expect-error Missing types.
-globalThis.sqlite3ApiConfig = {
-  warn: (arg: unknown) => {
+type Sqlite3Module = Awaited<ReturnType<typeof sqlite3InitModule>>;
+type InitSqlite3Module = () => Promise<Sqlite3Module>;
+
+export const createSqliteApiWarnHandler =
+  (warn: (arg: unknown) => void = console.warn.bind(console)) =>
+  (arg: unknown): void => {
     // Ignore irrelevant warning.
     // https://github.com/sqlite/sqlite-wasm/issues/62
     if (
@@ -15,16 +18,47 @@ globalThis.sqlite3ApiConfig = {
       arg.startsWith("Ignoring inability to install OPFS sqlite3_vfs")
     )
       return;
-    console.warn(arg);
-  },
+    warn(arg);
+  };
+
+// @ts-expect-error Missing types.
+globalThis.sqlite3ApiConfig = {
+  warn: createSqliteApiWarnHandler(),
 };
 
-// Init ASAP.
-const sqlite3Promise = sqlite3InitModule();
+let initSqlite3Module: InitSqlite3Module = sqlite3InitModule;
+let sqlite3Promise: Promise<Sqlite3Module> | null = null;
+
+const getSqlite3 = (): Promise<Sqlite3Module> => {
+  if (!sqlite3Promise) {
+    sqlite3Promise = initSqlite3Module().catch((error) => {
+      sqlite3Promise = null;
+      throw error;
+    });
+  }
+  return sqlite3Promise;
+};
+
+// Init ASAP, keep promise cached for first driver use.
+void getSqlite3();
+
+/** Test helper for replacing sqlite-wasm module loader. */
+export const testSetSqlite3InitModule = (
+  initModule: InitSqlite3Module,
+): Disposable => {
+  initSqlite3Module = initModule;
+  sqlite3Promise = null;
+  return {
+    [Symbol.dispose]: () => {
+      initSqlite3Module = sqlite3InitModule;
+      sqlite3Promise = null;
+    },
+  };
+};
 
 export const createWasmSqliteDriver: CreateSqliteDriver =
   (name, options) => async () => {
-    const sqlite3 = await sqlite3Promise;
+    const sqlite3 = await getSqlite3();
     // This is used to make OPFS default vfs for multipleciphers
     // @ts-expect-error Missing types (update @evolu/sqlite-wasm types)
     sqlite3.capi.sqlite3mc_vfs_create("opfs", 1);

@@ -89,7 +89,10 @@ export const startRelay =
       isOwnerWithinQuota,
     });
 
-    const run = _run.addDeps({ storage });
+    // Use root daemon runner for WS callbacks; task-scoped runner closes
+    // after startRelay returns and would reject message handling with
+    // RunnerClosingError.
+    const run = _run.daemon.addDeps({ storage });
 
     const server = createServer();
     const wss = new WebSocketServer({
