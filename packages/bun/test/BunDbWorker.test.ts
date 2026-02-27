@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { existsSync, rmSync } from "node:fs";
 import type {
   ExperimentalDbWorkerInput as DbWorkerInput,
   ExperimentalDbWorkerOutput as DbWorkerOutput,
@@ -78,6 +79,40 @@ describe("runBunDbWorkerScope", () => {
     const query = expectMessage(output, "DbWorkerQueryResponse");
     expect(query.requestId).toBe(2);
     expect(query.rows).toEqual([{ value: "7" }]);
+  });
+
+  test("supports file-backed db name initialization", () => {
+    const { send } = createHarness();
+    const dbName = `/tmp/evolu-bun-db-worker-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const dbPath = `${dbName}.sqlite`;
+    const walPath = `${dbPath}-wal`;
+    const shmPath = `${dbPath}-shm`;
+
+    try {
+      const initOutput = send({
+        type: "DbWorkerInit",
+        dbName,
+        schemaVersion: 9,
+      });
+      const initResponse = expectMessage(initOutput, "DbWorkerInitResponse");
+      expect(initResponse.success).toBe(true);
+
+      const queryOutput = send({
+        type: "DbWorkerQuery",
+        requestId: 17,
+        sql: "SELECT value FROM __evolu_meta WHERE key = 'schemaVersion'",
+      });
+      const query = expectMessage(queryOutput, "DbWorkerQueryResponse");
+      expect(query.rows).toEqual([{ value: "9" }]);
+    } finally {
+      send({
+        type: "DbWorkerClose",
+        requestId: 18,
+      });
+      if (existsSync(dbPath)) rmSync(dbPath);
+      if (existsSync(walPath)) rmSync(walPath);
+      if (existsSync(shmPath)) rmSync(shmPath);
+    }
   });
 
   test("supports mutate/query flow with SQL parameters", () => {
@@ -209,6 +244,23 @@ describe("runBunDbWorkerScope", () => {
     expect(response.appOwner).toBeNull();
   });
 
+  test("returns worker error for invalid app owner payload", () => {
+    const { send } = createHarness();
+    init(send);
+
+    send({
+      type: "DbWorkerMutate",
+      requestId: 19,
+      sql: "INSERT OR REPLACE INTO __evolu_meta (key, value) VALUES ('appOwner', ?)",
+      params: ["{not-json"],
+    });
+
+    const output = send({ type: "DbWorkerGetAppOwner" });
+    const error = expectMessage(output, "DbWorkerError");
+    expect(error.requestId).toBeUndefined();
+    expect(error.error).toContain("JSON");
+  });
+
   test("closes database on close message", () => {
     const { send } = createHarness();
     init(send);
@@ -228,5 +280,18 @@ describe("runBunDbWorkerScope", () => {
     const error = expectMessage(output, "DbWorkerError");
     expect(error.requestId).toBe(16);
     expect(error.error).toContain("Database not initialized");
+  });
+
+  test("returns worker error for unknown message type", () => {
+    const { send } = createHarness();
+
+    const output = send({
+      type: "DbWorkerTotallyUnknown",
+      requestId: 999,
+    } as unknown as DbWorkerInput);
+
+    const error = expectMessage(output, "DbWorkerError");
+    expect(error.requestId).toBe(999);
+    expect(error.error).toContain("Unknown message type");
   });
 });

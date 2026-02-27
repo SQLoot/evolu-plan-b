@@ -19,6 +19,7 @@ import {
   decodeNodeId,
   decodeNonNegativeInt,
   decodeNumber,
+  decodeProtocolMessageToJson,
   decodeRle,
   decodeSqliteValue,
   decodeString,
@@ -36,6 +37,7 @@ import {
   type ProtocolMessageMaxSize,
   ProtocolMessageRangesMaxSize,
   ProtocolValueType,
+  pack,
   protocolVersion,
   SubscriptionFlags,
 } from "../../src/local-first/Protocol.js";
@@ -870,6 +872,139 @@ describe("E2E errors", () => {
       err({ type: "ProtocolWriteKeyError", ownerId: testAppOwner.id }),
     );
   });
+
+  test("ProtocolWriteError", async () => {
+    const deps = testCreateDeps();
+    const timestamp = timestampBytesToTimestamp(testTimestampsAsc[0]);
+    const dbChange = createDbChange(deps);
+    const messages: NonEmptyReadonlyArray<CrdtMessage> = [
+      { timestamp, change: dbChange },
+    ];
+    const initiatorMessage = createProtocolMessageFromCrdtMessages(deps)(
+      testAppOwner,
+      messages,
+    );
+
+    let responseMessage: Uint8Array;
+    {
+      await using run = testCreateRunner({
+        storage: {
+          ...shouldNotBeCalledStorageDep.storage,
+          validateWriteKey: lazyTrue,
+          writeMessages: () => async () => {
+            throw new Error("write failed");
+          },
+        },
+      });
+      const response = await run(applyProtocolMessageAsRelay(initiatorMessage));
+      assert(response.ok);
+      responseMessage = response.value.message;
+    }
+
+    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
+    const clientResult = await run(
+      applyProtocolMessageAsClient(responseMessage),
+    );
+    expect(clientResult).toEqual(
+      err({ type: "ProtocolWriteError", ownerId: testAppOwner.id }),
+    );
+  });
+
+  test("ProtocolQuotaError", async () => {
+    const deps = testCreateDeps();
+    const timestamp = timestampBytesToTimestamp(testTimestampsAsc[0]);
+    const dbChange = createDbChange(deps);
+    const messages: NonEmptyReadonlyArray<CrdtMessage> = [
+      { timestamp, change: dbChange },
+    ];
+    const initiatorMessage = createProtocolMessageFromCrdtMessages(deps)(
+      testAppOwner,
+      messages,
+    );
+
+    let responseMessage: Uint8Array;
+    {
+      await using run = testCreateRunner({
+        storage: {
+          ...shouldNotBeCalledStorageDep.storage,
+          validateWriteKey: lazyTrue,
+          writeMessages: () => () =>
+            err({ type: "StorageQuotaError", ownerId: testAppOwner.id }),
+        },
+      });
+      const response = await run(applyProtocolMessageAsRelay(initiatorMessage));
+      assert(response.ok);
+      responseMessage = response.value.message;
+    }
+
+    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
+    const clientResult = await run(
+      applyProtocolMessageAsClient(responseMessage),
+    );
+    expect(clientResult).toEqual(
+      err({ type: "ProtocolQuotaError", ownerId: testAppOwner.id }),
+    );
+  });
+
+  test("ProtocolSyncError", async () => {
+    const messageBuffer = createProtocolMessageBuffer(testAppOwner.id, {
+      messageType: MessageType.Request,
+    });
+    messageBuffer.addRange({
+      type: RangeType.Skip,
+      upperBound: InfiniteUpperBound,
+    });
+
+    let responseMessage: Uint8Array;
+    {
+      await using run = testCreateRunner({
+        storage: {
+          ...shouldNotBeCalledStorageDep.storage,
+          getSize: () => {
+            throw new Error("sync failed");
+          },
+        },
+      });
+      const response = await run(
+        applyProtocolMessageAsRelay(messageBuffer.unwrap()),
+      );
+      assert(response.ok);
+      responseMessage = response.value.message;
+    }
+
+    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
+    const clientResult = await run(
+      applyProtocolMessageAsClient(responseMessage),
+    );
+    expect(clientResult).toEqual(
+      err({ type: "ProtocolSyncError", ownerId: testAppOwner.id }),
+    );
+  });
+
+  test("ProtocolInvalidDataError for invalid ProtocolErrorCode", async () => {
+    const malformed = createBuffer();
+    encodeNonNegativeInt(malformed, protocolVersion);
+    malformed.extend(testAppOwnerIdBytes);
+    malformed.extend([MessageType.Response, 255]);
+
+    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
+    const clientResult = await run(
+      applyProtocolMessageAsClient(malformed.unwrap()),
+    );
+
+    assert(!clientResult.ok);
+    expect(clientResult.error.type).toBe("ProtocolInvalidDataError");
+  });
+});
+
+test("pack returns msgpack-encoded bytes", () => {
+  expect(pack({ hello: "world", n: 1 })).toBeInstanceOf(Uint8Array);
+});
+
+test("decodeProtocolMessageToJson throws until implemented", () => {
+  expect(() =>
+    decodeProtocolMessageToJson(new Uint8Array([0]) as never, true),
+  ).toThrow("decodeProtocolMessageToJson is not implemented yet.");
 });
 
 describe("E2E relay options", () => {
