@@ -6,7 +6,7 @@ import type {
   SqliteDriver,
   SqliteValue,
 } from "@evolu/common";
-import { SimpleName as SimpleNameType } from "@evolu/common";
+import { assert, SimpleName as SimpleNameType } from "@evolu/common";
 import type {
   AppOwner,
   ExperimentalDbWorkerInput as DbWorkerInput,
@@ -95,12 +95,12 @@ const acquireSharedDb = async (config: {
     try {
       if (existing.driver) return { driver: existing.driver, isLeader: false };
       const initPromise = existing.initPromise;
-      if (!initPromise) throw new Error("Shared DB initialization missing");
+      assert(initPromise, "Shared DB initialization missing");
       const driver = await initPromise;
       return { driver, isLeader: false };
     } catch (error) {
       existing.refs -= 1;
-      if (existing.refs === 0) sharedDbStates.delete(dbName);
+      sharedDbStates.delete(dbName);
       throw error;
     }
   }
@@ -125,7 +125,7 @@ const acquireSharedDb = async (config: {
     return { driver, isLeader: true };
   } catch (error) {
     created.refs -= 1;
-    if (created.refs === 0) sharedDbStates.delete(dbName);
+    sharedDbStates.delete(dbName);
     throw error;
   } finally {
     created.initPromise = null;
@@ -134,12 +134,13 @@ const acquireSharedDb = async (config: {
 
 const releaseSharedDb = (dbName: string): void => {
   const state = sharedDbStates.get(dbName);
-  if (!state) return;
+  assert(state, "Shared DB state missing");
 
   state.refs -= 1;
   if (state.refs > 0) return;
 
-  if (state.driver) state.driver[Symbol.dispose]();
+  assert(state.driver, "Shared DB driver missing during release");
+  state.driver[Symbol.dispose]();
   sharedDbStates.delete(dbName);
 };
 
@@ -189,9 +190,10 @@ export const runWebDbWorkerPortWithOptions = (
   };
 
   const startHeartbeatWatchdog = (): void => {
-    if (heartbeatWatchdogId) return;
+    globalThis.clearInterval(
+      heartbeatWatchdogId as ReturnType<typeof globalThis.setInterval>,
+    );
     heartbeatWatchdogId = globalThis.setInterval(() => {
-      if (!dbName) return;
       if (Date.now() - lastHeartbeatAt > heartbeatTimeoutMs) {
         // Stale client port: release shared DB ref.
         releaseDb({ keepConfig: true });
@@ -236,8 +238,7 @@ export const runWebDbWorkerPortWithOptions = (
   };
 
   const requireDb = (): SqliteDriver => {
-    if (!db) throw new Error("Database not initialized");
-    return db;
+    return db as SqliteDriver;
   };
 
   const exec = (

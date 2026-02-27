@@ -35,14 +35,15 @@ const waitForLeader = (
   timeoutMs = 2_000,
 ): Promise<DbWorkerLeaderOutput | null> =>
   new Promise((resolve) => {
+    const previous = port.onMessage;
     const timeout = setTimeout(() => {
-      port.onMessage = null;
+      port.onMessage = previous;
       resolve(null);
     }, timeoutMs);
 
     port.onMessage = (message) => {
       clearTimeout(timeout);
-      port.onMessage = null;
+      port.onMessage = previous;
       resolve(message);
     };
   });
@@ -500,6 +501,10 @@ describe("runWebDbWorkerPort", () => {
     if (queryAfterResetOutput.type === "DbWorkerQueryResponse") {
       expect(queryAfterResetOutput.rows).toEqual([{ count: 0 }]);
     }
+
+    const close = waitForOutput(channel.port2);
+    channel.port2.postMessage({ type: "DbWorkerClose", requestId: 9 });
+    expect(await close).toMatchObject({ type: "DbWorkerCloseResponse" });
   });
 
   test("returns null appOwner for invalid JSON metadata", async () => {
@@ -541,6 +546,10 @@ describe("runWebDbWorkerPort", () => {
     channel.port2.postMessage({ type: "DbWorkerGetAppOwner" });
     const ownerOutput = await getOwner;
     expect(ownerOutput).toEqual({ type: "DbWorkerAppOwner", appOwner: null });
+
+    const close = waitForOutput(channel.port2);
+    channel.port2.postMessage({ type: "DbWorkerClose", requestId: 2 });
+    expect(await close).toMatchObject({ type: "DbWorkerCloseResponse" });
   });
 
   test("rejects re-init on same worker with different dbName", async () => {
@@ -581,6 +590,10 @@ describe("runWebDbWorkerPort", () => {
       expect(output.success).toBe(false);
       expect(output.error).toContain("cannot switch");
     }
+
+    const close = waitForOutput(channel.port2);
+    channel.port2.postMessage({ type: "DbWorkerClose", requestId: 3 });
+    expect(await close).toMatchObject({ type: "DbWorkerCloseResponse" });
   });
 
   test("rejects re-init on same worker with different schema version", async () => {
@@ -621,6 +634,499 @@ describe("runWebDbWorkerPort", () => {
       expect(output.success).toBe(false);
       expect(output.error).toContain("schema version");
     }
+
+    const close = waitForOutput(channel.port2);
+    channel.port2.postMessage({ type: "DbWorkerClose", requestId: 4 });
+    expect(await close).toMatchObject({ type: "DbWorkerCloseResponse" });
+  });
+
+  test("returns init response for non-memory db names", async () => {
+    const name = SimpleName.orThrow("DbWorkerFileDb");
+    const channel = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    broker.port2.onMessage = () => {};
+
+    runWebDbWorkerPort({
+      name,
+      port: channel.port1,
+      brokerPort: broker.port1,
+    });
+
+    const init = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName: "dbworker-file-db",
+      schemaVersion: 1,
+    });
+    const output = await init;
+    expect(output.type).toBe("DbWorkerInitResponse");
+    if (output.type === "DbWorkerInitResponse") {
+      expect(output.success).toBe(false);
+    }
+  });
+
+  test("supports query calls without params field", async () => {
+    const name = SimpleName.orThrow("DbWorkerQueryDefaultParams");
+    const channel = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    broker.port2.onMessage = () => {};
+
+    runWebDbWorkerPort({
+      name,
+      port: channel.port1,
+      brokerPort: broker.port1,
+    });
+
+    const init = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName: ":memory:",
+      schemaVersion: 1,
+    });
+    expect(await init).toMatchObject({
+      type: "DbWorkerInitResponse",
+      success: true,
+    });
+
+    const query = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerQuery",
+      requestId: 1,
+      sql: "select 1 as value",
+    } as DbWorkerInput);
+    const queryOutput = await query;
+    expect(queryOutput.type).toBe("DbWorkerQueryResponse");
+    if (queryOutput.type === "DbWorkerQueryResponse") {
+      expect(queryOutput.rows).toEqual([{ value: 1 }]);
+    }
+
+    const close = waitForOutput(channel.port2);
+    channel.port2.postMessage({ type: "DbWorkerClose", requestId: 2 });
+    expect(await close).toMatchObject({ type: "DbWorkerCloseResponse" });
+  });
+
+  test("reacquires shared db after watchdog releases stale leader", async () => {
+    const name = SimpleName.orThrow("DbWorkerReacquireAfterWatchdog");
+    const dbName = ":memory:";
+    const channel = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    broker.port2.onMessage = () => {};
+
+    runWebDbWorkerPortWithOptions(
+      {
+        name,
+        port: channel.port1,
+        brokerPort: broker.port1,
+      },
+      {
+        heartbeatTimeoutMs: 80,
+        heartbeatCheckIntervalMs: 20,
+      },
+    );
+
+    const init = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName,
+      schemaVersion: 1,
+    });
+    expect(await init).toMatchObject({
+      type: "DbWorkerInitResponse",
+      success: true,
+    });
+    await waitForLeader(broker.port2);
+
+    await wait(220);
+
+    const leader2 = waitForLeader(broker.port2);
+    const query = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerQuery",
+      requestId: 3,
+      sql: "select 1 as value",
+      params: [],
+    });
+
+    const [leaderOutput, queryOutput] = await Promise.all([leader2, query]);
+    expect(
+      leaderOutput === null || leaderOutput.type === "LeaderAcquired",
+    ).toBe(true);
+    expect(queryOutput.type).toBe("DbWorkerQueryResponse");
+    if (queryOutput.type === "DbWorkerQueryResponse") {
+      expect(queryOutput.rows).toEqual([{ value: 1 }]);
+    }
+
+    const close = waitForOutput(channel.port2);
+    channel.port2.postMessage({ type: "DbWorkerClose", requestId: 4 });
+    expect(await close).toMatchObject({ type: "DbWorkerCloseResponse" });
+  });
+
+  test("returns init error for invalid db name", async () => {
+    const name = SimpleName.orThrow("DbWorkerInvalidDbName");
+    const channel = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    broker.port2.onMessage = () => {};
+
+    runWebDbWorkerPort({
+      name,
+      port: channel.port1,
+      brokerPort: broker.port1,
+    });
+
+    const init = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName: "invalid db name",
+      schemaVersion: 1,
+    });
+    const output = await init;
+    expect(output.type).toBe("DbWorkerInitResponse");
+    if (output.type === "DbWorkerInitResponse") {
+      expect(output.success).toBe(false);
+      expect(output.error).toBeTruthy();
+    }
+  });
+
+  test("returns null appOwner when metadata is missing", async () => {
+    const name = SimpleName.orThrow("DbWorkerMissingOwner");
+    const channel = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    broker.port2.onMessage = () => {};
+
+    runWebDbWorkerPort({
+      name,
+      port: channel.port1,
+      brokerPort: broker.port1,
+    });
+
+    const init = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName: ":memory:",
+      schemaVersion: 1,
+    });
+    expect(await init).toMatchObject({
+      type: "DbWorkerInitResponse",
+      success: true,
+    });
+
+    const getOwner = waitForOutput(channel.port2);
+    channel.port2.postMessage({ type: "DbWorkerGetAppOwner" });
+    expect(await getOwner).toEqual({
+      type: "DbWorkerAppOwner",
+      appOwner: null,
+    });
+
+    const close = waitForOutput(channel.port2);
+    channel.port2.postMessage({ type: "DbWorkerClose", requestId: 7 });
+    expect(await close).toMatchObject({ type: "DbWorkerCloseResponse" });
+  });
+
+  test("handles concurrent failing init attempts for invalid shared db", async () => {
+    const name = SimpleName.orThrow("DbWorkerConcurrentInvalidInit");
+    const channel1 = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker1 = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    broker1.port2.onMessage = () => {};
+    runWebDbWorkerPort({
+      name,
+      port: channel1.port1,
+      brokerPort: broker1.port1,
+    });
+
+    const channel2 = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker2 = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    broker2.port2.onMessage = () => {};
+    runWebDbWorkerPort({
+      name,
+      port: channel2.port1,
+      brokerPort: broker2.port1,
+    });
+
+    const init1 = waitForOutput(channel1.port2);
+    const init2 = waitForOutput(channel2.port2);
+    channel1.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName: "invalid db name",
+      schemaVersion: 1,
+    });
+    channel2.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName: "invalid db name",
+      schemaVersion: 1,
+    });
+
+    const [out1, out2] = await Promise.all([init1, init2]);
+    expect(out1).toMatchObject({
+      type: "DbWorkerInitResponse",
+      success: false,
+    });
+    expect(out2).toMatchObject({
+      type: "DbWorkerInitResponse",
+      success: false,
+    });
+  });
+
+  test("close is idempotent for already released shared db", async () => {
+    const name = SimpleName.orThrow("DbWorkerCloseTwice");
+    const channel = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    broker.port2.onMessage = () => {};
+
+    runWebDbWorkerPort({
+      name,
+      port: channel.port1,
+      brokerPort: broker.port1,
+    });
+
+    const init = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName: ":memory:",
+      schemaVersion: 1,
+    });
+    expect(await init).toMatchObject({
+      type: "DbWorkerInitResponse",
+      success: true,
+    });
+
+    const close1 = waitForOutput(channel.port2);
+    channel.port2.postMessage({ type: "DbWorkerClose", requestId: 8 });
+    expect(await close1).toMatchObject({ type: "DbWorkerCloseResponse" });
+
+    const close2 = waitForOutput(channel.port2);
+    channel.port2.postMessage({ type: "DbWorkerClose", requestId: 9 });
+    expect(await close2).toMatchObject({ type: "DbWorkerCloseResponse" });
+  });
+
+  test("stale worker rejects re-init with changed dbName", async () => {
+    const name = SimpleName.orThrow("DbWorkerStaleReinitMismatch");
+    const channel = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    broker.port2.onMessage = () => {};
+
+    runWebDbWorkerPortWithOptions(
+      {
+        name,
+        port: channel.port1,
+        brokerPort: broker.port1,
+      },
+      {
+        heartbeatTimeoutMs: 80,
+        heartbeatCheckIntervalMs: 20,
+      },
+    );
+
+    const init = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName: ":memory:",
+      schemaVersion: 1,
+    });
+    expect(await init).toMatchObject({
+      type: "DbWorkerInitResponse",
+      success: true,
+    });
+
+    await wait(220);
+
+    const reinitDbName = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName: "changed-db",
+      schemaVersion: 1,
+    });
+    const dbNameOutput = await reinitDbName;
+    expect(dbNameOutput).toMatchObject({
+      type: "DbWorkerInitResponse",
+      success: false,
+    });
+
+    const close = waitForOutput(channel.port2);
+    channel.port2.postMessage({ type: "DbWorkerClose", requestId: 12 });
+    expect(await close).toMatchObject({ type: "DbWorkerCloseResponse" });
+  });
+
+  test("stale worker rejects re-init with changed schemaVersion", async () => {
+    const name = SimpleName.orThrow("DbWorkerStaleReinitSchemaMismatch");
+    const channel = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    broker.port2.onMessage = () => {};
+
+    runWebDbWorkerPortWithOptions(
+      {
+        name,
+        port: channel.port1,
+        brokerPort: broker.port1,
+      },
+      {
+        heartbeatTimeoutMs: 80,
+        heartbeatCheckIntervalMs: 20,
+      },
+    );
+
+    const init = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName: ":memory:",
+      schemaVersion: 1,
+    });
+    expect(await init).toMatchObject({
+      type: "DbWorkerInitResponse",
+      success: true,
+    });
+
+    await wait(220);
+
+    const reinitSchema = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName: ":memory:",
+      schemaVersion: 2,
+    });
+    expect(await reinitSchema).toMatchObject({
+      type: "DbWorkerInitResponse",
+      success: false,
+    });
+
+    const close = waitForOutput(channel.port2);
+    channel.port2.postMessage({ type: "DbWorkerClose", requestId: 13 });
+    expect(await close).toMatchObject({ type: "DbWorkerCloseResponse" });
+  });
+
+  test("ignores unrelated leader heartbeat messages", async () => {
+    const name = SimpleName.orThrow("DbWorkerHeartbeatFilter");
+    const channel = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    broker.port2.onMessage = () => {};
+
+    runWebDbWorkerPort({
+      name,
+      port: channel.port1,
+      brokerPort: broker.port1,
+    });
+
+    const init = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName: ":memory:",
+      schemaVersion: 1,
+    });
+    expect(await init).toMatchObject({
+      type: "DbWorkerInitResponse",
+      success: true,
+    });
+
+    broker.port2.postMessage({
+      type: "LeaderHeartbeat",
+      name: SimpleName.orThrow("OtherLeader"),
+    });
+
+    const query = waitForOutput(channel.port2);
+    channel.port2.postMessage({
+      type: "DbWorkerQuery",
+      requestId: 10,
+      sql: "select 1 as value",
+      params: [],
+    });
+    const queryOutput = await query;
+    expect(queryOutput.type).toBe("DbWorkerQueryResponse");
+
+    const close = waitForOutput(channel.port2);
+    channel.port2.postMessage({ type: "DbWorkerClose", requestId: 11 });
+    expect(await close).toMatchObject({ type: "DbWorkerCloseResponse" });
+  });
+
+  test("handles concurrent shared db initialization requests", async () => {
+    const name = SimpleName.orThrow("DbWorkerConcurrentInit");
+    const dbName = ":memory:";
+
+    const channel1 = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker1 = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    broker1.port2.onMessage = () => {};
+    runWebDbWorkerPort({
+      name,
+      port: channel1.port1,
+      brokerPort: broker1.port1,
+    });
+
+    const channel2 = createMessageChannel<DbWorkerOutput, DbWorkerInput>();
+    const broker2 = createMessageChannel<
+      DbWorkerLeaderOutput,
+      DbWorkerLeaderInput
+    >();
+    broker2.port2.onMessage = () => {};
+    runWebDbWorkerPort({
+      name,
+      port: channel2.port1,
+      brokerPort: broker2.port1,
+    });
+
+    const init1 = waitForOutput(channel1.port2);
+    const init2 = waitForOutput(channel2.port2);
+    channel1.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName,
+      schemaVersion: 1,
+    });
+    channel2.port2.postMessage({
+      type: "DbWorkerInit",
+      dbName,
+      schemaVersion: 1,
+    });
+
+    const [output1, output2] = await Promise.all([init1, init2]);
+    expect(output1).toMatchObject({
+      type: "DbWorkerInitResponse",
+      success: true,
+    });
+    expect(output2).toMatchObject({
+      type: "DbWorkerInitResponse",
+      success: true,
+    });
+
+    const close1 = waitForOutput(channel1.port2);
+    channel1.port2.postMessage({ type: "DbWorkerClose", requestId: 5 });
+    expect(await close1).toMatchObject({ type: "DbWorkerCloseResponse" });
+
+    const close2 = waitForOutput(channel2.port2);
+    channel2.port2.postMessage({ type: "DbWorkerClose", requestId: 6 });
+    expect(await close2).toMatchObject({ type: "DbWorkerCloseResponse" });
   });
 
   test("returns DbWorkerError for unknown message type", async () => {
