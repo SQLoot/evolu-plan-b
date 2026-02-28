@@ -20,6 +20,8 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: oven-sh/setup-bun@ff41c74480e92d179c27462a68d60e4e4ccb5e06 # v2.0.1
+        with:
+          bun-version: "1.3.10"
 
       - name: Install dependencies
         run: bun install

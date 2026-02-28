@@ -117,7 +117,7 @@ const wrap = <Input, Output>(
 
   port = {
     postMessage: (message: Input, transfer?: ReadonlyArray<Transferable>) => {
-      if (transfer == null) native.postMessage(message);
+      if (transfer == null) native.postMessage(message, []);
       else native.postMessage(message, toTransferList(transfer));
     },
     onMessage: null,
