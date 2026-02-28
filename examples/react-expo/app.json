@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.evolu.expo"
@@ -50,8 +49,7 @@
       ]
     ],
     "experiments": {
-      "typedRoutes": true,
-      "reactCanary": true
+      "typedRoutes": true
     }
   }
 }

@@ -1,8 +1,20 @@
-import { install } from "react-native-quick-crypto";
 import { installPolyfills } from "../polyfills";
 
-install();
 installPolyfills();
+
+const isNodeRuntime =
+  typeof process !== "undefined" && typeof process.versions?.node === "string";
+const isBrowserRuntime = typeof document !== "undefined";
+
+if (!isNodeRuntime && !isBrowserRuntime) {
+  void import("react-native-quick-crypto")
+    .then(({ install }) => {
+      install();
+    })
+    .catch(() => {
+      // Optional native crypto bridge is not available in all runtimes.
+    });
+}
 
 import { Stack } from "expo-router";
 

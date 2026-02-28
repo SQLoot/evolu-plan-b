@@ -14,8 +14,8 @@ bunx <package>       # Execute packages
 
 | Tool       | Minimum  | Current |
 | ---------- | -------- | ------- |
-| Node.js    | >=24.0.0 | LTS 24  |
-| Bun        | 1.3.8    | 1.3.9   |
+| Node.js    | >=24.0.0 | 24 LTS + 25 current |
+| Bun        | 1.3.8    | 1.3.10   |
 | TypeScript | ^5.9.3   | 5.9.3   |
 
 ## Key Dependencies
@@ -47,4 +47,4 @@ bun run clean        # Clean all build artifacts
 - ❌ pnpm / npm / yarn
 - ❌ ESLint / Prettier
 - ❌ pnpm-lock.yaml (we have bun.lock)
-- ❌ Node.js 25 (not LTS, use 24)
+- ❌ Node.js <24

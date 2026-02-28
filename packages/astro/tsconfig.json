@@ -1,0 +1,15 @@
+{
+  "extends": "../tsconfig/universal-esm.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": ".",
+    "tsBuildInfoFile": "dist/.tsBuildInfo"
+  },
+  "include": ["src", "test", "vitest.config.ts"],
+  "exclude": ["dist", "node_modules"],
+  "references": [
+    { "path": "../common" },
+    { "path": "../react" },
+    { "path": "../react-web" }
+  ]
+}
