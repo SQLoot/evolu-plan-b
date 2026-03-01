@@ -2,5 +2,13 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "packageRules": [
+    {
+      "description": "Ignore changesets/action due to invalid commit SHA in release.yaml (workflow file is protected)",
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["changesets/action"],
+      "enabled": false
+    }
   ]
 }
