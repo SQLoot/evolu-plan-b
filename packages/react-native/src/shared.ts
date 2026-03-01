@@ -1,4 +1,6 @@
 import {
+  type ConsoleDep,
+  type CreateSqliteDriverDep,
   createConsole,
   createConsoleStoreOutput,
   createInMemoryLeaderLock,
@@ -6,8 +8,6 @@ import {
   createRandomBytes,
   createRun,
   createWebSocket,
-  type ConsoleDep,
-  type CreateSqliteDriverDep,
   type LocalAuth,
   type ReloadAppDep,
   type SecureStorage,
