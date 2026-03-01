@@ -14,39 +14,39 @@ Evolu is a TypeScript library and local-first platform.
 ## 🪴 Project Activity
 
 <p align="center">
-  <img src="https://repobeats.axiom.co/api/embed/<hash>.svg" alt="Repobeats analytics image" />
+  <img src="https://repobeats.axiom.co/api/embed/9dbe31e742524e552a28ac3a7edf1d06e987b2ae.svg" alt="Repobeats analytics image" />
 </p>
 
 ## Integration Matrix
 
 Coverage snapshot date: `2026-02-27` (from `bun run test:coverage` and `bun run test:coverage:bun`).
 
-| Package | Supported Versions | Implementation Status | Coverage (Statements / Branches) | Notes |
-| --- | --- | --- | --- | --- |
-| `@evolu/common` | Node `>=24.0.0` | Stable core | `94.47% / 89.57%` | Main engine + local-first protocol/runtime. |
-| `@evolu/web` | `@evolu/common ^7.4.1` | Stable | `99.33% / 93.71%` | Browser runtime (Worker/SharedWorker/Web Locks path). |
-| `@evolu/nodejs` | Node `>=24.0.0`, `@evolu/common ^7.4.1` | Stable | `95.74% / 87.50%` | Includes relay adapter hardening (WS lifecycle + subscribe/broadcast/unsubscribe + restart coverage). |
-| `@evolu/react-web` | React `>=19`, React DOM `>=19`, `@evolu/web ^2.4.0` | Stable thin adapter | `100% / 100%` | Thin web integration wrapper. |
-| `@evolu/react-native` | React Native `>=0.84`, Expo `>=55`, `@op-engineering/op-sqlite >=12` | Lane-gated hardening | `100.00% / 100.00%` (lane gate) | Strict file gates (`react-native` + `expo`) are enforced at `100/100/100/100` for scoped source files. |
-| `@evolu/react` | React `>=19` | Wrapper support | `0% / 0%` | Hook wrappers; coverage expansion planned. |
-| `@evolu/vue` | Vue `>=3.5.29` | Wrapper support | `0% / 0%` | Composition API wrappers; coverage expansion planned. |
-| `@evolu/svelte` | Svelte `>=5.53.3`, `@evolu/web ^2.4.0` | Wrapper support | `0% / 0%` | Store-based wrappers; coverage expansion planned. |
-| `@evolu/bun` (private) | `@evolu/common ^7.4.1`, Bun `1.3.x` | Experimental adapter | `100% / 100%` | Measured via Bun coverage runner on `BunDbWorker.ts`. |
+| Package                | Supported Versions                                                   | Implementation Status | Coverage (Statements / Branches) | Notes                                                                                                  |
+| ---------------------- | -------------------------------------------------------------------- | --------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `@evolu/common`        | Node `>=24.0.0`                                                      | Stable core           | `94.47% / 89.57%`                | Main engine + local-first protocol/runtime.                                                            |
+| `@evolu/web`           | `@evolu/common ^7.4.1`                                               | Stable                | `99.33% / 93.71%`                | Browser runtime (Worker/SharedWorker/Web Locks path).                                                  |
+| `@evolu/nodejs`        | Node `>=24.0.0`, `@evolu/common ^7.4.1`                              | Stable                | `95.74% / 87.50%`                | Includes relay adapter hardening (WS lifecycle + subscribe/broadcast/unsubscribe + restart coverage).  |
+| `@evolu/react-web`     | React `>=19`, React DOM `>=19`, `@evolu/web ^2.4.0`                  | Stable thin adapter   | `100% / 100%`                    | Thin web integration wrapper.                                                                          |
+| `@evolu/react-native`  | React Native `>=0.84`, Expo `>=55`, `@op-engineering/op-sqlite >=12` | Lane-gated hardening  | `100.00% / 100.00%` (lane gate)  | Strict file gates (`react-native` + `expo`) are enforced at `100/100/100/100` for scoped source files. |
+| `@evolu/react`         | React `>=19`                                                         | Wrapper support       | `0% / 0%`                        | Hook wrappers; coverage expansion planned.                                                             |
+| `@evolu/vue`           | Vue `>=3.5.29`                                                       | Wrapper support       | `0% / 0%`                        | Composition API wrappers; coverage expansion planned.                                                  |
+| `@evolu/svelte`        | Svelte `>=5.53.3`, `@evolu/web ^2.4.0`                               | Wrapper support       | `0% / 0%`                        | Store-based wrappers; coverage expansion planned.                                                      |
+| `@evolu/bun` (private) | `@evolu/common ^7.4.1`, Bun `1.3.x`                                  | Experimental adapter  | `100% / 100%`                    | Measured via Bun coverage runner on `BunDbWorker.ts`.                                                  |
 
 ## Planned Integrations (Roadmap View)
 
-| Integration | Fit | Priority | Expected Path | Main Risk / Blocker |
-| --- | --- | --- | --- | --- |
-| Next.js (App Router) | Very high | P0 | Official `@evolu/react-web` guide + production example for Server/Client boundaries. | SSR/client boundary handling and Worker lifecycle in edge runtimes. |
-| TanStack Start | Very high | P0 | Use `@evolu/react` + `@evolu/web`, focus on SSR/client boundary docs and example app. | SSR edge cases (worker lifecycle and hydration boundary). |
-| Astro | High | P0 | Client-island integration on top of `@evolu/web`, starter template + docs. | Island hydration timing and worker boot ordering. |
-| SvelteKit | High | P1 | `@evolu/svelte` + `@evolu/web` reference app with SSR-aware browser-only init. | Avoiding server-side execution for browser worker primitives. |
-| Nuxt 3 | High | P1 | Vue composables + client-only plugin/module (`@evolu/vue` + `@evolu/web`). | Nitro/SSR split and client plugin ordering. |
-| Remix / React Router | High | P1 | React adapter with explicit browser init boundaries and route loader guidance. | Loader/action patterns can accidentally cross server/client boundary. |
-| Tauri | High | P1 | Web runtime in WebView + optional Rust-side relay bridge for desktop sync scenarios. | Packaging/runtime differences across desktop targets. |
-| Electron | High | P1 | Reuse web runtime in renderer + optional Node relay bridge in main process. | Multi-process lifecycle and secure IPC boundaries. |
-| Capacitor (Ionic) | Medium | P2 | Reuse web runtime in WebView first, then mobile storage/perf hardening. | Mobile WebView storage consistency and background lifecycle constraints. |
-| Flutter | Medium/Low | P2 | Separate adapter/SDK (likely not a thin wrapper) or protocol-level bridge. | Different runtime/language model (Dart), no direct reuse of TS hooks. |
+| Integration          | Fit        | Priority | Expected Path                                                                         | Main Risk / Blocker                                                      |
+| -------------------- | ---------- | -------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Next.js (App Router) | Very high  | P0       | Official `@evolu/react-web` guide + production example for Server/Client boundaries.  | SSR/client boundary handling and Worker lifecycle in edge runtimes.      |
+| TanStack Start       | Very high  | P0       | Use `@evolu/react` + `@evolu/web`, focus on SSR/client boundary docs and example app. | SSR edge cases (worker lifecycle and hydration boundary).                |
+| Astro                | High       | P0       | Client-island integration on top of `@evolu/web`, starter template + docs.            | Island hydration timing and worker boot ordering.                        |
+| SvelteKit            | High       | P1       | `@evolu/svelte` + `@evolu/web` reference app with SSR-aware browser-only init.        | Avoiding server-side execution for browser worker primitives.            |
+| Nuxt 3               | High       | P1       | Vue composables + client-only plugin/module (`@evolu/vue` + `@evolu/web`).            | Nitro/SSR split and client plugin ordering.                              |
+| Remix / React Router | High       | P1       | React adapter with explicit browser init boundaries and route loader guidance.        | Loader/action patterns can accidentally cross server/client boundary.    |
+| Tauri                | High       | P1       | Web runtime in WebView + optional Rust-side relay bridge for desktop sync scenarios.  | Packaging/runtime differences across desktop targets.                    |
+| Electron             | High       | P1       | Reuse web runtime in renderer + optional Node relay bridge in main process.           | Multi-process lifecycle and secure IPC boundaries.                       |
+| Capacitor (Ionic)    | Medium     | P2       | Reuse web runtime in WebView first, then mobile storage/perf hardening.               | Mobile WebView storage consistency and background lifecycle constraints. |
+| Flutter              | Medium/Low | P2       | Separate adapter/SDK (likely not a thin wrapper) or protocol-level bridge.            | Different runtime/language model (Dart), no direct reuse of TS hooks.    |
 
 Current recommendation:
 
@@ -63,15 +63,15 @@ Current recommendation:
 
 Third-party runtime dependencies used by `@evolu/common`:
 
-| Dependency | Why It Is Used |
-| --- | --- |
-| `@noble/ciphers` | Audited cryptographic ciphers for encryption flows. |
-| `@noble/hashes` | Audited hash primitives used by protocol/auth internals. |
-| `@scure/bip39` | Mnemonic handling for owner/account recovery flows. |
+| Dependency        | Why It Is Used                                                |
+| ----------------- | ------------------------------------------------------------- |
+| `@noble/ciphers`  | Audited cryptographic ciphers for encryption flows.           |
+| `@noble/hashes`   | Audited hash primitives used by protocol/auth internals.      |
+| `@scure/bip39`    | Mnemonic handling for owner/account recovery flows.           |
 | `disposablestack` | Disposable stack compatibility utility for cleanup semantics. |
-| `kysely` | Typed SQL query builder integration. |
-| `msgpackr` | Binary message serialization for protocol payloads. |
-| `zod` | Runtime schema validation and parsing. |
+| `kysely`          | Typed SQL query builder integration.                          |
+| `msgpackr`        | Binary message serialization for protocol payloads.           |
+| `zod`             | Runtime schema validation and parsing.                        |
 
 Dependency policy:
 
