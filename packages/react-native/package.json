@@ -24,6 +24,11 @@
       "react-native": "./dist/src/index.js",
       "default": "./dist/src/index.js"
     },
+    "./Polyfills": {
+      "types": "./dist/src/Polyfills.d.ts",
+      "react-native": "./dist/src/Polyfills.js",
+      "default": "./dist/src/Polyfills.js"
+    },
     "./expo-sqlite": {
       "types": "./dist/src/exports/expo-sqlite.d.ts",
       "react-native": "./dist/src/exports/expo-sqlite.js",
@@ -47,6 +52,9 @@
     "*": {
       ".": [
         "./dist/src/index.d.ts"
+      ],
+      "Polyfills": [
+        "./dist/src/Polyfills.d.ts"
       ],
       "expo-sqlite": [
         "./dist/src/exports/expo-sqlite.d.ts"

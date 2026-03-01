@@ -7,17 +7,26 @@ import isSupersetOf from "set.prototype.issupersetof";
 import symmetricDifference from "set.prototype.symmetricdifference";
 import union from "set.prototype.union";
 
-difference.shim();
-intersection.shim();
-isDisjointFrom.shim();
-isSubsetOf.shim();
-isSupersetOf.shim();
-symmetricDifference.shim();
-union.shim();
+let areSetPolyfillsInstalled = false;
+
+const installSetPolyfills = (): void => {
+  if (areSetPolyfillsInstalled) return;
+
+  difference.shim();
+  intersection.shim();
+  isDisjointFrom.shim();
+  isSubsetOf.shim();
+  isSupersetOf.shim();
+  symmetricDifference.shim();
+  union.shim();
+
+  areSetPolyfillsInstalled = true;
+};
 
 /** Installs polyfills required by Evolu in React Native runtimes. */
 export const installPolyfills = (): void => {
   installCommonPolyfills();
+  installSetPolyfills();
   installPromisePolyfills();
   installAbortControllerPolyfills();
 };
@@ -54,7 +63,6 @@ const installPromisePolyfills = () => {
         try {
           resolve(func(...args));
         } catch (error) {
-          // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
           reject(error);
         }
       });
@@ -114,23 +122,31 @@ const installAbortReasonPolyfill = (
   abortController: AbortControllerConstructor,
   abortSignal: AbortSignalConstructor,
 ): void => {
-  if (!("reason" in abortSignal.prototype)) {
-    Object.defineProperty(abortSignal.prototype, "reason", {
-      configurable: true,
-      enumerable: false,
-      get(this: AbortSignal): unknown {
-        return abortReasonBySignal.get(this);
-      },
-    });
-  }
+  const hasNativeReason = "reason" in abortSignal.prototype;
+  if (hasNativeReason) return;
+
+  Object.defineProperty(abortSignal.prototype, "reason", {
+    configurable: true,
+    enumerable: false,
+    get(this: AbortSignal): unknown {
+      return abortReasonBySignal.get(this);
+    },
+  });
 
   const prototype = abortController.prototype as AbortControllerPrototype;
   if (prototype.__evoluAbortReasonPatched) return;
 
   const nativeAbort = prototype.abort;
   prototype.abort = function (this: AbortController, reason?: unknown): void {
-    const normalizedReason = reason === undefined ? createAbortError() : reason;
-    abortReasonBySignal.set(this.signal, normalizedReason);
+    const signal = this.signal;
+    const normalizedReason =
+      abortReasonBySignal.get(signal) ??
+      (reason === undefined ? createAbortError() : reason);
+
+    if (!abortReasonBySignal.has(signal)) {
+      abortReasonBySignal.set(signal, normalizedReason);
+    }
+
     nativeAbort.call(this, normalizedReason);
   };
 
