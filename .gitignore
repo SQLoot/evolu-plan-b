@@ -20,6 +20,19 @@ coverage
 tmp
 __screenshots__
 *.tsBuildInfo
+*.tsbuildinfo
 .generated
 
 .ai/
+.vite
+next-env.d.ts
+
+# apps/relay
+apps/relay/data/*
+!apps/relay/data/.gitkeep
+
+# examples/react-expo
+examples/react-expo/.expo/
+examples/react-expo/expo-env.d.ts
+examples/react-expo/ios
+examples/react-expo/android
