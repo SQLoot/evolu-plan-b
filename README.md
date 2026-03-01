@@ -11,6 +11,12 @@ Primary goals:
 
 Evolu is a TypeScript library and local-first platform.
 
+## 🪴 Project Activity
+
+<p align="center">
+  <img src="https://repobeats.axiom.co/api/embed/<hash>.svg" alt="Repobeats analytics image" />
+</p>
+
 ## Integration Matrix
 
 Coverage snapshot date: `2026-02-27` (from `bun run test:coverage` and `bun run test:coverage:bun`).

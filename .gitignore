@@ -21,3 +21,5 @@ tmp
 __screenshots__
 *.tsBuildInfo
 .generated
+
+.ai/

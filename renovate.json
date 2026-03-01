@@ -1,0 +1,14 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "dependencyDashboard": true,
+  "dependencyDashboardApproval": true,
+  "packageRules": [
+    {
+      "description": "Ignore changesets/action due to workflow file protection",
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["changesets/action"],
+      "enabled": false
+    }
+  ]
+}
