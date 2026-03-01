@@ -346,6 +346,15 @@
     "packages/react-native": {
       "name": "@evolu/react-native",
       "version": "14.3.0",
+      "dependencies": {
+        "set.prototype.difference": "^1.1.7",
+        "set.prototype.intersection": "^1.1.8",
+        "set.prototype.isdisjointfrom": "^1.1.5",
+        "set.prototype.issubsetof": "^1.1.4",
+        "set.prototype.issupersetof": "^1.1.3",
+        "set.prototype.symmetricdifference": "^1.1.3",
+        "set.prototype.union": "^1.1.3",
+      },
       "devDependencies": {
         "@evolu/common": "workspace:*",
         "@evolu/react": "workspace:*",

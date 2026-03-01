@@ -1,4 +1,4 @@
-import { installPolyfills as installCommonPolyfills } from "@evolu/common/polyfills";
+import { installPolyfills as installCommonPolyfills } from "@evolu/common";
 import difference from "set.prototype.difference";
 import intersection from "set.prototype.intersection";
 import isDisjointFrom from "set.prototype.isdisjointfrom";
