@@ -23,12 +23,20 @@ export const installPolyfills = (): void => {
 };
 
 const installPromisePolyfills = () => {
+  const PromiseStatic = Promise as PromiseConstructor & {
+    withResolvers?: <T>() => PromiseWithResolvers<T>;
+    try?: (
+      func: (...args: ReadonlyArray<unknown>) => unknown,
+      ...args: ReadonlyArray<unknown>
+    ) => Promise<unknown>;
+  };
+
   // @see https://github.com/facebook/hermes/pull/1452
-  if (typeof Promise.withResolvers !== "function") {
-    // @ts-expect-error This is OK.
-    Promise.withResolvers = () => {
-      let resolve, reject;
-      const promise = new Promise((res, rej) => {
+  if (typeof PromiseStatic.withResolvers !== "function") {
+    PromiseStatic.withResolvers = <T>() => {
+      let resolve: (value: T | PromiseLike<T>) => void = () => {};
+      let reject: (reason?: unknown) => void = () => {};
+      const promise = new Promise<T>((res, rej) => {
         resolve = res;
         reject = rej;
       });
@@ -37,9 +45,8 @@ const installPromisePolyfills = () => {
   }
 
   // @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
-  if (typeof Promise.try !== "function") {
-    // @ts-expect-error This is OK.
-    Promise.try = (
+  if (typeof PromiseStatic.try !== "function") {
+    PromiseStatic.try = (
       func: (...args: ReadonlyArray<unknown>) => unknown,
       ...args: ReadonlyArray<unknown>
     ): Promise<unknown> =>
