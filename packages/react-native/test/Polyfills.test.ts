@@ -159,7 +159,11 @@ describe("installPolyfills", () => {
     const PromiseStatic = Promise as PromiseStatics;
     expect(typeof PromiseStatic.withResolvers).toBe("function");
 
-    const { promise, resolve } = PromiseStatic.withResolvers!();
+    const withResolvers = PromiseStatic.withResolvers;
+    if (!withResolvers)
+      throw new Error("Promise.withResolvers was not polyfilled");
+
+    const { promise, resolve } = withResolvers();
     resolve("ok");
 
     await expect(promise).resolves.toBe("ok");
@@ -173,7 +177,10 @@ describe("installPolyfills", () => {
     const PromiseStatic = Promise as PromiseStatics;
     expect(typeof PromiseStatic.try).toBe("function");
 
-    const result = await PromiseStatic.try!(
+    const promiseTry = PromiseStatic.try;
+    if (!promiseTry) throw new Error("Promise.try was not polyfilled");
+
+    const result = await promiseTry(
       (a, b) => `${String(a)}-${String(b)}`,
       "a",
       1,
@@ -188,9 +195,11 @@ describe("installPolyfills", () => {
 
     const PromiseStatic = Promise as PromiseStatics;
     const error = new Error("boom");
+    const promiseTry = PromiseStatic.try;
+    if (!promiseTry) throw new Error("Promise.try was not polyfilled");
 
     await expect(
-      PromiseStatic.try!(() => {
+      promiseTry(() => {
         throw error;
       }),
     ).rejects.toBe(error);
@@ -428,9 +437,9 @@ describe("installPolyfills", () => {
 
   test("falls back to Error when DOMException constructor throws", async () => {
     const runtime = createFakeAbortRuntime();
-    const throwingDomException = function () {
+    const throwingDomException = (() => {
       throw new Error("broken DOMException");
-    } as unknown as typeof DOMException;
+    }) as unknown as typeof DOMException;
 
     setAbortGlobals({ ...runtime, DOMException: throwingDomException });
 
