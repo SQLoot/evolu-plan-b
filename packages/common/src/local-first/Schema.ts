@@ -30,11 +30,11 @@ import {
   type StandardSchemaV1,
 } from "../Type.js";
 import type { Simplify } from "../Types.js";
+import type { jsonArrayFrom, jsonObjectFrom } from "./Kysely.js";
 import type { AppOwner } from "./Owner.js";
 import { OwnerId } from "./Owner.js";
 import type { Query, Row } from "./Query.js";
 import { serializeQuery } from "./Query.js";
-import type { jsonArrayFrom, jsonObjectFrom } from "./Kysely.js";
 import type { CrdtMessage, DbChange } from "./Storage.js";
 import type { TimestampBytes } from "./Timestamp.js";
 
