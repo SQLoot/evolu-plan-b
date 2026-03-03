@@ -266,6 +266,9 @@
       "name": "@evolu/astro",
       "version": "0.1.0",
       "devDependencies": {
+        "@evolu/common": "workspace:*",
+        "@evolu/react": "workspace:*",
+        "@evolu/react-web": "workspace:*",
         "@evolu/tsconfig": "workspace:*",
         "typescript": "^5.9.3",
         "vitest": "^4.0.18",
@@ -438,6 +441,9 @@
       "name": "@evolu/tanstack-start",
       "version": "0.1.0",
       "devDependencies": {
+        "@evolu/common": "workspace:*",
+        "@evolu/react": "workspace:*",
+        "@evolu/react-web": "workspace:*",
         "@evolu/tsconfig": "workspace:*",
         "typescript": "^5.9.3",
         "vitest": "^4.0.18",
@@ -447,6 +453,9 @@
       "name": "@evolu/tauri",
       "version": "0.1.0",
       "devDependencies": {
+        "@evolu/common": "workspace:*",
+        "@evolu/react": "workspace:*",
+        "@evolu/react-web": "workspace:*",
         "@evolu/tsconfig": "workspace:*",
         "typescript": "^5.9.3",
         "vitest": "^4.0.18",
