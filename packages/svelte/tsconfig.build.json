@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src", "svelte-types.d.ts"],
+  "exclude": ["dist", "node_modules", "test"],
+  "references": [
+    { "path": "../common/tsconfig.build.json" },
+    { "path": "../web/tsconfig.build.json" }
+  ]
+}

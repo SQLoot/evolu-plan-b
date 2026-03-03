@@ -1,17 +1,17 @@
 {
   "files": [],
   "references": [
-    { "path": "./packages/astro" },
-    { "path": "./packages/bun" },
-    { "path": "./packages/common" },
-    { "path": "./packages/nodejs" },
-    { "path": "./packages/react" },
-    { "path": "./packages/react-native" },
-    { "path": "./packages/react-web" },
-    { "path": "./packages/svelte" },
-    { "path": "./packages/tanstack-start" },
-    { "path": "./packages/tauri" },
-    { "path": "./packages/vue" },
-    { "path": "./packages/web" }
+    { "path": "./packages/astro/tsconfig.build.json" },
+    { "path": "./packages/bun/tsconfig.build.json" },
+    { "path": "./packages/common/tsconfig.build.json" },
+    { "path": "./packages/nodejs/tsconfig.build.json" },
+    { "path": "./packages/react/tsconfig.build.json" },
+    { "path": "./packages/react-native/tsconfig.build.json" },
+    { "path": "./packages/react-web/tsconfig.build.json" },
+    { "path": "./packages/svelte/tsconfig.build.json" },
+    { "path": "./packages/tanstack-start/tsconfig.build.json" },
+    { "path": "./packages/tauri/tsconfig.build.json" },
+    { "path": "./packages/vue/tsconfig.build.json" },
+    { "path": "./packages/web/tsconfig.build.json" }
   ]
 }
