@@ -42,34 +42,57 @@ Coverage notes (Statements / Branches):
 - `@evolu/bun` (private): `100% / 100%` (`BunDbWorker.ts`)
 - Wrapper packages (`@evolu/react`, `@evolu/vue`, `@evolu/svelte`) are still coverage-expansion candidates.
 
-## Planned Integrations (Roadmap View)
+## Integrations Roadmap (Executive View)
 
-| Integration          | Priority | Focus                                          |
-| -------------------- | -------- | ---------------------------------------------- |
-| Next.js (App Router) | P0       | Official web guide + SSR/client boundary docs |
-| TanStack Start       | P0       | React/web adapter docs + production example    |
-| Astro                | P0       | Client-island starter + worker boot guidance   |
-| SvelteKit            | P1       | Browser-only init reference app                |
-| Nuxt 3               | P1       | Client plugin/module integration path          |
-| Remix / React Router | P1       | Explicit browser init in route patterns        |
-| Tauri                | P1       | WebView runtime + optional relay bridge        |
-| Electron             | P1       | Renderer runtime + optional main-process relay |
-| Capacitor (Ionic)    | P2       | WebView-first runtime hardening                |
-| Flutter              | P2       | Separate SDK/bridge exploration                |
+Roadmap snapshot date: `2026-03-03`.
+Today execution focus: `Electrobun` foundation (`P0`).
 
-Main blockers to track:
+| Integration          | Progress | Priority | Size | Local Status         | Evidence                                  |
+| -------------------- | -------- | -------- | ---- | -------------------- | ----------------------------------------- |
+| Electrobun           | 0%       | P0       | L    | Planned architecture | Target package `@evolu/electrobun`        |
+| Next.js (App Router) | 40%      | P0       | L    | Active hardening     | `examples/react-nextjs`                   |
+| TanStack Start       | 60%      | P0       | M    | Active hardening     | `packages/tanstack-start`, example        |
+| Astro                | 60%      | P0       | M    | Active hardening     | `packages/astro`, example                 |
+| SvelteKit            | 20%      | P1       | M    | Planned              | `@evolu/svelte` wrapper baseline          |
+| Nuxt 3               | 0%       | P1       | L    | Planned              | `@evolu/vue` wrapper baseline             |
+| Remix / React Router | 20%      | P1       | M    | Planned              | `@evolu/react-web` baseline               |
+| Tauri                | 60%      | P1       | M    | Active hardening     | `packages/tauri`, `examples/tauri`        |
+| Electron             | 20%      | P1       | M    | Planned hardening    | `examples/react-electron`                 |
+| Capacitor (Ionic)    | 20%      | P2       | L    | Upstream watch + POC | Android WebView fallback shipped in fork  |
+| Flutter              | 0%       | P2       | XL   | Research             | No runtime bridge yet                     |
 
-- SSR/client boundaries and hydration order in framework runtimes.
-- Worker lifecycle consistency across browser, edge, and desktop shells.
-- Desktop packaging/process boundaries (Electron/Tauri).
-- Mobile WebView storage consistency and background lifecycle.
+Progress metric uses a weighted checklist (`20%` each):
 
-Current recommendation:
+- Adapter/helper package
+- Reference example
+- Test lane + coverage gate
+- Framework guide (README/docs)
+- CI smoke/hardening
 
-- Build first-class examples for `Next.js`, `TanStack Start`, and `Astro`.
-- Follow with `SvelteKit`, `Nuxt`, `Remix`, and `Tauri/Electron` runtime guides.
-- Treat `Flutter` as a separate SDK/bridge effort, not a quick wrapper.
-- Keep protocol/API parity first; add adapters only where lifecycle/storage semantics are clear.
+Executive progress values use completed-core-item counting only, so valid values are `0%`, `20%`, `40%`, `60%`, `80%`, `100%`.
+
+Detailed integration roadmap with per-framework checklists: [docs/roadmap/integrations.md](./docs/roadmap/integrations.md).
+
+## Upstream Watch (Top Actionable)
+
+Upstream snapshot date: `2026-03-03` (tracked issues remain open).
+
+| Upstream | Local Status | Size | Why now |
+| --- | --- | --- | --- |
+| [#616](https://github.com/evoluhq/evolu/issues/616) | approved | M | Relay transport status gates runtime decisions |
+| [#656](https://github.com/evoluhq/evolu/issues/656) | approved | M | Owner deletion affects compliance and data lifecycle |
+| [#655](https://github.com/evoluhq/evolu/issues/655) | approved | M | Relay usage metrics required for ops visibility |
+| [#653](https://github.com/evoluhq/evolu/issues/653) | open | M | AppOwner storage model impacts security posture |
+| [#520](https://github.com/evoluhq/evolu/issues/520) | open | XS | Security backlog should stay continuously triaged |
+| [#593](https://github.com/evoluhq/evolu/issues/593) | in-progress | L | LocalAuth influences account model and DX |
+| [#631](https://github.com/evoluhq/evolu/issues/631) | blocked | M | SQLite baseline changes can break adapters |
+| [#659](https://github.com/evoluhq/evolu/issues/659) | done + watch | M | Local mitigation shipped, upstream still open |
+
+## Public Issue Sync (Planned)
+
+- Internal planning remains private.
+- Selected public-facing topics can be mirrored into GitHub Issues and tracked in GitHub Projects.
+- Only explicitly approved items are mirrored to public boards.
 
 ## `@evolu/common` Compatibility and Third-Party Dependencies
 

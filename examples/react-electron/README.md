@@ -1,28 +1,33 @@
-# React + TypeScript + Vite
+# @example/react-electron
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Reference integration app for Evolu in Electron (renderer + preload + main process split).
 
-Currently, two official plugins are available:
+## Scope
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Validates Evolu runtime behavior in desktop renderer context
+- Serves as baseline for Electron process-boundary hardening
+- Demonstrates minimal setup for Vite + Electron + React + Evolu
 
-## Expanding the ESLint configuration
+## Run
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
-
-- Configure the top-level `parserOptions` property like this:
-
-```js
-export default {
-  // other rules...
-  parserOptions: {
-    ecmaVersion: "latest",
-    sourceType: "module",
-    project: ["./tsconfig.json", "./tsconfig.node.json"],
-    tsconfigRootDir: __dirname,
-  },
-};
+```bash
+cd examples/react-electron
+bun run dev
 ```
 
-- SQLoot uses Biome for lint/format. Ignore the legacy ESLint recommendations above from the default Vite template.
+Preview build:
+
+```bash
+cd examples/react-electron
+bun run preview
+```
+
+## Integration Notes
+
+- Keep Evolu runtime in renderer unless explicitly bridged.
+- Treat preload and IPC contracts as security boundaries.
+- Use this app as the canonical repro for desktop runtime regressions.
+
+## Roadmap
+
+See the [Electron integration roadmap](../../docs/roadmap/integrations.md#electron) for planned features and improvements.
