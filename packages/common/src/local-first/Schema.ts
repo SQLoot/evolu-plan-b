@@ -30,6 +30,7 @@ import {
   type StandardSchemaV1,
 } from "../Type.js";
 import type { Simplify } from "../Types.js";
+import type { jsonArrayFrom, jsonObjectFrom } from "./Kysely.js";
 import type { AppOwner } from "./Owner.js";
 import { OwnerId } from "./Owner.js";
 import type { Query, Row } from "./Query.js";
@@ -391,6 +392,11 @@ export const evoluSchemaToSqliteSchema = <S extends EvoluSchema>(
 
 /**
  * Creates a query builder from a {@link EvoluSchema}.
+ *
+ * Supports Kysely relation-style query composition (nested objects/arrays via
+ * JSON subqueries), such as {@link jsonObjectFrom} and {@link jsonArrayFrom} from
+ * the
+ * {@link https://kysely.dev/docs/recipes/relations | Kysely relations recipe}.
  *
  * ### Example
  *
