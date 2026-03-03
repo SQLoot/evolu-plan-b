@@ -11,7 +11,8 @@ Reference integration app for Evolu in Next.js App Router.
 ## Run
 
 ```bash
-bun run examples:react-nextjs:dev
+cd examples/react-nextjs
+bun run dev
 ```
 
 Build check:
