@@ -1,38 +1,32 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# @example/react-nextjs
 
-> **Warning:** For SPA (Single Page Application) mode, the Pages Router is [required](https://github.com/vercel/next.js/discussions/64660#discussioncomment-14981214). The App Router does not support static SPA export.
+Reference integration app for Evolu in Next.js App Router.
 
-## Getting Started
+## Scope
 
-First, run the development server:
+- Validates client-only Evolu bootstrap inside App Router (`"use client"` boundaries)
+- Serves as baseline for SSR/client boundary hardening tasks in the roadmap
+- Mirrors package usage from `@evolu/react` + `@evolu/react-web`
+
+## Run
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun run examples:react-nextjs:dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Build check:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cd examples/react-nextjs
+bun run build
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Integration Notes
 
-## Learn More
+- Evolu must initialize in client components only.
+- Keep provider and query hooks behind client boundaries.
+- Use this app as the canonical repro for hydration/client-order issues.
 
-To learn more about Next.js, take a look at the following resources:
+## Roadmap Link
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `docs/roadmap/integrations.md` -> `Next.js (App Router)`

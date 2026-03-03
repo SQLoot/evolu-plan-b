@@ -42,34 +42,49 @@ Coverage notes (Statements / Branches):
 - `@evolu/bun` (private): `100% / 100%` (`BunDbWorker.ts`)
 - Wrapper packages (`@evolu/react`, `@evolu/vue`, `@evolu/svelte`) are still coverage-expansion candidates.
 
-## Planned Integrations (Roadmap View)
+## Integrations Roadmap (Executive View)
 
-| Integration          | Priority | Focus                                          |
-| -------------------- | -------- | ---------------------------------------------- |
-| Next.js (App Router) | P0       | Official web guide + SSR/client boundary docs |
-| TanStack Start       | P0       | React/web adapter docs + production example    |
-| Astro                | P0       | Client-island starter + worker boot guidance   |
-| SvelteKit            | P1       | Browser-only init reference app                |
-| Nuxt 3               | P1       | Client plugin/module integration path          |
-| Remix / React Router | P1       | Explicit browser init in route patterns        |
-| Tauri                | P1       | WebView runtime + optional relay bridge        |
-| Electron             | P1       | Renderer runtime + optional main-process relay |
-| Capacitor (Ionic)    | P2       | WebView-first runtime hardening                |
-| Flutter              | P2       | Separate SDK/bridge exploration                |
+Roadmap snapshot date: `2026-03-03`.
 
-Main blockers to track:
+| Integration          | Progress | Priority | Size | Local Status         | Evidence                              |
+| -------------------- | -------- | -------- | ---- | -------------------- | ------------------------------------- |
+| Next.js (App Router) | 40%      | P0       | L    | Active hardening     | `examples/react-nextjs`               |
+| TanStack Start       | 75%      | P0       | M    | Active hardening     | `packages/tanstack-start`, example    |
+| Astro                | 75%      | P0       | M    | Active hardening     | `packages/astro`, example             |
+| SvelteKit            | 20%      | P1       | M    | Planned              | `@evolu/svelte` wrapper baseline      |
+| Nuxt 3               | 5%       | P1       | L    | Planned              | `@evolu/vue` wrapper baseline         |
+| Remix / React Router | 15%      | P1       | M    | Planned              | `@evolu/react-web` baseline           |
+| Tauri                | 50%      | P1       | M    | Active hardening     | `packages/tauri`, `examples/tauri`    |
+| Electron             | 30%      | P1       | M    | Planned hardening    | `examples/react-electron`             |
+| Capacitor (Ionic)    | 15%      | P2       | L    | Upstream watch + POC | `LOOT-052` + Android WebView fallback |
+| Flutter              | 0%       | P2       | XL   | Research             | No runtime bridge yet                 |
 
-- SSR/client boundaries and hydration order in framework runtimes.
-- Worker lifecycle consistency across browser, edge, and desktop shells.
-- Desktop packaging/process boundaries (Electron/Tauri).
-- Mobile WebView storage consistency and background lifecycle.
+Progress metric uses a weighted checklist (`20%` each):
 
-Current recommendation:
+- Adapter/helper package
+- Reference example
+- Test lane + coverage gate
+- Framework guide (README/docs)
+- CI smoke/hardening
 
-- Build first-class examples for `Next.js`, `TanStack Start`, and `Astro`.
-- Follow with `SvelteKit`, `Nuxt`, `Remix`, and `Tauri/Electron` runtime guides.
-- Treat `Flutter` as a separate SDK/bridge effort, not a quick wrapper.
-- Keep protocol/API parity first; add adapters only where lifecycle/storage semantics are clear.
+Detailed integration roadmap with per-framework checklists: [docs/roadmap/integrations.md](./docs/roadmap/integrations.md).
+
+Full SQLoot issue matrix (knowledge): [knowledge/05-Issues/OVERVIEW.md](https://github.com/SQLoot/knowledge/blob/main/05-Issues/OVERVIEW.md).
+
+## Upstream Watch (Top Actionable)
+
+Upstream snapshot date: `2026-03-03` (tracked issues remain open).
+
+| Upstream | Wrapper | Local Status | Size | Why now |
+| --- | --- | --- | --- | --- |
+| [#616](https://github.com/evoluhq/evolu/issues/616) | `LOOT-043` | `approved` | M | Relay transport status gates runtime decisions |
+| [#656](https://github.com/evoluhq/evolu/issues/656) | `LOOT-049` | `approved` | M | Owner deletion affects compliance and data lifecycle |
+| [#655](https://github.com/evoluhq/evolu/issues/655) | `LOOT-048` | `approved` | M | Relay usage metrics required for ops visibility |
+| [#653](https://github.com/evoluhq/evolu/issues/653) | `LOOT-046` | `open` | M | AppOwner storage model impacts security posture |
+| [#520](https://github.com/evoluhq/evolu/issues/520) | `LOOT-036` | `open` | XS | Security backlog should stay continuously triaged |
+| [#593](https://github.com/evoluhq/evolu/issues/593) | `LOOT-040` | `in-progress` | L | LocalAuth influences account model and DX |
+| [#631](https://github.com/evoluhq/evolu/issues/631) | `LOOT-045` | `blocked` | M | SQLite baseline changes can break adapters |
+| [#659](https://github.com/evoluhq/evolu/issues/659) | `LOOT-052` | `done` + watch | M | Local mitigation shipped, upstream still open |
 
 ## `@evolu/common` Compatibility and Third-Party Dependencies
 
