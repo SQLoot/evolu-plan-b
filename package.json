@@ -67,7 +67,7 @@
     "docs:sync:website": "bun ./scripts/docs-sync-website.mts"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.4",
+    "@biomejs/biome": "^2.4.5",
     "@changesets/cli": "^2.29.8",
     "@types/webpack": "^5.28.5",
     "@vitest/browser": "^4.0.18",
