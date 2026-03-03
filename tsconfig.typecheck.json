@@ -1,0 +1,17 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/astro" },
+    { "path": "./packages/bun" },
+    { "path": "./packages/common" },
+    { "path": "./packages/nodejs" },
+    { "path": "./packages/react" },
+    { "path": "./packages/react-native" },
+    { "path": "./packages/react-web" },
+    { "path": "./packages/svelte" },
+    { "path": "./packages/tanstack-start" },
+    { "path": "./packages/tauri" },
+    { "path": "./packages/vue" },
+    { "path": "./packages/web" }
+  ]
+}
