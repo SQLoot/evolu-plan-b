@@ -81,6 +81,9 @@
     "vitest": "^4.0.18",
     "webpack": "^5.105.2"
   },
+  "overrides": {
+    "serialize-javascript": "^7.0.3"
+  },
   "engines": {
     "node": ">=24.0.0"
   },
