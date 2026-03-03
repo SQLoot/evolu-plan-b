@@ -16,6 +16,7 @@ Integration progress is measured by a weighted checklist (`20%` each):
 
 | Integration | Current % | Priority | Epic Size | Local Status |
 | --- | --- | --- | --- | --- |
+| Electrobun | 10% | P0 | L | Planned architecture |
 | Next.js (App Router) | 40% | P0 | L | Active hardening |
 | TanStack Start | 75% | P0 | M | Active hardening |
 | Astro | 75% | P0 | M | Active hardening |
@@ -112,11 +113,33 @@ Current `%`: `30%` | Priority: `P1` | Epic size: `M`
 - [ ] `(P1, S)` Packaging smoke lane in CI
 - [ ] `(P1, S)` Process-boundary docs (renderer vs main responsibilities)
 
+## Electrobun
+
+Current `%`: `10%` | Priority: `P0` | Epic size: `L`
+
+Phase 1 (`today`, required for first usable integration):
+
+- [ ] `(P0, M)` Create package `@evolu/electrobun` in monorepo
+- [ ] `(P0, S)` Bun backend is default (`bun:sqlite`)
+- [ ] `(P0, S)` WASM backend is optional via explicit configuration
+- [ ] `(P0, M)` RPC bridge is mandatory for Bun backend (typed request/response + lifecycle errors)
+- [ ] `(P0, M)` Hybrid renderer selector:
+- [ ] `(P0, S)` macOS: native renderer default
+- [ ] `(P0, S)` Windows: native renderer default
+- [ ] `(P0, S)` Linux: CEF default
+- [ ] `(P0, S)` V1 scope guarantees one primary webview/window only
+
+Phase 2 (after V1 stability):
+
+- [ ] `(P1, M)` CI smoke lanes for all renderer defaults (`macOS`, `Windows`, `Linux`)
+- [ ] `(P1, S)` Security/hardening guide for bridge and renderer boundary
+- [ ] `(P2, M)` Multi-tab support and window orchestration
+
 ## Capacitor (Ionic)
 
 Current `%`: `15%` | Priority: `P2` | Epic size: `L`
 
-- [x] `(P2, S)` Local workaround shipped for Android WebView locks gap (`LOOT-052`)
+- [x] `(P2, S)` Local workaround shipped for Android WebView locks gap
 - [ ] `(P2, M)` Runtime helper + lifecycle guard package for WebView shells
 - [ ] `(P2, M)` Capacitor reference app
 - [ ] `(P2, S)` Android WebView regression lane in CI
