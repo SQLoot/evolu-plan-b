@@ -12,20 +12,22 @@ Integration progress is measured by a weighted checklist (`20%` each):
 - Framework guide (README/docs)
 - CI smoke/hardening
 
+Current `%` is computed from completed core items only, so values use `0%`, `20%`, `40%`, `60%`, `80%`, or `100%`.
+
 ## Baseline Matrix
 
 | Integration | Current % | Priority | Epic Size | Local Status |
 | --- | --- | --- | --- | --- |
-| Electrobun | 10% | P0 | L | Planned architecture |
+| Electrobun | 0% | P0 | L | Planned architecture |
 | Next.js (App Router) | 40% | P0 | L | Active hardening |
-| TanStack Start | 75% | P0 | M | Active hardening |
-| Astro | 75% | P0 | M | Active hardening |
+| TanStack Start | 60% | P0 | M | Active hardening |
+| Astro | 60% | P0 | M | Active hardening |
 | SvelteKit | 20% | P1 | M | Planned |
-| Nuxt 3 | 5% | P1 | L | Planned |
-| Remix / React Router | 15% | P1 | M | Planned |
-| Tauri | 50% | P1 | M | Active hardening |
-| Electron | 30% | P1 | M | Planned hardening |
-| Capacitor (Ionic) | 15% | P2 | L | Upstream watch + POC |
+| Nuxt 3 | 0% | P1 | L | Planned |
+| Remix / React Router | 20% | P1 | M | Planned |
+| Tauri | 60% | P1 | M | Active hardening |
+| Electron | 20% | P1 | M | Planned hardening |
+| Capacitor (Ionic) | 20% | P2 | L | Upstream watch + POC |
 | Flutter | 0% | P2 | XL | Research |
 
 ## Next.js (App Router)
@@ -41,7 +43,7 @@ Current `%`: `40%` | Priority: `P0` | Epic size: `L`
 
 ## TanStack Start
 
-Current `%`: `75%` | Priority: `P0` | Epic size: `M`
+Current `%`: `60%` | Priority: `P0` | Epic size: `M`
 
 - [x] `(P0, S)` Helper package exists (`packages/tanstack-start`)
 - [x] `(P0, S)` Reference example exists (`examples/tanstack-start`)
@@ -52,7 +54,7 @@ Current `%`: `75%` | Priority: `P0` | Epic size: `M`
 
 ## Astro
 
-Current `%`: `75%` | Priority: `P0` | Epic size: `M`
+Current `%`: `60%` | Priority: `P0` | Epic size: `M`
 
 - [x] `(P0, S)` Helper package exists (`packages/astro`)
 - [x] `(P0, S)` Reference example exists (`examples/astro`)
@@ -73,7 +75,7 @@ Current `%`: `20%` | Priority: `P1` | Epic size: `M`
 
 ## Nuxt 3
 
-Current `%`: `5%` | Priority: `P1` | Epic size: `L`
+Current `%`: `0%` | Priority: `P1` | Epic size: `L`
 
 - [ ] `(P1, M)` Nuxt client plugin/module integration pattern
 - [ ] `(P1, M)` Nuxt reference example app
@@ -83,7 +85,7 @@ Current `%`: `5%` | Priority: `P1` | Epic size: `L`
 
 ## Remix / React Router
 
-Current `%`: `15%` | Priority: `P1` | Epic size: `M`
+Current `%`: `20%` | Priority: `P1` | Epic size: `M`
 
 - [x] `(P1, S)` React web baseline exists (`@evolu/react-web`)
 - [ ] `(P1, M)` Route-level client bootstrap pattern for Remix/React Router
@@ -93,7 +95,7 @@ Current `%`: `15%` | Priority: `P1` | Epic size: `M`
 
 ## Tauri
 
-Current `%`: `50%` | Priority: `P1` | Epic size: `M`
+Current `%`: `60%` | Priority: `P1` | Epic size: `M`
 
 - [x] `(P1, S)` Helper package exists (`packages/tauri`)
 - [x] `(P1, S)` Reference example exists (`examples/tauri`)
@@ -105,7 +107,7 @@ Current `%`: `50%` | Priority: `P1` | Epic size: `M`
 
 ## Electron
 
-Current `%`: `30%` | Priority: `P1` | Epic size: `M`
+Current `%`: `20%` | Priority: `P1` | Epic size: `M`
 
 - [x] `(P1, S)` Reference app exists (`examples/react-electron`)
 - [ ] `(P1, M)` Dedicated Electron helper package (runtime/process guards)
@@ -115,7 +117,7 @@ Current `%`: `30%` | Priority: `P1` | Epic size: `M`
 
 ## Electrobun
 
-Current `%`: `10%` | Priority: `P0` | Epic size: `L`
+Current `%`: `0%` | Priority: `P0` | Epic size: `L`
 
 Phase 1 (`today`, required for first usable integration):
 
@@ -137,7 +139,7 @@ Phase 2 (after V1 stability):
 
 ## Capacitor (Ionic)
 
-Current `%`: `15%` | Priority: `P2` | Epic size: `L`
+Current `%`: `20%` | Priority: `P2` | Epic size: `L`
 
 - [x] `(P2, S)` Local workaround shipped for Android WebView locks gap
 - [ ] `(P2, M)` Runtime helper + lifecycle guard package for WebView shells

@@ -49,16 +49,16 @@ Today execution focus: `Electrobun` foundation (`P0`).
 
 | Integration          | Progress | Priority | Size | Local Status         | Evidence                                  |
 | -------------------- | -------- | -------- | ---- | -------------------- | ----------------------------------------- |
-| Electrobun           | 10%      | P0       | L    | Planned architecture | Target package `@evolu/electrobun`        |
+| Electrobun           | 0%       | P0       | L    | Planned architecture | Target package `@evolu/electrobun`        |
 | Next.js (App Router) | 40%      | P0       | L    | Active hardening     | `examples/react-nextjs`                   |
-| TanStack Start       | 75%      | P0       | M    | Active hardening     | `packages/tanstack-start`, example        |
-| Astro                | 75%      | P0       | M    | Active hardening     | `packages/astro`, example                 |
+| TanStack Start       | 60%      | P0       | M    | Active hardening     | `packages/tanstack-start`, example        |
+| Astro                | 60%      | P0       | M    | Active hardening     | `packages/astro`, example                 |
 | SvelteKit            | 20%      | P1       | M    | Planned              | `@evolu/svelte` wrapper baseline          |
-| Nuxt 3               | 5%       | P1       | L    | Planned              | `@evolu/vue` wrapper baseline             |
-| Remix / React Router | 15%      | P1       | M    | Planned              | `@evolu/react-web` baseline               |
-| Tauri                | 50%      | P1       | M    | Active hardening     | `packages/tauri`, `examples/tauri`        |
-| Electron             | 30%      | P1       | M    | Planned hardening    | `examples/react-electron`                 |
-| Capacitor (Ionic)    | 15%      | P2       | L    | Upstream watch + POC | Android WebView fallback shipped in fork  |
+| Nuxt 3               | 0%       | P1       | L    | Planned              | `@evolu/vue` wrapper baseline             |
+| Remix / React Router | 20%      | P1       | M    | Planned              | `@evolu/react-web` baseline               |
+| Tauri                | 60%      | P1       | M    | Active hardening     | `packages/tauri`, `examples/tauri`        |
+| Electron             | 20%      | P1       | M    | Planned hardening    | `examples/react-electron`                 |
+| Capacitor (Ionic)    | 20%      | P2       | L    | Upstream watch + POC | Android WebView fallback shipped in fork  |
 | Flutter              | 0%       | P2       | XL   | Research             | No runtime bridge yet                     |
 
 Progress metric uses a weighted checklist (`20%` each):
@@ -68,6 +68,8 @@ Progress metric uses a weighted checklist (`20%` each):
 - Test lane + coverage gate
 - Framework guide (README/docs)
 - CI smoke/hardening
+
+Executive progress values use completed-core-item counting only, so valid values are `0%`, `20%`, `40%`, `60%`, `80%`, `100%`.
 
 Detailed integration roadmap with per-framework checklists: [docs/roadmap/integrations.md](./docs/roadmap/integrations.md).
 
