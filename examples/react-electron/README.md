@@ -28,6 +28,6 @@ bun run preview
 - Treat preload and IPC contracts as security boundaries.
 - Use this app as the canonical repro for desktop runtime regressions.
 
-## Roadmap Link
+## Roadmap
 
-- `docs/roadmap/integrations.md` -> `Electron`
+See the [Electron integration roadmap](../../docs/roadmap/integrations.md#electron) for planned features and improvements.
