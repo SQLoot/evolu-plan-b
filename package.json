@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "turbo --filter @evolu/relay dev",
     "relay": "turbo --filter @evolu/relay dev",
-    "build": "turbo --filter @evolu/* build",
+    "build": "bun run clean:ts && turbo --filter @evolu/* build",
     "build:web": "bun run build:docs && turbo --filter web build",
     "build:docs": "bun run docs:generate:api",
     "typecheck": "tsc --build tsconfig.typecheck.json",
@@ -57,6 +57,7 @@
     "sync:guard:common-v8:strict": "bun ./scripts/sync-guard-common-v8.mts --strict",
     "verify:fast": "bun run build && bun run test && bun run lint && bun run lint-monorepo",
     "verify": "bun run typecheck && bun run format && bun run build && bun run test && bun run test:coverage && bun run lint && bun run lint-monorepo",
+    "clean:ts": "tsc --build --clean tsconfig.typecheck.json",
     "clean": "turbo clean && rimraf node_modules bun.lock .turbo out coverage",
     "version": "changeset version",
     "release": "bun run build && changeset publish",

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun --watch src/index.ts",
-    "build": "rimraf dist && tsc",
+    "build": "tsc --build tsconfig.json",
     "start": "node dist/src/index.js",
     "clean": "rimraf .turbo node_modules dist data/evolu-relay.db"
   },
