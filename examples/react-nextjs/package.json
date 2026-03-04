@@ -5,7 +5,7 @@
   "scripts": {
     "_start": "next start",
     "build": "next build --webpack",
-    "clean": "rimraf .turbo .next node_modules",
+    "clean": "bun ../../scripts/rm.mts .turbo .next node_modules",
     "dev": "next dev --webpack"
   },
   "dependencies": {

@@ -31,7 +31,7 @@
     "build": "tsc --build && bun run package",
     "prepack": "bun run build",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "clean": "rimraf .turbo .svelte-kit node_modules dist",
+    "clean": "bun ../../scripts/rm.mts .turbo .svelte-kit node_modules dist",
     "dev": "tsc --build",
     "package": "svelte-package",
     "prepublishOnly": "bun run package",

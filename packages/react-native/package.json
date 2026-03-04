@@ -75,7 +75,7 @@
   "scripts": {
     "build": "tsc --build tsconfig.build.json",
     "prepack": "bun run build",
-    "clean": "rimraf .turbo node_modules dist coverage"
+    "clean": "bun ../../scripts/rm.mts .turbo node_modules dist coverage"
   },
   "dependencies": {
     "set.prototype.difference": "^1.1.7",

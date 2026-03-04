@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "tauri:dev": "bunx tauri dev",
     "tauri:build": "bunx tauri build",
-    "clean": "rimraf dist src-tauri/target"
+    "clean": "bun ../../scripts/rm.mts dist src-tauri/target"
   },
   "dependencies": {
     "@evolu/tauri": "workspace:*",

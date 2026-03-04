@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "bunx vite",
     "_build": "tsc && bunx vite build && bunx electron-builder",
-    "clean": "rimraf node_modules .turbo dist-electron",
+    "clean": "bun ../../scripts/rm.mts node_modules .turbo dist-electron",
     "preview": "vite preview"
   },
   "dependencies": {
