@@ -7,7 +7,6 @@
       "devDependencies": {
         "@biomejs/biome": "^2.4.5",
         "@changesets/cli": "^2.29.8",
-        "@types/webpack": "^5.28.5",
         "@vitest/browser": "^4.0.18",
         "@vitest/browser-playwright": "^4.0.18",
         "@vitest/coverage-v8": "^4.0.18",
@@ -16,7 +15,6 @@
         "typedoc-plugin-markdown": "^4.10.0",
         "typescript": "^5.9.3",
         "vitest": "^4.0.18",
-        "webpack": "^5.105.2",
       },
     },
     "apps/relay": {
@@ -1656,8 +1654,6 @@
     "@types/verror": ["@types/verror@1.10.11", "", {}, "sha512-RlDm9K7+o5stv0Co8i8ZRGxDbrTxhJtgjqjFyVh/tXQyl/rYtTKlnTvZ88oSTeYREWurwx20Js4kTuKCsFkUtg=="],
 
     "@types/web-locks-api": ["@types/web-locks-api@0.0.5", "", {}, "sha512-QO/85x4b4DPVaZhtZfukBnKL+/qyts3joLI4Kd5up1NiZs+5j+TiWJGbalxantorUimfXsiZKQ6WuJgYaEobfA=="],
-
-    "@types/webpack": ["@types/webpack@5.28.5", "", { "dependencies": { "@types/node": "*", "tapable": "^2.2.0", "webpack": "^5" } }, "sha512-wR87cgvxj3p6D0Crt1r5avwqffqPXUkNlnQ1mjU93G7gCuFjufZR4I6j8cz5g1F1tTYpfOOFvly+cmIQwL9wvw=="],
 
     "@types/ws": ["@types/ws@8.18.1", "", { "dependencies": { "@types/node": "*" } }, "sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg=="],
 
