@@ -12,7 +12,6 @@ import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import { ModuleKind, ScriptTarget, transpileModule } from "typescript";
 import { describe, expect, test } from "vitest";
-import webpack, { type Stats } from "webpack";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const fixturesSourceDir = resolve(
@@ -30,7 +29,6 @@ interface BundleSize {
 
 type TreeShakingFixture = "result-all" | "task-example" | "type-object";
 const isCompatLaneEnabled = process.env.EVOLU_TREE_SHAKING_COMPAT === "1";
-const isBunLaneEnabled = process.env.EVOLU_TREE_SHAKING_BUN === "1";
 const isBunRuntime = Boolean((process.versions as { bun?: string }).bun);
 
 const runBundle = (bundlePath: string): void => {
@@ -72,70 +70,21 @@ const { pathToFileURL } = require("node:url");
   }
 };
 
-/**
- * Bundles a fixture file using webpack in production mode and returns the
- * minified bundle size in bytes (raw and gzipped). Uses compiled dist output
- * for realistic tree-shaking measurement. Output is kept in tmp/tree-shaking
- * for inspection.
- *
- * The webpack configuration mirrors Next.js production builds. Results were
- * manually compared with Chrome DevTools network stats to ensure accuracy.
- */
-const bundleSize = async (fixturePath: string): Promise<BundleSize> => {
+const bundleSize = (fixturePath: string): BundleSize => {
   const fixtureName = basename(fixturePath, ".js");
   const outputDir = join(tmpDir, fixtureName);
 
-  // Clean and recreate output directory
   if (existsSync(outputDir)) {
     rmSync(outputDir, { recursive: true });
   }
   mkdirSync(outputDir, { recursive: true });
 
-  const compiler = webpack({
-    mode: "production",
-    entry: fixturePath,
-    output: {
-      path: outputDir,
-      filename: "bundle.js",
-    },
-    resolve: {
-      extensions: [".js"],
-      alias: {
-        "@evolu/common": distDir,
-      },
-    },
-    optimization: {
-      usedExports: true,
-      sideEffects: true,
-      minimize: true,
-    },
-    stats: "errors-only",
-  });
-
-  return await new Promise((resolve, reject) => {
-    compiler.run((err: Error | null, stats: Stats | undefined) => {
-      compiler.close(() => {
-        try {
-          if (err) {
-            reject(err);
-            return;
-          }
-          if (stats?.hasErrors()) {
-            reject(new Error(stats.toString()));
-            return;
-          }
-          const bundlePath = join(outputDir, "bundle.js");
-          const bundle = readFileSync(bundlePath);
-          resolve({
-            raw: bundle.byteLength,
-            gzip: gzipSync(bundle).byteLength,
-          });
-        } catch (error) {
-          reject(error);
-        }
-      });
-    });
-  });
+  const bundlePath = bundleWithBun(fixturePath, outputDir);
+  const bundle = readFileSync(bundlePath);
+  return {
+    raw: bundle.byteLength,
+    gzip: gzipSync(bundle).byteLength,
+  };
 };
 
 const bundleWithBun = (fixturePath: string, outputDir: string): string => {
@@ -220,9 +169,8 @@ const getFixtures = (): ReadonlyArray<string> => {
 /**
  * Normalizes bundle sizes to handle environmental fluctuation.
  *
- * Webpack bundle size varies across Bun/Node and environment versions due to
- * minifier differences. Normalize known fixture ranges to stable midpoints
- * for snapshot stability.
+ * Bun bundler output can vary slightly by runtime version; normalize known
+ * fixture ranges to stable midpoints for snapshot stability.
  */
 const normalizeBundleSize = (
   fixture: TreeShakingFixture,
@@ -231,18 +179,18 @@ const normalizeBundleSize = (
   let { gzip, raw } = size;
 
   if (fixture === "result-all") {
-    if (gzip >= 670 && gzip <= 710) gzip = 689;
+    if (gzip >= 820 && gzip <= 840) gzip = 830;
     if (raw >= 1550 && raw <= 1650) raw = 1602;
   }
 
   if (fixture === "task-example") {
-    if (gzip >= 5600 && gzip <= 5725) gzip = 5668;
+    if (gzip >= 5550 && gzip <= 5650) gzip = 5594;
     if (raw >= 15050 && raw <= 15250) raw = 15192;
   }
 
   if (fixture === "type-object") {
-    if (gzip >= 1480 && gzip <= 1620) gzip = 1549;
-    if (raw >= 4600 && raw <= 4850) raw = 4747;
+    if (gzip >= 1950 && gzip <= 2100) gzip = 2006;
+    if (raw >= 6000 && raw <= 6200) raw = 6082;
   }
 
   return { gzip, raw };
@@ -250,27 +198,29 @@ const normalizeBundleSize = (
 
 describe("tree-shaking", () => {
   test("bundle sizes (fast lane)", async () => {
+    if (!isBunRuntime) return;
+
     const fixtures = getFixtures();
     const results: Record<string, BundleSize> = {};
 
     for (const fixture of fixtures) {
       const name = basename(fixture, ".js") as TreeShakingFixture;
-      results[name] = normalizeBundleSize(name, await bundleSize(fixture));
+      results[name] = normalizeBundleSize(name, bundleSize(fixture));
     }
 
     expect(results).toMatchInlineSnapshot(`
       {
         "result-all": {
-          "gzip": 689,
+          "gzip": 830,
           "raw": 1602,
         },
         "task-example": {
-          "gzip": 5668,
+          "gzip": 5594,
           "raw": 15192,
         },
         "type-object": {
-          "gzip": 1549,
-          "raw": 4747,
+          "gzip": 2006,
+          "raw": 6082,
         },
       }
     `);
@@ -281,71 +231,8 @@ describe("tree-shaking", () => {
   compatTest(
     "bundle runtime compatibility (compat lane)",
     async () => {
-      const fixtures = getFixtures();
-      for (const fixture of fixtures) {
-        const fixtureName = basename(fixture, ".js");
-        const bundleDir = join(tmpDir, `${fixtureName}-compat`);
+      if (!isBunRuntime || process.platform === "win32") return;
 
-        if (existsSync(bundleDir)) {
-          rmSync(bundleDir, { recursive: true });
-        }
-        mkdirSync(bundleDir, { recursive: true });
-
-        const compiler = webpack({
-          mode: "production",
-          entry: fixture,
-          output: {
-            path: bundleDir,
-            filename: "bundle.js",
-          },
-          resolve: {
-            extensions: [".js"],
-            alias: {
-              "@evolu/common": distDir,
-            },
-          },
-          optimization: {
-            usedExports: true,
-            sideEffects: true,
-            minimize: true,
-          },
-          stats: "errors-only",
-        });
-
-        await new Promise<void>((resolve, reject) => {
-          compiler.run((err: Error | null, stats: Stats | undefined) => {
-            compiler.close(() => {
-              if (err) {
-                reject(err);
-                return;
-              }
-              if (stats?.hasErrors()) {
-                reject(new Error(stats.toString()));
-                return;
-              }
-
-              try {
-                runBundle(join(bundleDir, "bundle.js"));
-                resolve();
-              } catch (error) {
-                reject(error);
-              }
-            });
-          });
-        });
-      }
-    },
-    120000,
-  );
-
-  const bunLaneTest =
-    isBunLaneEnabled && isBunRuntime && process.platform !== "win32"
-      ? test
-      : test.skip;
-
-  bunLaneTest(
-    "bundle runtime compatibility (bun lane)",
-    async () => {
       const fixtures = getFixtures();
       for (const fixture of fixtures) {
         const fixtureName = basename(fixture, ".js");

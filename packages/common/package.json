@@ -75,7 +75,6 @@
     "fast-check": "^4.5.3",
     "playwright": "^1.58.2",
     "typescript": "^5.9.3",
-    "webpack": "^5.105.2",
     "ws": "^8.19.0"
   }
 }
