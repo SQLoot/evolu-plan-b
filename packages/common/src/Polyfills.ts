@@ -215,7 +215,7 @@ const getOrInstallSymbol = (
     ?.value as unknown;
   const installed =
     typeof installedValue === "symbol" ? installedValue : undefined;
-  if (installed != null) return installed;
+  if (installed !== undefined) return installed;
 
   const symbol = Symbol(description);
   Object.defineProperty(SymbolCtor, key, {
