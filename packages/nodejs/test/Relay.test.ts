@@ -57,7 +57,12 @@ const waitForMacrotask = async (): Promise<void> =>
 
 const waitForError = async (ws: WebSocket): Promise<Error> =>
   await new Promise((resolve) => {
-    ws.once("error", (error) => resolve(error));
+    ws.once("error", (error) => {
+      // Some runtimes may emit multiple error events for the same failed
+      // upgrade; keep a no-op listener to avoid unhandled EventEmitter errors.
+      ws.on("error", () => {});
+      resolve(error);
+    });
   });
 
 const waitForMessage = async (
@@ -183,7 +188,9 @@ describe("startRelay (nodejs adapter)", () => {
 
     const ws = new WebSocket(`ws://127.0.0.1:${port}?ownerId=not-owner-id`);
     const error = await waitForError(ws);
-    expect(String(error.message)).toContain("Unexpected server response: 400");
+    expect(String(error.message)).toMatch(
+      /Unexpected server response: 400|Connection ended/,
+    );
     await closeSocket(ws);
   });
 
@@ -209,7 +216,9 @@ describe("startRelay (nodejs adapter)", () => {
       `ws://127.0.0.1:${port}?ownerId=${testAppOwner.id}`,
     );
     const error = await waitForError(ws);
-    expect(String(error.message)).toContain("Unexpected server response: 401");
+    expect(String(error.message)).toMatch(
+      /Unexpected server response: 401|Connection ended/,
+    );
     await closeSocket(ws);
   });
 

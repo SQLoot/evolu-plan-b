@@ -1065,15 +1065,35 @@ export class AsyncDisposableStack<D = unknown> implements AsyncDisposable {
   use<T extends AsyncDisposable | Disposable | null | undefined, E>(
     valueOrAcquire: T | Task<T, E, D>,
   ): T | PromiseLike<Result<T, E | AbortError>> {
+    const register = (value: T): T => {
+      if (value == null || Symbol.asyncDispose in value) {
+        this.#stack.use(value as T);
+        return value;
+      }
+
+      if (Symbol.dispose in value) {
+        const disposable = value as Disposable;
+        this.#stack.use({
+          [Symbol.asyncDispose]: async () => {
+            disposable[Symbol.dispose]();
+          },
+        });
+        return value;
+      }
+
+      this.#stack.use(value as T);
+      return value;
+    };
+
     if (
       valueOrAcquire == null ||
       Symbol.dispose in valueOrAcquire ||
       Symbol.asyncDispose in valueOrAcquire
     ) {
-      return this.#stack.use(valueOrAcquire as T);
+      return register(valueOrAcquire as T);
     }
     return this.#run(valueOrAcquire).then((result) => {
-      if (result.ok) this.#stack.use(result.value);
+      if (result.ok) register(result.value);
       return result;
     });
   }

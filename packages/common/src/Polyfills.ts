@@ -60,7 +60,12 @@ const installDisposableStack = (): void => {
     "Symbol.asyncDispose",
   );
 
-  if (typeof globalThis.DisposableStack !== "function") {
+  const forceOwnedPolyfill = hasBrokenNativeDisposableStack(
+    symbolDispose,
+    symbolAsyncDispose,
+  );
+
+  if (forceOwnedPolyfill || typeof globalThis.DisposableStack !== "function") {
     defineGlobalValue(
       globalThis,
       "DisposableStack",
@@ -68,12 +73,62 @@ const installDisposableStack = (): void => {
     );
   }
 
-  if (typeof globalThis.AsyncDisposableStack !== "function") {
+  if (
+    forceOwnedPolyfill ||
+    typeof globalThis.AsyncDisposableStack !== "function"
+  ) {
     defineGlobalValue(
       globalThis,
       "AsyncDisposableStack",
       createAsyncDisposableStackPolyfill(symbolDispose, symbolAsyncDispose),
     );
+  }
+};
+
+/**
+ * Some runtimes expose native DisposableStack APIs but fail on valid usage
+ * (notably AsyncDisposableStack.use with Symbol.dispose-only resources).
+ * In that case we switch to the owned polyfill for deterministic behavior.
+ */
+const hasBrokenNativeDisposableStack = (
+  symbolDispose: symbol,
+  symbolAsyncDispose: symbol,
+): boolean => {
+  const DisposableStackCtor = globalThis.DisposableStack;
+  const AsyncDisposableStackCtor = globalThis.AsyncDisposableStack;
+
+  if (
+    typeof DisposableStackCtor !== "function" ||
+    typeof AsyncDisposableStackCtor !== "function"
+  ) {
+    return false;
+  }
+
+  const disposableResource = {
+    [symbolDispose]() {
+      return;
+    },
+  } as unknown as Disposable;
+
+  const asyncDisposableResource = {
+    [symbolAsyncDispose]: async () => {
+      return;
+    },
+  } as unknown as AsyncDisposable;
+
+  try {
+    const disposableStack = new DisposableStackCtor();
+    disposableStack.use(disposableResource);
+    disposableStack.dispose();
+
+    const asyncDisposableStack = new AsyncDisposableStackCtor();
+    asyncDisposableStack.use(disposableResource);
+    asyncDisposableStack.use(asyncDisposableResource);
+    void asyncDisposableStack.disposeAsync();
+
+    return false;
+  } catch {
+    return true;
   }
 };
 

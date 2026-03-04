@@ -1,6 +1,10 @@
 // Polyfills for Node.js test environment
 // The @evolu/common package uses ES2024+ features
 
+import { installPolyfills } from "../../common/src/Polyfills.js";
+
+installPolyfills();
+
 // Polyfill Promise.try for Node.js/Bun versions that don't support it (ES2024)
 // The @evolu/common package uses Promise.try in Task.ts
 if (!(Promise as any).try) {

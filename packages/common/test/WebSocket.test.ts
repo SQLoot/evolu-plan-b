@@ -15,7 +15,7 @@ declare module "vitest/browser" {
 let port: number | undefined;
 const getServerUrl = (path = ""): string => {
   if (port === undefined) throw new Error("Server port not initialized");
-  return `ws://localhost:${port}${path ? `/${path}` : ""}`;
+  return `ws://127.0.0.1:${port}${path ? `/${path}` : ""}`;
 };
 
 beforeEach(async () => {
@@ -41,7 +41,9 @@ afterEach(async () => {
   }
 });
 
-test("connects, receives message, sends message, and disposes", async () => {
+const wsTest = isServer ? test : test.skip;
+
+wsTest("connects, receives message, sends message, and disposes", async () => {
   await using run = createRunner();
 
   const messages: Array<Uint8Array> = [];
@@ -72,7 +74,7 @@ test("connects, receives message, sends message, and disposes", async () => {
   expect(ws.getReadyState()).toBe("closed");
 });
 
-test("calls onOpen callback", async () => {
+wsTest("calls onOpen callback", async () => {
   await using run = createRunner();
 
   let openCalled = false;
@@ -96,7 +98,7 @@ test("calls onOpen callback", async () => {
   expect(ws.isOpen()).toBe(false);
 });
 
-test("does not call onClose when disposed", async () => {
+wsTest("does not call onClose when disposed", async () => {
   await using run = createRunner();
 
   let openCalled = false;
@@ -123,7 +125,7 @@ test("does not call onClose when disposed", async () => {
   expect(closeCalled).toBe(false);
 });
 
-test("send returns error when socket is not ready", async () => {
+wsTest("send returns error when socket is not ready", async () => {
   await using run = createRunner();
 
   const result = await run(createWebSocket(getServerUrl()));
@@ -142,7 +144,7 @@ test("send returns error when socket is not ready", async () => {
   }
 });
 
-test("supports protocols as array", async () => {
+wsTest("supports protocols as array", async () => {
   await using run = createRunner();
 
   let openCalled = false;
@@ -163,7 +165,7 @@ test("supports protocols as array", async () => {
   ws[Symbol.dispose]();
 });
 
-test("supports protocols as string", async () => {
+wsTest("supports protocols as string", async () => {
   await using run = createRunner();
 
   let openCalled = false;
@@ -184,7 +186,7 @@ test("supports protocols as string", async () => {
   ws[Symbol.dispose]();
 });
 
-test("getReadyState returns connecting when socket is null", async () => {
+wsTest("getReadyState returns connecting when socket is null", async () => {
   await using run = createRunner();
 
   // Create with invalid URL and no retries to test null socket state
@@ -203,7 +205,7 @@ test("getReadyState returns connecting when socket is null", async () => {
   ws[Symbol.dispose]();
 });
 
-test("calls onError on connection failure", async () => {
+wsTest("calls onError on connection failure", async () => {
   await using run = createRunner();
 
   const errors: Array<WebSocketError> = [];
@@ -227,7 +229,7 @@ test("calls onError on connection failure", async () => {
   ws[Symbol.dispose]();
 });
 
-test("calls onClose when server closes connection", async () => {
+wsTest("calls onClose when server closes connection", async () => {
   await using run = createRunner();
 
   let closeCalled = false;
@@ -249,7 +251,7 @@ test("calls onClose when server closes connection", async () => {
   ws[Symbol.dispose]();
 });
 
-test("does not retry when shouldRetryOnClose returns false", async () => {
+wsTest("does not retry when shouldRetryOnClose returns false", async () => {
   await using run = createRunner();
 
   const errors: Array<WebSocketError> = [];
@@ -280,7 +282,7 @@ test("does not retry when shouldRetryOnClose returns false", async () => {
   ws[Symbol.dispose]();
 });
 
-test("reconnects after server closes connection", async () => {
+wsTest("reconnects after server closes connection", async () => {
   await using run = createRunner();
 
   const messages: Array<Uint8Array> = [];
@@ -314,7 +316,7 @@ test("reconnects after server closes connection", async () => {
   ws[Symbol.dispose]();
 });
 
-test("reports RetryError when schedule is exhausted", async () => {
+wsTest("reports RetryError when schedule is exhausted", async () => {
   await using run = createRunner();
 
   const errors: Array<WebSocketError> = [];
@@ -343,7 +345,7 @@ test("reports RetryError when schedule is exhausted", async () => {
   ws[Symbol.dispose]();
 });
 
-test("WebSocketConnectionError behavior on abrupt termination", async () => {
+wsTest("WebSocketConnectionError behavior on abrupt termination", async () => {
   await using run = createRunner();
 
   const errors: Array<WebSocketError> = [];

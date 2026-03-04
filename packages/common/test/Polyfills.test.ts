@@ -24,7 +24,53 @@ const isNodeRuntime =
     }
   ).process?.versions?.node != null;
 
-const isNativeDisposableStackImplementation = isNodeRuntime;
+const hasWorkingNativeAsyncDisposableStackSyncFallback = (): boolean => {
+  if (
+    typeof globalThis.DisposableStack !== "function" ||
+    typeof globalThis.AsyncDisposableStack !== "function" ||
+    typeof Symbol.dispose !== "symbol"
+  ) {
+    return false;
+  }
+
+  try {
+    const stack = new globalThis.AsyncDisposableStack();
+    stack.use({
+      [Symbol.dispose]() {
+        return;
+      },
+    } as Disposable);
+    void stack[Symbol.asyncDispose]();
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const isNativeDisposableStackImplementation =
+  isNodeRuntime && hasWorkingNativeAsyncDisposableStackSyncFallback();
+
+const syncDisposableFallbackThrows = (): boolean => {
+  if (
+    typeof globalThis.AsyncDisposableStack !== "function" ||
+    typeof Symbol.dispose !== "symbol"
+  ) {
+    return false;
+  }
+
+  try {
+    const probe = new globalThis.AsyncDisposableStack();
+    probe.use({
+      [Symbol.dispose]() {
+        return;
+      },
+    } as Disposable);
+    void probe[Symbol.asyncDispose]();
+    return false;
+  } catch {
+    return true;
+  }
+};
 
 const assertNativeDisposableStackImplementation = (): void => {
   if (
@@ -857,6 +903,7 @@ describe("DisposableStack behavior", () => {
   });
 
   test("Reflect.construct propagates abrupt newTarget prototype getter", () => {
+    // biome-ignore lint/complexity/useArrowFunction: must stay constructable for Reflect.construct third argument.
     const newTarget = function () {
       return;
     }.bind(null);
@@ -950,8 +997,9 @@ describe("AsyncDisposableStack behavior", () => {
     const events: Array<string> = [];
 
     const stack = new globalThis.AsyncDisposableStack();
+    const throwsOnSyncFallback = syncDisposableFallbackThrows();
 
-    if (isNativeDisposableStackImplementation) {
+    if (throwsOnSyncFallback) {
       expect(() =>
         stack.use({
           [Symbol.dispose]: () => {
@@ -976,7 +1024,7 @@ describe("AsyncDisposableStack behavior", () => {
 
     await stack.disposeAsync();
     expect(events).toEqual(
-      isNativeDisposableStackImplementation ? ["async"] : ["async", "sync"],
+      throwsOnSyncFallback ? ["async"] : ["async", "sync"],
     );
   });
 
@@ -1349,6 +1397,7 @@ describe("AsyncDisposableStack behavior", () => {
 
   test("use reads Symbol.dispose only once on sync fallback", async () => {
     const stack = new globalThis.AsyncDisposableStack();
+    const throwsOnSyncFallback = syncDisposableFallbackThrows();
     const resource = {
       disposeReadCount: 0,
     } as {
@@ -1365,7 +1414,7 @@ describe("AsyncDisposableStack behavior", () => {
       },
     });
 
-    if (isNativeDisposableStackImplementation) {
+    if (throwsOnSyncFallback) {
       expect(() => stack.use(resource as Disposable)).toThrow(TypeError);
       expect(resource.disposeReadCount).toBe(0);
       return;
@@ -1446,6 +1495,7 @@ describe("AsyncDisposableStack behavior", () => {
   });
 
   test("Reflect.construct propagates abrupt newTarget prototype getter", () => {
+    // biome-ignore lint/complexity/useArrowFunction: must stay constructable for Reflect.construct third argument.
     const newTarget = function () {
       return;
     }.bind(null);
