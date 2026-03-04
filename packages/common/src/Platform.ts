@@ -10,6 +10,15 @@ export const isHermes = "HermesInternal" in globalThis;
 /** Returns true if running in a server environment (no DOM). */
 export const isServer = typeof document === "undefined";
 
+export interface NodeBufferLike {
+  readonly from: (
+    value: Uint8Array | string,
+    encoding?: "base64url",
+  ) => ArrayLike<number> & { toString: (encoding?: "base64url") => string };
+}
+
+export const nodeBuffer = (globalThis as { Buffer?: NodeBufferLike }).Buffer;
+
 /**
  * Detects if Node.js Buffer is available and should be used.
  *
@@ -21,8 +30,7 @@ export const isServer = typeof document === "undefined";
  *
  * @see https://github.com/craftzdog/react-native-quick-base64#installation
  */
-export const hasNodeBuffer =
-  !isHermes && typeof globalThis.Buffer !== "undefined";
+export const hasNodeBuffer = !isHermes && typeof nodeBuffer !== "undefined";
 
 /**
  * FlushSync is for libraries like React to flush updates synchronously inside

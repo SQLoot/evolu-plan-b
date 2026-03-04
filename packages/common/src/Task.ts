@@ -1750,7 +1750,11 @@ type SchedulerLike = {
   yield?: () => Promise<void>;
 };
 
+type SetImmediateLike = (callback: () => void) => unknown;
+
 const globalScheduler = (globalThis as { scheduler?: SchedulerLike }).scheduler;
+const globalSetImmediate = (globalThis as { setImmediate?: SetImmediateLike })
+  .setImmediate;
 let schedulerYield: (() => Promise<void>) | undefined;
 
 if (globalScheduler && typeof globalScheduler.yield === "function") {
@@ -1759,8 +1763,8 @@ if (globalScheduler && typeof globalScheduler.yield === "function") {
 
 const yieldImpl: () => Promise<void> =
   schedulerYield ??
-  (typeof setImmediate !== "undefined"
-    ? () => new Promise<void>((resolve) => setImmediate(resolve))
+  (typeof globalSetImmediate !== "undefined"
+    ? () => new Promise<void>((resolve) => globalSetImmediate(resolve))
     : () => new Promise<void>((r) => setTimeout(r, 0))); // Safari
 
 /**

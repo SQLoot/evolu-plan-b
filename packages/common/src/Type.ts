@@ -12,7 +12,7 @@ import type { Brand } from "./Brand.js";
 import type { RandomBytesDep } from "./Crypto.js";
 import { exhaustiveCheck } from "./Function.js";
 import { isFunction, isPlainObject } from "./Object.js";
-import { hasNodeBuffer } from "./Platform.js";
+import { hasNodeBuffer, nodeBuffer } from "./Platform.js";
 import type { NextResult, Result } from "./Result.js";
 import { err, getOrNull, getOrThrow, ok, trySync } from "./Result.js";
 import { safelyStringifyUnknownValue } from "./String.js";
@@ -1583,11 +1583,18 @@ export const formatBase64UrlError =
 
 const base64UrlOptions = { alphabet: "base64url", omitPadding: true };
 
+const getNodeBuffer = () => {
+  if (!nodeBuffer) {
+    throw new Error("Node Buffer is not available.");
+  }
+  return nodeBuffer;
+};
+
 /** Encodes a Uint8Array to a {@link Base64Url} string. */
 export const uint8ArrayToBase64Url: (bytes: Uint8Array) => Base64Url =
-  hasNodeBuffer
+  hasNodeBuffer && nodeBuffer
     ? (bytes: Uint8Array) =>
-        globalThis.Buffer.from(bytes).toString("base64url") as Base64Url
+        getNodeBuffer().from(bytes).toString("base64url") as Base64Url
     : typeof (globalThis.Uint8Array.prototype as any)?.toBase64 !== "undefined"
       ? (bytes: Uint8Array) =>
           (bytes as any).toBase64(base64UrlOptions) as Base64Url
@@ -1604,10 +1611,10 @@ export const uint8ArrayToBase64Url: (bytes: Uint8Array) => Base64Url =
 
 /** Decodes a {@link Base64Url} string to a Uint8Array. */
 export const base64UrlToUint8Array: (str: Base64Url) => Uint8Array =
-  hasNodeBuffer
+  hasNodeBuffer && nodeBuffer
     ? (str: Base64Url) => {
-        const nodeBuffer = globalThis.Buffer.from(str, "base64url");
-        return new globalThis.Uint8Array(nodeBuffer);
+        const bytes = getNodeBuffer().from(str, "base64url");
+        return new globalThis.Uint8Array(bytes);
       }
     : typeof (globalThis.Uint8Array as any)?.fromBase64 !== "undefined"
       ? (str: Base64Url) =>
