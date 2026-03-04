@@ -28,7 +28,7 @@
     "!dist/**/*.spec.*"
   ],
   "scripts": {
-    "build": "tsc --build && bun run package",
+    "build": "bun ../../scripts/rm.mts dist && tsc --build && bun run package",
     "prepack": "bun run build",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "clean": "bun ../../scripts/rm.mts .turbo .svelte-kit node_modules dist",
