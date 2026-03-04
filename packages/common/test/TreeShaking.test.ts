@@ -30,6 +30,8 @@ interface BundleSize {
 
 type TreeShakingFixture = "result-all" | "task-example" | "type-object";
 const isCompatLaneEnabled = process.env.EVOLU_TREE_SHAKING_COMPAT === "1";
+const isBunLaneEnabled = process.env.EVOLU_TREE_SHAKING_BUN === "1";
+const isBunRuntime = Boolean((process.versions as { bun?: string }).bun);
 
 const runBundle = (bundlePath: string): void => {
   const bootstrap = `
@@ -134,6 +136,53 @@ const bundleSize = async (fixturePath: string): Promise<BundleSize> => {
       });
     });
   });
+};
+
+const bundleWithBun = (fixturePath: string, outputDir: string): string => {
+  if (!isBunRuntime) {
+    throw new Error("Bun tree-shaking lane requires Bun runtime.");
+  }
+
+  const entrySource = readFileSync(fixturePath, "utf8").replace(
+    /(["'])@evolu\/common\1/g,
+    JSON.stringify(distDir.replaceAll("\\", "/")),
+  );
+  const entryPath = join(outputDir, "entry.js");
+  writeFileSync(entryPath, entrySource);
+
+  const bundlePath = join(outputDir, "bundle.js");
+  const result = spawnSync(
+    process.execPath,
+    [
+      "build",
+      entryPath,
+      "--outfile",
+      bundlePath,
+      "--target",
+      "browser",
+      "--minify",
+    ],
+    {
+      encoding: "utf8",
+      timeout: 30000,
+    },
+  );
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  if (result.status !== 0) {
+    throw new Error(
+      `bun build failed (status ${result.status}): ${result.stderr || result.stdout}`,
+    );
+  }
+
+  if (!existsSync(bundlePath)) {
+    throw new Error("bun build did not create bundle.js");
+  }
+
+  return bundlePath;
 };
 
 /**
@@ -284,6 +333,31 @@ describe("tree-shaking", () => {
             });
           });
         });
+      }
+    },
+    120000,
+  );
+
+  const bunLaneTest =
+    isBunLaneEnabled && isBunRuntime && process.platform !== "win32"
+      ? test
+      : test.skip;
+
+  bunLaneTest(
+    "bundle runtime compatibility (bun lane)",
+    async () => {
+      const fixtures = getFixtures();
+      for (const fixture of fixtures) {
+        const fixtureName = basename(fixture, ".js");
+        const bundleDir = join(tmpDir, `${fixtureName}-bun`);
+
+        if (existsSync(bundleDir)) {
+          rmSync(bundleDir, { recursive: true });
+        }
+        mkdirSync(bundleDir, { recursive: true });
+
+        const bundlePath = bundleWithBun(fixture, bundleDir);
+        runBundle(bundlePath);
       }
     },
     120000,

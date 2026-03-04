@@ -23,6 +23,7 @@
     "test:preflight:node": "bun ./scripts/ensure-better-sqlite3.mts --runtime=node",
     "test:docs": "bunx vitest run scripts/typedoc-plugin-evolu.test.mts",
     "test:tree-shaking:compat": "EVOLU_TREE_SHAKING_COMPAT=1 bunx vitest run packages/common/test/TreeShaking.test.ts",
+    "test:tree-shaking:bun": "EVOLU_TREE_SHAKING_BUN=1 bunx vitest run packages/common/test/TreeShaking.test.ts",
     "test:coverage": "bun run test:coverage:vitest && bun run test:coverage:bun && bun run coverage:merge:bun",
     "test:coverage:vitest": "bun run test:preflight && bunx vitest run --coverage",
     "test:coverage:bun": "bun test ./packages/bun/test --coverage --coverage-reporter=text --coverage-reporter=lcov --coverage-dir=coverage/bun",
