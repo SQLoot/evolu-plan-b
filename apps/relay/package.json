@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun --watch src/index.ts",
-    "build": "tsc --build tsconfig.json",
+    "build": "bun ../../scripts/rm.mts dist && tsc --build tsconfig.json",
     "start": "node dist/src/index.js",
     "clean": "bun ../../scripts/rm.mts .turbo node_modules dist data/evolu-relay.db"
   },

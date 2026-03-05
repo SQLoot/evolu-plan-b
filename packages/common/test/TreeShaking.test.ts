@@ -216,7 +216,7 @@ describe("tree-shaking", () => {
         },
         "task-example": {
           "gzip": 5692,
-          "raw": 15390,
+          "raw": 15511,
         },
         "type-object": {
           "gzip": 2006,
@@ -231,7 +231,16 @@ describe("tree-shaking", () => {
   compatTest(
     "bundle runtime compatibility (compat lane)",
     async () => {
-      if (!isBunRuntime || process.platform === "win32") return;
+      if (process.platform === "win32") {
+        throw new Error(
+          `EVOLU_TREE_SHAKING_COMPAT is enabled, but platform ${process.platform} is unsupported.`,
+        );
+      }
+      if (!isBunRuntime) {
+        throw new Error(
+          `EVOLU_TREE_SHAKING_COMPAT is enabled, but isBunRuntime=${String(isBunRuntime)}.`,
+        );
+      }
 
       const fixtures = getFixtures();
       for (const fixture of fixtures) {

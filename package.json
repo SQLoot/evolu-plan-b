@@ -58,7 +58,7 @@
     "verify:fast": "bun run build && bun run test && bun run lint && bun run lint-monorepo",
     "verify": "bun run typecheck && bun run format && bun run build && bun run test && bun run test:coverage && bun run lint && bun run lint-monorepo",
     "clean:ts": "tsc --build --clean tsconfig.typecheck.json",
-    "clean": "turbo clean && bun ./scripts/rm.mts node_modules bun.lock .turbo out coverage",
+    "clean": "turbo clean && bun ./scripts/rm.mts node_modules .turbo out coverage",
     "version": "changeset version",
     "release": "bun run build && changeset publish",
     "ios": "cd examples/react-expo && bun ios",
@@ -87,7 +87,9 @@
     "vitest": "^4.0.18"
   },
   "overrides": {
-    "serialize-javascript": "^7.0.3"
+    "serialize-javascript": "^7.0.3",
+    "svgo": "^4.0.1",
+    "tar": "^7.5.10"
   },
   "engines": {
     "node": ">=24.0.0"

@@ -1073,10 +1073,17 @@ export class AsyncDisposableStack<D = unknown> implements AsyncDisposable {
 
       if (Symbol.dispose in value) {
         const disposable = value as Disposable;
+        const dispose = (disposable as { [Symbol.dispose]?: unknown })[
+          Symbol.dispose
+        ];
+        if (typeof dispose !== "function") {
+          throw new TypeError("Resource does not implement Symbol.dispose.");
+        }
         this.#stack.use({
-          [Symbol.asyncDispose]: async () => {
-            disposable[Symbol.dispose]();
-          },
+          [Symbol.asyncDispose]: () =>
+            Promise.resolve().then(() => {
+              dispose.call(disposable);
+            }),
         });
         return value;
       }

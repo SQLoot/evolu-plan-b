@@ -18,15 +18,19 @@ const closeWithTimeout = (
 ): Promise<void> =>
   new Promise<void>((resolve) => {
     let settled = false;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     const settle = () => {
       if (settled) return;
       settled = true;
+      if (timeout !== undefined) {
+        clearTimeout(timeout);
+      }
       resolve();
     };
 
-    close(settle);
-    const timeout = setTimeout(settle, timeoutMs);
+    timeout = setTimeout(settle, timeoutMs);
     timeout.unref?.();
+    close(settle);
   });
 
 /**

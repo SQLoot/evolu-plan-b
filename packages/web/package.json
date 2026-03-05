@@ -29,7 +29,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc --build tsconfig.build.json",
+    "build": "bun ../../scripts/rm.mts dist && tsc --build tsconfig.build.json",
     "prepack": "bun run build",
     "dev": "tsc --build",
     "clean": "bun ../../scripts/rm.mts .turbo node_modules dist coverage"

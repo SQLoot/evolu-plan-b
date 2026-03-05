@@ -60,29 +60,28 @@ const installDisposableStack = (): void => {
     "Symbol.asyncDispose",
   );
 
-  const forceOwnedPolyfill = hasBrokenNativeDisposableStack(
+  const forceOwnedPolyfill = hasBrokenNativeDisposableStackSync(
     symbolDispose,
     symbolAsyncDispose,
   );
 
-  if (forceOwnedPolyfill || typeof globalThis.DisposableStack !== "function") {
-    defineGlobalValue(
-      globalThis,
-      "DisposableStack",
-      createDisposableStackPolyfill(symbolDispose),
-    );
-  }
-
   if (
     forceOwnedPolyfill ||
+    typeof globalThis.DisposableStack !== "function" ||
     typeof globalThis.AsyncDisposableStack !== "function"
   ) {
-    defineGlobalValue(
-      globalThis,
-      "AsyncDisposableStack",
-      createAsyncDisposableStackPolyfill(symbolDispose, symbolAsyncDispose),
-    );
+    installOwnedDisposableStackPolyfills(symbolDispose, symbolAsyncDispose);
+    return;
   }
+
+  void hasBrokenNativeDisposableStackAsync(
+    symbolDispose,
+    symbolAsyncDispose,
+  ).then((hasBrokenNative) => {
+    if (hasBrokenNative) {
+      installOwnedDisposableStackPolyfills(symbolDispose, symbolAsyncDispose);
+    }
+  });
 };
 
 /**
@@ -90,7 +89,7 @@ const installDisposableStack = (): void => {
  * (notably AsyncDisposableStack.use with Symbol.dispose-only resources).
  * In that case we switch to the owned polyfill for deterministic behavior.
  */
-const hasBrokenNativeDisposableStack = (
+const hasBrokenNativeDisposableStackSync = (
   symbolDispose: symbol,
   symbolAsyncDispose: symbol,
 ): boolean => {
@@ -124,13 +123,80 @@ const hasBrokenNativeDisposableStack = (
     const asyncDisposableStack = new AsyncDisposableStackCtor();
     asyncDisposableStack.use(disposableResource);
     asyncDisposableStack.use(asyncDisposableResource);
-    void asyncDisposableStack.disposeAsync();
+    const disposeResult = asyncDisposableStack.disposeAsync();
+    if (isPromiseLike(disposeResult)) {
+      // Prevent unhandled rejections while the async probe below verifies behavior.
+      void disposeResult.catch(() => {
+        return;
+      });
+    }
 
     return false;
   } catch {
     return true;
   }
 };
+
+const hasBrokenNativeDisposableStackAsync = async (
+  symbolDispose: symbol,
+  symbolAsyncDispose: symbol,
+): Promise<boolean> => {
+  const DisposableStackCtor = globalThis.DisposableStack;
+  const AsyncDisposableStackCtor = globalThis.AsyncDisposableStack;
+
+  if (
+    typeof DisposableStackCtor !== "function" ||
+    typeof AsyncDisposableStackCtor !== "function"
+  ) {
+    return false;
+  }
+
+  const disposableResource = {
+    [symbolDispose]() {
+      return;
+    },
+  } as unknown as Disposable;
+
+  const asyncDisposableResource = {
+    [symbolAsyncDispose]: async () => {
+      return;
+    },
+  } as unknown as AsyncDisposable;
+
+  try {
+    const disposableStack = new DisposableStackCtor();
+    disposableStack.use(disposableResource);
+    disposableStack.dispose();
+
+    const asyncDisposableStack = new AsyncDisposableStackCtor();
+    asyncDisposableStack.use(disposableResource);
+    asyncDisposableStack.use(asyncDisposableResource);
+    await asyncDisposableStack.disposeAsync();
+
+    return false;
+  } catch {
+    return true;
+  }
+};
+
+const installOwnedDisposableStackPolyfills = (
+  symbolDispose: symbol,
+  symbolAsyncDispose: symbol,
+): void => {
+  defineGlobalValue(
+    globalThis,
+    "DisposableStack",
+    createDisposableStackPolyfill(symbolDispose),
+  );
+  defineGlobalValue(
+    globalThis,
+    "AsyncDisposableStack",
+    createAsyncDisposableStackPolyfill(symbolDispose, symbolAsyncDispose),
+  );
+};
+
+const isPromiseLike = (value: unknown): value is PromiseLike<unknown> =>
+  typeof (value as { then?: unknown } | null)?.then === "function";
 
 type SymbolWithDisposable = SymbolConstructor & {
   dispose?: symbol;
@@ -140,7 +206,7 @@ type SymbolWithDisposable = SymbolConstructor & {
 const suppressedErrorMessage = "An error was suppressed during disposal.";
 
 const disposedMessage = (className: string, method: string): string =>
-  `Cannot call ${className}.prototype.${method} on an already-disposed DisposableStack`;
+  `Cannot call ${className}.prototype.${method} on an already-disposed ${className}`;
 
 const defineGlobalValue = (
   target: object,
