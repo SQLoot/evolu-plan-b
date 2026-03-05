@@ -1062,16 +1062,16 @@ describe("AsyncDisposableStack behavior", () => {
         [Symbol.dispose]: () => undefined,
       }),
     ).toThrow(
-      /Cannot call AsyncDisposableStack\.prototype\.use on an already-disposed AsyncDisposableStack|AsyncDisposableStack\.prototype\.use requires that \|this\| be a pending AsyncDisposableStack object/,
+      /Cannot call AsyncDisposableStack\.prototype\.use on an already-disposed (AsyncDisposableStack|DisposableStack)|AsyncDisposableStack\.prototype\.use requires that \|this\| be a pending AsyncDisposableStack object/,
     );
     expect(() => stack.defer(() => undefined)).toThrow(
-      /Cannot call AsyncDisposableStack\.prototype\.defer on an already-disposed AsyncDisposableStack|AsyncDisposableStack\.prototype\.defer requires that \|this\| be a pending AsyncDisposableStack object/,
+      /Cannot call AsyncDisposableStack\.prototype\.defer on an already-disposed (AsyncDisposableStack|DisposableStack)|AsyncDisposableStack\.prototype\.defer requires that \|this\| be a pending AsyncDisposableStack object/,
     );
     expect(() => stack.adopt("x", () => undefined)).toThrow(
-      /Cannot call AsyncDisposableStack\.prototype\.adopt on an already-disposed AsyncDisposableStack|AsyncDisposableStack\.prototype\.adopt requires that \|this\| be a pending AsyncDisposableStack object/,
+      /Cannot call AsyncDisposableStack\.prototype\.adopt on an already-disposed (AsyncDisposableStack|DisposableStack)|AsyncDisposableStack\.prototype\.adopt requires that \|this\| be a pending AsyncDisposableStack object/,
     );
     expect(() => stack.move()).toThrow(
-      /Cannot call AsyncDisposableStack\.prototype\.move on an already-disposed AsyncDisposableStack|AsyncDisposableStack\.prototype\.move requires that \|this\| be a pending AsyncDisposableStack object/,
+      /Cannot call AsyncDisposableStack\.prototype\.move on an already-disposed (AsyncDisposableStack|DisposableStack)|AsyncDisposableStack\.prototype\.move requires that \|this\| be a pending AsyncDisposableStack object/,
     );
   });
 

@@ -50,6 +50,17 @@ interface AsyncDisposableResource {
   readonly dispose: () => Promise<void>;
 }
 
+const isNodeRuntime =
+  (
+    globalThis as {
+      readonly process?: {
+        readonly versions?: {
+          readonly node?: string;
+        };
+      };
+    }
+  ).process?.versions?.node != null;
+
 /** Installs `DisposableStack`-related polyfills missing from the runtime. */
 const installDisposableStack = (): void => {
   installSuppressedError();
@@ -60,28 +71,30 @@ const installDisposableStack = (): void => {
     "Symbol.asyncDispose",
   );
 
+  const hasNativeDisposableStack =
+    typeof globalThis.DisposableStack === "function" &&
+    typeof globalThis.AsyncDisposableStack === "function";
+
+  if (!isNodeRuntime || !hasNativeDisposableStack) {
+    if (!hasNativeDisposableStack) {
+      installOwnedDisposableStackPolyfills(symbolDispose, symbolAsyncDispose);
+      return;
+    }
+
+    if (hasRuntimeNativeDisposableStack()) {
+      installOwnedDisposableStackPolyfills(symbolDispose, symbolAsyncDispose);
+      return;
+    }
+  }
+
   const forceOwnedPolyfill = hasBrokenNativeDisposableStackSync(
     symbolDispose,
     symbolAsyncDispose,
   );
 
-  if (
-    forceOwnedPolyfill ||
-    typeof globalThis.DisposableStack !== "function" ||
-    typeof globalThis.AsyncDisposableStack !== "function"
-  ) {
+  if (forceOwnedPolyfill) {
     installOwnedDisposableStackPolyfills(symbolDispose, symbolAsyncDispose);
-    return;
   }
-
-  void hasBrokenNativeDisposableStackAsync(
-    symbolDispose,
-    symbolAsyncDispose,
-  ).then((hasBrokenNative) => {
-    if (hasBrokenNative) {
-      installOwnedDisposableStackPolyfills(symbolDispose, symbolAsyncDispose);
-    }
-  });
 };
 
 /**
@@ -125,53 +138,11 @@ const hasBrokenNativeDisposableStackSync = (
     asyncDisposableStack.use(asyncDisposableResource);
     const disposeResult = asyncDisposableStack.disposeAsync();
     if (isPromiseLike(disposeResult)) {
-      // Prevent unhandled rejections while the async probe below verifies behavior.
+      // Prevent unhandled rejections from native async disposal.
       void disposeResult.catch(() => {
         return;
       });
     }
-
-    return false;
-  } catch {
-    return true;
-  }
-};
-
-const hasBrokenNativeDisposableStackAsync = async (
-  symbolDispose: symbol,
-  symbolAsyncDispose: symbol,
-): Promise<boolean> => {
-  const DisposableStackCtor = globalThis.DisposableStack;
-  const AsyncDisposableStackCtor = globalThis.AsyncDisposableStack;
-
-  if (
-    typeof DisposableStackCtor !== "function" ||
-    typeof AsyncDisposableStackCtor !== "function"
-  ) {
-    return false;
-  }
-
-  const disposableResource = {
-    [symbolDispose]() {
-      return;
-    },
-  } as unknown as Disposable;
-
-  const asyncDisposableResource = {
-    [symbolAsyncDispose]: async () => {
-      return;
-    },
-  } as unknown as AsyncDisposable;
-
-  try {
-    const disposableStack = new DisposableStackCtor();
-    disposableStack.use(disposableResource);
-    disposableStack.dispose();
-
-    const asyncDisposableStack = new AsyncDisposableStackCtor();
-    asyncDisposableStack.use(disposableResource);
-    asyncDisposableStack.use(asyncDisposableResource);
-    await asyncDisposableStack.disposeAsync();
 
     return false;
   } catch {
@@ -197,6 +168,17 @@ const installOwnedDisposableStackPolyfills = (
 
 const isPromiseLike = (value: unknown): value is PromiseLike<unknown> =>
   typeof (value as { then?: unknown } | null)?.then === "function";
+
+const hasRuntimeNativeDisposableStack = (): boolean =>
+  isNativeFunction(globalThis.DisposableStack) &&
+  isNativeFunction(globalThis.AsyncDisposableStack);
+
+const isNativeFunction = (value: unknown): boolean => {
+  if (typeof value !== "function") return false;
+  return /\{\s*\[native code\]\s*\}/u.test(
+    Function.prototype.toString.call(value),
+  );
+};
 
 type SymbolWithDisposable = SymbolConstructor & {
   dispose?: symbol;
@@ -279,9 +261,7 @@ const getOrInstallSymbol = (
   const SymbolCtor = globalThis.Symbol as SymbolWithDisposable;
   const installedValue = Object.getOwnPropertyDescriptor(SymbolCtor, key)
     ?.value as unknown;
-  const installed =
-    typeof installedValue === "symbol" ? installedValue : undefined;
-  if (installed !== undefined) return installed;
+  if (typeof installedValue === "symbol") return installedValue;
 
   const symbol = Symbol(description);
   Object.defineProperty(SymbolCtor, key, {

@@ -126,9 +126,10 @@ describe("reloadApp", () => {
     const workerUrl = URL.createObjectURL(
       new Blob([workerSource], { type: "text/javascript" }),
     );
-    const worker = new Worker(workerUrl, { type: "module" });
+    let worker: Worker | undefined;
 
     try {
+      worker = new Worker(workerUrl, { type: "module" });
       await new Promise<void>((resolve, reject) => {
         const timeout = globalThis.setTimeout(() => {
           reject(new Error("Worker did not finish reloadApp call"));
@@ -144,7 +145,7 @@ describe("reloadApp", () => {
         worker.postMessage("run");
       });
     } finally {
-      worker.terminate();
+      worker?.terminate();
       URL.revokeObjectURL(workerUrl);
     }
   });

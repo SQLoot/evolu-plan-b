@@ -27,10 +27,15 @@ export class BufferError extends Error {
       Error as ErrorConstructor & {
         captureStackTrace?: (
           targetObject: object,
-          constructorOpt?: object,
+          constructorOpt?: abstract new (...args: Array<unknown>) => unknown,
         ) => void;
       }
-    ).captureStackTrace?.(this, this.constructor);
+    ).captureStackTrace?.(
+      this,
+      this.constructor as abstract new (
+        ...args: Array<unknown>
+      ) => unknown,
+    );
   }
 }
 
