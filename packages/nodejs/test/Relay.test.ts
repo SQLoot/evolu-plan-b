@@ -190,7 +190,7 @@ describe("startRelay (nodejs adapter)", () => {
     const error = await waitForError(ws);
     // Runtime-dependent: ws may report an HTTP status error or a generic close.
     expect(String(error.message)).toMatch(
-      /Unexpected server response: 40[01]|Connection ended/,
+      /Unexpected server response: 400|Connection ended/,
     );
     await closeSocket(ws);
   });
@@ -219,7 +219,7 @@ describe("startRelay (nodejs adapter)", () => {
     const error = await waitForError(ws);
     // Runtime-dependent: ws may report an HTTP status error or a generic close.
     expect(String(error.message)).toMatch(
-      /Unexpected server response: 40[01]|Connection ended/,
+      /Unexpected server response: 401|Connection ended/,
     );
     await closeSocket(ws);
   });

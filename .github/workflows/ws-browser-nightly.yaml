@@ -46,14 +46,14 @@ jobs:
 
       - name: Upload browser WebSocket logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ws-browser-nightly-log
           path: ws-browser-nightly.log
 
       - name: Upload browser WebSocket screenshots
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ws-browser-nightly-screenshots
           path: packages/common/test/__screenshots__

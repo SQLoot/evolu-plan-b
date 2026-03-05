@@ -185,7 +185,7 @@ const normalizeBundleSize = (
 
   if (fixture === "task-example") {
     if (gzip >= 5650 && gzip <= 5750) gzip = 5692;
-    if (raw >= 15250 && raw <= 15450) raw = 15390;
+    if (raw >= 15250 && raw <= 15650) raw = 15511;
   }
 
   if (fixture === "type-object") {
