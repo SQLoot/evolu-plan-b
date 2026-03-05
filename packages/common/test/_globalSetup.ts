@@ -21,6 +21,10 @@ const closeWithTimeout = (
     let timeout: ReturnType<typeof setTimeout> | undefined;
     const settle = () => {
       if (settled) return;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+
+    const settle = () => {
+      if (settled) return;
       settled = true;
       if (timeout !== undefined) {
         clearTimeout(timeout);
@@ -30,6 +34,7 @@ const closeWithTimeout = (
 
     timeout = setTimeout(settle, timeoutMs);
     timeout.unref?.();
+    close(settle);
     close(settle);
   });
 
