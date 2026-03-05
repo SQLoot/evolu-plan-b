@@ -41,8 +41,14 @@ afterEach(async () => {
   }
 });
 
-const browserWsEnabled =
-  typeof process !== "undefined" && process.env?.EVOLU_BROWSER_WS_TESTS === "1";
+const envValue =
+  (globalThis as { process?: { env?: Record<string, string | undefined> } })
+    .process?.env?.EVOLU_BROWSER_WS_TESTS ??
+  (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env
+    ?.EVOLU_BROWSER_WS_TESTS ??
+  (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env
+    ?.VITE_EVOLU_BROWSER_WS_TESTS;
+const browserWsEnabled = envValue === "1";
 const wsTest = isServer || browserWsEnabled ? test : test.skip;
 
 wsTest("connects, receives message, sends message, and disposes", async () => {

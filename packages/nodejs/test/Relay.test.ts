@@ -224,6 +224,37 @@ describe("startRelay (nodejs adapter)", () => {
     await closeSocket(ws);
   });
 
+  test("returns 500 when owner authorization throws", async () => {
+    const port = await getFreePort();
+    const name = "RelayOwnerAuthError";
+    dbNames.add(name);
+
+    await using run = testCreateRun(createRelayDeps());
+    await using relay = getOk(
+      await run(
+        startRelay({
+          port,
+          name: SimpleName.orThrow(name),
+          isOwnerAllowed: async () => {
+            throw new Error("authorization failure");
+          },
+          isOwnerWithinQuota,
+        }),
+      ),
+    );
+    void relay;
+
+    const ws = new WebSocket(
+      `ws://127.0.0.1:${port}?ownerId=${testAppOwner.id}`,
+    );
+    const error = await waitForError(ws);
+    // Runtime-dependent: ws may report an HTTP status error or a generic close.
+    expect(String(error.message)).toMatch(
+      /Unexpected server response: 500|Connection ended/,
+    );
+    await closeSocket(ws);
+  });
+
   test("handles malformed binary message without dropping open socket", async () => {
     const port = await getFreePort();
     const name = "RelayProtocol";
