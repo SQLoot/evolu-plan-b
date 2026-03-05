@@ -1092,11 +1092,18 @@ describe("runWebDbWorkerPort", () => {
     ]);
 
     const init2 = waitForOutput(channel2.port2);
+    let init2Settled = false;
+    void init2.then(() => {
+      init2Settled = true;
+    });
     channel2.port2.postMessage({
       type: "DbWorkerInit",
       dbName,
       schemaVersion: 1,
     });
+
+    await wait(20);
+    expect(init2Settled).toBe(false);
 
     firstDriver.resolve(createMockDriver());
 
