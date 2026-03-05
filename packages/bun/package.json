@@ -18,10 +18,10 @@
     "src/**"
   ],
   "scripts": {
-    "build": "rimraf dist && tsc --build",
+    "build": "bun ../../scripts/rm.mts dist && tsc --build",
     "test": "bun test ./test",
     "test:coverage": "bun test ./test --coverage --coverage-reporter=text --coverage-reporter=lcov --coverage-dir=coverage",
-    "clean": "rimraf .turbo node_modules dist"
+    "clean": "bun ../../scripts/rm.mts .turbo node_modules dist"
   },
   "devDependencies": {
     "@evolu/common": "workspace:*",

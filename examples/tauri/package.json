@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "tauri:dev": "bunx tauri dev",
     "tauri:build": "bunx tauri build",
-    "clean": "rimraf dist src-tauri/target"
+    "clean": "bun ../../scripts/rm.mts dist src-tauri/target"
   },
   "dependencies": {
     "@evolu/tauri": "workspace:*",
@@ -18,7 +18,7 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.8.4",
+    "@tauri-apps/cli": "^2.10.1",
     "@types/react": "~19.2.14",
     "@types/react-dom": "~19.2.3",
     "@vitejs/plugin-react": "^5.1.4",

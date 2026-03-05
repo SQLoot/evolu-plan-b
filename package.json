@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "turbo --filter @evolu/relay dev",
     "relay": "turbo --filter @evolu/relay dev",
-    "build": "turbo --filter @evolu/* build",
+    "build": "bun run clean:ts && turbo --filter @evolu/* build",
     "build:web": "bun run build:docs && turbo --filter web build",
     "build:docs": "bun run docs:generate:api",
     "typecheck": "tsc --build tsconfig.typecheck.json",
@@ -24,7 +24,7 @@
     "test:docs": "bunx vitest run scripts/typedoc-plugin-evolu.test.mts",
     "test:tree-shaking:compat": "EVOLU_TREE_SHAKING_COMPAT=1 bunx vitest run packages/common/test/TreeShaking.test.ts",
     "test:coverage": "bun run test:coverage:vitest && bun run test:coverage:bun && bun run coverage:merge:bun",
-    "test:coverage:vitest": "bun run test:preflight && bunx vitest run --coverage",
+    "test:coverage:vitest": "bun run test:preflight && bunx vitest run --coverage --config vitest.coverage.config.mts",
     "test:coverage:bun": "bun test ./packages/bun/test --coverage --coverage-reporter=text --coverage-reporter=lcov --coverage-dir=coverage/bun",
     "test:coverage:astro": "bun run test:preflight && bunx vitest run --project astro --coverage --coverage.all=true --coverage.include='packages/astro/src/**/*.{ts,tsx}' --coverage.exclude='**/*.d.ts' --coverage.reporter=text --coverage.reporter=json-summary --coverage.reportsDirectory=coverage/lane-astro",
     "test:coverage:tanstack": "bun run test:preflight && bunx vitest run --project tanstack-start --coverage --coverage.all=true --coverage.include='packages/tanstack-start/src/**/*.{ts,tsx}' --coverage.exclude='**/*.d.ts' --coverage.reporter=text --coverage.reporter=json-summary --coverage.reportsDirectory=coverage/lane-tanstack",
@@ -32,6 +32,7 @@
     "test:coverage:expo": "bun run test:preflight && bunx vitest run --project react-native --coverage --coverage.all=true --coverage.include='packages/react-native/src/**/*.{ts,tsx}' --coverage.exclude='**/*.d.ts' --coverage.reporter=text --coverage.reporter=json-summary --coverage.reportsDirectory=coverage/lane-expo",
     "test:coverage:react-web": "bun run test:preflight && bunx vitest run --project react-web --coverage --coverage.all=true --coverage.include='packages/react-web/src/**/*.{ts,tsx}' --coverage.exclude='**/*.d.ts' --coverage.reporter=text --coverage.reporter=json-summary --coverage.reportsDirectory=coverage/lane-react-web",
     "test:coverage:tauri": "bun run test:preflight && bunx vitest run --project tauri --coverage --coverage.all=true --coverage.include='packages/tauri/src/**/*.{ts,tsx}' --coverage.exclude='**/*.d.ts' --coverage.reporter=text --coverage.reporter=json-summary --coverage.reportsDirectory=coverage/lane-tauri",
+    "test:coverage:web": "bun run test:preflight && bunx vitest run --project @evolu/web --coverage --coverage.all=true --coverage.include='packages/web/src/**/*.{ts,tsx}' --coverage.exclude='**/*.d.ts' --coverage.reporter=text --coverage.reporter=json-summary --coverage.reportsDirectory=coverage/lane-web",
     "coverage:merge:bun": "bun ./scripts/coverage-merge-bun.mts --vitest coverage/coverage-summary.json --bun coverage/bun/lcov.info --out coverage/coverage-summary.json",
     "coverage:gate:p0": "bun ./scripts/coverage-file-gate.mts --coverage coverage/coverage-summary.json --thresholds '{\"packages/common/src/local-first/Sync.ts\":{\"statements\":90,\"branches\":90},\"packages/common/src/local-first/Db.ts\":{\"statements\":90,\"branches\":90},\"packages/common/src/local-first/Worker.ts\":{\"statements\":90,\"branches\":90},\"packages/web/src/local-first/DbWorker.ts\":{\"statements\":90,\"branches\":90}}'",
     "coverage:gate:p1": "bun ./scripts/coverage-file-gate.mts --coverage coverage/coverage-summary.json --thresholds '{\"packages/common/src/local-first/Sync.ts\":{\"statements\":90,\"branches\":90},\"packages/common/src/local-first/Db.ts\":{\"statements\":90,\"branches\":90},\"packages/common/src/local-first/Worker.ts\":{\"statements\":90,\"branches\":90},\"packages/web/src/local-first/DbWorker.ts\":{\"statements\":90,\"branches\":90},\"packages/common/src/local-first/LocalAuth.ts\":{\"statements\":75,\"branches\":60},\"packages/web/src/local-first/LocalAuth.ts\":{\"statements\":75,\"branches\":60},\"packages/nodejs/src/Worker.ts\":{\"statements\":90,\"branches\":85},\"packages/nodejs/src/Sqlite.ts\":{\"statements\":90,\"branches\":85}}'",
@@ -41,12 +42,14 @@
     "coverage:gate:expo": "bun ./scripts/coverage-file-gate.mts --coverage coverage/lane-expo/coverage-summary.json --thresholds '{\"packages/react-native/src/createExpoDeps.ts\":{\"statements\":100,\"branches\":100,\"functions\":100,\"lines\":100},\"packages/react-native/src/sqlite-drivers/createExpoSqliteDriver.ts\":{\"statements\":100,\"branches\":100,\"functions\":100,\"lines\":100},\"packages/react-native/src/exports/expo-sqlite.ts\":{\"statements\":100,\"branches\":100,\"functions\":100,\"lines\":100},\"packages/react-native/src/exports/expo-op-sqlite.ts\":{\"statements\":100,\"branches\":100,\"functions\":100,\"lines\":100}}'",
     "coverage:gate:react-web": "bun ./scripts/coverage-file-gate.mts --coverage coverage/lane-react-web/coverage-summary.json --thresholds '{\"packages/react-web/src/local-first/Evolu.ts\":{\"statements\":80,\"branches\":70,\"functions\":80,\"lines\":80}}'",
     "coverage:gate:tauri": "bun ./scripts/coverage-file-gate.mts --coverage coverage/lane-tauri/coverage-summary.json --thresholds '{\"packages/tauri/src/index.ts\":{\"statements\":90,\"branches\":80,\"functions\":100,\"lines\":100}}'",
+    "coverage:gate:web": "bun ./scripts/coverage-file-gate.mts --coverage coverage/lane-web/coverage-summary.json --thresholds '{\"packages/web/src/Sqlite.ts\":{\"statements\":95,\"branches\":90},\"packages/web/src/Task.ts\":{\"statements\":98,\"branches\":95},\"packages/web/src/Worker.ts\":{\"statements\":98,\"branches\":95},\"packages/web/src/local-first/DbWorker.ts\":{\"statements\":98,\"branches\":90},\"packages/web/src/local-first/LocalAuth.ts\":{\"statements\":99,\"branches\":90}}'",
     "coverage:lane:astro": "bun run test:coverage:astro && bun run coverage:gate:astro",
     "coverage:lane:tanstack": "bun run test:coverage:tanstack && bun run coverage:gate:tanstack",
     "coverage:lane:react-native": "bun run test:coverage:react-native && bun run coverage:gate:react-native",
     "coverage:lane:expo": "bun run test:coverage:expo && bun run coverage:gate:expo",
     "coverage:lane:react-web": "bun run test:coverage:react-web && bun run coverage:gate:react-web",
     "coverage:lane:tauri": "bun run test:coverage:tauri && bun run coverage:gate:tauri",
+    "coverage:lane:web": "bun run test:coverage:web && bun run coverage:gate:web",
     "coverage:lane:active": "bun run coverage:lane:${EVOLU_ACTIVE_COVERAGE_LANE:-astro}",
     "test:watch": "bunx vitest",
     "start": "turbo start",
@@ -57,7 +60,8 @@
     "sync:guard:common-v8:strict": "bun ./scripts/sync-guard-common-v8.mts --strict",
     "verify:fast": "bun run build && bun run test && bun run lint && bun run lint-monorepo",
     "verify": "bun run typecheck && bun run format && bun run build && bun run test && bun run test:coverage && bun run lint && bun run lint-monorepo",
-    "clean": "turbo clean && rimraf node_modules bun.lock .turbo out coverage",
+    "clean:ts": "tsc --build --clean tsconfig.typecheck.json",
+    "clean": "turbo clean && bun ./scripts/rm.mts node_modules .turbo out coverage",
     "version": "changeset version",
     "release": "bun run build && changeset publish",
     "ios": "cd examples/react-expo && bun ios",
@@ -75,20 +79,20 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.5",
     "@changesets/cli": "^2.29.8",
-    "@types/webpack": "^5.28.5",
     "@vitest/browser": "^4.0.18",
     "@vitest/browser-playwright": "^4.0.18",
+    "@vitest/coverage-istanbul": "^4.0.18",
     "@vitest/coverage-v8": "^4.0.18",
-    "rimraf": "^6.1.3",
-    "turbo": "^2.8.11",
+    "turbo": "^2.8.13",
     "typedoc": "^0.28.17",
     "typedoc-plugin-markdown": "^4.10.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.18",
-    "webpack": "^5.105.2"
+    "vitest": "^4.0.18"
   },
   "overrides": {
-    "serialize-javascript": "^7.0.3"
+    "serialize-javascript": "^7.0.3",
+    "svgo": "^4.0.1",
+    "tar": "^7.5.10"
   },
   "engines": {
     "node": ">=24.0.0"

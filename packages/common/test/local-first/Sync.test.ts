@@ -788,6 +788,25 @@ test("client storage writeMessages handles async quota and quota rejection", asy
   );
   expect(asyncQuotaWrite.ok).toBe(true);
 
+  const quotaTimestamp = sendTimestamp({
+    ...run.deps,
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })(timestamp.value);
+  expect(quotaTimestamp.ok).toBe(true);
+  if (!quotaTimestamp.ok) return;
+
+  const quotaChange = DbChange.orThrow({
+    table: "todo",
+    id: createId(run.deps),
+    values: ValidDbChangeValues.orThrow({ title: "quota-reject-check" }),
+    isInsert: true,
+    isDelete: false,
+  });
+  const quotaEncrypted = encodeAndEncryptDbChange(run.deps)(
+    { timestamp: quotaTimestamp.value, change: quotaChange },
+    testAppOwner.encryptionKey,
+  );
+
   const quotaErrors: Array<unknown> = [];
   const quotaRejectingStorage = testCreateClientStorage({
     ...run.deps,
@@ -806,7 +825,7 @@ test("client storage writeMessages handles async quota and quota rejection", asy
   await expect(
     run(
       quotaRejectingStorage.writeMessages(ownerId, [
-        { timestamp: timestamp.value, change: encrypted },
+        { timestamp: quotaTimestamp.value, change: quotaEncrypted },
       ]),
     ),
   ).rejects.toThrow("ProtocolQuotaError");

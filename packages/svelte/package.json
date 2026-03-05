@@ -28,10 +28,10 @@
     "!dist/**/*.spec.*"
   ],
   "scripts": {
-    "build": "rimraf dist && tsc --build && bun run package",
+    "build": "bun ../../scripts/rm.mts dist && tsc --build && bun run package",
     "prepack": "bun run build",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "clean": "rimraf .turbo .svelte-kit node_modules dist",
+    "clean": "bun ../../scripts/rm.mts .turbo .svelte-kit node_modules dist",
     "dev": "tsc --build",
     "package": "svelte-package",
     "prepublishOnly": "bun run package",
@@ -43,14 +43,14 @@
     "@evolu/web": "workspace:*",
     "@sveltejs/package": "^2.5.7",
     "@tsconfig/svelte": "^5.0.8",
-    "svelte": "^5.53.3",
+    "svelte": "^5.53.7",
     "svelte-check": "^4.4.3",
     "typescript": "^5.9.3"
   },
   "peerDependencies": {
     "@evolu/common": "^7.4.1",
     "@evolu/web": "^2.4.0",
-    "svelte": ">=5.53.3"
+    "svelte": ">=5.53.7"
   },
   "publishConfig": {
     "access": "public"

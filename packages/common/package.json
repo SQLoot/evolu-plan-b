@@ -47,16 +47,15 @@
     "README.md"
   ],
   "scripts": {
-    "build": "rimraf dist && tsc --build tsconfig.build.json",
+    "build": "bun ../../scripts/rm.mts dist && tsc --build tsconfig.build.json",
     "prepack": "bun run build",
-    "clean": "rimraf .turbo node_modules dist coverage test/tmp test/__screenshots__",
+    "clean": "bun ../../scripts/rm.mts .turbo node_modules dist coverage test/tmp test/__screenshots__",
     "bench": "vitest bench --config ../../vitest.config.mts --passWithNoTests"
   },
   "dependencies": {
     "@noble/ciphers": "^2.1.1",
     "@noble/hashes": "^2.0.1",
     "@scure/bip39": "^2.0.1",
-    "disposablestack": "^1.1.7",
     "kysely": "^0.28.11",
     "msgpackr": "^1.11.8",
     "zod": "^4.3.6"
@@ -76,7 +75,6 @@
     "fast-check": "^4.5.3",
     "playwright": "^1.58.2",
     "typescript": "^5.9.3",
-    "webpack": "^5.105.2",
     "ws": "^8.19.0"
   }
 }

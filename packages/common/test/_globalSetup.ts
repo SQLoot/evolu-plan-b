@@ -12,6 +12,27 @@ interface ServerInstance {
 // Track all active servers by port
 const servers = new Map<number, ServerInstance>();
 
+const closeWithTimeout = (
+  close: (callback: () => void) => void,
+  timeoutMs = 500,
+): Promise<void> =>
+  new Promise<void>((resolve) => {
+    let settled = false;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const settle = () => {
+      if (settled) return;
+      settled = true;
+      if (timeout !== undefined) {
+        clearTimeout(timeout);
+      }
+      resolve();
+    };
+
+    timeout = setTimeout(settle, timeoutMs);
+    timeout.unref?.();
+    close(settle);
+  });
+
 /**
  * Creates a new WebSocket server on a random port. Each call creates a
  * completely isolated server instance.
@@ -71,7 +92,7 @@ export const createServer = (): Promise<number> => {
       }
     });
     httpServer.on("error", reject);
-    httpServer.listen(0);
+    httpServer.listen(0, "127.0.0.1");
   });
 };
 
@@ -82,12 +103,13 @@ export const closeServer = async (port: number): Promise<void> => {
 
   servers.delete(port);
 
-  const promises: Array<Promise<void>> = [];
-  promises.push(
-    new Promise<void>((resolve) => instance.wsServer.close(() => resolve())),
-  );
-  promises.push(
-    new Promise<void>((resolve) => instance.httpServer.close(() => resolve())),
-  );
-  await Promise.all(promises);
+  // Ensure active sockets don't keep `wsServer.close` pending indefinitely.
+  for (const client of instance.wsServer.clients) {
+    client.terminate();
+  }
+
+  await Promise.all([
+    closeWithTimeout((done) => instance.wsServer.close(done)),
+    closeWithTimeout((done) => instance.httpServer.close(done)),
+  ]);
 };

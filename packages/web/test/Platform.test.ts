@@ -1,6 +1,10 @@
 import { Name, testName } from "@evolu/common";
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { createLeaderLock, createRun } from "../src/Task.js";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const withNavigator = async (
   navigator: typeof globalThis.navigator | undefined,
@@ -106,5 +110,43 @@ describe("leaderLock", () => {
       } as unknown as typeof globalThis.navigator,
       expectSequentialAcquireForSameName,
     );
+  });
+});
+
+describe("reloadApp", () => {
+  test("returns early in worker context where document is undefined", async () => {
+    const moduleUrl = new URL("../src/Platform.ts", import.meta.url).href;
+    const workerSource = `
+      import { reloadApp } from ${JSON.stringify(moduleUrl)};
+      self.onmessage = () => {
+        reloadApp("/ignored");
+        self.postMessage("done");
+      };
+    `;
+    const workerUrl = URL.createObjectURL(
+      new Blob([workerSource], { type: "text/javascript" }),
+    );
+    let worker: Worker | undefined;
+
+    try {
+      worker = new Worker(workerUrl, { type: "module" });
+      await new Promise<void>((resolve, reject) => {
+        const timeout = globalThis.setTimeout(() => {
+          reject(new Error("Worker did not finish reloadApp call"));
+        }, 1_000);
+        worker.onmessage = () => {
+          clearTimeout(timeout);
+          resolve();
+        };
+        worker.onerror = (event) => {
+          clearTimeout(timeout);
+          reject(event.error ?? new Error(event.message));
+        };
+        worker.postMessage("run");
+      });
+    } finally {
+      worker?.terminate();
+      URL.revokeObjectURL(workerUrl);
+    }
   });
 });

@@ -18,6 +18,7 @@ on:
           - tanstack
           - react-native
           - expo
+          - web
 
 permissions:
   contents: read

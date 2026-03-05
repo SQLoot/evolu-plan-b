@@ -125,4 +125,27 @@ describe("Sqlite module test seams", () => {
 
     result.value[Symbol.dispose]();
   });
+
+  test("retries sqlite init after first init failure", async () => {
+    const sqlite3Mock = createSqlite3Mock();
+    const initModule = vi.fn(async () => {
+      if (initModule.mock.calls.length === 1) {
+        throw new Error("init failed once");
+      }
+      return sqlite3Mock.sqlite3 as never;
+    });
+
+    using _restore = testSetSqlite3InitModule(initModule);
+
+    await expect(createWasmSqliteDriver("retry-db")()).rejects.toThrow(
+      "init failed once",
+    );
+
+    const result = await createWasmSqliteDriver("retry-db")();
+    expect(result.ok).toBe(true);
+    expect(initModule).toHaveBeenCalledTimes(2);
+    if (!result.ok) return;
+
+    result.value[Symbol.dispose]();
+  });
 });

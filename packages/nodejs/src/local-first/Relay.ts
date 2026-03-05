@@ -104,6 +104,18 @@ export const startRelay =
     server.on("upgrade", (request, socket, head) => {
       socket.on("error", console.debug);
 
+      const rejectUpgrade = (
+        statusCode: 400 | 401 | 500,
+        statusText: "Bad Request" | "Unauthorized" | "Internal Server Error",
+      ) => {
+        socket.end(
+          `HTTP/1.1 ${statusCode} ${statusText}\r\n` +
+            "Connection: close\r\n" +
+            "Content-Length: 0\r\n" +
+            "\r\n",
+        );
+      };
+
       const completeUpgrade = () => {
         socket.removeListener("error", console.debug);
 
@@ -123,21 +135,24 @@ export const startRelay =
 
       if (!ownerId) {
         console.debug("invalid or missing ownerId in URL", request.url);
-        socket.write("HTTP/1.1 400 Bad Request\r\n\r\n");
-        socket.destroy();
+        rejectUpgrade(400, "Bad Request");
         return;
       }
 
       void (async () => {
-        const result = isOwnerAllowed(ownerId);
-        const isAllowed = isPromiseLike(result) ? await result : result;
-        if (!isAllowed) {
-          console.debug("unauthorized owner", ownerId);
-          socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
-          socket.destroy();
-          return;
+        try {
+          const result = isOwnerAllowed(ownerId);
+          const isAllowed = isPromiseLike(result) ? await result : result;
+          if (!isAllowed) {
+            console.debug("unauthorized owner", ownerId);
+            rejectUpgrade(401, "Unauthorized");
+            return;
+          }
+          completeUpgrade();
+        } catch (error) {
+          console.error("owner authorization failed", error);
+          rejectUpgrade(500, "Internal Server Error");
         }
-        completeUpgrade();
       })();
     });
 
@@ -208,7 +223,24 @@ export const startRelay =
 
     stack.defer(
       callback(({ ok }) => {
+        const serverWithCloseAll = server as typeof server & {
+          closeAllConnections?: () => void;
+        };
+
+        let settled = false;
+        const timeout = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          serverWithCloseAll.closeAllConnections?.();
+          console.warn("HTTP server close timed out");
+          ok();
+        }, 1_000);
+        timeout.unref?.();
+
         server.close(() => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
           console.info("HTTP server closed");
           ok();
         });
@@ -217,9 +249,24 @@ export const startRelay =
 
     stack.defer(
       callback(({ ok }) => {
-        // wss.close() emits 'close' when all clients have disconnected
-        // https://github.com/websockets/ws/blob/master/doc/ws.md#serverclosecallback
+        // wss.close() emits 'close' when all clients have disconnected.
+        // Guard with timeout to avoid hanging shutdown on stale sockets.
+        let settled = false;
+        const timeout = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          for (const client of wss.clients) {
+            client.terminate();
+          }
+          console.warn("WebSocketServer close timed out");
+          ok();
+        }, 1_000);
+        timeout.unref?.();
+
         wss.close(() => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
           console.info("WebSocketServer closed");
           ok();
         });
@@ -230,7 +277,11 @@ export const startRelay =
       callback(({ ok }) => {
         console.info("Shutting down...");
         for (const client of wss.clients) {
-          if (client.readyState === WebSocket.OPEN) {
+          if (
+            client.readyState === WebSocket.OPEN ||
+            client.readyState === WebSocket.CONNECTING ||
+            client.readyState === WebSocket.CLOSING
+          ) {
             client.close(1000, "Evolu Relay shutting down");
           }
         }
@@ -238,7 +289,20 @@ export const startRelay =
       }),
     );
 
-    server.listen(port);
+    await new Promise<void>((resolve, reject) => {
+      const onError = (error: Error) => {
+        server.removeListener("listening", onListening);
+        reject(error);
+      };
+      const onListening = () => {
+        server.removeListener("error", onError);
+        resolve();
+      };
+
+      server.once("error", onError);
+      server.once("listening", onListening);
+      server.listen(port);
+    });
     console.info(`Started on port ${port}`);
 
     return ok(stack.move());

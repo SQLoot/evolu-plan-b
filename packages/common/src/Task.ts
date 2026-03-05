@@ -1065,15 +1065,42 @@ export class AsyncDisposableStack<D = unknown> implements AsyncDisposable {
   use<T extends AsyncDisposable | Disposable | null | undefined, E>(
     valueOrAcquire: T | Task<T, E, D>,
   ): T | PromiseLike<Result<T, E | AbortError>> {
+    const register = (value: T): T => {
+      if (value == null || Symbol.asyncDispose in value) {
+        this.#stack.use(value as T);
+        return value;
+      }
+
+      if (Symbol.dispose in value) {
+        const disposable = value as Disposable;
+        const dispose = (disposable as { [Symbol.dispose]?: unknown })[
+          Symbol.dispose
+        ];
+        if (typeof dispose !== "function") {
+          throw new TypeError("Resource does not implement Symbol.dispose.");
+        }
+        this.#stack.use({
+          [Symbol.asyncDispose]: () =>
+            Promise.resolve().then(() => {
+              dispose.call(disposable);
+            }),
+        });
+        return value;
+      }
+
+      this.#stack.use(value as T);
+      return value;
+    };
+
     if (
       valueOrAcquire == null ||
       Symbol.dispose in valueOrAcquire ||
       Symbol.asyncDispose in valueOrAcquire
     ) {
-      return this.#stack.use(valueOrAcquire as T);
+      return register(valueOrAcquire as T);
     }
     return this.#run(valueOrAcquire).then((result) => {
-      if (result.ok) this.#stack.use(result.value);
+      if (result.ok) register(result.value);
       return result;
     });
   }
@@ -1750,7 +1777,11 @@ type SchedulerLike = {
   yield?: () => Promise<void>;
 };
 
+type SetImmediateLike = (callback: () => void) => unknown;
+
 const globalScheduler = (globalThis as { scheduler?: SchedulerLike }).scheduler;
+const globalSetImmediate = (globalThis as { setImmediate?: SetImmediateLike })
+  .setImmediate;
 let schedulerYield: (() => Promise<void>) | undefined;
 
 if (globalScheduler && typeof globalScheduler.yield === "function") {
@@ -1759,8 +1790,8 @@ if (globalScheduler && typeof globalScheduler.yield === "function") {
 
 const yieldImpl: () => Promise<void> =
   schedulerYield ??
-  (typeof setImmediate !== "undefined"
-    ? () => new Promise<void>((resolve) => setImmediate(resolve))
+  (typeof globalSetImmediate !== "undefined"
+    ? () => new Promise<void>((resolve) => globalSetImmediate(resolve))
     : () => new Promise<void>((r) => setTimeout(r, 0))); // Safari
 
 /**

@@ -29,10 +29,10 @@
     "README.md"
   ],
   "scripts": {
-    "build": "rimraf dist && tsc --build tsconfig.build.json",
+    "build": "bun ../../scripts/rm.mts dist && tsc --build tsconfig.build.json",
     "prepack": "bun run build",
     "dev": "tsc --build",
-    "clean": "rimraf .turbo node_modules dist coverage"
+    "clean": "bun ../../scripts/rm.mts .turbo node_modules dist coverage"
   },
   "dependencies": {
     "@evolu/sqlite-wasm": "2.2.4",

@@ -30,9 +30,9 @@
     "README.md"
   ],
   "scripts": {
-    "build": "rimraf dist && tsc --build tsconfig.build.json",
+    "build": "bun ../../scripts/rm.mts dist && tsc --build tsconfig.build.json",
     "prepack": "bun run build",
-    "clean": "rimraf .turbo node_modules dist",
+    "clean": "bun ../../scripts/rm.mts .turbo node_modules dist",
     "dev": "tsc --build"
   },
   "devDependencies": {

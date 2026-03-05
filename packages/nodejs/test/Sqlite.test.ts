@@ -14,6 +14,20 @@ import { createBetterSqliteDriver } from "../src/Sqlite.js";
 
 const testName = SimpleName.orThrow("Test");
 const require = createRequire(import.meta.url);
+const sqliteRuntimeEnvKey = "EVOLU_NODEJS_SQLITE_RUNTIME";
+
+const setSqliteRuntimeForTest = (runtime: "bun" | "node"): (() => void) => {
+  const previous = process.env[sqliteRuntimeEnvKey];
+  process.env[sqliteRuntimeEnvKey] = runtime;
+
+  return () => {
+    if (previous == null) {
+      delete process.env[sqliteRuntimeEnvKey];
+    } else {
+      process.env[sqliteRuntimeEnvKey] = previous;
+    }
+  };
+};
 
 type BetterSqliteConstructor = new (
   filename: string,
@@ -267,8 +281,7 @@ describe("createBetterSqliteDriver", () => {
 
   test("uses bun:sqlite driver when Bun runtime is available", async () => {
     vi.resetModules();
-    const originalBun = (globalThis as Record<string, unknown>).Bun;
-    (globalThis as Record<string, unknown>).Bun = {};
+    const restoreSqliteRuntime = setSqliteRuntimeForTest("bun");
 
     interface MockStatement {
       readonly all: (...parameters: ReadonlyArray<unknown>) => Array<SqliteRow>;
@@ -335,18 +348,13 @@ describe("createBetterSqliteDriver", () => {
     } finally {
       vi.doUnmock("node:module");
       vi.resetModules();
-      if (originalBun === undefined) {
-        delete (globalThis as Record<string, unknown>).Bun;
-      } else {
-        (globalThis as Record<string, unknown>).Bun = originalBun;
-      }
+      restoreSqliteRuntime();
     }
   });
 
   test("falls back to better-sqlite3 when bun:sqlite init fails in Bun runtime", async () => {
     vi.resetModules();
-    const originalBun = (globalThis as Record<string, unknown>).Bun;
-    (globalThis as Record<string, unknown>).Bun = {};
+    const restoreSqliteRuntime = setSqliteRuntimeForTest("bun");
 
     interface MockStatement {
       readonly reader: boolean;
@@ -428,18 +436,13 @@ describe("createBetterSqliteDriver", () => {
     } finally {
       vi.doUnmock("node:module");
       vi.resetModules();
-      if (originalBun === undefined) {
-        delete (globalThis as Record<string, unknown>).Bun;
-      } else {
-        (globalThis as Record<string, unknown>).Bun = originalBun;
-      }
+      restoreSqliteRuntime();
     }
   });
 
   test("rethrows bun:sqlite error when all Bun runtime fallbacks fail", async () => {
     vi.resetModules();
-    const originalBun = (globalThis as Record<string, unknown>).Bun;
-    (globalThis as Record<string, unknown>).Bun = {};
+    const restoreSqliteRuntime = setSqliteRuntimeForTest("bun");
 
     vi.doMock("node:module", () => ({
       createRequire: () => (id: string) => {
@@ -485,18 +488,13 @@ describe("createBetterSqliteDriver", () => {
     } finally {
       vi.doUnmock("node:module");
       vi.resetModules();
-      if (originalBun === undefined) {
-        delete (globalThis as Record<string, unknown>).Bun;
-      } else {
-        (globalThis as Record<string, unknown>).Bun = originalBun;
-      }
+      restoreSqliteRuntime();
     }
   });
 
   test("rethrows better-sqlite3 error when non-Bun fallbacks fail", async () => {
     vi.resetModules();
-    const originalBun = (globalThis as Record<string, unknown>).Bun;
-    delete (globalThis as Record<string, unknown>).Bun;
+    const restoreSqliteRuntime = setSqliteRuntimeForTest("node");
 
     vi.doMock("node:module", () => ({
       createRequire: () => (id: string) => {
@@ -533,18 +531,13 @@ describe("createBetterSqliteDriver", () => {
     } finally {
       vi.doUnmock("node:module");
       vi.resetModules();
-      if (originalBun === undefined) {
-        delete (globalThis as Record<string, unknown>).Bun;
-      } else {
-        (globalThis as Record<string, unknown>).Bun = originalBun;
-      }
+      restoreSqliteRuntime();
     }
   });
 
   test("export handles SharedArrayBuffer-backed serialization in Bun path", async () => {
     vi.resetModules();
-    const originalBun = (globalThis as Record<string, unknown>).Bun;
-    (globalThis as Record<string, unknown>).Bun = {};
+    const restoreSqliteRuntime = setSqliteRuntimeForTest("bun");
 
     class MockBunDatabase {
       prepare() {
@@ -586,18 +579,13 @@ describe("createBetterSqliteDriver", () => {
     } finally {
       vi.doUnmock("node:module");
       vi.resetModules();
-      if (originalBun === undefined) {
-        delete (globalThis as Record<string, unknown>).Bun;
-      } else {
-        (globalThis as Record<string, unknown>).Bun = originalBun;
-      }
+      restoreSqliteRuntime();
     }
   });
 
   test("node serialize fallback handles non-ArrayBuffer file backing", async () => {
     vi.resetModules();
-    const originalBun = (globalThis as Record<string, unknown>).Bun;
-    delete (globalThis as Record<string, unknown>).Bun;
+    const restoreSqliteRuntime = setSqliteRuntimeForTest("node");
 
     class MockNodeDatabase {
       prepare() {
@@ -658,11 +646,7 @@ describe("createBetterSqliteDriver", () => {
       vi.doUnmock("node:module");
       vi.doUnmock("node:fs");
       vi.resetModules();
-      if (originalBun === undefined) {
-        delete (globalThis as Record<string, unknown>).Bun;
-      } else {
-        (globalThis as Record<string, unknown>).Bun = originalBun;
-      }
+      restoreSqliteRuntime();
     }
   });
 

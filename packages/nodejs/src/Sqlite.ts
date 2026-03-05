@@ -79,6 +79,17 @@ interface NodeSqliteModule {
   readonly DatabaseSync: new (filename: string) => NodeSqliteDbLike;
 }
 
+const runtimeOverrideEnvKey = "EVOLU_NODEJS_SQLITE_RUNTIME";
+
+const hasBunRuntime = (): boolean => {
+  const runtimeOverride = process.env[runtimeOverrideEnvKey];
+
+  if (runtimeOverride === "bun") return true;
+  if (runtimeOverride === "node") return false;
+
+  return (globalThis as Record<string, unknown>).Bun != null;
+};
+
 const isReaderSql = (sql: string): boolean =>
   /^\s*(select|pragma|with|explain|values)\b/i.test(sql);
 
@@ -159,9 +170,7 @@ const createNodeDb = (filename: string): DbLike => {
 };
 
 const createDb = (filename: string): DbLike => {
-  const hasBunRuntime = (globalThis as Record<string, unknown>).Bun != null;
-
-  if (hasBunRuntime) {
+  if (hasBunRuntime()) {
     try {
       return createBunDb(filename);
     } catch (bunError) {
