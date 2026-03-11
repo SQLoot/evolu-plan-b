@@ -30,7 +30,6 @@ import {
   type StandardSchemaV1,
 } from "../Type.js";
 import type { Simplify } from "../Types.js";
-import type { jsonArrayFrom, jsonObjectFrom } from "./Kysely.js";
 import type { AppOwner } from "./Owner.js";
 import { OwnerId } from "./Owner.js";
 import type {

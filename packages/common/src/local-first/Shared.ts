@@ -31,7 +31,7 @@ import type {
   WorkerDeps,
 } from "../Worker.js";
 import type { EvoluError } from "./Error.js";
-import type { OwnerId, OwnerTransport, SyncOwner } from "./Owner.js";
+import type { OwnerId, OwnerTransport } from "./Owner.js";
 import {
   makePatches,
   type Patch,
@@ -40,6 +40,7 @@ import {
 } from "./Query.js";
 import type { MutationChange } from "./Schema.js";
 import type { CrdtMessage } from "./Storage.js";
+import type { SyncOwner } from "./Sync.js";
 
 export type SharedWorker = CommonSharedWorker<SharedWorkerInput>;
 
@@ -62,7 +63,7 @@ export type SharedWorkerInput =
   | {
       readonly type: "CreateEvolu";
       readonly name: Name;
-      readonly appOwner: SyncOwner;
+      readonly appOwner?: SyncOwner;
       readonly evoluPort: NativeMessagePort<EvoluOutput, EvoluInput>;
       readonly dbWorkerPort: NativeMessagePort<DbWorkerInput, DbWorkerOutput>;
     };
@@ -186,7 +187,9 @@ export const initSharedWorker =
                   const result = await runWithSharedEvoluDeps.daemon(
                     createSharedEvolu({
                       name: message.name,
-                      appOwner: message.appOwner,
+                      ...(message.appOwner
+                        ? { appOwner: message.appOwner }
+                        : {}),
                       postTabOutput,
                       onDispose: () => {
                         void runWithSharedEvoluDeps.daemon(
@@ -291,8 +294,6 @@ type SharedTransportResources = Resources<
   OwnerId
 >;
 
-export type SyncState = 123;
-
 const createSharedEvolu =
   ({
     name,
@@ -301,7 +302,7 @@ const createSharedEvolu =
     onDispose,
   }: {
     name: Name;
-    appOwner: SyncOwner;
+    appOwner?: SyncOwner;
     postTabOutput: Callback<EvoluTabOutput>;
     onDispose: () => void;
   }): Task<SharedEvolu, never, SharedWorkerDeps & TransportsDep> =>
@@ -322,9 +323,11 @@ const createSharedEvolu =
 
     let queueProcessingFiber: Fiber<void, never, WorkerDeps> | null = null;
 
-    const ownerTransports = appOwner.transports ?? emptyArray;
+    const ownerTransports = appOwner?.transports ?? emptyArray;
 
-    await run(transports.addConsumer(appOwner, ownerTransports));
+    if (appOwner) {
+      await run(transports.addConsumer(appOwner, ownerTransports));
+    }
 
     const ensureQueueProcessing = (): void => {
       if (
@@ -493,7 +496,9 @@ const createSharedEvolu =
       addPorts,
 
       [Symbol.asyncDispose]: async () => {
-        await run(transports.removeConsumer(appOwner, ownerTransports));
+        if (appOwner) {
+          await run(transports.removeConsumer(appOwner, ownerTransports));
+        }
 
         queueProcessingFiber?.abort();
         queueProcessingFiber = null;

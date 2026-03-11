@@ -664,6 +664,7 @@ export const createEvolu =
         {
           type: "CreateEvolu",
           name,
+          appOwner,
           evoluPort: evoluChannel.port2.native,
           dbWorkerPort: dbWorkerChannel.port2.native,
         },

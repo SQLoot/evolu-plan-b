@@ -20,7 +20,6 @@ import type {
 import { getProperty, objectToEntries } from "../Object.js";
 import type { RandomDep } from "../Random.js";
 import { ok, type Result } from "../Result.js";
-import { spaced } from "../Schedule.js";
 import type {
   CreateSqliteDriverDep,
   SqliteDep,
@@ -34,7 +33,7 @@ import {
   sql,
 } from "../Sqlite.js";
 import type { LeaderLockDep } from "../Task.js";
-import { type AsyncDisposableStack, repeat, type Task } from "../Task.js";
+import { type AsyncDisposableStack, type Task } from "../Task.js";
 import { type Millis, millisToDateIso, type TimeDep } from "../Time.js";
 import type { Name } from "../Type.js";
 import {
@@ -165,20 +164,10 @@ export const initDbWorker =
         console.info("leaderLock acquired");
         port.postMessage({ type: "LeaderAcquired", name });
 
-        const heartbeatFiber = run.daemon(
-          repeat(() => {
-            port.postMessage({ type: "LeaderHeartbeat", name });
-            return ok();
-          }, spaced("5s")),
-        );
-        try {
-          return await run.addDeps({
-            port,
-            timestampConfig: { maxDrift: defaultTimestampMaxDrift },
-          })(startDbWorker(name, sqliteSchema, encryptionKey));
-        } finally {
-          heartbeatFiber.abort();
-        }
+        return await run.addDeps({
+          port,
+          timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+        })(startDbWorker(name, sqliteSchema, encryptionKey));
       });
     };
 
@@ -201,9 +190,11 @@ const startDbWorker =
     const console = run.deps.console.child(name).child("DbWorker");
     console.info("startDbWorker");
 
-    const sqlite = getOk(
-      await stack.use(createSqlite(name, { mode: "encrypted", encryptionKey })),
+    const sqliteResult = await stack.use(
+      createSqlite(name, { mode: "encrypted", encryptionKey }),
     );
+    if (!sqliteResult.ok) return sqliteResult;
+    const sqlite = sqliteResult.value;
     console.info("SQLite created");
 
     const baseSqliteStorage = createBaseSqliteStorage({ sqlite, ...run.deps });
@@ -281,10 +272,14 @@ const startDbWorker =
           });
           break;
         case "Export":
-          result = ok({
-            type: "Export",
-            file: deps.sqlite.export(),
-          });
+          {
+            const exported = deps.sqlite.export();
+            const file = new Uint8Array(exported);
+            result = ok({
+              type: "Export",
+              file,
+            });
+          }
           break;
       }
 

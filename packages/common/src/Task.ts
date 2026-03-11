@@ -1335,6 +1335,22 @@ export const createRun: CreateRun<RunDeps> = <D>(
   return createRunInternal(createRef(mergedDeps))();
 };
 
+/**
+ * Backward-compatible alias for older API naming.
+ *
+ * Prefer {@link Run} and {@link createRun} in new code.
+ */
+export type Runner<D = unknown> = Run<D>;
+export type RunnerDeps = RunDeps;
+export type CreateRunner<D extends RunDeps = RunDeps> = CreateRun<D>;
+
+/**
+ * Backward-compatible alias for older API naming.
+ *
+ * Prefer {@link createRun} in new code.
+ */
+export const createRunner = createRun;
+
 /** Internal Run properties, hidden from public API via TypeScript types. */
 interface RunInternal<D extends RunDeps = RunDeps> extends Run<D> {
   readonly requestAbort: (reason: unknown) => void;
@@ -1803,8 +1819,17 @@ const scheduler = (
 const yieldImpl: () => Promise<void> =
   typeof scheduler?.yield === "function"
     ? () => (scheduler.yield as () => Promise<void>)()
-    : typeof setImmediate !== "undefined"
-      ? () => new Promise<void>((resolve) => setImmediate(resolve))
+    : "setImmediate" in globalThis
+      ? () =>
+          new Promise<void>((resolve) => {
+            const setImmediateFn = (
+              globalThis as unknown as {
+                readonly setImmediate?: (callback: () => void) => unknown;
+              }
+            ).setImmediate;
+            if (typeof setImmediateFn === "function") setImmediateFn(resolve);
+            else setTimeout(resolve, 0);
+          })
       : () => new Promise<void>((r) => setTimeout(r, 0)); // Safari
 
 /**

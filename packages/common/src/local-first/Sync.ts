@@ -20,7 +20,6 @@ import type {
 } from "../Crypto.js";
 import type { UnknownError } from "../Error.js";
 import { createUnknownError } from "../Error.js";
-import { createInstances } from "../Instances.js";
 import { createRecord, getProperty, objectToEntries } from "../Object.js";
 import type { RandomDep } from "../Random.js";
 import { createRefCount } from "../RefCount.js";
@@ -187,21 +186,15 @@ export const createSync =
   ) =>
   (config: SyncConfig): Sync => {
     let isDisposed = false;
-    const disposalDelayResult =
-      config.disposalDelayMs == null
-        ? ok(Millis.orThrow(100))
-        : Millis.from(config.disposalDelayMs);
-
-    assert(
-      disposalDelayResult.ok,
-      "Invalid SyncConfig.disposalDelayMs: expected a non-negative integer.",
-    );
-    const disposalDelay = disposalDelayResult.value;
+    const syncRun = createRun(deps);
+    const syncOwnersById = new Map<OwnerId, SyncOwner>();
+    const syncOwnerRefs = createRefCount<OwnerId>();
+    const webSocketsByTransportKey = new Map<TransportKey, WebSocket>();
 
     /** Returns owner data only if actively assigned to at least one transport. */
     const getSyncOwner = (ownerId: OwnerId): SyncOwner | null => {
       if (isDisposed) return null;
-      return resources.getConsumer(ownerId);
+      return syncOwnersById.get(ownerId) ?? null;
     };
 
     const storage = createClientStorage({
@@ -260,6 +253,7 @@ export const createSync =
           if (isDisposed) return;
           isDisposed = true;
           pendingSends.length = 0;
+          webSocketsByTransportKey.delete(transportKey);
           socket?.[Symbol.dispose]();
           void run[Symbol.asyncDispose]();
         },
@@ -272,10 +266,10 @@ export const createSync =
           onOpen: () => {
             if (isDisposed) return;
 
-            const currentWebSocket = resources.getResource(transportKey);
+            const currentWebSocket = webSocketsByTransportKey.get(transportKey);
             if (!currentWebSocket) return;
 
-            const ownerIds = resources.getConsumersForResource(transportKey);
+            const ownerIds = resources.getConsumerIdsForResource(transportKey);
             deps.console.log("[sync]", "onOpen", { transportKey, ownerIds });
 
             for (const ownerId of ownerIds) {
@@ -306,7 +300,7 @@ export const createSync =
             // Only handle ArrayBuffer data for sync messages.
             if (isDisposed || !(data instanceof ArrayBuffer)) return;
 
-            const currentWebSocket = resources.getResource(transportKey);
+            const currentWebSocket = webSocketsByTransportKey.get(transportKey);
             if (!currentWebSocket) return;
 
             const input = new Uint8Array(data);
@@ -344,6 +338,7 @@ export const createSync =
         },
       );
 
+      webSocketsByTransportKey.set(transportKey, webSocket);
       return webSocket;
     };
 
@@ -353,37 +348,50 @@ export const createSync =
       OwnerTransport,
       SyncOwner,
       OwnerId
-    >(deps)({
-      createResource,
-      getResourceKey: createTransportKey,
+    >({
+      createResource: async (transport) => createResource(transport),
+      getResourceId: createTransportKey,
       getConsumerId: (owner) => owner.id,
-      disposalDelay,
+    });
 
-      onConsumerAdded: (owner, webSocket) => {
-        deps.console.log("[sync]", "onConsumerAdded", {
-          ownerId: owner.id,
-          isOpen: webSocket.isOpen(),
-        });
+    const sendSubscribeForOwner = (owner: SyncOwner): void => {
+      if (isDisposed || !syncOwnerRefs.has(owner.id)) return;
 
-        // The onOpen handler will sync it.
-        if (!webSocket.isOpen()) return;
-        const message = createProtocolMessageForSync({
+      let message: Uint8Array | null = null;
+      try {
+        message = createProtocolMessageForSync({
           storage,
           console: deps.console,
         })(owner.id, SubscriptionFlags.Subscribe);
-        if (message) webSocket.send(message);
-      },
-
-      onConsumerRemoved: (owner, webSocket) => {
-        deps.console.log("[sync]", "onConsumerRemoved", {
+      } catch (error) {
+        deps.console.warn("[sync]", "sendSubscribeForOwner failed", {
           ownerId: owner.id,
-          isOpen: webSocket.isOpen(),
+          error: createUnknownError(error),
         });
+        return;
+      }
+      if (!message) return;
 
-        const message = createProtocolMessageForUnsubscribe(owner.id);
-        webSocket.send(message);
-      },
-    });
+      const transports = owner.transports ?? config.transports;
+      for (const transport of transports) {
+        const webSocket = webSocketsByTransportKey.get(
+          createTransportKey(transport),
+        );
+        if (webSocket?.isOpen()) webSocket.send(message);
+      }
+    };
+
+    const sendUnsubscribeForOwner = (owner: SyncOwner): void => {
+      if (isDisposed) return;
+      const message = createProtocolMessageForUnsubscribe(owner.id);
+      const transports = owner.transports ?? config.transports;
+      for (const transport of transports) {
+        const webSocket = webSocketsByTransportKey.get(
+          createTransportKey(transport),
+        );
+        if (webSocket?.isOpen()) webSocket.send(message);
+      }
+    };
 
     const sync: Sync = {
       useOwner: (use, owner) => {
@@ -400,16 +408,38 @@ export const createSync =
         const transports = owner.transports ?? config.transports;
 
         if (use) {
-          resources.addConsumer(owner, transports);
+          syncOwnerRefs.increment(owner.id);
+          syncOwnersById.set(owner.id, owner);
+          void syncRun(resources.addConsumer(owner, transports)).then(
+            (result) => {
+              if (!result.ok) {
+                if ((result.error as { type?: string }).type !== "AbortError") {
+                  config.onError(createUnknownError(result.error));
+                }
+                return;
+              }
+              if (!syncOwnerRefs.has(owner.id)) return;
+              sendSubscribeForOwner(owner);
+            },
+            (error: unknown) => {
+              config.onError(createUnknownError(error));
+            },
+          );
         } else {
-          const result = resources.removeConsumer(owner, transports);
-          if (!result.ok) {
-            deps.console.warn("[sync]", "Failed to remove consumer", {
-              transports,
-              ownerId: owner.id,
-              error: result.error,
-            });
-          }
+          sendUnsubscribeForOwner(owner);
+          syncOwnerRefs.decrement(owner.id);
+          if (!syncOwnerRefs.has(owner.id)) syncOwnersById.delete(owner.id);
+          void syncRun(resources.removeConsumer(owner, transports)).then(
+            (result) => {
+              if (result.ok) return;
+              if ((result.error as { type?: string }).type !== "AbortError") {
+                config.onError(createUnknownError(result.error));
+              }
+            },
+            (error: unknown) => {
+              config.onError(createUnknownError(error));
+            },
+          );
         }
       },
 
@@ -467,7 +497,7 @@ export const createSync =
           for (const transport of transports) {
             const transportKey = createTransportKey(transport);
 
-            const webSocket = resources.getResource(transportKey);
+            const webSocket = webSocketsByTransportKey.get(transportKey);
             if (!webSocket) continue;
 
             if (webSocket.isOpen()) {
@@ -484,7 +514,9 @@ export const createSync =
       [Symbol.dispose]: () => {
         if (isDisposed) return;
         isDisposed = true;
-        resources[Symbol.dispose]();
+        syncOwnersById.clear();
+        void resources[Symbol.asyncDispose]();
+        void syncRun[Symbol.asyncDispose]();
       },
     };
 
@@ -552,10 +584,7 @@ const createClientStorage =
       strict;
     `);
 
-    const ownerMutexes = createInstances<
-      OwnerId,
-      ReturnType<typeof createMutex>
-    >();
+    const ownerMutexes = new Map<OwnerId, ReturnType<typeof createMutex>>();
     const ownerMutexRefs = createRefCount<OwnerId>();
 
     const storage: ClientStorage = {
@@ -592,7 +621,13 @@ const createClientStorage =
 
       writeMessages: (ownerIdBytes, encryptedMessages) => async (run) => {
         const ownerId = ownerIdBytesToOwnerId(ownerIdBytes);
-        const ownerMutex = ownerMutexes.ensure(ownerId, createMutex);
+        const ownerMutex =
+          ownerMutexes.get(ownerId) ??
+          (() => {
+            const mutex = createMutex();
+            ownerMutexes.set(ownerId, mutex);
+            return mutex;
+          })();
         ownerMutexRefs.increment(ownerId);
 
         const result = await (async () => {
@@ -761,9 +796,11 @@ const createClientStorage =
         })();
 
         if (!result.ok) {
-          if (result.error.type !== "AbortError") {
-            config.onError(result.error);
-            throw new Error(result.error.type, { cause: result.error });
+          const error = result.error as { type?: string };
+          if (error.type !== "AbortError") {
+            const unknownError = createUnknownError(result.error);
+            config.onError(unknownError);
+            throw new Error(unknownError.type, { cause: unknownError });
           }
           return ok();
         }
