@@ -17,7 +17,6 @@ export * from "./Eq.js";
 export * from "./Error.js";
 export * from "./Function.js";
 export * from "./Identicon.js";
-export * from "./Instances.js";
 export * from "./Listeners.js";
 // Local-first essentials.
 export type { EvoluError } from "./local-first/Error.js";
