@@ -87,6 +87,11 @@ const eventsEnabled: RunConfigDep = {
   runConfig: { eventsEnabled: createRef(true) },
 };
 
+const must = <T>(value: T | null | undefined): T => {
+  assert(value != null);
+  return value;
+};
+
 interface MyError extends Typed<"MyError"> {}
 
 describe("Task", () => {
@@ -795,11 +800,11 @@ describe("Run", () => {
 
       const task: Task<void> = async (run) => {
         run.signal.addEventListener("abort", () => {
-          stateInAbortHandler = run.parent!.getState();
+          stateInAbortHandler = must(run.parent).getState();
         });
         taskStarted.resolve();
         await taskCanFinish.promise;
-        stateAfterAwait = run.parent!.getState();
+        stateAfterAwait = must(run.parent).getState();
         return ok();
       };
 
@@ -812,8 +817,8 @@ describe("Run", () => {
       taskCanFinish.resolve();
       await disposePromise;
 
-      expect(stateInAbortHandler!.type).toBe("Disposing");
-      expect(stateAfterAwait!.type).toBe("Disposing");
+      expect(must(stateInAbortHandler).type).toBe("Disposing");
+      expect(must(stateAfterAwait).type).toBe("Disposing");
       expect(run.getState().type).toBe("Settled");
     });
 
@@ -1041,7 +1046,7 @@ describe("Run", () => {
 
         // Cleanup signal should exist and be aborted after disposal
         expect(cleanupSignal).not.toBeNull();
-        expect(cleanupSignal!.aborted).toBe(true);
+        expect(must(cleanupSignal).aborted).toBe(true);
       } finally {
         AbortSignal.prototype.addEventListener = originalAddEventListener;
       }
@@ -1096,7 +1101,7 @@ describe("Run", () => {
 
         // Cleanup signal should exist and be aborted after child disposal
         expect(cleanupSignal).not.toBeNull();
-        expect(cleanupSignal!.aborted).toBe(true);
+        expect(must(cleanupSignal).aborted).toBe(true);
       } finally {
         AbortSignal.prototype.addEventListener = originalAddEventListener;
       }
@@ -1142,11 +1147,11 @@ describe("Run", () => {
         "child started",
         "parent completed",
       ]);
-      expect(childFiber!.run.getState().type).toBe("Running");
+      expect(must(childFiber).run.getState().type).toBe("Running");
 
       time.advance("2s");
 
-      expect(await childFiber!).toEqual(ok());
+      expect(await must(childFiber)).toEqual(ok());
       expect(events).toEqual([
         "parent started",
         "child started",
@@ -1194,7 +1199,7 @@ describe("Run", () => {
         }),
       ).toEqual(ok());
 
-      const childFiber = createdRun!(async (run) => {
+      const childFiber = must(createdRun)(async (run) => {
         events.push("child started");
         const result = await run(sleep("10s"));
         if (!result.ok) {
@@ -1208,14 +1213,14 @@ describe("Run", () => {
 
       expect(events).toEqual(["child started"]);
 
-      await createdRun![Symbol.asyncDispose]();
+      await must(createdRun)[Symbol.asyncDispose]();
 
       expect(await childFiber).toEqual(
         err({ type: "AbortError", reason: runStoppedError }),
       );
       expect(events).toEqual(["child started", "child aborted"]);
 
-      const lateResult = await createdRun!(() => ok("late"));
+      const lateResult = await must(createdRun)(() => ok("late"));
       expect(lateResult).toEqual(
         err({ type: "AbortError", reason: runStoppedError }),
       );
@@ -1235,7 +1240,7 @@ describe("Run", () => {
         }),
       ).toEqual(ok());
 
-      const childFiber = createdRun!(async (run) => {
+      const childFiber = must(createdRun)(async (run) => {
         events.push("child started");
         const result = await run(sleep("10s"));
         if (!result.ok) {
@@ -1461,7 +1466,7 @@ describe("Fiber", () => {
       await parentFiber;
 
       expect(parentFiberId).toBe(parentFiber.run.id);
-      expect(childFiberId).toBe(childFiber!.run.id);
+      expect(childFiberId).toBe(must(childFiber).run.id);
       expect(parentFiberId).not.toBe(childFiberId);
     });
 
@@ -1538,7 +1543,7 @@ describe("Fiber", () => {
 
       // Let daemon complete and wait for it
       daemonCanComplete.resolve();
-      await daemonFiber!;
+      await must(daemonFiber);
 
       expect(events).toEqual([
         "parent started",
@@ -1629,7 +1634,7 @@ describe("Fiber", () => {
       ]);
 
       daemonCanComplete.resolve();
-      await daemonFiber!;
+      await must(daemonFiber);
 
       expect(events).toEqual([
         "parent started",
@@ -1952,7 +1957,7 @@ describe("unabortableMask", () => {
 
     // Using restore2 outside its intended scope would increase abort mask
     // (root mask=0, override=1). This must crash.
-    expect(() => run(restoreFromInner!(() => ok()))).toThrow(
+    expect(() => run(must(restoreFromInner)(() => ok()))).toThrow(
       "restore used outside its unabortableMask",
     );
   });
@@ -2446,8 +2451,8 @@ describe("AsyncDisposableStack", () => {
       const result = await run(task);
 
       expect(result).toEqual(ok());
-      expect(stateWhileWorking!.type).toBe("Running");
-      expect(childRun!.getState().type).toBe("Settled");
+      expect(must(stateWhileWorking).type).toBe("Running");
+      expect(must(childRun).getState().type).toBe("Settled");
     });
 
     test("accepts moved native stack", async () => {
@@ -4217,7 +4222,7 @@ describe("DI", () => {
         () => {
           attempts++;
           if (attempts < 3) return err<NetworkError>({ type: "NetworkError" });
-          return ok(url.split("/").pop()!);
+          return ok(must(url.split("/").pop()));
         },
     };
 
@@ -5125,7 +5130,7 @@ describe("concurrency", () => {
       expect(restoreFromInner).toBeDefined();
 
       await expect(
-        run(semaphore.withPermit(restoreFromInner!(() => ok()))),
+        run(semaphore.withPermit(must(restoreFromInner)(() => ok()))),
       ).rejects.toThrow("restore used outside its unabortableMask");
 
       expect(await run(semaphore.withPermit(() => ok("after-throw")))).toEqual(
@@ -7657,7 +7662,7 @@ describe("fetch", () => {
 });
 
 describe("examples TODO", () => {
-  describe.skip("composition types from JSDoc", () => {
+  describe("composition types from JSDoc", () => {
     // These tests verify the types shown in Task.ts JSDoc examples are accurate.
     // No runtime behavior - just type-level assertions.
 
@@ -7669,12 +7674,14 @@ describe("examples TODO", () => {
       readonly fetch: typeof globalThis.fetch;
     }
 
-    // Simulated fetch task - typed but never executed
-    const fetch = (
-      _url: string,
-    ): Task<Response, FetchError, NativeFetchDep> => {
-      throw new Error("Not implemented - type test only");
-    };
+    // Simulated fetch task for type checks and controlled runtime behavior.
+    const fetch =
+      (_url: string): Task<Response, FetchError, NativeFetchDep> =>
+      () =>
+        err({
+          type: "FetchError",
+          error: new Error("Not implemented - type test only"),
+        });
 
     test("timeout adds TimeoutError to error union", () => {
       const fetchWithTimeout = (url: string) => timeout(fetch(url), "30s");
@@ -7705,6 +7712,7 @@ describe("examples TODO", () => {
       const deps: RunDeps & NativeFetchDep = {
         ...testCreateDeps(),
         fetch: globalThis.fetch,
+        time: createTime(),
       };
 
       await using run = createRun(deps);

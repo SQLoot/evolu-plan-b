@@ -82,6 +82,52 @@ test("ignores addConsumer calls with empty resource list", () => {
   expect(resources.getConsumer(consumer1.id)).toBeNull();
 });
 
+test("rolls back addConsumer mutations when createResource throws", () => {
+  const time = testCreateTime();
+  const lifecycleEvents: Array<string> = [];
+  const createdResources = new Map<ResourceKey, Resource>();
+
+  const resources = createResources<
+    Resource,
+    ResourceKey,
+    ResourceConfig,
+    Consumer,
+    ConsumerId
+  >({ time })({
+    createResource: (config) => {
+      if (config.key === resourceConfig2.key) {
+        throw new Error("boom");
+      }
+
+      const resource = createResource(config);
+      createdResources.set(config.key, resource);
+      return resource;
+    },
+    getResourceKey: (config) => config.key,
+    getConsumerId: (consumer) => consumer.id,
+    onConsumerAdded: (consumer, _resource, key) => {
+      lifecycleEvents.push(`add:${consumer.id}:${key}`);
+    },
+    onConsumerRemoved: (consumer, _resource, key) => {
+      lifecycleEvents.push(`remove:${consumer.id}:${key}`);
+    },
+  });
+
+  expect(() =>
+    resources.addConsumer(consumer1, [resourceConfig1, resourceConfig2]),
+  ).toThrow("boom");
+
+  expect(resources.getConsumer(consumer1.id)).toBeNull();
+  expect(resources.hasConsumerAnyResource(consumer1)).toBe(false);
+  expect(resources.getConsumersForResource(resourceConfig1.key)).toEqual([]);
+  expect(resources.getResource(resourceConfig1.key)).toBeNull();
+  expect(createdResources.get(resourceConfig1.key)?.disposed).toBe(true);
+  expect(lifecycleEvents).toEqual([
+    `add:${consumer1.id}:${resourceConfig1.key}`,
+    `remove:${consumer1.id}:${resourceConfig1.key}`,
+  ]);
+});
+
 test("tracks consumers for each resource", () => {
   const { resources } = createTestResources();
 

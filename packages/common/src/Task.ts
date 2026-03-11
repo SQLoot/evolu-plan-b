@@ -1739,7 +1739,12 @@ export function concurrently<T, E, D = unknown>(
   taskOrFallback?: Task<T, E, D>,
 ): Task<T, E, D> {
   const isTask = isFunction(concurrencyOrTask);
-  const task = isTask ? concurrencyOrTask : taskOrFallback!;
+  const task = (() => {
+    if (isTask) return concurrencyOrTask;
+    assert(taskOrFallback, "Task is required when concurrency is provided.");
+    return taskOrFallback;
+  })();
+
   return Object.assign((run: Run<D>) => run(task), {
     [concurrencyBehaviorSymbol]: isTask ? maxPositiveInt : concurrencyOrTask,
   });
@@ -3376,6 +3381,8 @@ export const allSettledAbortError: AllSettledAbortError = {
   type: "AllSettledAbortError",
 };
 
+type NoCollect = ReturnType<() => void>;
+
 /**
  * Maps values to {@link Task}s, failing fast on first error.
  *
@@ -3447,7 +3454,7 @@ export function map<A, T, E, D>(
   items: MapInput<A>,
   fn: (a: A) => Task<T, E, D>,
   { abortReason = mapAbortError, ...options }: CollectOptions<boolean> = {},
-): Task<ReadonlyArray<T> | Record<string, T> | void, E, D> {
+): Task<ReadonlyArray<T> | Record<string, T> | NoCollect, E, D> {
   const mapped = mapInput(items, fn);
   return all(
     mapped as Iterable<Task<T, E, D>>,
@@ -3559,7 +3566,7 @@ export function mapSettled<A, T, E, D>(
 ): Task<
   | ReadonlyArray<Result<T, E | AbortError>>
   | Record<string, Result<T, E | AbortError>>
-  | void,
+  | NoCollect,
   never,
   D
 > {
@@ -3797,7 +3804,7 @@ function pool<T, E>(
     abortReason: unknown;
     allFailed?: AnyAllFailed;
   },
-): Task<ReadonlyArray<unknown> | T | void, E> {
+): Task<ReadonlyArray<unknown> | T | NoCollect, E> {
   const tasks = arrayFrom(tasksIterable);
   const { length } = tasks;
   if (length === 0) return () => ok(emptyArray);
@@ -3884,7 +3891,16 @@ function pool<T, E>(
     // For all/allSettled/map/mapSettled with collect: false (no allFailed handler)
     if (!allFailed) return ok();
 
-    return allFailed === "completion" ? lastResult! : lastIndexResult!;
+    if (allFailed === "completion") {
+      assert(
+        lastResult,
+        "Expected completion result for allFailed=completion.",
+      );
+      return lastResult;
+    }
+
+    assert(lastIndexResult, "Expected last index result for allFailed=index.");
+    return lastIndexResult;
   };
 }
 

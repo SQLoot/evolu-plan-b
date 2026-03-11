@@ -449,7 +449,13 @@ const createLegacyResources = <
 
   const disposalDelay = config.disposalDelay ?? "100ms";
 
-  const ensureResource = (resourceConfig: TResourceConfig) => {
+  const ensureResource = (
+    resourceConfig: TResourceConfig,
+  ): {
+    readonly resourceKey: TResourceKey;
+    readonly resource: TResource;
+    readonly created: boolean;
+  } => {
     const key = config.getResourceKey(resourceConfig);
     const timeout = disposalTimeouts.get(key);
     if (timeout) {
@@ -457,9 +463,85 @@ const createLegacyResources = <
       disposalTimeouts.delete(key);
     }
 
-    if (!resourcesMap.has(key)) {
-      const resource = config.createResource(resourceConfig);
-      resourcesMap.set(key, resource);
+    if (resourcesMap.has(key)) {
+      const existingResource = resourcesMap.get(key) as TResource;
+      return { resourceKey: key, resource: existingResource, created: false };
+    }
+
+    const resource = config.createResource(resourceConfig);
+    resourcesMap.set(key, resource);
+
+    return { resourceKey: key, resource, created: true };
+  };
+
+  const rollbackAddConsumer = (
+    consumer: TConsumer,
+    consumerId: TConsumerId,
+    hadConsumerBefore: boolean,
+    previousConsumer: TConsumer | undefined,
+    incrementedCountsByResourceKey: ReadonlyMap<TResourceKey, number>,
+    onConsumerAddedResourceKeys: ReadonlySet<TResourceKey>,
+    createdResourceKeys: ReadonlySet<TResourceKey>,
+  ): void => {
+    for (const [
+      resourceKey,
+      incrementedCount,
+    ] of incrementedCountsByResourceKey) {
+      const counts = consumerCounts.get(resourceKey);
+      if (!counts) continue;
+
+      const currentCount = counts.get(consumerId);
+      if (currentCount == null) continue;
+
+      const nextCount = currentCount - incrementedCount;
+      if (nextCount <= 0) {
+        counts.delete(consumerId);
+      } else {
+        counts.set(consumerId, PositiveInt.orThrow(nextCount));
+      }
+
+      if (counts.size === 0) {
+        consumerCounts.delete(resourceKey);
+      }
+    }
+
+    if (config.onConsumerRemoved) {
+      for (const resourceKey of onConsumerAddedResourceKeys) {
+        const resource = resourcesMap.get(resourceKey);
+        if (!resource) continue;
+        try {
+          config.onConsumerRemoved(consumer, resource, resourceKey);
+        } catch {
+          // Keep rollback best-effort and preserve the original addConsumer error.
+        }
+      }
+    }
+
+    for (const resourceKey of createdResourceKeys) {
+      const counts = consumerCounts.get(resourceKey);
+      if (counts && counts.size > 0) continue;
+
+      const resource = resourcesMap.get(resourceKey);
+      if (!resource) continue;
+
+      const timeout = disposalTimeouts.get(resourceKey);
+      if (timeout) {
+        deps.time.clearTimeout(timeout);
+        disposalTimeouts.delete(resourceKey);
+      }
+
+      try {
+        resource[Symbol.dispose]();
+      } catch {
+        // Keep rollback best-effort and preserve the original addConsumer error.
+      }
+      resourcesMap.delete(resourceKey);
+    }
+
+    if (hadConsumerBefore) {
+      consumers.set(consumerId, previousConsumer as TConsumer);
+    } else {
+      consumers.delete(consumerId);
     }
   };
 
@@ -488,28 +570,51 @@ const createLegacyResources = <
       if (resourceConfigs.length === 0) return;
 
       const consumerId = config.getConsumerId(consumer);
+      const hadConsumerBefore = consumers.has(consumerId);
+      const previousConsumer = consumers.get(consumerId);
       consumers.set(consumerId, consumer);
+      const incrementedCountsByResourceKey = new Map<TResourceKey, number>();
+      const onConsumerAddedResourceKeys = new Set<TResourceKey>();
+      const createdResourceKeys = new Set<TResourceKey>();
 
-      for (const resourceConfig of resourceConfigs) {
-        ensureResource(resourceConfig);
-        const resourceKey = config.getResourceKey(resourceConfig);
+      try {
+        for (const resourceConfig of resourceConfigs) {
+          const { resourceKey, resource, created } =
+            ensureResource(resourceConfig);
+          if (created) {
+            createdResourceKeys.add(resourceKey);
+          }
 
-        let counts = consumerCounts.get(resourceKey);
-        if (!counts) {
-          counts = new Map<TConsumerId, PositiveInt>();
-          consumerCounts.set(resourceKey, counts);
-        }
+          let counts = consumerCounts.get(resourceKey);
+          if (!counts) {
+            counts = new Map<TConsumerId, PositiveInt>();
+            consumerCounts.set(resourceKey, counts);
+          }
 
-        const currentCount = counts.get(consumerId) ?? 0;
-        const newCount = currentCount + 1;
-        counts.set(consumerId, PositiveInt.orThrow(newCount));
+          const currentCount = counts.get(consumerId) ?? 0;
+          const newCount = currentCount + 1;
+          counts.set(consumerId, PositiveInt.orThrow(newCount));
+          incrementedCountsByResourceKey.set(
+            resourceKey,
+            (incrementedCountsByResourceKey.get(resourceKey) ?? 0) + 1,
+          );
 
-        if (currentCount === 0 && config.onConsumerAdded) {
-          const resource = resourcesMap.get(resourceKey);
-          if (resource) {
+          if (currentCount === 0 && config.onConsumerAdded && resource) {
+            onConsumerAddedResourceKeys.add(resourceKey);
             config.onConsumerAdded(consumer, resource, resourceKey);
           }
         }
+      } catch (error) {
+        rollbackAddConsumer(
+          consumer,
+          consumerId,
+          hadConsumerBefore,
+          previousConsumer,
+          incrementedCountsByResourceKey,
+          onConsumerAddedResourceKeys,
+          createdResourceKeys,
+        );
+        throw error;
       }
     },
 
