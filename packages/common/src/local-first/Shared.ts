@@ -194,10 +194,23 @@ export const initSharedWorker =
                       postTabOutput,
                       onDispose: () => {
                         void runWithSharedEvoluDeps.daemon(
-                          sharedEvolusMutexByName.withLock(message.name, () => {
-                            sharedEvolusByName.delete(message.name);
-                            return ok();
-                          }),
+                          sharedEvolusMutexByName.withLock(
+                            message.name,
+                            async () => {
+                              const maybeSharedEvolu = sharedEvolusByName.get(
+                                message.name,
+                              );
+                              if (!maybeSharedEvolu) return ok();
+
+                              try {
+                                await maybeSharedEvolu[Symbol.asyncDispose]();
+                              } finally {
+                                sharedEvolusByName.delete(message.name);
+                              }
+
+                              return ok();
+                            },
+                          ),
                         );
                       },
                     }),

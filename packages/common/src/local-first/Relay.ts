@@ -305,7 +305,7 @@ export const createRelaySqliteStorage =
 export const createRelayStorageTables = (deps: SqliteDep): void => {
   for (const query of [
     sql`
-      create table evolu_writeKey (
+      create table if not exists evolu_writeKey (
         "ownerId" blob not null,
         "writeKey" blob not null,
         primary key ("ownerId")
@@ -314,7 +314,7 @@ export const createRelayStorageTables = (deps: SqliteDep): void => {
     `,
 
     sql`
-      create table evolu_message (
+      create table if not exists evolu_message (
         "ownerId" blob not null,
         "timestamp" blob not null,
         "change" blob not null,

@@ -10,8 +10,7 @@ import {
  * Stores the Evolu instance for a Vue component. This is most useful at the
  * root component where provide/inject doesn't work.
  */
-// eslint-disable-next-line evolu/require-pure-annotation
-export const evoluInstanceMap = new WeakMap<
+export const evoluInstanceMap = /*#__PURE__*/ new WeakMap<
   ComponentInternalInstance,
   Evolu<any>
 >();
