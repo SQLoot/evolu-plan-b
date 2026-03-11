@@ -20,6 +20,7 @@ export * from "./Identicon.js";
 export * from "./Listeners.js";
 // Local-first essentials.
 export type { EvoluError } from "./local-first/Error.js";
+export { AppName, createEvolu } from "./local-first/Evolu.js";
 export type {
   AppNameError,
   Evolu,
@@ -27,15 +28,21 @@ export type {
   EvoluDeps,
   UnuseOwner,
 } from "./local-first/Evolu.js";
-export { AppName, createEvolu } from "./local-first/Evolu.js";
-export * as kysely from "./local-first/Kysely.js";
 export * from "./local-first/LocalAuth.js";
 export * from "./local-first/Owner.js";
 export type {
   InferRow,
+  KyselyNotNull,
   Query,
   QueryRows,
   Row,
+} from "./local-first/Query.js";
+export {
+  evoluJsonArrayFrom,
+  evoluJsonBuildObject,
+  evoluJsonObjectFrom,
+  getJsonObjectArgs,
+  kyselySql,
 } from "./local-first/Query.js";
 export type {
   AnyStandardSchemaV1,
