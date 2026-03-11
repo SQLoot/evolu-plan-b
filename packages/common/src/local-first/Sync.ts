@@ -28,22 +28,22 @@ import type { Result } from "../Result.js";
 import { err, ok } from "../Result.js";
 import type { SqliteDep } from "../Sqlite.js";
 import {
-  booleanToSqliteBoolean,
   SqliteBoolean,
-  type SqliteValue,
+  booleanToSqliteBoolean,
   sql,
   sqliteBooleanToBoolean,
+  type SqliteValue,
 } from "../Sqlite.js";
 import { createMutex, createRun } from "../Task.js";
 import type { TimeDep } from "../Time.js";
 import { Millis, millisToDateIso } from "../Time.js";
 import type { Typed } from "../Type.js";
 import {
-  type Id,
-  type IdBytes,
+  PositiveInt,
   idBytesToId,
   idToIdBytes,
-  PositiveInt,
+  type Id,
+  type IdBytes,
 } from "../Type.js";
 import { isPromiseLike } from "../Types.js";
 import type { CreateWebSocketDep, WebSocket } from "../WebSocket.js";
@@ -56,10 +56,10 @@ import type {
   ReadonlyOwner,
 } from "./Owner.js";
 import {
-  type OwnerId,
-  type OwnerIdBytes,
   ownerIdBytesToOwnerId,
   ownerIdToOwnerIdBytes,
+  type OwnerId,
+  type OwnerIdBytes,
 } from "./Owner.js";
 import type {
   ProtocolError,
@@ -69,12 +69,12 @@ import type {
   ProtocolTimestampMismatchError,
 } from "./Protocol.js";
 import {
+  SubscriptionFlags,
   createProtocolMessageForSync,
   createProtocolMessageForUnsubscribe,
   createProtocolMessageFromCrdtMessages,
   decryptAndDecodeDbChange,
   encodeAndEncryptDbChange,
-  SubscriptionFlags,
 } from "./Protocol.js";
 import type { MutationChange, SqliteSchemaDep } from "./Schema.js";
 import { systemColumns } from "./Schema.js";
@@ -85,8 +85,8 @@ import type {
   StorageConfig,
 } from "./Storage.js";
 import {
-  createBaseSqliteStorage,
   DbChange,
+  createBaseSqliteStorage,
   getNextStoredBytes,
   getOwnerUsage,
   getTimestampInsertStrategy,
@@ -515,6 +515,9 @@ export const createSync =
         if (isDisposed) return;
         isDisposed = true;
         syncOwnersById.clear();
+        // Note: syncOwnerRefs doesn't have a clear method, but entries become
+        // unreachable once syncOwnersById is cleared and no new useOwner calls
+        // are accepted due to isDisposed check.
         void resources[Symbol.asyncDispose]();
         void syncRun[Symbol.asyncDispose]();
       },

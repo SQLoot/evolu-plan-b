@@ -41,7 +41,7 @@
   },
   "peerDependencies": {
     "@evolu/common": "^7.4.1",
-    "vue": ">=3.5.29"
+    "vue": ">=3.5.30"
   },
   "publishConfig": {
     "access": "public"

@@ -252,7 +252,8 @@ export const createResources = <
       if (!resourceIds) return resources;
 
       for (const resourceId of resourceIds) {
-        resources.add(resourcesById.get(resourceId)!);
+        const resource = resourcesById.get(resourceId);
+        if (resource) resources.add(resource);
       }
 
       return resources;
