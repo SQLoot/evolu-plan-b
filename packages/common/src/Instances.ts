@@ -1,30 +1,35 @@
 /**
- * A multiton for disposable instances.
+ * A keyed instance registry for disposable instances.
  *
  * @module
  */
 
 /**
- * A multiton for disposable instances.
+ * A keyed instance registry for disposable instances.
  *
- * A multiton guarantees exactly one instance per key.
+ * Guarantees exactly one live instance per key. Also known as a multiton (a
+ * keyed singleton).
  *
- * Use cases:
+ * ### Example
  *
- * - One Mutex per key to prevent concurrent writes
- * - Preserving state during hot module reloading
+ * Real usage from `local-first/Relay.ts`: one mutex per owner to serialize
+ * writes for the same owner.
  *
- * Note: Do not use this as global shared state. Use it locally or pass it as a
- * dependency instead. The only exception is hot reloading, where Evolu uses
- * this to keep a single instance across module reloads. Bundler hot-reload APIs
- * are not consistent across environments, so this is a portable fallback.
- * Having two Evolu instances with the same name would mean two SQLite
- * connections to the same file, which could corrupt data.
+ * ```ts
+ * const ownerMutexes = createInstances<OwnerId, Mutex>();
  *
- * // TODO: Example.
+ * const result = await run(
+ *   ownerMutexes.ensure(ownerId, createMutex).withLock(async () => {
+ *     // Write messages for ownerId.
+ *     return ok();
+ *   }),
+ * );
+ * ```
  */
-export interface Instances<K extends string, T extends Disposable>
-  extends Disposable {
+export interface Instances<
+  K extends string,
+  T extends Disposable,
+> extends Disposable {
   /**
    * Ensures an instance exists for the given key, creating it if necessary. If
    * the instance already exists, the optional `onCacheHit` callback is invoked
@@ -85,21 +90,13 @@ export const createInstances = <
     },
 
     [Symbol.dispose]: () => {
-      const errors: Array<unknown> = [];
+      using stack = new globalThis.DisposableStack();
+
       for (const instance of instances.values()) {
-        try {
-          instance[Symbol.dispose]();
-        } catch (error) {
-          errors.push(error);
-        }
+        stack.use(instance);
       }
 
       instances.clear();
-
-      if (errors.length === 1) throw errors[0];
-      if (errors.length > 1) {
-        throw new AggregateError(errors, "Multiple disposal errors occurred");
-      }
     },
   };
 };

@@ -10,23 +10,20 @@ import {
   isNonEmptyArray,
   mapArray,
 } from "../Array.js";
-import { assert } from "../Assert.js";
 import type { TimingSafeEqualDep } from "../Crypto.js";
-import { createInstances } from "../Instances.js";
-import { createRefCount } from "../RefCount.js";
+import { assert } from "../Assert.js";
 import type { Result } from "../Result.js";
 import { err, ok } from "../Result.js";
 import type { SqliteDep } from "../Sqlite.js";
 import { sql } from "../Sqlite.js";
-import type { Mutex } from "../Task.js";
-import { createMutex } from "../Task.js";
-import { PositiveInt, type SimpleName } from "../Type.js";
-import { type Awaitable, isPromiseLike } from "../Types.js";
+import { createMutexByKey } from "../Task.js";
+import { PositiveInt, Name } from "../Type.js";
+import { isPromiseLike, type Awaitable } from "../Types.js";
 import {
-  type OwnerId,
-  // OwnerTransport,
-  type OwnerWriteKey,
+  OwnerId,
   ownerIdBytesToOwnerId,
+  // OwnerTransport,
+  OwnerWriteKey,
 } from "./Owner.js";
 import type {
   EncryptedDbChange,
@@ -37,7 +34,6 @@ import type {
 } from "./Storage.js";
 import {
   createBaseSqliteStorage,
-  getNextStoredBytes,
   getOwnerUsage,
   getTimestampInsertStrategy,
   updateOwnerUsage,
@@ -51,7 +47,7 @@ export interface RelayConfig extends StorageConfig {
    * Implementations can use this for identification purposes (e.g., database
    * file name, logging).
    */
-  readonly name?: SimpleName;
+  readonly name?: Name;
 
   /**
    * Optional callback to check if an {@link OwnerId} is allowed to access the
@@ -115,9 +111,8 @@ export const createRelaySqliteStorage =
   (config: StorageConfig): Storage => {
     const sqliteStorageBase = createBaseSqliteStorage(deps);
 
-    /** Mutex instances cached per OwnerId to prevent concurrent writes. */
-    const ownerMutexes = createInstances<OwnerId, Mutex>();
-    const ownerMutexRefs = createRefCount<OwnerId>();
+    /** Mutex keyed by OwnerId to prevent concurrent writes. */
+    const mutexByOwnerId = createMutexByKey<OwnerId>();
 
     return {
       ...sqliteStorageBase,
@@ -168,115 +163,103 @@ export const createRelaySqliteStorage =
           timestamp: timestampToTimestampBytes(m.timestamp),
           change: m.change,
         }));
-        const ownerMutex = ownerMutexes.ensure(ownerId, createMutex);
-        ownerMutexRefs.increment(ownerId);
 
-        const result = await (async () => {
-          try {
-            return await run(
-              ownerMutex.withLock(
-                async (): Promise<Result<void, StorageQuotaError>> => {
-                  const existingTimestampsResult =
-                    sqliteStorageBase.getExistingTimestamps(
-                      ownerIdBytes,
-                      mapArray(messagesWithTimestampBytes, (m) => m.timestamp),
+        const result = await run(
+          mutexByOwnerId.withLock(
+            ownerId,
+            async (): Promise<Result<void, StorageQuotaError>> => {
+              const existingTimestampsResult =
+                sqliteStorageBase.getExistingTimestamps(
+                  ownerIdBytes,
+                  mapArray(messagesWithTimestampBytes, (m) => m.timestamp),
+                );
+
+              const existingTimestampsSet = new Set(
+                existingTimestampsResult.map((t) => t.toString()),
+              );
+              const newMessages = filterArray(
+                messagesWithTimestampBytes,
+                (m) => !existingTimestampsSet.has(m.timestamp.toString()),
+              );
+
+              // Nothing to write
+              if (!isNonEmptyArray(newMessages)) {
+                return ok();
+              }
+
+              const usage = getOwnerUsage(deps)(
+                ownerIdBytes,
+                firstInArray(newMessages).timestamp,
+              );
+              if (!usage.ok) return usage;
+
+              const { storedBytes } = usage.value;
+
+              const incomingBytes = newMessages.reduce(
+                (sum, m) => sum + m.change.length,
+                0,
+              );
+              const newStoredBytes = PositiveInt.orThrow(
+                (storedBytes ?? 0) + incomingBytes,
+              );
+
+              const quotaResult = config.isOwnerWithinQuota(
+                ownerId,
+                newStoredBytes,
+              );
+              const isWithinQuota = isPromiseLike(quotaResult)
+                ? await quotaResult
+                : quotaResult;
+              if (!isWithinQuota) {
+                return err({ type: "StorageQuotaError", ownerId });
+              }
+
+              let { firstTimestamp, lastTimestamp } = usage.value;
+
+              return deps.sqlite.transaction(() => {
+                for (const { timestamp, change } of newMessages) {
+                  let strategy;
+                  [strategy, firstTimestamp, lastTimestamp] =
+                    getTimestampInsertStrategy(
+                      timestamp,
+                      firstTimestamp,
+                      lastTimestamp,
                     );
 
-                  const existingTimestampsSet = new Set(
-                    existingTimestampsResult.map((t) => t.toString()),
-                  );
-                  const newMessages = filterArray(
-                    messagesWithTimestampBytes,
-                    (m) => !existingTimestampsSet.has(m.timestamp.toString()),
-                  );
-
-                  // Nothing to write
-                  if (!isNonEmptyArray(newMessages)) {
-                    return ok();
+                  {
+                    sqliteStorageBase.insertTimestamp(
+                      ownerIdBytes,
+                      timestamp,
+                      strategy,
+                    );
                   }
 
-                  const usage = getOwnerUsage(deps)(
-                    ownerIdBytes,
-                    firstInArray(newMessages).timestamp,
-                  );
-                  if (!usage.ok) return usage;
-
-                  const { storedBytes } = usage.value;
-
-                  const incomingBytesSum = newMessages.reduce(
-                    (sum, m) => sum + m.change.length,
-                    0,
-                  );
-                  if (incomingBytesSum <= 0) return ok();
-                  const incomingBytesResult =
-                    PositiveInt.from(incomingBytesSum);
-                  if (!incomingBytesResult.ok) {
-                    return err({ type: "StorageQuotaError", ownerId });
-                  }
-                  const incomingBytes = incomingBytesResult.value;
-                  const newStoredBytes = getNextStoredBytes(
-                    storedBytes,
-                    incomingBytes,
-                  );
-
-                  const quotaResult = config.isOwnerWithinQuota(
-                    ownerId,
-                    newStoredBytes,
-                  );
-                  const isWithinQuota = isPromiseLike(quotaResult)
-                    ? await quotaResult
-                    : quotaResult;
-                  if (!isWithinQuota) {
-                    return err({ type: "StorageQuotaError", ownerId });
-                  }
-
-                  let { firstTimestamp, lastTimestamp } = usage.value;
-
-                  return deps.sqlite.transaction(() => {
-                    for (const { timestamp, change } of newMessages) {
-                      let strategy;
-                      [strategy, firstTimestamp, lastTimestamp] =
-                        getTimestampInsertStrategy(
-                          timestamp,
-                          firstTimestamp,
-                          lastTimestamp,
-                        );
-                      sqliteStorageBase.insertTimestamp(
-                        ownerIdBytes,
-                        timestamp,
-                        strategy,
-                      );
-                      deps.sqlite.exec(sql`
+                  {
+                    deps.sqlite.exec(sql`
                       insert into evolu_message
                         ("ownerId", "timestamp", "change")
                       values (${ownerIdBytes}, ${timestamp}, ${change})
                       on conflict do nothing;
                     `);
-                    }
+                  }
+                }
 
-                    updateOwnerUsage(deps)(
-                      ownerIdBytes,
-                      newStoredBytes,
-                      firstTimestamp,
-                      lastTimestamp,
-                    );
+                updateOwnerUsage(deps)(
+                  ownerIdBytes,
+                  newStoredBytes,
+                  firstTimestamp,
+                  lastTimestamp,
+                );
 
-                    return ok();
-                  });
-                },
-              ),
-            );
-          } finally {
-            ownerMutexRefs.decrement(ownerId);
-            if (!ownerMutexRefs.has(ownerId)) {
-              ownerMutexes.delete(ownerId);
-            }
-          }
-        })();
+                return ok();
+              });
+            },
+          ),
+        );
 
         if (!result.ok) {
           if (result.error.type === "AbortError") return ok();
-          return err(result.error);
+          return err({ type: "StorageQuotaError", ownerId });
         }
 
         return ok();
@@ -311,6 +294,8 @@ export const createRelaySqliteStorage =
           `);
 
           sqliteStorageBase.deleteOwner(ownerId);
+
+          return ok();
         });
       },
     };
@@ -319,7 +304,7 @@ export const createRelaySqliteStorage =
 export const createRelayStorageTables = (deps: SqliteDep): void => {
   for (const query of [
     sql`
-      create table if not exists evolu_writeKey (
+      create table evolu_writeKey (
         "ownerId" blob not null,
         "writeKey" blob not null,
         primary key ("ownerId")
@@ -328,7 +313,7 @@ export const createRelayStorageTables = (deps: SqliteDep): void => {
     `,
 
     sql`
-      create table if not exists evolu_message (
+      create table evolu_message (
         "ownerId" blob not null,
         "timestamp" blob not null,
         "change" blob not null,

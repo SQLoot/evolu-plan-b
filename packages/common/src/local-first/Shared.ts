@@ -8,21 +8,20 @@ import {
   emptyArray,
   firstInArray,
   isNonEmptyArray,
-  type NonEmptyReadonlyArray,
   shiftFromArray,
+  type NonEmptyReadonlyArray,
 } from "../Array.js";
 import { assert } from "../Assert.js";
 import { createCallbacks } from "../Callbacks.js";
 import type { Console, ConsoleEntry, ConsoleLevel } from "../Console.js";
-import { createInstances } from "../Instances.js";
+import { createResources, type Resources } from "../Resources.js";
 import { ok } from "../Result.js";
 import { spaced } from "../Schedule.js";
 import type { NonEmptyReadonlySet } from "../Set.js";
-import type { SqliteExportFile } from "../Sqlite.js";
-import { type Fiber, type Run, repeat, type Task } from "../Task.js";
-import type { Millis, TimeDep } from "../Time.js";
+import { createTaskInstances, repeat, type Fiber, type Task } from "../Task.js";
 import { createId, type Id, type Name } from "../Type.js";
 import type { Callback, ExtractType } from "../Types.js";
+import type { CreateWebSocketDep, WebSocket } from "../WebSocket.js";
 import type {
   SharedWorker as CommonSharedWorker,
   MessagePort,
@@ -31,7 +30,7 @@ import type {
   WorkerDeps,
 } from "../Worker.js";
 import type { EvoluError } from "./Error.js";
-import type { OwnerId } from "./Owner.js";
+import type { OwnerId, OwnerTransport, SyncOwner } from "./Owner.js";
 import {
   makePatches,
   type Patch,
@@ -47,6 +46,12 @@ export interface SharedWorkerDep {
   readonly sharedWorker: SharedWorker;
 }
 
+interface TransportsDep {
+  readonly transports: SharedTransportResources;
+}
+
+export type SharedWorkerDeps = WorkerDeps & CreateWebSocketDep;
+
 export type SharedWorkerInput =
   | {
       readonly type: "InitTab";
@@ -56,6 +61,7 @@ export type SharedWorkerInput =
   | {
       readonly type: "CreateEvolu";
       readonly name: Name;
+      readonly appOwner: SyncOwner;
       readonly evoluPort: NativeMessagePort<EvoluOutput, EvoluInput>;
       readonly dbWorkerPort: NativeMessagePort<DbWorkerInput, DbWorkerOutput>;
     };
@@ -99,17 +105,19 @@ export type EvoluOutput =
     }
   | {
       readonly type: "OnExport";
-      readonly file: SqliteExportFile;
+      readonly file: Uint8Array<ArrayBuffer>;
     };
 
 export const initSharedWorker =
   (
     self: SharedWorkerSelf<SharedWorkerInput>,
-  ): Task<AsyncDisposableStack, never, WorkerDeps & TimeDep> =>
+  ): Task<AsyncDisposableStack, never, SharedWorkerDeps> =>
   async (run) => {
-    const { createMessagePort, consoleStoreOutputEntry } = run.deps;
+    const { createMessagePort, consoleStoreOutputEntry, createWebSocket } =
+      run.deps;
     const console = run.deps.console.child("SharedWorker");
 
+    // TODO: Use heartbeat to detect and prune dead ports.
     const tabPorts = new Set<MessagePort<EvoluTabOutput>>();
 
     const queuedTabOutputs: Array<EvoluTabOutput> = [];
@@ -118,22 +126,43 @@ export const initSharedWorker =
       else for (const port of tabPorts) port.postMessage(output);
     };
 
+    const createTransportId = (transport: OwnerTransport): string =>
+      `${transport.type}:${transport.url}`;
+
     await using stack = run.stack();
 
-    // Shared worker instance lifecycle is managed by per-evolu heartbeats.
-    const sharedEvolus = stack.use(createInstances<Name, SharedEvolu>());
+    const transports = stack.use(
+      createResources<WebSocket, string, OwnerTransport, SyncOwner, OwnerId>({
+        createResource: async (transport) => {
+          const transportId = createTransportId(transport);
+          console.info("createTransportResource", { transportId });
+          return await run.daemon.orThrow(
+            createWebSocket(transport.url, {
+              binaryType: "arraybuffer",
+              onOpen: () => {
+                console.debug("transportOpen", { transportId });
+              },
+              onClose: () => {
+                console.debug("transportClose", { transportId });
+              },
+            }),
+          );
+        },
+        getResourceId: createTransportId,
+        getConsumerId: (owner) => owner.id,
+      }),
+    );
 
-    const unsubscribeConsoleStoreOutputEntry =
-      consoleStoreOutputEntry.subscribe(() => {
-        const entry = consoleStoreOutputEntry.get();
-        if (entry) postTabOutput({ type: "OnConsoleEntry", entry });
-      });
-    stack.defer(() => {
-      unsubscribeConsoleStoreOutputEntry();
-      return ok();
-    });
+    const runWithSharedEvoluDeps = run.addDeps({ transports });
 
-    console.info("initSharedWorker");
+    // TODO: Use heartbeat to detect and prune dead instances.
+    const sharedEvolus = stack.use(
+      createTaskInstances<
+        Name,
+        SharedEvolu,
+        SharedWorkerDeps & TransportsDep
+      >(),
+    );
 
     self.onConnect = (port) => {
       console.debug("onConnect");
@@ -155,19 +184,27 @@ export const initSharedWorker =
           }
 
           case "CreateEvolu": {
-            sharedEvolus
-              .ensure(message.name, () =>
-                createSharedEvolu({
-                  run,
-                  console,
-                  name: message.name,
-                  postTabOutput,
-                  onDispose: () => {
-                    sharedEvolus.delete(message.name);
-                  },
-                }),
+            void runWithSharedEvoluDeps
+              .daemon(
+                sharedEvolus.ensure(
+                  message.name,
+                  createSharedEvolu({
+                    console,
+                    name: message.name,
+                    appOwner: message.appOwner,
+                    postTabOutput,
+                    onDispose: () => {
+                      void runWithSharedEvoluDeps.daemon(
+                        sharedEvolus.delete(message.name),
+                      );
+                    },
+                  }),
+                ),
               )
-              .addPorts(message.evoluPort, message.dbWorkerPort);
+              .then((result) => {
+                if (!result.ok) return;
+                result.value.addPorts(message.evoluPort, message.dbWorkerPort);
+              });
             break;
           }
           default:
@@ -176,10 +213,19 @@ export const initSharedWorker =
       };
     };
 
+    stack.defer(
+      consoleStoreOutputEntry.subscribe(() => {
+        const entry = consoleStoreOutputEntry.get();
+        if (entry) postTabOutput({ type: "OnConsoleEntry", entry });
+      }),
+    );
+
+    console.info("initSharedWorker");
+
     return ok(stack.move());
   };
 
-interface SharedEvolu extends Disposable {
+interface SharedEvolu extends AsyncDisposable {
   readonly addPorts: (
     evoluPort: NativeMessagePort<EvoluOutput, EvoluInput>,
     dbWorkerPort: NativeMessagePort<DbWorkerInput, DbWorkerOutput>,
@@ -198,10 +244,6 @@ export interface DbWorkerInput extends DbWorkerQueueItem {
 export type DbWorkerOutput =
   | {
       readonly type: "LeaderAcquired";
-      readonly name: Name;
-    }
-  | {
-      readonly type: "LeaderHeartbeat";
       readonly name: Name;
     }
   | {
@@ -227,7 +269,10 @@ export type QueuedResponse =
     }
   | {
       readonly type: "Export";
-      readonly file: SqliteExportFile;
+      readonly file: Uint8Array<ArrayBuffer>;
+    }
+  | {
+      readonly type: "CreateSyncMessages";
     };
 
 export interface QueuedResult {
@@ -235,380 +280,225 @@ export interface QueuedResult {
   readonly response: QueuedResponse;
 }
 
-export const dbWorkerHeartbeatIntervalMs = 5_000;
-export const dbWorkerHeartbeatTimeoutMs = 30_000;
+type SharedTransportResources = Resources<
+  WebSocket,
+  string,
+  OwnerTransport,
+  SyncOwner,
+  OwnerId
+>;
 
-// createSharedEvolu could be Task, but Instances doesn't support it yet.
-const createSharedEvolu = ({
-  run,
-  console,
-  name,
-  postTabOutput,
-  onDispose,
-}: {
-  run: Run<WorkerDeps & TimeDep>;
-  console: Console;
-  name: Name;
-  postTabOutput: Callback<EvoluTabOutput>;
-  onDispose: () => void;
-}): SharedEvolu => {
-  const { createMessagePort } = run.deps;
+export type SyncState = 123;
 
-  const evoluPorts = new Map<Id, MessagePort<EvoluOutput, EvoluInput>>();
-  const dbWorkerPorts = new Set<MessagePort<DbWorkerInput, DbWorkerOutput>>();
-  const dbWorkerPortByEvoluPortId = new Map<
-    Id,
-    MessagePort<DbWorkerInput, DbWorkerOutput>
-  >();
-  const rowsByQueryByEvoluPortId = new Map<Id, RowsByQueryMap>();
-  const queue: Array<DbWorkerQueueItem> = [];
-  const callbacks = createCallbacks<QueuedResult>(run.deps);
+const createSharedEvolu =
+  ({
+    console,
+    name,
+    appOwner,
+    postTabOutput,
+    onDispose,
+  }: {
+    console: Console;
+    name: Name;
+    appOwner: SyncOwner;
+    postTabOutput: Callback<EvoluTabOutput>;
+    onDispose: () => void;
+  }): Task<SharedEvolu, never, SharedWorkerDeps & TransportsDep> =>
+  async (run) => {
+    const { createMessagePort, transports } = run.deps;
 
-  let activeDbWorkerPort = null as MessagePort<
-    DbWorkerInput,
-    DbWorkerOutput
-  > | null;
-  let activeDbWorkerLastHeartbeatAt = 0 as Millis;
-  const lastHeartbeatByDbWorkerPort = new Map<
-    MessagePort<DbWorkerInput, DbWorkerOutput>,
-    Millis
-  >();
+    const evoluPorts = new Map<Id, MessagePort<EvoluOutput, EvoluInput>>();
+    const dbWorkerPorts = new Set<MessagePort<DbWorkerInput, DbWorkerOutput>>();
+    const rowsByQueryByEvoluPortId = new Map<Id, RowsByQueryMap>();
+    const queue: Array<DbWorkerQueueItem> = [];
+    const callbacks = createCallbacks<QueuedResult>(run.deps);
 
-  let queueProcessingFiber: Fiber<void, never, WorkerDeps & TimeDep> | null =
-    null;
-  let activeQueueCallback: {
-    readonly callbackId: Id;
-    readonly evoluPortId: Id;
-  } | null = null;
+    let activeDbWorkerPort = null as MessagePort<
+      DbWorkerInput,
+      DbWorkerOutput
+    > | null;
 
-  const dropQueuedRequestsForEvoluPort = (evoluPortId: Id): void => {
-    for (let i = queue.length - 1; i >= 0; i -= 1) {
-      if (queue[i]?.evoluPortId === evoluPortId) queue.splice(i, 1);
-    }
-  };
+    let queueProcessingFiber: Fiber<void, never, WorkerDeps> | null = null;
 
-  const cancelActiveQueueForEvoluPort = (evoluPortId: Id): void => {
-    if (activeQueueCallback?.evoluPortId !== evoluPortId) return;
+    const ownerTransports = appOwner.transports ?? emptyArray;
 
-    callbacks.cancel(activeQueueCallback.callbackId);
-    activeQueueCallback = null;
-    queueProcessingFiber?.abort();
-    queueProcessingFiber = null;
+    await run(transports.addConsumer(appOwner, ownerTransports));
 
-    if (queue[0]?.evoluPortId === evoluPortId) queue.shift();
-  };
-
-  const cleanupEvoluPort = (
-    evoluPortId: Id,
-    disposeDbWorkerPort: boolean,
-  ): void => {
-    dropQueuedRequestsForEvoluPort(evoluPortId);
-    cancelActiveQueueForEvoluPort(evoluPortId);
-
-    const dbWorkerPortForEvolu = dbWorkerPortByEvoluPortId.get(evoluPortId);
-    if (dbWorkerPortForEvolu) {
-      dbWorkerPortByEvoluPortId.delete(evoluPortId);
-
-      if (disposeDbWorkerPort) {
-        dbWorkerPorts.delete(dbWorkerPortForEvolu);
-
-        if (activeDbWorkerPort === dbWorkerPortForEvolu) {
-          cancelActiveQueue();
-          activeDbWorkerPort = null;
-        }
-
-        lastHeartbeatByDbWorkerPort.delete(dbWorkerPortForEvolu);
-        dbWorkerPortForEvolu[Symbol.dispose]();
-      }
-    }
-
-    evoluPorts.delete(evoluPortId);
-    rowsByQueryByEvoluPortId.delete(evoluPortId);
-  };
-
-  const cancelActiveQueue = (): void => {
-    if (activeQueueCallback) {
-      callbacks.cancel(activeQueueCallback.callbackId);
-      activeQueueCallback = null;
-    }
-    queueProcessingFiber?.abort();
-    queueProcessingFiber = null;
-  };
-
-  const markDbWorkerHeartbeat = (
-    dbWorkerPort: MessagePort<DbWorkerInput, DbWorkerOutput>,
-  ): void => {
-    const now = run.deps.time.now();
-    lastHeartbeatByDbWorkerPort.set(dbWorkerPort, now);
-    if (activeDbWorkerPort === dbWorkerPort)
-      activeDbWorkerLastHeartbeatAt = now;
-  };
-
-  const setActiveDbWorkerPort = (
-    dbWorkerPort: MessagePort<DbWorkerInput, DbWorkerOutput>,
-  ): void => {
-    activeDbWorkerPort = dbWorkerPort;
-    const now = run.deps.time.now();
-    activeDbWorkerLastHeartbeatAt = now;
-    lastHeartbeatByDbWorkerPort.set(dbWorkerPort, now);
-  };
-
-  const clearActiveDbWorkerIfStale = (): void => {
-    if (!activeDbWorkerPort) return;
-    const elapsed = run.deps.time.now() - activeDbWorkerLastHeartbeatAt;
-    if (elapsed <= dbWorkerHeartbeatTimeoutMs) return;
-
-    console.warn("leaderHeartbeatTimeout", {
-      name,
-      timeoutMs: dbWorkerHeartbeatTimeoutMs,
-      elapsedMs: elapsed,
-    });
-    activeDbWorkerPort = null;
-    cancelActiveQueue();
-  };
-
-  const pruneStaleDbWorkerPorts = (): void => {
-    const now = run.deps.time.now();
-
-    for (const [dbWorkerPort, lastHeartbeatAt] of lastHeartbeatByDbWorkerPort) {
-      const elapsed = now - lastHeartbeatAt;
-      if (elapsed <= dbWorkerHeartbeatTimeoutMs) continue;
-
-      const wasActive = dbWorkerPort === activeDbWorkerPort;
-      if (wasActive) {
-        activeDbWorkerPort = null;
-        cancelActiveQueue();
-      }
-
-      const staleEvoluPortIds: Array<Id> = [];
-      for (const [
-        evoluPortId,
-        mappedDbWorkerPort,
-      ] of dbWorkerPortByEvoluPortId) {
-        if (mappedDbWorkerPort === dbWorkerPort) {
-          staleEvoluPortIds.push(evoluPortId);
-        }
-      }
-      for (const evoluPortId of staleEvoluPortIds) {
-        cleanupEvoluPort(evoluPortId, false);
-      }
-
-      lastHeartbeatByDbWorkerPort.delete(dbWorkerPort);
-      dbWorkerPorts.delete(dbWorkerPort);
-      dbWorkerPort[Symbol.dispose]();
-
-      console.warn("prunedStaleDbWorkerPort", {
-        name,
-        timeoutMs: dbWorkerHeartbeatTimeoutMs,
-        elapsedMs: elapsed,
-      });
-
-      if (evoluPorts.size === 0) {
-        onDispose();
+    const ensureQueueProcessing = (): void => {
+      if (
+        queueProcessingFiber ||
+        !isNonEmptyArray(queue) ||
+        !activeDbWorkerPort
+      ) {
         return;
       }
-    }
-  };
 
-  const heartbeatFiber = run.daemon(
-    repeat(() => {
-      pruneStaleDbWorkerPorts();
-      clearActiveDbWorkerIfStale();
-      return ok();
-    }, spaced("1s")),
-  );
+      const first = firstInArray(queue);
 
-  const ensureQueueProcessing = (): void => {
-    if (
-      queueProcessingFiber ||
-      !isNonEmptyArray(queue) ||
-      !activeDbWorkerPort
-    ) {
-      return;
-    }
+      const callbackId = callbacks.register(({ evoluPortId, response }) => {
+        queueProcessingFiber?.abort();
+        queueProcessingFiber = null;
 
-    const first = firstInArray(queue);
+        const evoluPort = evoluPorts.get(evoluPortId);
 
-    const callbackId = callbacks.register(({ evoluPortId, response }) => {
-      activeQueueCallback = null;
-      queueProcessingFiber?.abort();
-      queueProcessingFiber = null;
+        switch (response.type) {
+          case "Mutate":
+          case "Query": {
+            if (evoluPort)
+              evoluPort.postMessage({
+                type: "OnPatchesByQuery",
+                patchesByQuery: createPatchesByQuery(
+                  evoluPortId,
+                  response.rowsByQuery,
+                ),
+                onCompleteIds:
+                  first.request.type === "Mutate"
+                    ? first.request.onCompleteIds
+                    : emptyArray,
+              });
 
-      const evoluPort = evoluPorts.get(evoluPortId);
-
-      switch (response.type) {
-        case "Mutate":
-        case "Query": {
-          if (evoluPort)
-            evoluPort.postMessage({
-              type: "OnPatchesByQuery",
-              patchesByQuery: createPatchesByQuery(
-                evoluPortId,
-                response.rowsByQuery,
-              ),
-              onCompleteIds:
-                first.request.type === "Mutate"
-                  ? first.request.onCompleteIds
-                  : emptyArray,
-            });
-
-          if (response.type === "Mutate") {
-            for (const [otherEvoluPortId, otherEvoluPort] of evoluPorts) {
-              if (otherEvoluPortId === evoluPortId) continue;
-              otherEvoluPort.postMessage({ type: "RefreshQueries" });
+            if (response.type === "Mutate") {
+              for (const [otherEvoluPortId, otherEvoluPort] of evoluPorts) {
+                if (otherEvoluPortId === evoluPortId) continue;
+                otherEvoluPort.postMessage({ type: "RefreshQueries" });
+              }
             }
+            break;
           }
-          break;
-        }
-        case "Export":
-          if (evoluPort)
-            evoluPort.postMessage(
-              {
-                type: "OnExport",
-                file: response.file,
-              },
-              [response.file.buffer],
-            );
+          case "Export":
+            if (evoluPort)
+              evoluPort.postMessage(
+                {
+                  type: "OnExport",
+                  file: response.file,
+                },
+                [response.file.buffer],
+              );
 
-          break;
-        default:
-          console.error("Unknown queued response", response);
+            break;
+          case "CreateSyncMessages":
+            break;
+          default:
+            console.error("Unknown queued response", response);
+        }
+
+        // Complete the current queue item and continue with the next one.
+        shiftFromArray(queue);
+        ensureQueueProcessing();
+      });
+
+      queueProcessingFiber = run.daemon(
+        repeat(() => {
+          assert(activeDbWorkerPort, "Expected an active DbWorker");
+          activeDbWorkerPort.postMessage({ callbackId, ...first });
+          return ok();
+        }, spaced("5s")), // 5s seems to be a good balance
+      );
+    };
+
+    const createPatchesByQuery = (
+      evoluPortId: Id,
+      rowsByQuery: RowsByQueryMap,
+    ): ReadonlyMap<Query, ReadonlyArray<Patch>> => {
+      const previousRowsByQuery = rowsByQueryByEvoluPortId.get(evoluPortId);
+      const nextRowsByQuery = new Map(previousRowsByQuery ?? emptyArray);
+      const patchesByQuery = new Map<Query, ReadonlyArray<Patch>>();
+
+      for (const [query, rows] of rowsByQuery) {
+        nextRowsByQuery.set(query, rows);
+        patchesByQuery.set(
+          query,
+          makePatches(previousRowsByQuery?.get(query), rows),
+        );
       }
 
-      // Complete the current queue item and continue with the next one.
-      shiftFromArray(queue);
-      ensureQueueProcessing();
-    });
-    activeQueueCallback = { callbackId, evoluPortId: first.evoluPortId };
+      rowsByQueryByEvoluPortId.set(evoluPortId, nextRowsByQuery);
+      return patchesByQuery;
+    };
 
-    queueProcessingFiber = run.daemon(
-      repeat(() => {
-        assert(activeDbWorkerPort, "Expected an active DbWorker");
-        activeDbWorkerPort.postMessage({ callbackId, ...first });
-        return ok();
-      }, spaced("5s")), // 5s seems to be a good balance
-    );
-  };
+    return ok({
+      addPorts: (nativeEvoluPort, nativeDbWorkerPort) => {
+        const evoluPort = createMessagePort<EvoluOutput, EvoluInput>(
+          nativeEvoluPort,
+        );
+        const dbWorkerPort = createMessagePort<DbWorkerInput, DbWorkerOutput>(
+          nativeDbWorkerPort,
+        );
 
-  const createPatchesByQuery = (
-    evoluPortId: Id,
-    rowsByQuery: RowsByQueryMap,
-  ): ReadonlyMap<Query, ReadonlyArray<Patch>> => {
-    const previousRowsByQuery = rowsByQueryByEvoluPortId.get(evoluPortId);
-    const nextRowsByQuery = new Map(previousRowsByQuery ?? emptyArray);
-    const patchesByQuery = new Map<Query, ReadonlyArray<Patch>>();
+        const evoluPortId = createId(run.deps);
 
-    for (const [query, rows] of rowsByQuery) {
-      nextRowsByQuery.set(query, rows);
-      patchesByQuery.set(
-        query,
-        makePatches(previousRowsByQuery?.get(query), rows),
-      );
-    }
+        evoluPorts.set(evoluPortId, evoluPort);
+        dbWorkerPorts.add(dbWorkerPort);
 
-    rowsByQueryByEvoluPortId.set(evoluPortId, nextRowsByQuery);
-    return patchesByQuery;
-  };
-
-  return {
-    addPorts: (nativeEvoluPort, nativeDbWorkerPort) => {
-      const evoluPort = createMessagePort<EvoluOutput, EvoluInput>(
-        nativeEvoluPort,
-      );
-      const dbWorkerPort = createMessagePort<DbWorkerInput, DbWorkerOutput>(
-        nativeDbWorkerPort,
-      );
-
-      const evoluPortId = createId(run.deps);
-
-      evoluPorts.set(evoluPortId, evoluPort);
-      dbWorkerPorts.add(dbWorkerPort);
-      dbWorkerPortByEvoluPortId.set(evoluPortId, dbWorkerPort);
-
-      dbWorkerPort.onMessage = (message) => {
-        switch (message.type) {
-          case "LeaderAcquired": {
-            console.info("leaderAcquired");
-            setActiveDbWorkerPort(dbWorkerPort);
-            ensureQueueProcessing();
-            break;
-          }
-          case "LeaderHeartbeat": {
-            markDbWorkerHeartbeat(dbWorkerPort);
-            if (!activeDbWorkerPort) {
-              console.info("leaderHeartbeat adopted");
-              setActiveDbWorkerPort(dbWorkerPort);
+        dbWorkerPort.onMessage = (message) => {
+          switch (message.type) {
+            case "LeaderAcquired": {
+              activeDbWorkerPort = dbWorkerPort;
+              console.info("leaderAcquired");
               ensureQueueProcessing();
-            }
-            break;
-          }
-          case "OnQueuedResponse": {
-            if (dbWorkerPort !== activeDbWorkerPort) {
-              console.debug("ignoredQueuedResponseFromInactiveDbWorker");
               break;
             }
-            callbacks.execute(message.callbackId, {
-              evoluPortId: message.evoluPortId,
-              response: message.response,
-            });
-            break;
+            case "OnQueuedResponse": {
+              callbacks.execute(message.callbackId, {
+                evoluPortId: message.evoluPortId,
+                response: message.response,
+              });
+              break;
+            }
+            case "OnConsoleEntry":
+            case "OnError": {
+              postTabOutput(message);
+              break;
+            }
+            default:
+              console.error("Unknown db worker output", message);
           }
-          case "OnConsoleEntry":
-          case "OnError": {
-            postTabOutput(message);
-            break;
+        };
+
+        evoluPort.onMessage = (evoluMessage) => {
+          switch (evoluMessage.type) {
+            case "Dispose": {
+              console.info("evoluDispose", {
+                name,
+                evoluPortId,
+                hadLastPort: evoluPorts.size === 1,
+              });
+              evoluPorts.delete(evoluPortId);
+              rowsByQueryByEvoluPortId.delete(evoluPortId);
+              if (evoluPorts.size === 0) onDispose();
+
+              // TODO: Decided what to do with DbWorker but probably dispose it, but
+              // https://bugs.webkit.org/show_bug.cgi?id=301520
+              break;
+            }
+
+            case "Mutate":
+            case "Query":
+            case "Export": {
+              queue.push({ evoluPortId, request: evoluMessage });
+              ensureQueueProcessing();
+              break;
+            }
+            default:
+              console.error("Unknown evolu input", evoluMessage);
           }
-          default:
-            console.error("Unknown db worker output", message);
-        }
-      };
+        };
+      },
 
-      evoluPort.onMessage = (evoluMessage) => {
-        switch (evoluMessage.type) {
-          case "Dispose": {
-            console.info("evoluDispose", {
-              name,
-              evoluPortId,
-              hadLastPort: evoluPorts.size === 1,
-            });
+      [Symbol.asyncDispose]: async () => {
+        await run(transports.removeConsumer(appOwner, ownerTransports));
 
-            cleanupEvoluPort(evoluPortId, true);
-
-            if (activeDbWorkerPort) ensureQueueProcessing();
-            if (evoluPorts.size === 0) onDispose();
-
-            break;
-          }
-
-          case "Mutate":
-          case "Query":
-          case "Export": {
-            queue.push({ evoluPortId, request: evoluMessage });
-            ensureQueueProcessing();
-            break;
-          }
-          default:
-            console.error("Unknown evolu input", evoluMessage);
-        }
-      };
-    },
-
-    [Symbol.dispose]: () => {
-      heartbeatFiber.abort();
-      queueProcessingFiber?.abort();
-      queueProcessingFiber = null;
-      callbacks[Symbol.dispose]();
-      activeQueueCallback = null;
-      activeDbWorkerPort = null;
-      lastHeartbeatByDbWorkerPort.clear();
-      queue.length = 0;
-      evoluPorts.clear();
-      rowsByQueryByEvoluPortId.clear();
-      dbWorkerPortByEvoluPortId.clear();
-      dbWorkerPorts.clear();
-    },
+        queueProcessingFiber?.abort();
+        queueProcessingFiber = null;
+        callbacks[Symbol.dispose]();
+        activeDbWorkerPort = null;
+        queue.length = 0;
+        evoluPorts.clear();
+        rowsByQueryByEvoluPortId.clear();
+        dbWorkerPorts.clear();
+      },
+    });
   };
-};
 
 //   | (Typed<"reset"> & {
 //       readonly onCompleteId: CallbackId;
