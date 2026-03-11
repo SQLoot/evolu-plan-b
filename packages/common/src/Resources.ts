@@ -9,7 +9,7 @@ import { isNone } from "./Option.js";
 import { createRefCount, type RefCount } from "./RefCount.js";
 import { createRelation } from "./Relation.js";
 import { ok } from "./Result.js";
-import { createMutexByKey, unabortable, type Task } from "./Task.js";
+import { createMutexByKey, createRun, type Task, unabortable } from "./Task.js";
 
 /**
  * Async reference-counted resource management.
@@ -150,17 +150,27 @@ export const createResources = <
   >();
   const consumerIdsByResourceId = createRelation<TResourceId, TConsumerId>();
   const mutexByResourceId = createMutexByKey<TResourceId>();
+  const resourceIdsWithMutex = new Set<TResourceId>();
+  let disposing = false;
+  let disposePromise: Promise<void> | null = null;
 
   return {
     addConsumer: (consumer, resourceConfigs) => async (run) => {
+      if (disposing) return ok();
+
       const consumerId = getConsumerId(consumer);
 
       for (const resourceConfig of resourceConfigs) {
+        if (disposing) return ok();
+
         const resourceId = getResourceId(resourceConfig);
+        resourceIdsWithMutex.add(resourceId);
 
         const result = await run(
           unabortable(
             mutexByResourceId.withLock(resourceId, async () => {
+              if (disposing) return ok();
+
               let resource = resourcesById.get(resourceId);
               if (!resource) {
                 resource = await createResource(resourceConfig);
@@ -195,14 +205,21 @@ export const createResources = <
     },
 
     removeConsumer: (consumer, resourceConfigs) => async (run) => {
+      if (disposing) return ok();
+
       const consumerId = getConsumerId(consumer);
 
       for (const resourceConfig of resourceConfigs) {
+        if (disposing) return ok();
+
         const resourceId = getResourceId(resourceConfig);
+        resourceIdsWithMutex.add(resourceId);
 
         const result = await run(
           unabortable(
             mutexByResourceId.withLock(resourceId, () => {
+              if (disposing) return ok();
+
               const consumerRefCountsByConsumerId =
                 consumerRefCountsByResourceId.get(resourceId);
               if (!consumerRefCountsByConsumerId) {
@@ -260,14 +277,42 @@ export const createResources = <
     },
 
     [Symbol.asyncDispose]: () => {
-      for (const resource of resourcesById.values()) {
-        resource[Symbol.dispose]();
-      }
-      resourcesById.clear();
-      consumerRefCountsByResourceId.clear();
-      consumerIdsByResourceId.clear();
-      mutexByResourceId[Symbol.dispose]();
-      return Promise.resolve();
+      if (disposePromise) return disposePromise;
+
+      disposing = true;
+
+      disposePromise = (async () => {
+        await using run = createRun();
+
+        const drainIds = new Set<TResourceId>(resourceIdsWithMutex);
+        for (const resourceId of resourcesById.keys()) {
+          drainIds.add(resourceId);
+        }
+        for (const resourceId of consumerRefCountsByResourceId.keys()) {
+          drainIds.add(resourceId);
+        }
+
+        for (const resourceId of drainIds) {
+          const result = await run(
+            unabortable(mutexByResourceId.withLock(resourceId, () => ok())),
+          );
+          assert(
+            result.ok,
+            "Unabortable resources dispose drain must not abort",
+          );
+        }
+
+        for (const resource of resourcesById.values()) {
+          resource[Symbol.dispose]();
+        }
+        resourcesById.clear();
+        consumerRefCountsByResourceId.clear();
+        consumerIdsByResourceId.clear();
+        resourceIdsWithMutex.clear();
+        mutexByResourceId[Symbol.dispose]();
+      })();
+
+      return disposePromise;
     },
   };
 };

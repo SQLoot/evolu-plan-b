@@ -2753,8 +2753,23 @@ export interface SemaphoreByKey<K extends string = string> extends Disposable {
 export const createSemaphoreByKey = <K extends string = string>(
   permits: Concurrency,
 ): SemaphoreByKey<K> => {
-  const semaphoresByKey = new Map<K, Semaphore>();
+  type KeyedSemaphore = Semaphore & {
+    __disposing: boolean;
+  };
+
+  const semaphoresByKey = new Map<K, KeyedSemaphore>();
   let disposed = false;
+  const getActiveSemaphore = (key: K): KeyedSemaphore | undefined => {
+    const semaphore = semaphoresByKey.get(key);
+    if (!semaphore) return undefined;
+    if (!semaphore.__disposing) return semaphore;
+
+    if (semaphoresByKey.get(key) === semaphore) {
+      semaphoresByKey.delete(key);
+    }
+
+    return undefined;
+  };
 
   const withPermits =
     <T, E, D>(key: K, requestedPermits: Concurrency) =>
@@ -2762,19 +2777,33 @@ export const createSemaphoreByKey = <K extends string = string>(
     async (run: Run<D>) => {
       if (disposed) return err(semaphoreDisposedAbortError);
 
-      let semaphore = semaphoresByKey.get(key);
+      let semaphore = getActiveSemaphore(key);
       if (!semaphore) {
-        semaphore = createSemaphore(permits);
+        semaphore = Object.assign(createSemaphore(permits), {
+          __disposing: false,
+        });
         semaphoresByKey.set(key, semaphore);
       }
 
       using _ = {
         [Symbol.dispose]: () => {
+          if (semaphoresByKey.get(key) !== semaphore) return;
+
           const snapshot = semaphore.snapshot();
-          if (snapshot.taken === 0 && snapshot.waiting === 0) {
-            semaphoresByKey.delete(key);
-            semaphore[Symbol.dispose]();
+          if (snapshot.taken !== 0 || snapshot.waiting !== 0) return;
+
+          semaphore.__disposing = true;
+
+          if (semaphoresByKey.get(key) !== semaphore) return;
+
+          const drainedSnapshot = semaphore.snapshot();
+          if (drainedSnapshot.taken !== 0 || drainedSnapshot.waiting !== 0) {
+            semaphore.__disposing = false;
+            return;
           }
+
+          semaphoresByKey.delete(key);
+          semaphore[Symbol.dispose]();
         },
       };
 
@@ -2787,7 +2816,7 @@ export const createSemaphoreByKey = <K extends string = string>(
 
     withPermits,
 
-    snapshot: (key) => semaphoresByKey.get(key)?.snapshot() ?? null,
+    snapshot: (key) => getActiveSemaphore(key)?.snapshot() ?? null,
 
     [Symbol.dispose]: () => {
       if (disposed) return;
