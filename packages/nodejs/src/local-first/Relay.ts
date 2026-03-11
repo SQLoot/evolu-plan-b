@@ -6,7 +6,6 @@ import {
   createRandom,
   createRelation,
   createSqlite,
-  getOk,
   isPromiseLike,
   type OwnerId,
   ok,
@@ -71,14 +70,16 @@ export const startRelay =
     isOwnerAllowed,
     isOwnerWithinQuota,
   }: NodeJsRelayConfig): Task<Relay, never, RelayDeps> =>
-  async (_run) => {
-    await using stack = _run.stack();
-    const console = _run.deps.console.child("relay");
+  async (run) => {
+    await using stack = run.stack();
+    const console = run.deps.console.child("relay");
 
     const dbFileExists = existsSync(`${name}.db`);
 
-    const sqlite = getOk(await stack.use(createSqlite(name)));
-    const deps = { ..._run.deps, sqlite };
+    const sqliteResult = await stack.use(createSqlite(name));
+    if (!sqliteResult.ok) return sqliteResult;
+
+    const deps = { ...run.deps, sqlite: sqliteResult.value };
 
     if (!dbFileExists) {
       createBaseSqliteStorageTables(deps);
@@ -92,7 +93,7 @@ export const startRelay =
     // Use root daemon runner for WS callbacks; task-scoped runner closes
     // after startRelay returns and would reject message handling with
     // RunnerClosingError.
-    const run = _run.daemon.addDeps({ storage });
+    const daemonRun = run.daemon.addDeps({ storage });
 
     const server = createServer();
     const wss = new WebSocketServer({
@@ -198,7 +199,7 @@ export const startRelay =
         if (!Uint8Array.is(message)) return;
 
         void (async () => {
-          const response = await run(
+          const response = await daemonRun(
             applyProtocolMessageAsRelay(message, options),
           );
           if (!response.ok) {

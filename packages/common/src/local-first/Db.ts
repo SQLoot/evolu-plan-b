@@ -19,7 +19,7 @@ import type {
 } from "../Crypto.js";
 import { getProperty, objectToEntries } from "../Object.js";
 import type { RandomDep } from "../Random.js";
-import { getOk, ok, type Result } from "../Result.js";
+import { ok, type Result } from "../Result.js";
 import { spaced } from "../Schedule.js";
 import type {
   CreateSqliteDriverDep,
