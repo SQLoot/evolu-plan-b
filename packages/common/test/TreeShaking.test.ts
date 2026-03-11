@@ -215,12 +215,12 @@ describe("tree-shaking", () => {
           "raw": 1602,
         },
         "task-example": {
-          "gzip": 5692,
-          "raw": 15511,
+          "gzip": 5239,
+          "raw": 13750,
         },
         "type-object": {
-          "gzip": 2006,
-          "raw": 6082,
+          "gzip": 1423,
+          "raw": 4393,
         },
       }
     `);

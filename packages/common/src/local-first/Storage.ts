@@ -193,7 +193,9 @@ export type Fingerprint = Uint8Array & Brand<"Fingerprint">;
 export const fingerprintSize = /*#__PURE__*/ NonNegativeInt.orThrow(12);
 
 /** A fingerprint of an empty range. */
-export const zeroFingerprint = new Uint8Array(fingerprintSize) as Fingerprint;
+export const zeroFingerprint = /*#__PURE__*/ new Uint8Array(
+  fingerprintSize,
+) as Fingerprint;
 
 export interface BaseRange {
   readonly upperBound: RangeUpperBound;
@@ -308,7 +310,7 @@ export const DbChange = /*#__PURE__*/ object({
   id: Id,
   values: ValidDbChangeValues,
   isInsert: Boolean,
-  isDelete: nullOr(Boolean),
+  isDelete: /*#__PURE__*/ nullOr(Boolean),
 });
 export interface DbChange extends InferType<typeof DbChange> {}
 
