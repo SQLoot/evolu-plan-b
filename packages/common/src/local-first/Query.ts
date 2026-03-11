@@ -7,17 +7,17 @@
 import type {
   AliasableExpression,
   Expression,
+  Simplify as KyselySimplify,
   RawBuilder,
   SelectQueryNode,
-  Simplify as KyselySimplify,
 } from "kysely";
 import {
   AliasNode,
   ColumnNode,
   ExpressionWrapper,
   IdentifierNode,
-  ReferenceNode,
   sql as kyselySqlBuilder,
+  ReferenceNode,
   TableNode,
   ValueNode,
 } from "kysely";
@@ -31,8 +31,8 @@ import { eqSqliteValue, type SqliteValue, sql } from "../Sqlite.js";
 import { createId, String } from "../Type.js";
 import type { Simplify } from "../Types.js";
 
-export { sql as kyselySql } from "kysely";
 export type { NotNull as KyselyNotNull } from "kysely";
+export { sql as kyselySql } from "kysely";
 
 /**
  * A type-safe SQL query.

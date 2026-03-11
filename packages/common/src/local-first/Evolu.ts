@@ -764,11 +764,12 @@ export const createEvolu =
             break;
           }
           case "OnExport": {
-            if (exportDatabasePending) {
-              exportDatabasePending.resolve(message.file);
-              exportDatabasePending = null;
-            }
-            // Silently ignore late OnExport after disposal
+            assert(
+              exportDatabasePending,
+              "OnExport received without pending export.",
+            );
+            exportDatabasePending.resolve(message.file);
+            exportDatabasePending = null;
             break;
           }
           default:

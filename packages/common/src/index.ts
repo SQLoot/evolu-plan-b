@@ -20,7 +20,6 @@ export * from "./Identicon.js";
 export * from "./Listeners.js";
 // Local-first essentials.
 export type { EvoluError } from "./local-first/Error.js";
-export { AppName, createEvolu } from "./local-first/Evolu.js";
 export type {
   AppNameError,
   Evolu,
@@ -28,6 +27,7 @@ export type {
   EvoluDeps,
   UnuseOwner,
 } from "./local-first/Evolu.js";
+export { AppName, createEvolu } from "./local-first/Evolu.js";
 export * from "./local-first/LocalAuth.js";
 export * from "./local-first/Owner.js";
 export type {

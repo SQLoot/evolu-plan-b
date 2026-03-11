@@ -1,6 +1,5 @@
 import { ColumnNode, type SelectQueryNode } from "kysely";
 import { expect, test } from "vitest";
-import { createQueryBuilder } from "../../src/local-first/Schema.js";
 import type { Row } from "../../src/local-first/Query.js";
 import {
   applyPatches,
@@ -16,7 +15,8 @@ import {
   testQuery,
   testQuery2,
 } from "../../src/local-first/Query.js";
-import { sql, type SafeSql, type SqliteQuery } from "../../src/Sqlite.js";
+import { createQueryBuilder } from "../../src/local-first/Schema.js";
+import { type SafeSql, type SqliteQuery, sql } from "../../src/Sqlite.js";
 import { id, NonEmptyString100 } from "../../src/Type.js";
 
 const PersonId = id("Person");

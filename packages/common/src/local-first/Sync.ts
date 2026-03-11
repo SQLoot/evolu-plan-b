@@ -28,22 +28,22 @@ import type { Result } from "../Result.js";
 import { err, ok } from "../Result.js";
 import type { SqliteDep } from "../Sqlite.js";
 import {
-  SqliteBoolean,
   booleanToSqliteBoolean,
+  SqliteBoolean,
+  type SqliteValue,
   sql,
   sqliteBooleanToBoolean,
-  type SqliteValue,
 } from "../Sqlite.js";
 import { createMutex, createRun } from "../Task.js";
 import type { TimeDep } from "../Time.js";
 import { Millis, millisToDateIso } from "../Time.js";
 import type { Typed } from "../Type.js";
 import {
-  PositiveInt,
-  idBytesToId,
-  idToIdBytes,
   type Id,
   type IdBytes,
+  idBytesToId,
+  idToIdBytes,
+  PositiveInt,
 } from "../Type.js";
 import { isPromiseLike } from "../Types.js";
 import type { CreateWebSocketDep, WebSocket } from "../WebSocket.js";
@@ -56,10 +56,10 @@ import type {
   ReadonlyOwner,
 } from "./Owner.js";
 import {
-  ownerIdBytesToOwnerId,
-  ownerIdToOwnerIdBytes,
   type OwnerId,
   type OwnerIdBytes,
+  ownerIdBytesToOwnerId,
+  ownerIdToOwnerIdBytes,
 } from "./Owner.js";
 import type {
   ProtocolError,
@@ -69,12 +69,12 @@ import type {
   ProtocolTimestampMismatchError,
 } from "./Protocol.js";
 import {
-  SubscriptionFlags,
   createProtocolMessageForSync,
   createProtocolMessageForUnsubscribe,
   createProtocolMessageFromCrdtMessages,
   decryptAndDecodeDbChange,
   encodeAndEncryptDbChange,
+  SubscriptionFlags,
 } from "./Protocol.js";
 import type { MutationChange, SqliteSchemaDep } from "./Schema.js";
 import { systemColumns } from "./Schema.js";
@@ -85,8 +85,8 @@ import type {
   StorageConfig,
 } from "./Storage.js";
 import {
-  DbChange,
   createBaseSqliteStorage,
+  DbChange,
   getNextStoredBytes,
   getOwnerUsage,
   getTimestampInsertStrategy,
@@ -185,6 +185,13 @@ export const createSync =
       TimestampConfigDep,
   ) =>
   (config: SyncConfig): Sync => {
+    const disposalDelayMs = config.disposalDelayMs ?? 100;
+    assert(
+      Number.isInteger(disposalDelayMs) && disposalDelayMs >= 0,
+      "Invalid SyncConfig.disposalDelayMs",
+    );
+    const disposalDelay = Millis.orThrow(disposalDelayMs);
+
     let isDisposed = false;
     const syncRun = createRun(deps);
     const syncOwnersById = new Map<OwnerId, SyncOwner>();
@@ -212,13 +219,13 @@ export const createSync =
 
       const run = createRun(deps);
       let socket: WebSocket | null = null;
-      let isDisposed = false;
+      let resourceDisposed = false;
       const pendingSends: Array<
         string | ArrayBufferLike | Blob | ArrayBufferView
       > = [];
 
       const flushPendingSends = (): void => {
-        if (isDisposed || !socket || pendingSends.length === 0) return;
+        if (resourceDisposed || !socket || pendingSends.length === 0) return;
 
         for (const data of pendingSends.splice(0, pendingSends.length)) {
           const result = socket.send(data);
@@ -233,7 +240,7 @@ export const createSync =
 
       const webSocket: WebSocket = {
         send: (data) => {
-          if (isDisposed) return err({ type: "WebSocketSendError" });
+          if (resourceDisposed) return err({ type: "WebSocketSendError" });
           if (!socket) {
             pendingSends.push(data);
             return ok();
@@ -243,15 +250,15 @@ export const createSync =
 
         /* v8 ignore next */
         getReadyState: () => {
-          if (isDisposed) return "closed";
+          if (resourceDisposed) return "closed";
           return socket?.getReadyState() ?? "connecting";
         },
 
-        isOpen: () => !isDisposed && (socket?.isOpen() ?? false),
+        isOpen: () => !resourceDisposed && (socket?.isOpen() ?? false),
 
         [Symbol.dispose]: () => {
-          if (isDisposed) return;
-          isDisposed = true;
+          if (resourceDisposed) return;
+          resourceDisposed = true;
           pendingSends.length = 0;
           webSocketsByTransportKey.delete(transportKey);
           socket?.[Symbol.dispose]();
@@ -264,7 +271,7 @@ export const createSync =
           binaryType: "arraybuffer",
 
           onOpen: () => {
-            if (isDisposed) return;
+            if (resourceDisposed) return;
 
             const currentWebSocket = webSocketsByTransportKey.get(transportKey);
             if (!currentWebSocket) return;
@@ -298,7 +305,7 @@ export const createSync =
 
           onMessage: (data: string | ArrayBuffer | Blob) => {
             // Only handle ArrayBuffer data for sync messages.
-            if (isDisposed || !(data instanceof ArrayBuffer)) return;
+            if (resourceDisposed || !(data instanceof ArrayBuffer)) return;
 
             const currentWebSocket = webSocketsByTransportKey.get(transportKey);
             if (!currentWebSocket) return;
@@ -316,6 +323,7 @@ export const createSync =
       ).then(
         (result) => {
           if (!result.ok) {
+            if (isDisposed || resourceDisposed) return;
             if (result.error.type !== "AbortError") {
               config.onError(createUnknownError(result.error));
             }
@@ -327,7 +335,7 @@ export const createSync =
 
           /* v8 ignore start */
           // Defensive cleanup for a resolved socket after disposal.
-          if (isDisposed) {
+          if (resourceDisposed || isDisposed) {
             socket[Symbol.dispose]();
           }
           /* v8 ignore stop */
@@ -349,9 +357,12 @@ export const createSync =
       SyncOwner,
       OwnerId
     >({
-      createResource: async (transport) => createResource(transport),
+      createResource: async (transport: OwnerTransport) =>
+        createResource(transport),
       getResourceId: createTransportKey,
-      getConsumerId: (owner) => owner.id,
+      getConsumerId: (owner: SyncOwner) => owner.id,
+      disposalDelay,
+      time: deps.time,
     });
 
     const sendSubscribeForOwner = (owner: SyncOwner): void => {
@@ -389,7 +400,7 @@ export const createSync =
         const webSocket = webSocketsByTransportKey.get(
           createTransportKey(transport),
         );
-        if (webSocket?.isOpen()) webSocket.send(message);
+        if (webSocket) webSocket.send(message);
       }
     };
 
@@ -408,6 +419,12 @@ export const createSync =
         const transports = owner.transports ?? config.transports;
 
         if (use) {
+          const hadOpenTransportAtUseTime = transports.some((transport) =>
+            webSocketsByTransportKey
+              .get(createTransportKey(transport))
+              ?.isOpen(),
+          );
+
           syncOwnerRefs.increment(owner.id);
           syncOwnersById.set(owner.id, owner);
           void syncRun(resources.addConsumer(owner, transports)).then(
@@ -419,7 +436,7 @@ export const createSync =
                 return;
               }
               if (!syncOwnerRefs.has(owner.id)) return;
-              sendSubscribeForOwner(owner);
+              if (hadOpenTransportAtUseTime) sendSubscribeForOwner(owner);
             },
             (error: unknown) => {
               config.onError(createUnknownError(error));
@@ -427,12 +444,28 @@ export const createSync =
           );
         } else {
           sendUnsubscribeForOwner(owner);
+
+          const hasMissingTransport = transports.some(
+            (transport) =>
+              !webSocketsByTransportKey.has(createTransportKey(transport)),
+          );
+          if (hasMissingTransport) {
+            deps.console.warn("[sync]", "Failed to remove consumer", {
+              ownerId: owner.id,
+              error: { type: "ResourceNotFoundError" },
+            });
+          }
+
           syncOwnerRefs.decrement(owner.id);
           if (!syncOwnerRefs.has(owner.id)) syncOwnersById.delete(owner.id);
           void syncRun(resources.removeConsumer(owner, transports)).then(
             (result) => {
               if (result.ok) return;
               if ((result.error as { type?: string }).type !== "AbortError") {
+                deps.console.warn("[sync]", "Failed to remove consumer", {
+                  ownerId: owner.id,
+                  error: result.error,
+                });
                 config.onError(createUnknownError(result.error));
               }
             },
@@ -801,9 +834,12 @@ const createClientStorage =
         if (!result.ok) {
           const error = result.error as { type?: string };
           if (error.type !== "AbortError") {
-            const unknownError = createUnknownError(result.error);
-            config.onError(unknownError);
-            throw new Error(unknownError.type, { cause: unknownError });
+            config.onError(
+              result.error as Parameters<typeof config.onError>[0],
+            );
+            throw new Error(error.type ?? "UnknownError", {
+              cause: result.error,
+            });
           }
           return ok();
         }

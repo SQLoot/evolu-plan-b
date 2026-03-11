@@ -8,85 +8,22 @@ import { assert } from "./Assert.js";
 import { isNone } from "./Option.js";
 import { createRefCount, type RefCount } from "./RefCount.js";
 import { createRelation } from "./Relation.js";
-import { ok } from "./Result.js";
+import type { Result } from "./Result.js";
+import { err, ok } from "./Result.js";
 import { createMutexByKey, createRun, type Task, unabortable } from "./Task.js";
+import {
+  createTime,
+  type Duration,
+  type TimeDep,
+  type TimeoutId,
+} from "./Time.js";
+import { PositiveInt, type Typed } from "./Type.js";
 
 /**
  * Async reference-counted resource management.
  *
  * Tracks which consumers use which shared resources and keeps resources alive
  * while at least one consumer is attached.
- *
- * ### Example
- *
- * ```ts
- * interface TransportConfig {
- *   readonly url: UrlString;
- * }
- *
- * interface Owner {
- *   readonly id: OwnerId;
- * }
- *
- * const resources = createResources<
- *   WebSocket,
- *   UrlString,
- *   TransportConfig,
- *   Owner,
- *   OwnerId
- * >({
- *   createResource: async (transport) => {
- *     const { createWebSocket } = run.deps;
- *     return await run.orThrow(
- *       createWebSocket(transport.url, {
- *         onOpen: handleWebSocketOpen(transport.url),
- *       }),
- *     );
- *   },
- *   getResourceId: (transportConfig) => transportConfig.url,
- *   getConsumerId: (owner) => owner.id,
- * });
- *
- * const handleWebSocketOpen = (transportUrl: UrlString) => (): void => {
- *   const ownerIds = resources.getConsumerIdsForResource(transportUrl);
- *   dbWorker.postMessage({ type: "CreateSyncMessages", ownerIds });
- * };
- *
- * dbWorker.onMessage = (message) => {
- *   switch (message.type) {
- *     case "OnSyncMessage":
- *       for (const [ownerId, syncMessage] of message.messagesByOwnerId) {
- *         const webSockets = resources.getResourcesForConsumerId(ownerId);
- *         for (const webSocket of webSockets) {
- *           if (webSocket.isOpen()) webSocket.send(syncMessage);
- *         }
- *       }
- *   }
- * };
- *
- * await run(
- *   resources.addConsumer({ id: "owner-1" as OwnerId }, [
- *     { url: "wss://server1.com" as UrlString },
- *     { url: "wss://server2.com" as UrlString },
- *   ]),
- * );
- *
- * await run(
- *   resources.addConsumer({ id: "owner-2" as OwnerId }, [
- *     { url: "wss://server1.com" as UrlString },
- *   ]),
- * );
- *
- * await run(
- *   resources.removeConsumer({ id: "owner-1" as OwnerId }, [
- *     { url: "wss://server1.com" as UrlString },
- *     { url: "wss://server2.com" as UrlString },
- *   ]),
- * );
- *
- * // The WebSocket for wss://server2.com is disposed because it has no consumers.
- * // The WebSocket for wss://server1.com stays alive because owner-2 still uses it.
- * ```
  */
 export interface Resources<
   TResource extends Disposable,
@@ -105,7 +42,11 @@ export interface Resources<
   readonly removeConsumer: (
     consumer: TConsumer,
     resourceConfigs: ReadonlyArray<TResourceConfig>,
-  ) => Task<void>;
+  ) => Task<
+    void,
+    | ResourceNotFoundError<TResourceId>
+    | ConsumerNotFoundError<TConsumerId, TResourceId>
+  >;
 
   readonly getConsumerIdsForResource: (
     resourceId: TResourceId,
@@ -116,8 +57,115 @@ export interface Resources<
   ) => ReadonlySet<TResource>;
 }
 
-/** Creates {@link Resources}. */
-export const createResources = <
+/** Configuration for async {@link Resources}. */
+export interface AsyncResourcesConfig<
+  TResource extends Disposable,
+  TResourceId extends string,
+  TResourceConfig,
+  TConsumer,
+  TConsumerId extends string,
+> {
+  /** Creates a resource for the provided configuration. */
+  readonly createResource: (
+    resourceConfig: TResourceConfig,
+  ) => Promise<TResource>;
+
+  /** Maps a resource configuration to its shared resource identifier. */
+  readonly getResourceId: (resourceConfig: TResourceConfig) => TResourceId;
+
+  /** Maps a consumer value to its stable consumer identifier. */
+  readonly getConsumerId: (consumer: TConsumer) => TConsumerId;
+
+  /** Delay before disposing unused resources. Defaults to `"100ms"`. */
+  readonly disposalDelay?: Duration;
+
+  /** Optional clock for timeout scheduling (useful for deterministic tests). */
+  readonly time?: TimeDep["time"];
+}
+
+/**
+ * Legacy synchronous resource manager with delayed disposal.
+ *
+ * Kept for local-first internals and tests that use synchronous resource
+ * creation and deterministic timeout behavior.
+ */
+export interface LegacyResources<
+  TResource extends Disposable,
+  TResourceKey extends string,
+  TResourceConfig,
+  TConsumer,
+  TConsumerId extends string,
+> extends Disposable {
+  readonly addConsumer: (
+    consumer: TConsumer,
+    resourceConfigs: ReadonlyArray<TResourceConfig>,
+  ) => void;
+
+  readonly removeConsumer: (
+    consumer: TConsumer,
+    resourceConfigs: ReadonlyArray<TResourceConfig>,
+  ) => Result<
+    void,
+    | ResourceNotFoundError<TResourceKey>
+    | ConsumerNotFoundError<TConsumerId, TResourceKey>
+  >;
+
+  readonly getResource: (key: TResourceKey) => TResource | null;
+
+  readonly getConsumersForResource: (
+    key: TResourceKey,
+  ) => ReadonlyArray<TConsumerId>;
+
+  readonly hasConsumerAnyResource: (consumer: TConsumer) => boolean;
+
+  readonly getConsumer: (consumerId: TConsumerId) => TConsumer | null;
+}
+
+/** Error when trying to remove a consumer from a resource that doesn't exist. */
+export interface ResourceNotFoundError<TResourceKey extends string = string>
+  extends Typed<"ResourceNotFoundError"> {
+  readonly resourceKey: TResourceKey;
+}
+
+/** Error when trying to remove a consumer that wasn't added to a resource. */
+export interface ConsumerNotFoundError<
+  TConsumerId extends string = string,
+  TResourceKey extends string = string,
+> extends Typed<"ConsumerNotFoundError"> {
+  readonly consumerId: TConsumerId;
+  readonly resourceKey: TResourceKey;
+}
+
+/** Configuration for legacy synchronous {@link LegacyResources}. */
+export interface LegacyResourcesConfig<
+  TResource extends Disposable,
+  TResourceKey extends string,
+  TResourceConfig,
+  TConsumer,
+  TConsumerId extends string,
+> {
+  readonly createResource: (config: TResourceConfig) => TResource;
+
+  readonly getResourceKey: (config: TResourceConfig) => TResourceKey;
+
+  readonly getConsumerId: (consumer: TConsumer) => TConsumerId;
+
+  readonly disposalDelay?: Duration;
+
+  readonly onConsumerAdded?: (
+    consumer: TConsumer,
+    resource: TResource,
+    resourceKey: TResourceKey,
+  ) => void;
+
+  readonly onConsumerRemoved?: (
+    consumer: TConsumer,
+    resource: TResource,
+    resourceKey: TResourceKey,
+  ) => void;
+}
+
+const createAsyncResources = <
   TResource extends Disposable,
   TResourceId extends string,
   TResourceConfig,
@@ -127,22 +175,22 @@ export const createResources = <
   createResource,
   getResourceId,
   getConsumerId,
-}: {
-  /** Creates a resource for the provided configuration. */
-  createResource: (resourceConfig: TResourceConfig) => Promise<TResource>;
-
-  /** Maps a resource configuration to its shared resource identifier. */
-  getResourceId: (resourceConfig: TResourceConfig) => TResourceId;
-
-  /** Maps a consumer value to its stable consumer identifier. */
-  getConsumerId: (consumer: TConsumer) => TConsumerId;
-}): Resources<
+  disposalDelay = "100ms",
+  time: maybeTime,
+}: AsyncResourcesConfig<
+  TResource,
+  TResourceId,
+  TResourceConfig,
+  TConsumer,
+  TConsumerId
+>): Resources<
   TResource,
   TResourceId,
   TResourceConfig,
   TConsumer,
   TConsumerId
 > => {
+  const time = maybeTime ?? createTime();
   const resourcesById = new Map<TResourceId, TResource>();
   const consumerRefCountsByResourceId = new Map<
     TResourceId,
@@ -150,9 +198,52 @@ export const createResources = <
   >();
   const consumerIdsByResourceId = createRelation<TResourceId, TConsumerId>();
   const mutexByResourceId = createMutexByKey<TResourceId>();
+  const disposalTimeoutByResourceId = new Map<TResourceId, TimeoutId>();
   const resourceIdsWithMutex = new Set<TResourceId>();
   let disposing = false;
   let disposePromise: Promise<void> | null = null;
+
+  const clearDisposalTimeout = (resourceId: TResourceId): void => {
+    const timeout = disposalTimeoutByResourceId.get(resourceId);
+    if (!timeout) return;
+    time.clearTimeout(timeout);
+    disposalTimeoutByResourceId.delete(resourceId);
+  };
+
+  const scheduleResourceDisposal = (resourceId: TResourceId): void => {
+    clearDisposalTimeout(resourceId);
+
+    const timeout = time.setTimeout(() => {
+      void (async () => {
+        if (disposing) return;
+
+        await using run = createRun();
+        const result = await run(
+          unabortable(
+            mutexByResourceId.withLock(resourceId, () => {
+              disposalTimeoutByResourceId.delete(resourceId);
+
+              if (consumerIdsByResourceId.hasA(resourceId)) return ok();
+
+              consumerRefCountsByResourceId.delete(resourceId);
+              const resource = resourcesById.get(resourceId);
+              if (!resource) return ok();
+
+              resourcesById.delete(resourceId);
+              resource[Symbol.dispose]();
+              return ok();
+            }),
+          ),
+        );
+        assert(
+          result.ok,
+          "Unabortable scheduled resource disposal must not abort",
+        );
+      })();
+    }, disposalDelay);
+
+    disposalTimeoutByResourceId.set(resourceId, timeout);
+  };
 
   return {
     addConsumer: (consumer, resourceConfigs) => async (run) => {
@@ -170,6 +261,7 @@ export const createResources = <
           unabortable(
             mutexByResourceId.withLock(resourceId, async () => {
               if (disposing) return ok();
+              clearDisposalTimeout(resourceId);
 
               let resource = resourcesById.get(resourceId);
               if (!resource) {
@@ -198,7 +290,7 @@ export const createResources = <
             }),
           ),
         );
-        assert(result.ok, "Unabortable addConsumer lock must not abort");
+        if (!result.ok) return result;
       }
 
       return ok();
@@ -208,6 +300,9 @@ export const createResources = <
       if (disposing) return ok();
 
       const consumerId = getConsumerId(consumer);
+      type RemoveConsumerError =
+        | ResourceNotFoundError<TResourceId>
+        | ConsumerNotFoundError<TConsumerId, TResourceId>;
 
       for (const resourceConfig of resourceConfigs) {
         if (disposing) return ok();
@@ -217,44 +312,45 @@ export const createResources = <
 
         const result = await run(
           unabortable(
-            mutexByResourceId.withLock(resourceId, () => {
-              if (disposing) return ok();
+            mutexByResourceId.withLock(
+              resourceId,
+              (): Result<void, RemoveConsumerError> => {
+                if (disposing) return ok();
 
-              const consumerRefCountsByConsumerId =
-                consumerRefCountsByResourceId.get(resourceId);
-              if (!consumerRefCountsByConsumerId) {
-                assert(
-                  !consumerIdsByResourceId.hasA(resourceId) &&
-                    !resourcesById.has(resourceId),
-                  "Ref counts, relation, and resources must stay symmetric",
-                );
+                const consumerRefCountsByConsumerId =
+                  consumerRefCountsByResourceId.get(resourceId);
+                if (!consumerRefCountsByConsumerId) {
+                  return err<ResourceNotFoundError<TResourceId>>({
+                    type: "ResourceNotFoundError",
+                    resourceKey: resourceId,
+                  });
+                }
+
+                const nextCount =
+                  consumerRefCountsByConsumerId.decrement(consumerId);
+                if (isNone(nextCount)) {
+                  return err<ConsumerNotFoundError<TConsumerId, TResourceId>>({
+                    type: "ConsumerNotFoundError",
+                    consumerId,
+                    resourceKey: resourceId,
+                  });
+                }
+
+                if (nextCount.value === 0) {
+                  consumerIdsByResourceId.remove(resourceId, consumerId);
+                }
+
+                if (!consumerIdsByResourceId.hasA(resourceId)) {
+                  consumerRefCountsByResourceId.delete(resourceId);
+                  scheduleResourceDisposal(resourceId);
+                }
+
                 return ok();
-              }
-
-              const nextCount =
-                consumerRefCountsByConsumerId.decrement(consumerId);
-              if (isNone(nextCount)) return ok();
-
-              if (nextCount.value === 0) {
-                consumerIdsByResourceId.remove(resourceId, consumerId);
-              }
-
-              if (!consumerIdsByResourceId.hasA(resourceId)) {
-                consumerRefCountsByResourceId.delete(resourceId);
-                const resource = resourcesById.get(resourceId);
-                assert(
-                  resource,
-                  "Resource must exist when last consumer reference is removed",
-                );
-                resourcesById.delete(resourceId);
-                resource[Symbol.dispose]();
-              }
-
-              return ok();
-            }),
+              },
+            ),
           ),
         );
-        assert(result.ok, "Unabortable removeConsumer lock must not abort");
+        if (!result.ok) return result;
       }
 
       return ok();
@@ -283,6 +379,10 @@ export const createResources = <
 
       disposePromise = (async () => {
         await using run = createRun();
+        for (const timeout of disposalTimeoutByResourceId.values()) {
+          time.clearTimeout(timeout);
+        }
+        disposalTimeoutByResourceId.clear();
 
         const drainIds = new Set<TResourceId>(resourceIdsWithMutex);
         for (const resourceId of resourcesById.keys()) {
@@ -308,6 +408,7 @@ export const createResources = <
         resourcesById.clear();
         consumerRefCountsByResourceId.clear();
         consumerIdsByResourceId.clear();
+        disposalTimeoutByResourceId.clear();
         resourceIdsWithMutex.clear();
         mutexByResourceId[Symbol.dispose]();
       })();
@@ -316,3 +417,309 @@ export const createResources = <
     },
   };
 };
+
+const createLegacyResources = <
+  TResource extends Disposable,
+  TResourceKey extends string,
+  TResourceConfig,
+  TConsumer,
+  TConsumerId extends string,
+>(
+  deps: TimeDep,
+  config: LegacyResourcesConfig<
+    TResource,
+    TResourceKey,
+    TResourceConfig,
+    TConsumer,
+    TConsumerId
+  >,
+): LegacyResources<
+  TResource,
+  TResourceKey,
+  TResourceConfig,
+  TConsumer,
+  TConsumerId
+> => {
+  let isDisposed = false;
+
+  const resourcesMap = new Map<TResourceKey, TResource>();
+  const consumerCounts = new Map<TResourceKey, Map<TConsumerId, PositiveInt>>();
+  const consumers = new Map<TConsumerId, TConsumer>();
+  const disposalTimeouts = new Map<TResourceKey, TimeoutId>();
+
+  const disposalDelay = config.disposalDelay ?? "100ms";
+
+  const ensureResource = (resourceConfig: TResourceConfig) => {
+    const key = config.getResourceKey(resourceConfig);
+    const timeout = disposalTimeouts.get(key);
+    if (timeout) {
+      deps.time.clearTimeout(timeout);
+      disposalTimeouts.delete(key);
+    }
+
+    if (!resourcesMap.has(key)) {
+      const resource = config.createResource(resourceConfig);
+      resourcesMap.set(key, resource);
+    }
+  };
+
+  const scheduleDisposal = (key: TResourceKey): void => {
+    const timeout = deps.time.setTimeout(() => {
+      const resource = resourcesMap.get(key);
+      if (resource) {
+        resource[Symbol.dispose]();
+        resourcesMap.delete(key);
+      }
+      disposalTimeouts.delete(key);
+    }, disposalDelay);
+
+    disposalTimeouts.set(key, timeout);
+  };
+
+  const resources: LegacyResources<
+    TResource,
+    TResourceKey,
+    TResourceConfig,
+    TConsumer,
+    TConsumerId
+  > = {
+    addConsumer: (consumer, resourceConfigs) => {
+      if (isDisposed) return;
+      if (resourceConfigs.length === 0) return;
+
+      const consumerId = config.getConsumerId(consumer);
+      consumers.set(consumerId, consumer);
+
+      for (const resourceConfig of resourceConfigs) {
+        ensureResource(resourceConfig);
+        const resourceKey = config.getResourceKey(resourceConfig);
+
+        let counts = consumerCounts.get(resourceKey);
+        if (!counts) {
+          counts = new Map<TConsumerId, PositiveInt>();
+          consumerCounts.set(resourceKey, counts);
+        }
+
+        const currentCount = counts.get(consumerId) ?? 0;
+        const newCount = currentCount + 1;
+        counts.set(consumerId, PositiveInt.orThrow(newCount));
+
+        if (currentCount === 0 && config.onConsumerAdded) {
+          const resource = resourcesMap.get(resourceKey);
+          if (resource) {
+            config.onConsumerAdded(consumer, resource, resourceKey);
+          }
+        }
+      }
+    },
+
+    removeConsumer: (consumer, resourceConfigs) => {
+      if (isDisposed) return ok();
+
+      const consumerId = config.getConsumerId(consumer);
+      const removeCountsByResourceKey = new Map<TResourceKey, number>();
+
+      for (const resourceConfig of resourceConfigs) {
+        const key = config.getResourceKey(resourceConfig);
+        const removeCount = (removeCountsByResourceKey.get(key) ?? 0) + 1;
+        removeCountsByResourceKey.set(key, removeCount);
+      }
+
+      const validatedRemovals = new Map<
+        TResourceKey,
+        {
+          readonly counts: Map<TConsumerId, PositiveInt>;
+          readonly currentCount: PositiveInt;
+          readonly removeCount: number;
+        }
+      >();
+
+      for (const [key, removeCount] of removeCountsByResourceKey) {
+        const counts = consumerCounts.get(key);
+        if (!counts) {
+          return err({ type: "ResourceNotFoundError", resourceKey: key });
+        }
+
+        const currentCount = counts.get(consumerId);
+        if (currentCount == null || currentCount < removeCount) {
+          return err({
+            type: "ConsumerNotFoundError",
+            consumerId,
+            resourceKey: key,
+          });
+        }
+
+        validatedRemovals.set(key, { counts, currentCount, removeCount });
+      }
+
+      for (const [key, removal] of validatedRemovals) {
+        const { counts, currentCount, removeCount } = removal;
+        const nextCount = currentCount - removeCount;
+
+        if (nextCount === 0) {
+          counts.delete(consumerId);
+
+          if (config.onConsumerRemoved) {
+            const resource = resourcesMap.get(key);
+            if (resource) {
+              config.onConsumerRemoved(consumer, resource, key);
+            }
+          }
+
+          if (counts.size === 0) {
+            consumerCounts.delete(key);
+            scheduleDisposal(key);
+          }
+        } else {
+          counts.set(consumerId, PositiveInt.orThrow(nextCount));
+        }
+      }
+
+      if (!resources.hasConsumerAnyResource(consumer)) {
+        consumers.delete(consumerId);
+      }
+
+      return ok();
+    },
+
+    getResource: (key) => {
+      if (isDisposed) return null;
+      return resourcesMap.get(key) ?? null;
+    },
+
+    getConsumersForResource: (key) => {
+      if (isDisposed) return [];
+      const counts = consumerCounts.get(key);
+      return counts ? Array.from(counts.keys()) : [];
+    },
+
+    hasConsumerAnyResource: (consumer) => {
+      if (isDisposed) return false;
+      const consumerId = config.getConsumerId(consumer);
+      return Array.from(consumerCounts.values()).some((counts) =>
+        counts.has(consumerId),
+      );
+    },
+
+    getConsumer: (consumerId) => {
+      if (isDisposed) return null;
+      const consumer = consumers.get(consumerId);
+      if (!consumer) return null;
+      if (!resources.hasConsumerAnyResource(consumer)) return null;
+      return consumer;
+    },
+
+    [Symbol.dispose]: () => {
+      if (isDisposed) return;
+      isDisposed = true;
+
+      for (const timeout of disposalTimeouts.values()) {
+        deps.time.clearTimeout(timeout);
+      }
+      disposalTimeouts.clear();
+
+      for (const resource of resourcesMap.values()) {
+        resource[Symbol.dispose]();
+      }
+      resourcesMap.clear();
+      consumerCounts.clear();
+      consumers.clear();
+    },
+  };
+
+  return resources;
+};
+
+/**
+ * Creates {@link Resources}.
+ *
+ * Supports two call forms:
+ *
+ * - `createResources(config)` for async Task-based resources.
+ * - `createResources({ time })(config)` for legacy synchronous resources.
+ */
+export function createResources<
+  TResource extends Disposable,
+  TResourceId extends string,
+  TResourceConfig,
+  TConsumer,
+  TConsumerId extends string,
+>(
+  deps: TimeDep,
+): (
+  config: LegacyResourcesConfig<
+    TResource,
+    TResourceId,
+    TResourceConfig,
+    TConsumer,
+    TConsumerId
+  >,
+) => LegacyResources<
+  TResource,
+  TResourceId,
+  TResourceConfig,
+  TConsumer,
+  TConsumerId
+>;
+export function createResources<
+  TResource extends Disposable,
+  TResourceId extends string,
+  TResourceConfig,
+  TConsumer,
+  TConsumerId extends string,
+>(
+  config: AsyncResourcesConfig<
+    TResource,
+    TResourceId,
+    TResourceConfig,
+    TConsumer,
+    TConsumerId
+  >,
+): Resources<TResource, TResourceId, TResourceConfig, TConsumer, TConsumerId>;
+export function createResources<
+  TResource extends Disposable,
+  TResourceId extends string,
+  TResourceConfig,
+  TConsumer,
+  TConsumerId extends string,
+>(
+  configOrDeps:
+    | TimeDep
+    | AsyncResourcesConfig<
+        TResource,
+        TResourceId,
+        TResourceConfig,
+        TConsumer,
+        TConsumerId
+      >,
+):
+  | Resources<TResource, TResourceId, TResourceConfig, TConsumer, TConsumerId>
+  | ((
+      config: LegacyResourcesConfig<
+        TResource,
+        TResourceId,
+        TResourceConfig,
+        TConsumer,
+        TConsumerId
+      >,
+    ) => LegacyResources<
+      TResource,
+      TResourceId,
+      TResourceConfig,
+      TConsumer,
+      TConsumerId
+    >) {
+  if (isTimeDep(configOrDeps)) {
+    return (config) => createLegacyResources(configOrDeps, config);
+  }
+
+  return createAsyncResources(configOrDeps);
+}
+
+const isTimeDep = (value: unknown): value is TimeDep =>
+  typeof value === "object" &&
+  value !== null &&
+  "time" in value &&
+  !("createResource" in value) &&
+  !("getResourceId" in value) &&
+  !("getConsumerId" in value);

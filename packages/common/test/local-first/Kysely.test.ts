@@ -12,12 +12,12 @@ import {
 import { describe, expect, test } from "vitest";
 import {
   getJsonObjectArgs,
-  jsonArrayFrom,
-  jsonBuildObject,
-  jsonObjectFrom,
-  sql,
-} from "../../src/local-first/Kysely.js";
-import { kyselyJsonIdentifier } from "../../src/local-first/Query.js";
+  evoluJsonArrayFrom as jsonArrayFrom,
+  evoluJsonBuildObject as jsonBuildObject,
+  evoluJsonObjectFrom as jsonObjectFrom,
+  kyselyJsonIdentifier,
+  kyselySql as sql,
+} from "../../src/local-first/Query.js";
 
 const createSelectQueryNode = (
   selections: ReadonlyArray<
@@ -106,14 +106,10 @@ describe("Kysely helpers", () => {
 
     expect(() =>
       jsonArrayFrom(createSelectExpression(invalidNode) as never),
-    ).toThrow(
-      "SQLite jsonArrayFrom and jsonObjectFrom functions can only handle explicit selections",
-    );
+    ).toThrow(/can only handle explicit selections/);
     expect(() =>
       jsonObjectFrom(createSelectExpression(invalidNode) as never),
-    ).toThrow(
-      "SQLite jsonArrayFrom and jsonObjectFrom functions can only handle explicit selections",
-    );
+    ).toThrow(/can only handle explicit selections/);
   });
 
   test("jsonArrayFrom, jsonObjectFrom, and jsonBuildObject include Evolu JSON prefix", () => {

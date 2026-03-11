@@ -49,19 +49,19 @@ import {
   PositiveInt,
   type Typed,
   typed,
-  union,
   Unknown,
   UnknownResult,
+  union,
 } from "./Type.js";
-import type { isPromiseLike } from "./Types.js";
-import {
-  type Awaitable,
-  type Callback,
-  type CallbackWithCleanup,
-  type Int1To100,
-  type Mutable,
-  type NewKeys,
-  type Predicate,
+import type {
+  Awaitable,
+  Callback,
+  CallbackWithCleanup,
+  Int1To100,
+  isPromiseLike,
+  Mutable,
+  NewKeys,
+  Predicate,
 } from "./Types.js";
 
 /**

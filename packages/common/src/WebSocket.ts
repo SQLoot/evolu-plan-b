@@ -310,3 +310,28 @@ const nativeToStringState: Record<number, WebSocketReadyState> = {
   [globalThis.WebSocket.CLOSING]: "closing",
   [globalThis.WebSocket.CLOSED]: "closed",
 };
+
+export interface TestCreateWebSocketOptions {
+  readonly throwOnCreate?: boolean;
+}
+
+/**
+ * Test helper that creates a deterministic {@link CreateWebSocket} adapter.
+ */
+export const testCreateWebSocket =
+  ({
+    throwOnCreate = false,
+  }: TestCreateWebSocketOptions = {}): CreateWebSocket =>
+  () =>
+  async () => {
+    if (throwOnCreate) {
+      throw new Error("testCreateWebSocket: throwOnCreate");
+    }
+
+    return ok({
+      send: () => ok(),
+      getReadyState: () => "open",
+      isOpen: () => true,
+      [Symbol.dispose]: () => {},
+    });
+  };

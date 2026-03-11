@@ -22,10 +22,10 @@ import {
 import { testQuery, testQuery2 } from "../../src/local-first/Query.js";
 import { createQueryBuilder } from "../../src/local-first/Schema.js";
 import {
-  initSharedWorker,
   type EvoluInput,
   type EvoluOutput,
   type EvoluTabOutput,
+  initSharedWorker,
   type SharedWorker,
   type SharedWorkerInput,
 } from "../../src/local-first/Shared.js";
@@ -45,18 +45,18 @@ import {
   testName,
 } from "../../src/Type.js";
 import type { ExtractType } from "../../src/Types.js";
+import { testCreateWebSocket } from "../../src/WebSocket.js";
 import {
   createMessageChannel,
   createMessagePort,
   createSharedWorker,
   createWorker,
-  testWaitForWorkerMessage,
   testCreateMessageChannel,
   testCreateMessagePort,
   testCreateSharedWorker,
   testCreateWorker,
+  testWaitForWorkerMessage,
 } from "../../src/Worker.js";
-import { testCreateWebSocket } from "../../src/WebSocket.js";
 import { testCreateSqliteDeps } from "../_deps.js";
 import { testAppOwner } from "./_fixtures.js";
 
@@ -442,14 +442,14 @@ describe("unit tests", () => {
       );
 
       expect(evolu.appOwner).toMatchInlineSnapshot(`
-      {
-        "encryptionKey": uint8:[50,42,177,193,76,197,92,240,100,30,92,209,205,42,108,45,195,37,118,158,238,206,161,144,11,241,190,167,14,254,186,53],
-        "id": "t_xEbmXuICrgDm3Ob0_afw",
-        "mnemonic": "old jungle over boy ankle suggest service source civil insane end silver polar swap flight diagram keep fix gauge social wink subway bronze leader",
-        "type": "AppOwner",
-        "writeKey": uint8:[129,228,239,103,127,237,0,59,174,241,77,12,26,180,213,14],
-      }
-    `);
+        {
+          "encryptionKey": uint8:[51,231,177,91,230,145,176,109,130,148,152,121,45,182,111,94,53,215,154,110,96,244,72,84,84,159,250,76,118,95,103,5],
+          "id": "SUVItd3dEQ8CLSsCqwJahA",
+          "mnemonic": "duck still purse lock purpose orchard silver differ clean night measure jewel accident visual knee spring extra winner inner fade estate cushion flock live",
+          "type": "AppOwner",
+          "writeKey": uint8:[107,116,39,189,145,48,68,79,11,181,104,47,132,89,107,220],
+        }
+      `);
     });
   });
 
@@ -982,7 +982,7 @@ describe("unit tests", () => {
               "id": Any<String>,
               "isDelete": null,
               "isInsert": true,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
               "table": "todo",
               "values": {
                 "title": "Todo 1",
@@ -1041,7 +1041,7 @@ describe("unit tests", () => {
               "id": "VPIPiOGb2m2OlsM-pg18CA",
               "isDelete": true,
               "isInsert": false,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
               "table": "todo",
               "values": {
                 "title": "Updated",
@@ -1051,7 +1051,7 @@ describe("unit tests", () => {
               "id": "j4rh6UkYDIqXKLCOX4ru2A",
               "isDelete": null,
               "isInsert": true,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
               "table": "todo",
               "values": {
                 "title": "Upserted",
@@ -1112,7 +1112,7 @@ describe("unit tests", () => {
               "id": Any<String>,
               "isDelete": null,
               "isInsert": true,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
               "table": "todo",
               "values": {
                 "title": "A",
@@ -1122,7 +1122,7 @@ describe("unit tests", () => {
               "id": "fOTG65tQ_ZYHpSBp3GbogA",
               "isDelete": null,
               "isInsert": false,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
               "table": "todo",
               "values": {
                 "title": "B",
@@ -1132,7 +1132,7 @@ describe("unit tests", () => {
               "id": "3I1Sfwp5IxdacWcpAna5qg",
               "isDelete": null,
               "isInsert": true,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
               "table": "todo",
               "values": {
                 "title": "C",
@@ -1181,7 +1181,7 @@ describe("unit tests", () => {
               "id": Any<String>,
               "isDelete": null,
               "isInsert": true,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
               "table": "todo",
               "values": {
                 "title": "With callback",
@@ -1505,7 +1505,7 @@ describe("integration tests", () => {
             "name": "evolu_config",
             "rows": [
               {
-                "clock": uint8:[0,0,0,0,0,0,0,1,37,188,91,250,231,27,86,22],
+                "clock": uint8:[0,0,0,0,0,0,0,1,160,113,55,152,72,115,160,45],
               },
             ],
           },
@@ -1514,18 +1514,18 @@ describe("integration tests", () => {
             "rows": [
               {
                 "column": "title",
-                "id": uint8:[37,188,91,250,231,27,86,22,93,22,62,94,220,186,83,245],
-                "ownerId": uint8:[251,208,27,154,71,19,37,213,195,24,203,60,255,39,7,11],
+                "id": uint8:[160,113,55,152,72,115,160,45,137,237,156,223,234,49,112,82],
+                "ownerId": uint8:[213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184],
                 "table": "todo",
-                "timestamp": uint8:[0,0,0,0,0,0,0,1,37,188,91,250,231,27,86,22],
+                "timestamp": uint8:[0,0,0,0,0,0,0,1,160,113,55,152,72,115,160,45],
                 "value": "Integration todo",
               },
               {
                 "column": "createdAt",
-                "id": uint8:[37,188,91,250,231,27,86,22,93,22,62,94,220,186,83,245],
-                "ownerId": uint8:[251,208,27,154,71,19,37,213,195,24,203,60,255,39,7,11],
+                "id": uint8:[160,113,55,152,72,115,160,45,137,237,156,223,234,49,112,82],
+                "ownerId": uint8:[213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184],
                 "table": "todo",
-                "timestamp": uint8:[0,0,0,0,0,0,0,1,37,188,91,250,231,27,86,22],
+                "timestamp": uint8:[0,0,0,0,0,0,0,1,160,113,55,152,72,115,160,45],
                 "value": "1970-01-01T00:00:00.000Z",
               },
             ],
@@ -1539,11 +1539,11 @@ describe("integration tests", () => {
             "rows": [
               {
                 "c": 1,
-                "h1": 181602913099403,
-                "h2": 262418046898630,
-                "l": 2,
-                "ownerId": uint8:[251,208,27,154,71,19,37,213,195,24,203,60,255,39,7,11],
-                "t": uint8:[0,0,0,0,0,0,0,1,37,188,91,250,231,27,86,22],
+                "h1": 104312911511672,
+                "h2": 160957934804849,
+                "l": 1,
+                "ownerId": uint8:[213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184],
+                "t": uint8:[0,0,0,0,0,0,0,1,160,113,55,152,72,115,160,45],
               },
             ],
           },
@@ -1551,10 +1551,10 @@ describe("integration tests", () => {
             "name": "evolu_usage",
             "rows": [
               {
-                "firstTimestamp": uint8:[0,0,0,0,0,0,0,1,37,188,91,250,231,27,86,22],
-                "lastTimestamp": uint8:[0,0,0,0,0,0,0,1,37,188,91,250,231,27,86,22],
-                "ownerId": uint8:[251,208,27,154,71,19,37,213,195,24,203,60,255,39,7,11],
-                "storedBytes": 1,
+                "firstTimestamp": uint8:[0,0,0,0,0,0,0,1,160,113,55,152,72,115,160,45],
+                "lastTimestamp": uint8:[0,0,0,0,0,0,0,1,160,113,55,152,72,115,160,45],
+                "ownerId": uint8:[213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184],
+                "storedBytes": 105,
               },
             ],
           },
@@ -1563,10 +1563,10 @@ describe("integration tests", () => {
             "rows": [
               {
                 "createdAt": "1970-01-01T00:00:00.000Z",
-                "id": "Jbxb-ucbVhZdFj5e3LpT9Q",
+                "id": "oHE3mEhzoC2J7Zzf6jFwUg",
                 "isCompleted": null,
                 "isDeleted": null,
-                "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+                "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
                 "title": "Integration todo",
                 "updatedAt": null,
               },

@@ -8,8 +8,8 @@ import {
   emptyArray,
   firstInArray,
   isNonEmptyArray,
-  shiftFromArray,
   type NonEmptyReadonlyArray,
+  shiftFromArray,
 } from "../Array.js";
 import { assert } from "../Assert.js";
 import { createCallbacks } from "../Callbacks.js";
@@ -19,7 +19,8 @@ import { createResources, type Resources } from "../Resources.js";
 import { ok } from "../Result.js";
 import { spaced } from "../Schedule.js";
 import type { NonEmptyReadonlySet } from "../Set.js";
-import { createMutexByKey, repeat, type Fiber, type Task } from "../Task.js";
+import { createMutexByKey, type Fiber, repeat, type Task } from "../Task.js";
+import type { TimeDep, TimeoutId } from "../Time.js";
 import { createId, type Id, type Name } from "../Type.js";
 import type { Callback, ExtractType } from "../Types.js";
 import type { CreateWebSocketDep, WebSocket } from "../WebSocket.js";
@@ -52,7 +53,7 @@ interface TransportsDep {
   readonly transports: SharedTransportResources;
 }
 
-export type SharedWorkerDeps = WorkerDeps & CreateWebSocketDep;
+export type SharedWorkerDeps = WorkerDeps & CreateWebSocketDep & TimeDep;
 
 export type SharedWorkerInput =
   | {
@@ -253,6 +254,10 @@ export type DbWorkerOutput =
       readonly name: Name;
     }
   | {
+      readonly type: "LeaderHeartbeat";
+      readonly name: Name;
+    }
+  | {
       readonly type: "OnQueuedResponse";
       readonly callbackId: Id;
       readonly evoluPortId: Id;
@@ -322,6 +327,8 @@ const createSharedEvolu =
     > | null;
 
     let queueProcessingFiber: Fiber<void, never, WorkerDeps> | null = null;
+    let activeQueueCallbackId: Id | null = null;
+    let activeLeaderTimeout: TimeoutId | null = null;
 
     const ownerTransports = appOwner?.transports ?? emptyArray;
 
@@ -329,7 +336,43 @@ const createSharedEvolu =
       await run(transports.addConsumer(appOwner, ownerTransports));
     }
 
+    const clearActiveLeaderTimeout = (): void => {
+      if (!activeLeaderTimeout) return;
+      run.deps.time.clearTimeout(activeLeaderTimeout);
+      activeLeaderTimeout = null;
+    };
+
+    const touchActiveLeaderTimeout = (): void => {
+      clearActiveLeaderTimeout();
+      if (!queueProcessingFiber) return;
+
+      activeLeaderTimeout = run.deps.time.setTimeout(() => {
+        clearActiveLeaderTimeout();
+
+        queueProcessingFiber?.abort();
+        queueProcessingFiber = null;
+
+        if (activeQueueCallbackId) {
+          callbacks.cancel(activeQueueCallbackId);
+          activeQueueCallbackId = null;
+        }
+
+        // Wait for a new leader after heartbeat timeout.
+        activeDbWorkerPort = null;
+      }, "35s");
+    };
+
+    const removeQueuedItemsForDisposedPorts = (): void => {
+      for (let i = queue.length - 1; i >= 0; i -= 1) {
+        if (!evoluPorts.has(queue[i].evoluPortId)) {
+          queue.splice(i, 1);
+        }
+      }
+    };
+
     const ensureQueueProcessing = (): void => {
+      removeQueuedItemsForDisposedPorts();
+
       if (
         queueProcessingFiber ||
         !isNonEmptyArray(queue) ||
@@ -341,6 +384,8 @@ const createSharedEvolu =
       const first = firstInArray(queue);
 
       const callbackId = callbacks.register(({ evoluPortId, response }) => {
+        clearActiveLeaderTimeout();
+        activeQueueCallbackId = null;
         queueProcessingFiber?.abort();
         queueProcessingFiber = null;
 
@@ -389,8 +434,10 @@ const createSharedEvolu =
 
         // Complete the current queue item and continue with the next one.
         shiftFromArray(queue);
+        removeQueuedItemsForDisposedPorts();
         ensureQueueProcessing();
       });
+      activeQueueCallbackId = callbackId;
 
       queueProcessingFiber = run.daemon(
         repeat(() => {
@@ -399,6 +446,7 @@ const createSharedEvolu =
           return ok();
         }, spaced("5s")), // 5s seems to be a good balance
       );
+      touchActiveLeaderTimeout();
     };
 
     const createPatchesByQuery = (
@@ -442,6 +490,14 @@ const createSharedEvolu =
           case "LeaderAcquired": {
             activeDbWorkerPort = dbWorkerPort;
             console.info("leaderAcquired");
+            touchActiveLeaderTimeout();
+            ensureQueueProcessing();
+            break;
+          }
+          case "LeaderHeartbeat": {
+            if (activeDbWorkerPort === dbWorkerPort && queueProcessingFiber) {
+              touchActiveLeaderTimeout();
+            }
             ensureQueueProcessing();
             break;
           }
@@ -470,9 +526,35 @@ const createSharedEvolu =
               evoluPortId,
               hadLastPort: evoluPorts.size === 1,
             });
+
+            const isActiveQueueItemDisposed =
+              isNonEmptyArray(queue) && queue[0].evoluPortId === evoluPortId;
+
             evoluPorts.delete(evoluPortId);
             rowsByQueryByEvoluPortId.delete(evoluPortId);
+
+            for (let i = queue.length - 1; i >= 0; i -= 1) {
+              if (queue[i].evoluPortId === evoluPortId) {
+                queue.splice(i, 1);
+              }
+            }
+
+            if (isActiveQueueItemDisposed) {
+              clearActiveLeaderTimeout();
+              queueProcessingFiber?.abort();
+              queueProcessingFiber = null;
+
+              if (activeQueueCallbackId) {
+                callbacks.cancel(activeQueueCallbackId);
+                activeQueueCallbackId = null;
+              }
+
+              // Require leader reacquire before dispatching remaining queue.
+              activeDbWorkerPort = null;
+            }
+
             if (evoluPorts.size === 0) onDispose();
+            ensureQueueProcessing();
 
             // TODO: Decided what to do with DbWorker but probably dispose it, but
             // https://bugs.webkit.org/show_bug.cgi?id=301520
@@ -500,8 +582,13 @@ const createSharedEvolu =
           await run(transports.removeConsumer(appOwner, ownerTransports));
         }
 
+        clearActiveLeaderTimeout();
         queueProcessingFiber?.abort();
         queueProcessingFiber = null;
+        if (activeQueueCallbackId) {
+          callbacks.cancel(activeQueueCallbackId);
+          activeQueueCallbackId = null;
+        }
         callbacks[Symbol.dispose]();
         activeDbWorkerPort = null;
         queue.length = 0;

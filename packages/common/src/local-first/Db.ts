@@ -32,8 +32,7 @@ import {
   type SqliteValue,
   sql,
 } from "../Sqlite.js";
-import type { LeaderLockDep } from "../Task.js";
-import { type AsyncDisposableStack, type Task } from "../Task.js";
+import type { AsyncDisposableStack, LeaderLockDep, Task } from "../Task.js";
 import { type Millis, millisToDateIso, type TimeDep } from "../Time.js";
 import type { Name } from "../Type.js";
 import {

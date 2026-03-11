@@ -10,20 +10,20 @@ import {
   isNonEmptyArray,
   mapArray,
 } from "../Array.js";
-import type { TimingSafeEqualDep } from "../Crypto.js";
 import { assert } from "../Assert.js";
+import type { TimingSafeEqualDep } from "../Crypto.js";
 import type { Result } from "../Result.js";
 import { err, ok } from "../Result.js";
 import type { SqliteDep } from "../Sqlite.js";
 import { sql } from "../Sqlite.js";
 import { createMutexByKey } from "../Task.js";
-import { PositiveInt, Name } from "../Type.js";
-import { isPromiseLike, type Awaitable } from "../Types.js";
+import { type Name, PositiveInt } from "../Type.js";
+import { type Awaitable, isPromiseLike } from "../Types.js";
 import {
-  OwnerId,
-  ownerIdBytesToOwnerId,
+  type OwnerId,
   // OwnerTransport,
-  OwnerWriteKey,
+  type OwnerWriteKey,
+  ownerIdBytesToOwnerId,
 } from "./Owner.js";
 import type {
   EncryptedDbChange,
@@ -159,10 +159,17 @@ export const createRelaySqliteStorage =
 
       writeMessages: (ownerIdBytes, messages) => async (run) => {
         const ownerId = ownerIdBytesToOwnerId(ownerIdBytes);
-        const messagesWithTimestampBytes = mapArray(messages, (m) => ({
-          timestamp: timestampToTimestampBytes(m.timestamp),
-          change: m.change,
-        }));
+        const messagesWithTimestampBytes = filterArray(
+          mapArray(messages, (m) => ({
+            timestamp: timestampToTimestampBytes(m.timestamp),
+            change: m.change,
+          })),
+          (message) => message.change.length > 0,
+        );
+
+        if (!isNonEmptyArray(messagesWithTimestampBytes)) {
+          return ok();
+        }
 
         const result = await run(
           mutexByOwnerId.withLock(
@@ -225,23 +232,17 @@ export const createRelaySqliteStorage =
                       firstTimestamp,
                       lastTimestamp,
                     );
-
-                  {
-                    sqliteStorageBase.insertTimestamp(
-                      ownerIdBytes,
-                      timestamp,
-                      strategy,
-                    );
-                  }
-
-                  {
-                    deps.sqlite.exec(sql`
+                  sqliteStorageBase.insertTimestamp(
+                    ownerIdBytes,
+                    timestamp,
+                    strategy,
+                  );
+                  deps.sqlite.exec(sql`
                       insert into evolu_message
                         ("ownerId", "timestamp", "change")
                       values (${ownerIdBytes}, ${timestamp}, ${change})
                       on conflict do nothing;
                     `);
-                  }
                 }
 
                 updateOwnerUsage(deps)(
