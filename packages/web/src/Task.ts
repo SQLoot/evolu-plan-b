@@ -1,5 +1,5 @@
 /**
- * Browser-specific Task utilities.
+ * Web platform-specific Task utilities.
  *
  * @module
  */
@@ -77,7 +77,7 @@ export const createLeaderLock = (): LeaderLock => ({
 });
 
 /**
- * Creates {@link Run} for the browser with global error handling.
+ * Creates {@link Run} for the web platform with global error handling.
  *
  * Registers `error` and `unhandledrejection` handlers that log errors to the
  * console. Handlers are removed when the run is disposed.
@@ -97,7 +97,7 @@ export const createLeaderLock = (): LeaderLock => ({
  * await stack.use(startApp());
  * ```
  *
- * @group Browser Runner
+ * @group Web Platform Runner
  */
 export const createRun: CreateRunner<RunDeps> = <D>(
   deps?: D,

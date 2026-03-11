@@ -36,14 +36,16 @@ import {
   SqliteBoolean,
 } from "../../src/Sqlite.js";
 import { createInMemoryLeaderLock } from "../../src/Task.js";
-import { testCreateRun, testName } from "../../src/Test.js";
+import { testCreateRun } from "../../src/Test.js";
 import {
   createIdFromString,
   id,
   NonEmptyString100,
   nullOr,
+  testName,
 } from "../../src/Type.js";
 import type { ExtractType } from "../../src/Types.js";
+import { testCreateWebSocket } from "../../src/WebSocket.js";
 import {
   createMessageChannel,
   createMessagePort,
@@ -479,9 +481,7 @@ describe("unit tests", () => {
       });
       await testWaitForWorkerMessage();
 
-      expect(
-        run.deps.evoluInputs.filter((input) => input.type === "Export"),
-      ).toEqual([{ type: "Export" }]);
+      expect(run.deps.evoluInputs).toEqual([{ type: "Export" }]);
     });
 
     test("posts Dispose with pending mutation microtask batch", async () => {
@@ -963,20 +963,12 @@ describe("unit tests", () => {
 
       await testWaitForWorkerMessage();
 
-      const firstMutate = run.deps.evoluInputs[0];
-      assert(
-        firstMutate?.type === "Mutate",
-        "Expected first input to be Mutate",
-      );
-      expect(firstMutate.changes[0]?.ownerId).toBe(evolu.appOwner.id);
-
       expect(run.deps.evoluInputs).toMatchInlineSnapshot(
         [
           {
             changes: [
               {
                 id: expect.any(String),
-                ownerId: expect.any(String),
               },
             ],
           },
@@ -989,7 +981,7 @@ describe("unit tests", () => {
               "id": Any<String>,
               "isDelete": null,
               "isInsert": true,
-              "ownerId": Any<String>,
+              "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
               "table": "todo",
               "values": {
                 "title": "Todo 1",
@@ -1027,25 +1019,15 @@ describe("unit tests", () => {
 
       await testWaitForWorkerMessage();
 
-      const firstMutate = run.deps.evoluInputs[0];
-      assert(
-        firstMutate?.type === "Mutate",
-        "Expected first input to be Mutate",
-      );
-      expect(firstMutate.changes[0]?.ownerId).toBe(evolu.appOwner.id);
-      expect(firstMutate.changes[1]?.ownerId).toBe(evolu.appOwner.id);
-
       expect(run.deps.evoluInputs).toMatchInlineSnapshot(
         [
           {
             changes: [
               {
                 id: updateId,
-                ownerId: expect.any(String),
               },
               {
                 id: upsertId,
-                ownerId: expect.any(String),
               },
             ],
           },
@@ -1058,7 +1040,7 @@ describe("unit tests", () => {
               "id": "VPIPiOGb2m2OlsM-pg18CA",
               "isDelete": true,
               "isInsert": false,
-              "ownerId": Any<String>,
+              "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
               "table": "todo",
               "values": {
                 "title": "Updated",
@@ -1068,7 +1050,7 @@ describe("unit tests", () => {
               "id": "j4rh6UkYDIqXKLCOX4ru2A",
               "isDelete": null,
               "isInsert": true,
-              "ownerId": Any<String>,
+              "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
               "table": "todo",
               "values": {
                 "title": "Upserted",
@@ -1105,30 +1087,18 @@ describe("unit tests", () => {
 
       await testWaitForWorkerMessage();
 
-      const firstMutate = run.deps.evoluInputs[0];
-      assert(
-        firstMutate?.type === "Mutate",
-        "Expected first input to be Mutate",
-      );
-      expect(firstMutate.changes[0]?.ownerId).toBe(evolu.appOwner.id);
-      expect(firstMutate.changes[1]?.ownerId).toBe(evolu.appOwner.id);
-      expect(firstMutate.changes[2]?.ownerId).toBe(evolu.appOwner.id);
-
       expect(run.deps.evoluInputs).toMatchInlineSnapshot(
         [
           {
             changes: [
               {
                 id: expect.any(String),
-                ownerId: expect.any(String),
               },
               {
                 id: updateId,
-                ownerId: expect.any(String),
               },
               {
                 id: upsertId,
-                ownerId: expect.any(String),
               },
             ],
           },
@@ -1141,7 +1111,7 @@ describe("unit tests", () => {
               "id": Any<String>,
               "isDelete": null,
               "isInsert": true,
-              "ownerId": Any<String>,
+              "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
               "table": "todo",
               "values": {
                 "title": "A",
@@ -1151,7 +1121,7 @@ describe("unit tests", () => {
               "id": "fOTG65tQ_ZYHpSBp3GbogA",
               "isDelete": null,
               "isInsert": false,
-              "ownerId": Any<String>,
+              "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
               "table": "todo",
               "values": {
                 "title": "B",
@@ -1161,7 +1131,7 @@ describe("unit tests", () => {
               "id": "3I1Sfwp5IxdacWcpAna5qg",
               "isDelete": null,
               "isInsert": true,
-              "ownerId": Any<String>,
+              "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
               "table": "todo",
               "values": {
                 "title": "C",
@@ -1191,20 +1161,12 @@ describe("unit tests", () => {
 
       await testWaitForWorkerMessage();
 
-      const firstMutate = run.deps.evoluInputs[0];
-      assert(
-        firstMutate?.type === "Mutate",
-        "Expected first input to be Mutate",
-      );
-      expect(firstMutate.changes[0]?.ownerId).toBe(testAppOwner.id);
-
       expect(run.deps.evoluInputs).toMatchInlineSnapshot(
         [
           {
             changes: [
               {
                 id: expect.any(String),
-                ownerId: expect.any(String),
               },
             ],
             onCompleteIds: [expect.any(String)],
@@ -1218,7 +1180,7 @@ describe("unit tests", () => {
               "id": Any<String>,
               "isDelete": null,
               "isInsert": true,
-              "ownerId": Any<String>,
+              "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
               "table": "todo",
               "values": {
                 "title": "With callback",
@@ -1238,7 +1200,7 @@ describe("unit tests", () => {
   });
 
   describe("exportDatabase", () => {
-    test("ignores OnExport when there is no pending export", async () => {
+    test("throws when OnExport arrives without pending export", async () => {
       const channels: Array<{
         readonly port1: {
           onMessage: ((message: EvoluOutput) => void) | null;
@@ -1263,9 +1225,7 @@ describe("unit tests", () => {
           type: "OnExport",
           file: new Uint8Array(),
         });
-      }).not.toThrow();
-
-      expect(run.deps.evoluInputs).toEqual([]);
+      }).toThrow("OnExport received without pending export.");
     });
 
     test("exports database for one caller", async () => {
@@ -1380,6 +1340,7 @@ describe("integration tests", () => {
       consoleStoreOutputEntry: consoleStoreOutput.entry,
       createMessageChannel,
       createMessagePort,
+      createWebSocket: testCreateWebSocket({ throwOnCreate: true }),
     });
 
     const driver = await run.orThrow(
@@ -1543,7 +1504,7 @@ describe("integration tests", () => {
             "name": "evolu_config",
             "rows": [
               {
-                "clock": uint8:[0,0,0,0,0,0,0,1,68,242,158,172,29,147,215,38],
+                "clock": uint8:[0,0,0,0,0,0,0,1,160,113,55,152,72,115,160,45],
               },
             ],
           },
@@ -1552,18 +1513,18 @@ describe("integration tests", () => {
             "rows": [
               {
                 "column": "title",
-                "id": uint8:[70,31,136,134,35,155,236,16,187,58,231,146,197,162,133,46],
+                "id": uint8:[160,113,55,152,72,115,160,45,137,237,156,223,234,49,112,82],
                 "ownerId": uint8:[213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184],
                 "table": "todo",
-                "timestamp": uint8:[0,0,0,0,0,0,0,1,68,242,158,172,29,147,215,38],
+                "timestamp": uint8:[0,0,0,0,0,0,0,1,160,113,55,152,72,115,160,45],
                 "value": "Integration todo",
               },
               {
                 "column": "createdAt",
-                "id": uint8:[70,31,136,134,35,155,236,16,187,58,231,146,197,162,133,46],
+                "id": uint8:[160,113,55,152,72,115,160,45,137,237,156,223,234,49,112,82],
                 "ownerId": uint8:[213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184],
                 "table": "todo",
-                "timestamp": uint8:[0,0,0,0,0,0,0,1,68,242,158,172,29,147,215,38],
+                "timestamp": uint8:[0,0,0,0,0,0,0,1,160,113,55,152,72,115,160,45],
                 "value": "1970-01-01T00:00:00.000Z",
               },
             ],
@@ -1577,11 +1538,11 @@ describe("integration tests", () => {
             "rows": [
               {
                 "c": 1,
-                "h1": 221168146061724,
-                "h2": 120619144524474,
+                "h1": 104312911511672,
+                "h2": 160957934804849,
                 "l": 1,
                 "ownerId": uint8:[213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184],
-                "t": uint8:[0,0,0,0,0,0,0,1,68,242,158,172,29,147,215,38],
+                "t": uint8:[0,0,0,0,0,0,0,1,160,113,55,152,72,115,160,45],
               },
             ],
           },
@@ -1589,8 +1550,8 @@ describe("integration tests", () => {
             "name": "evolu_usage",
             "rows": [
               {
-                "firstTimestamp": uint8:[0,0,0,0,0,0,0,1,68,242,158,172,29,147,215,38],
-                "lastTimestamp": uint8:[0,0,0,0,0,0,0,1,68,242,158,172,29,147,215,38],
+                "firstTimestamp": uint8:[0,0,0,0,0,0,0,1,160,113,55,152,72,115,160,45],
+                "lastTimestamp": uint8:[0,0,0,0,0,0,0,1,160,113,55,152,72,115,160,45],
                 "ownerId": uint8:[213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184],
                 "storedBytes": 105,
               },
@@ -1601,7 +1562,7 @@ describe("integration tests", () => {
             "rows": [
               {
                 "createdAt": "1970-01-01T00:00:00.000Z",
-                "id": "Rh-IhiOb7BC7OueSxaKFLg",
+                "id": "oHE3mEhzoC2J7Zzf6jFwUg",
                 "isCompleted": null,
                 "isDeleted": null,
                 "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",

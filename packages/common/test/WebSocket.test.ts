@@ -1,4 +1,4 @@
-import { afterEach, assert, beforeEach, expect, test, vi } from "vitest";
+import { afterAll, assert, beforeAll, expect, test, vi } from "vitest";
 import { utf8ToBytes } from "../src/Buffer.js";
 import { isServer } from "../src/Platform.js";
 import { spaced, take } from "../src/Schedule.js";
@@ -18,7 +18,7 @@ const getServerUrl = (path = ""): string => {
   return `ws://127.0.0.1:${port}${path ? `/${path}` : ""}`;
 };
 
-beforeEach(async () => {
+beforeAll(async () => {
   if (isServer) {
     const { createServer } = await import("./_globalSetup.js");
     port = await createServer();
@@ -28,7 +28,7 @@ beforeEach(async () => {
   }
 });
 
-afterEach(async () => {
+afterAll(async () => {
   if (port === undefined) return;
   const currentPort = port;
   port = undefined;

@@ -30,10 +30,14 @@ import {
   type StandardSchemaV1,
 } from "../Type.js";
 import type { Simplify } from "../Types.js";
-import type { jsonArrayFrom, jsonObjectFrom } from "./Kysely.js";
 import type { AppOwner } from "./Owner.js";
 import { OwnerId } from "./Owner.js";
-import type { Query, Row } from "./Query.js";
+import type {
+  evoluJsonArrayFrom,
+  evoluJsonObjectFrom,
+  Query,
+  Row,
+} from "./Query.js";
 import { serializeQuery } from "./Query.js";
 import type { CrdtMessage, DbChange } from "./Storage.js";
 import type { TimestampBytes } from "./Timestamp.js";
@@ -161,7 +165,7 @@ export type CreateQuery<S extends EvoluSchema> = <R extends Row>(
 export const SystemColumns = /*#__PURE__*/ object({
   createdAt: DateIso,
   updatedAt: DateIso,
-  isDeleted: nullOr(SqliteBoolean),
+  isDeleted: /*#__PURE__*/ nullOr(SqliteBoolean),
   ownerId: OwnerId,
 });
 export interface SystemColumns extends InferType<typeof SystemColumns> {}
@@ -359,7 +363,7 @@ export type OptionalColumnKeys<T extends TableSchema> = {
 }[keyof T];
 
 export const systemColumns = /*#__PURE__*/ readonly(
-  new Set(Object.keys(SystemColumns.props)),
+  /*#__PURE__*/ new Set(/*#__PURE__*/ Object.keys(SystemColumns.props)),
 );
 
 export const systemColumnsWithId = /*#__PURE__*/ readonly([
@@ -394,7 +398,8 @@ export const evoluSchemaToSqliteSchema = <S extends EvoluSchema>(
  * Creates a query builder from a {@link EvoluSchema}.
  *
  * Supports Kysely relation-style query composition (nested objects/arrays via
- * JSON subqueries), such as {@link jsonObjectFrom} and {@link jsonArrayFrom} from
+ * JSON subqueries), such as {@link evoluJsonObjectFrom} and
+ * {@link evoluJsonArrayFrom}. These helpers are Evolu's safer SQLite variants of
  * the
  * {@link https://kysely.dev/docs/recipes/relations | Kysely relations recipe}.
  *
@@ -486,7 +491,7 @@ export const getEvoluSqliteSchema = (deps: SqliteDep) => (): SqliteSchema =>
   getSqliteSchema(deps)({ excludeIndexNamePrefix: "evolu_" });
 
 // https://kysely.dev/docs/recipes/splitting-query-building-and-execution
-export const kysely = new Kysely.Kysely({
+export const kysely = /*#__PURE__*/ new Kysely.Kysely({
   dialect: {
     createAdapter: () => new Kysely.SqliteAdapter(),
     createDriver: () => new Kysely.DummyDriver(),

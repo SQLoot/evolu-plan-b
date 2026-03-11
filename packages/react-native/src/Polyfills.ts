@@ -34,10 +34,10 @@ export const installPolyfills = (): void => {
 const installPromisePolyfills = () => {
   const PromiseStatic = Promise as PromiseConstructor & {
     withResolvers?: <T>() => PromiseWithResolvers<T>;
-    try?: (
-      func: (...args: ReadonlyArray<unknown>) => unknown,
-      ...args: ReadonlyArray<unknown>
-    ) => Promise<unknown>;
+    try?: <T, U extends Array<unknown>>(
+      func: (...args: U) => T | PromiseLike<T>,
+      ...args: U
+    ) => Promise<Awaited<T>>;
   };
 
   // @see https://github.com/facebook/hermes/pull/1452
@@ -55,13 +55,13 @@ const installPromisePolyfills = () => {
 
   // @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
   if (typeof PromiseStatic.try !== "function") {
-    PromiseStatic.try = (
-      func: (...args: ReadonlyArray<unknown>) => unknown,
-      ...args: ReadonlyArray<unknown>
-    ): Promise<unknown> =>
-      new Promise((resolve, reject) => {
+    PromiseStatic.try = <T, U extends Array<unknown>>(
+      func: (...args: U) => T | PromiseLike<T>,
+      ...args: U
+    ): Promise<Awaited<T>> =>
+      new Promise<Awaited<T>>((resolve, reject) => {
         try {
-          resolve(func(...args));
+          resolve(func(...args) as Awaited<T>);
         } catch (error) {
           reject(error);
         }

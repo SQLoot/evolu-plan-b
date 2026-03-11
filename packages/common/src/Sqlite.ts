@@ -195,10 +195,10 @@ export const createSqlite =
     const { createSqliteDriver } = run.deps;
     const console = run.deps.console.child("sql");
 
-    console.debug("createSqliteDriver");
-    const result = await run(createSqliteDriver(name, options));
-    if (!result.ok) return result;
-    const driver = result.value;
+    const driverResult = await run(createSqliteDriver(name, options));
+    if (!driverResult.ok) return driverResult;
+    const driver = driverResult.value;
+    console.debug("SQLite driver created");
 
     let isDisposed = false;
 
@@ -490,8 +490,8 @@ export const eqSqliteIndex: Eq<SqliteIndex> = /*#__PURE__*/ createEqObject({
  * Includes table-column mappings and user-visible indexes.
  */
 export const SqliteSchema = /*#__PURE__*/ object({
-  tables: record(String, set(String)),
-  indexes: array(SqliteIndex),
+  tables: /*#__PURE__*/ record(String, /*#__PURE__*/ set(String)),
+  indexes: /*#__PURE__*/ array(SqliteIndex),
 });
 export interface SqliteSchema extends InferType<typeof SqliteSchema> {}
 

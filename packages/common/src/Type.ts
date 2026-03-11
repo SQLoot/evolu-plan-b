@@ -1706,7 +1706,7 @@ export type NameError = SimpleNameError;
  */
 export const SimplePassword = /*#__PURE__*/ brand(
   "SimplePassword",
-  minLength(8)(maxLength(64)(TrimmedString)),
+  /*#__PURE__*/ minLength(8)(/*#__PURE__*/ maxLength(64)(TrimmedString)),
 );
 export type SimplePassword = typeof SimplePassword.Type;
 
@@ -1917,7 +1917,10 @@ export const formatTableIdError =
   );
 
 /** Binary representation of an {@link Id}. */
-export const IdBytes = /*#__PURE__*/ brand("IdBytes", length(16)(Uint8Array));
+export const IdBytes = /*#__PURE__*/ brand(
+  "IdBytes",
+  /*#__PURE__*/ length(16)(Uint8Array),
+);
 export type IdBytes = typeof IdBytes.Type;
 
 export const idBytesTypeValueLength = 16 as NonNegativeInt;

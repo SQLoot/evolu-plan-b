@@ -184,13 +184,13 @@ const normalizeBundleSize = (
   }
 
   if (fixture === "task-example") {
-    if (gzip >= 5650 && gzip <= 5750) gzip = 5692;
-    if (raw >= 15250 && raw <= 15650) raw = 15511;
+    if (gzip >= 5350 && gzip <= 5450) gzip = 5395;
+    if (raw >= 14250 && raw <= 14500) raw = 14356;
   }
 
   if (fixture === "type-object") {
-    if (gzip >= 1950 && gzip <= 2100) gzip = 2006;
-    if (raw >= 6000 && raw <= 6200) raw = 6082;
+    if (gzip >= 1880 && gzip <= 1980) gzip = 1937;
+    if (raw >= 5700 && raw <= 5850) raw = 5769;
   }
 
   return { gzip, raw };
@@ -215,12 +215,12 @@ describe("tree-shaking", () => {
           "raw": 1602,
         },
         "task-example": {
-          "gzip": 5692,
-          "raw": 15511,
+          "gzip": 5395,
+          "raw": 14356,
         },
         "type-object": {
-          "gzip": 2006,
-          "raw": 6082,
+          "gzip": 1937,
+          "raw": 5769,
         },
       }
     `);

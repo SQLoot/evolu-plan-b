@@ -2,7 +2,7 @@ import {
   type CreateSqliteDriverDep,
   callback,
   createSqlite,
-  getOk,
+  getOrThrow,
   isPromiseLike,
   type OwnerId,
   ok,
@@ -99,7 +99,7 @@ export const startBunRelay =
     const console = _run.deps.console.child("relay");
 
     const relayName = name ?? SimpleName.orThrow("evolu-relay");
-    const sqlite = getOk(await stack.use(createSqlite(relayName)));
+    const sqlite = getOrThrow(await stack.use(createSqlite(relayName)));
     const deps = { ..._run.deps, sqlite };
 
     createBaseSqliteStorageTables(deps);
