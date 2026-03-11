@@ -918,10 +918,8 @@ export interface RunStateRunning extends Typed<"Running"> {}
 
 export interface RunStateDisposing extends Typed<"Disposing"> {}
 
-export interface RunStateSettled<
-  T = unknown,
-  E = unknown,
-> extends Typed<"Settled"> {
+export interface RunStateSettled<T = unknown, E = unknown>
+  extends Typed<"Settled"> {
   /**
    * The Run's completion value.
    *
@@ -2397,9 +2395,8 @@ export const createDeferred = <T, E = never>(): Deferred<T, E> => {
 export const DeferredDisposedError = /*#__PURE__*/ typed(
   "DeferredDisposedError",
 );
-export interface DeferredDisposedError extends InferType<
-  typeof DeferredDisposedError
-> {}
+export interface DeferredDisposedError
+  extends InferType<typeof DeferredDisposedError> {}
 
 /**
  * {@link DeferredDisposedError} used as abort reason in {@link createDeferred}.
@@ -2700,9 +2697,8 @@ export const createSemaphore = (permits: Concurrency): Semaphore => {
 export const SemaphoreDisposedError = /*#__PURE__*/ typed(
   "SemaphoreDisposedError",
 );
-export interface SemaphoreDisposedError extends InferType<
-  typeof SemaphoreDisposedError
-> {}
+export interface SemaphoreDisposedError
+  extends InferType<typeof SemaphoreDisposedError> {}
 
 /**
  * {@link SemaphoreDisposedError} used as abort reason in {@link createSemaphore}.
@@ -3339,9 +3335,8 @@ export function allSettled(
  * @group Composition
  */
 export const AllSettledAbortError = /*#__PURE__*/ typed("AllSettledAbortError");
-export interface AllSettledAbortError extends InferType<
-  typeof AllSettledAbortError
-> {}
+export interface AllSettledAbortError
+  extends InferType<typeof AllSettledAbortError> {}
 
 /**
  * {@link AllSettledAbortError} used as abort reason in {@link allSettled}.

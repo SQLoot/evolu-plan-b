@@ -1007,111 +1007,105 @@ describe("Run", () => {
       expect(reason).toBe("late-reason");
     });
 
-    test.sequential(
-      "removes listener via signal option for cleanup",
-      async () => {
-        // This test verifies that onAbort uses `signal: requestController.signal`
-        // for listener cleanup. Per spec, when the cleanup signal aborts, the
-        // listener is removed. We capture the cleanup signal and verify it's
-        // aborted after disposal.
+    test.sequential("removes listener via signal option for cleanup", async () => {
+      // This test verifies that onAbort uses `signal: requestController.signal`
+      // for listener cleanup. Per spec, when the cleanup signal aborts, the
+      // listener is removed. We capture the cleanup signal and verify it's
+      // aborted after disposal.
 
-        await using run = createRun();
+      await using run = createRun();
 
-        let cleanupSignal: AbortSignal | null = null;
-        // eslint-disable-next-line @typescript-eslint/unbound-method
-        const originalAddEventListener = AbortSignal.prototype.addEventListener;
+      let cleanupSignal: AbortSignal | null = null;
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      const originalAddEventListener = AbortSignal.prototype.addEventListener;
 
-        let childSignal: AbortSignal | null = null;
+      let childSignal: AbortSignal | null = null;
 
-        AbortSignal.prototype.addEventListener = function (
-          ...args: Parameters<typeof originalAddEventListener>
+      AbortSignal.prototype.addEventListener = function (
+        ...args: Parameters<typeof originalAddEventListener>
+      ) {
+        const [type, , options] = args;
+        if (
+          type === "abort" &&
+          this === childSignal &&
+          options &&
+          typeof options === "object" &&
+          options.signal
         ) {
-          const [type, , options] = args;
-          if (
-            type === "abort" &&
-            this === childSignal &&
-            options &&
-            typeof options === "object" &&
-            options.signal
-          ) {
-            cleanupSignal = options.signal;
-          }
-          originalAddEventListener.apply(this, args);
-        };
-
-        try {
-          await run((childRun) => {
-            childSignal = childRun.signal;
-            childRun.onAbort(lazyVoid);
-            return ok();
-          });
-
-          // Cleanup signal should exist and be aborted after disposal
-          expect(cleanupSignal).not.toBeNull();
-          expect(cleanupSignal!.aborted).toBe(true);
-        } finally {
-          AbortSignal.prototype.addEventListener = originalAddEventListener;
+          cleanupSignal = options.signal;
         }
-      },
-    );
+        originalAddEventListener.apply(this, args);
+      };
 
-    test.sequential(
-      "removes parent abort listener via signal option for cleanup",
-      async () => {
-        // This test verifies that child runs use `signal: requestController.signal`
-        // for parent abort listener cleanup. When a child completes, the listener
-        // on parent.requestSignal should be removed automatically.
+      try {
+        await run((childRun) => {
+          childSignal = childRun.signal;
+          childRun.onAbort(lazyVoid);
+          return ok();
+        });
 
-        await using run = createRun();
+        // Cleanup signal should exist and be aborted after disposal
+        expect(cleanupSignal).not.toBeNull();
+        expect(cleanupSignal!.aborted).toBe(true);
+      } finally {
+        AbortSignal.prototype.addEventListener = originalAddEventListener;
+      }
+    });
 
-        let cleanupSignal: AbortSignal | null = null;
-        // eslint-disable-next-line @typescript-eslint/unbound-method
-        const originalAddEventListener = AbortSignal.prototype.addEventListener;
+    test.sequential("removes parent abort listener via signal option for cleanup", async () => {
+      // This test verifies that child runs use `signal: requestController.signal`
+      // for parent abort listener cleanup. When a child completes, the listener
+      // on parent.requestSignal should be removed automatically.
 
-        // We need to capture the parent's requestSignal to identify the right listener
-        let parentRequestSignal: AbortSignal | null = null;
+      await using run = createRun();
 
-        AbortSignal.prototype.addEventListener = function (
-          ...args: Parameters<typeof originalAddEventListener>
+      let cleanupSignal: AbortSignal | null = null;
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      const originalAddEventListener = AbortSignal.prototype.addEventListener;
+
+      // We need to capture the parent's requestSignal to identify the right listener
+      let parentRequestSignal: AbortSignal | null = null;
+
+      AbortSignal.prototype.addEventListener = function (
+        ...args: Parameters<typeof originalAddEventListener>
+      ) {
+        const [type, , options] = args;
+        // The parent abort listener is registered on parent.requestSignal
+        if (
+          type === "abort" &&
+          this === parentRequestSignal &&
+          options &&
+          typeof options === "object" &&
+          options.signal
         ) {
-          const [type, , options] = args;
-          // The parent abort listener is registered on parent.requestSignal
-          if (
-            type === "abort" &&
-            this === parentRequestSignal &&
-            options &&
-            typeof options === "object" &&
-            options.signal
-          ) {
-            cleanupSignal = options.signal;
-          }
-          originalAddEventListener.apply(this, args);
-        };
-
-        try {
-          // First, we need to get access to the parent's internal requestSignal
-          // We do this by spawning a child that captures it
-          await run((childRun) => {
-            // The child registers a listener on parent.requestSignal
-            // We can identify it by checking what signal addEventListener is called on
-            // The parent's requestSignal is internal, but we can use a trick:
-            // spawn another child and that child will register on childRun's requestSignal
-            parentRequestSignal = (
-              childRun as never as { requestSignal: AbortSignal }
-            ).requestSignal;
-
-            const childFiber = childRun(() => ok(42));
-            return childFiber;
-          });
-
-          // Cleanup signal should exist and be aborted after child disposal
-          expect(cleanupSignal).not.toBeNull();
-          expect(cleanupSignal!.aborted).toBe(true);
-        } finally {
-          AbortSignal.prototype.addEventListener = originalAddEventListener;
+          cleanupSignal = options.signal;
         }
-      },
-    );
+        originalAddEventListener.apply(this, args);
+      };
+
+      try {
+        // First, we need to get access to the parent's internal requestSignal
+        // We do this by spawning a child that captures it
+        await run((childRun) => {
+          // The child registers a listener on parent.requestSignal
+          // We can identify it by checking what signal addEventListener is called on
+          // The parent's requestSignal is internal, but we can use a trick:
+          // spawn another child and that child will register on childRun's requestSignal
+          parentRequestSignal = (
+            childRun as never as { requestSignal: AbortSignal }
+          ).requestSignal;
+
+          const childFiber = childRun(() => ok(42));
+          return childFiber;
+        });
+
+        // Cleanup signal should exist and be aborted after child disposal
+        expect(cleanupSignal).not.toBeNull();
+        expect(cleanupSignal!.aborted).toBe(true);
+      } finally {
+        AbortSignal.prototype.addEventListener = originalAddEventListener;
+      }
+    });
   });
 
   describe("create", () => {
