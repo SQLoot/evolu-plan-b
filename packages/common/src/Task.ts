@@ -56,7 +56,7 @@ import {
 import type {
   Awaitable,
   Callback,
-  CallbackWithCleanup,
+  CallbackWithTeardown,
   Int1To100,
   isPromiseLike,
   Mutable,
@@ -1873,7 +1873,7 @@ const yieldImpl: () => Promise<void> =
  */
 export const callback =
   <T, E = never>(
-    callback: CallbackWithCleanup<{
+    callback: CallbackWithTeardown<{
       ok: Callback<T>;
       err: Callback<E>;
       signal: AbortSignal;
