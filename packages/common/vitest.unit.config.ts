@@ -11,7 +11,7 @@ export default defineProject({
     ],
     setupFiles: ["./test/_nodeSetup.ts"],
     include: ["test/**/*.test.ts"],
-    name: "unit",
+    name: "@evolu/common (nodejs)",
     environment: "node",
   },
 });

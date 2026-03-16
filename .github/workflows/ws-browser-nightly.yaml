@@ -42,7 +42,7 @@ jobs:
       - name: Run browser WebSocket tests
         run: |
           set -o pipefail
-          bunx vitest run --project browser packages/common/test/WebSocket.test.ts --reporter=verbose 2>&1 | tee ws-browser-nightly.log
+          bunx vitest run --project "@evolu/common" packages/common/test/WebSocket.test.ts --reporter=verbose 2>&1 | tee ws-browser-nightly.log
 
       - name: Upload browser WebSocket logs
         if: always()
