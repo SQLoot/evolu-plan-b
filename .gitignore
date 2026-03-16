@@ -17,6 +17,7 @@ storybook-static
 out
 test-identicons
 coverage
+.vitest-attachments
 tmp
 __screenshots__
 *.tsBuildInfo
