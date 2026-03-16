@@ -11,7 +11,6 @@ import type { ConsoleDep } from "../Console.js";
 import { createConsole } from "../Console.js";
 import { createUnknownError } from "../Error.js";
 import { exhaustiveCheck, todo } from "../Function.js";
-import type { Listener, Unsubscribe } from "../Listeners.js";
 import { createMicrotaskBatch } from "../Microtask.js";
 import type { FlushSyncDep, ReloadAppDep } from "../Platform.js";
 import { createRefCount } from "../RefCount.js";
@@ -22,7 +21,7 @@ import {
   type SqliteExportFile,
   sqliteBooleanToBoolean,
 } from "../Sqlite.js";
-import type { ReadonlyStore } from "../Store.js";
+import type { Listener, ReadonlyStore, Unsubscribe } from "../Store.js";
 import { createStore } from "../Store.js";
 import type { createRun, Task } from "../Task.js";
 import type { Id, TypeError } from "../Type.js";
