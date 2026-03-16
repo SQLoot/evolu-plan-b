@@ -5,18 +5,18 @@
  */
 
 import {
-  type CreateRunner,
-  createRunner as createCommonRunner,
+  createRun as createCommonRun,
   createUnknownError,
-  type Runner,
-  type RunnerDeps,
+  type CreateRun,
+  type Run,
+  type RunDeps,
 } from "@evolu/common";
 
 /**
- * Creates {@link Runner} for React Native with global error handling.
+ * Creates {@link Run} for React Native with global error handling.
  *
  * Registers `ErrorUtils.setGlobalHandler` for uncaught JavaScript errors. The
- * handler is restored to the previous one when the runner is disposed.
+ * handler is restored to the previous one when the Run is disposed.
  *
  * ### Example
  *
@@ -27,18 +27,18 @@ import {
  *   }),
  * });
  *
- * await using run = createRunner({ console });
- * await using stack = run.stack();
+ * await using run = createRun({ console });
+ * await using stack = new AsyncDisposableStack();
  *
- * await stack.use(startApp());
+ * stack.use(await run.orThrow(startApp()));
  * ```
  *
- * @group React Native Runner
+ * @group React Native Run
  */
-export const createRunner: CreateRunner<RunnerDeps> = <D>(
+export const createRun: CreateRun<RunDeps> = <D>(
   deps?: D,
-): Runner<RunnerDeps & D> => {
-  const run = createCommonRunner(deps);
+): Run<RunDeps & D> => {
+  const run = createCommonRun(deps);
 
   const console = run.deps.console.child("global");
 
@@ -64,3 +64,8 @@ export const createRunner: CreateRunner<RunnerDeps> = <D>(
 
   return run;
 };
+
+/**
+ * @deprecated Use {@link createRun}. Kept for fork compatibility.
+ */
+export const createRunner: typeof createRun = createRun;
