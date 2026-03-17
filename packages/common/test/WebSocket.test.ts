@@ -3,7 +3,11 @@ import { utf8ToBytes } from "../src/Buffer.js";
 import { isServer } from "../src/Platform.js";
 import { spaced, take } from "../src/Schedule.js";
 import { createRunner } from "../src/Task.js";
-import { createWebSocket, type WebSocketError } from "../src/WebSocket.js";
+import {
+  createWebSocket,
+  testCreateWebSocket,
+  type WebSocketError,
+} from "../src/WebSocket.js";
 
 declare module "vitest/browser" {
   interface BrowserCommands {
@@ -50,6 +54,17 @@ const envValue =
     ?.VITE_EVOLU_BROWSER_WS_TESTS;
 const browserWsEnabled = envValue === "1";
 const wsTest = isServer || browserWsEnabled ? test : test.skip;
+
+test("testCreateWebSocket mirrors production ready states", async () => {
+  const result = testCreateWebSocket({ isOpen: false })()();
+  assert(result.ok);
+
+  const ws = result.value;
+  expect(ws.getReadyState()).toBe("connecting");
+
+  await ws[Symbol.asyncDispose]();
+  expect(ws.getReadyState()).toBe("closed");
+});
 
 wsTest("connects, receives message, sends message, and disposes", async () => {
   await using run = createRunner();

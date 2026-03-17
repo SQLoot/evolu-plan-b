@@ -176,7 +176,7 @@ describe("createStructuralMap", () => {
     const map = createStructuralMap<string, string>();
 
     expect(() => map.set((() => undefined) as never, "value")).toThrow(
-      "Structural keys must be JSON-like values or Uint8Array.",
+      "StructuralMap keys must be JSON-like values or Uint8Array; received function.",
     );
   });
 

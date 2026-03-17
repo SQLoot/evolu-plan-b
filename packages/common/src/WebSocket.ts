@@ -355,7 +355,7 @@ export const testCreateWebSocket =
 
       getReadyState: () => {
         if (isDisposed) return "closed";
-        return isOpen ? "open" : "closed";
+        return isOpen ? "open" : "connecting";
       },
 
       isOpen: () => !isDisposed && isOpen,

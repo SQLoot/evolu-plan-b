@@ -44,7 +44,7 @@ import {
   type IdBytes,
   idBytesToId,
   idToIdBytes,
-  minPositiveInt,
+  PositiveInt,
 } from "../Type.js";
 import type { ExtractType } from "../Types.js";
 import type {
@@ -83,6 +83,7 @@ import {
   createBaseSqliteStorage,
   createBaseSqliteStorageTables,
   DbChange,
+  getNextStoredBytes,
   getOwnerUsage,
   getTimestampInsertStrategy,
   type Storage,
@@ -211,7 +212,13 @@ const startDbWorker =
 
     const baseSqliteStorage = createBaseSqliteStorage({ sqlite, ...run.deps });
 
-    const deps = { ...run.deps, sqlite, sqliteSchema, baseSqliteStorage };
+    const deps = {
+      ...run.deps,
+      sqlite,
+      sqliteSchema,
+      baseSqliteStorage,
+      encryptionKey,
+    };
 
     const currentSchema = getEvoluSqliteSchema(deps)();
     const dbIsInitialized = "evolu_version" in currentSchema.tables;
@@ -710,6 +717,8 @@ const handleMutation =
   (
     deps: BaseSqliteStorageDep &
       ClockDep &
+      EncryptionKeyDep &
+      RandomBytesDep &
       SqliteSchemaDep &
       RandomDep &
       SqliteDep &
@@ -795,6 +804,8 @@ const applyMessages =
   (
     deps: BaseSqliteStorageDep &
       ClockDep &
+      EncryptionKeyDep &
+      RandomBytesDep &
       SqliteSchemaDep &
       RandomDep &
       SqliteDep,
@@ -859,13 +870,21 @@ const applyMessages =
       );
     }
 
-    /**
-     * TODO: Implement proper storedBytes tracking for client using received and
-     * sent encrypted message sizes.
-     */
+    const incomingBytes = PositiveInt.orThrow(
+      messages.reduce(
+        (sum, message) =>
+          sum +
+          encodeAndEncryptDbChange(deps)(message, deps.encryptionKey).length,
+        0,
+      ),
+    );
+    const nextStoredBytes = getNextStoredBytes(
+      usage.value.storedBytes,
+      incomingBytes,
+    );
     updateOwnerUsage(deps)(
       ownerIdBytes,
-      minPositiveInt, // Placeholder until proper tracking implemented
+      nextStoredBytes,
       firstTimestamp,
       lastTimestamp,
     );

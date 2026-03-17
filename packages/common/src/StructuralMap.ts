@@ -145,8 +145,18 @@ const isUint8Array = (value: object): value is Uint8Array =>
   value instanceof globalThis.Uint8Array ||
   Object.prototype.toString.call(value) === "[object Uint8Array]";
 
-const formatUnsupportedStructuralKeyType = (value: object): string =>
-  value.constructor?.name ?? Object.prototype.toString.call(value);
+const formatUnsupportedStructuralKeyType = (value: unknown): string => {
+  if (typeof value === "object" && value !== null) {
+    return value.constructor?.name ?? Object.prototype.toString.call(value);
+  }
+
+  return typeof value;
+};
+
+const createUnsupportedStructuralKeyError = (value: unknown): Error =>
+  new Error(
+    `StructuralMap keys must be JSON-like values or Uint8Array; received ${formatUnsupportedStructuralKeyType(value)}.`,
+  );
 
 const serializeStructuralKey = (
   value: StructuralKey,
@@ -184,16 +194,14 @@ const serializeStructuralKey = (
       } else if (isUint8Array(value)) {
         keyId = `u:${uint8ArrayToBase64Url(value)}`;
       } else {
-        throw new Error(
-          `StructuralMap keys must be JSON-like values or Uint8Array; received ${formatUnsupportedStructuralKeyType(value)}.`,
-        );
+        throw createUnsupportedStructuralKeyError(value);
       }
 
       keyIdByObject.set(value, keyId);
       return keyId;
     }
     default:
-      assert(false, "Structural keys must be JSON-like values or Uint8Array.");
+      throw createUnsupportedStructuralKeyError(value);
   }
 };
 

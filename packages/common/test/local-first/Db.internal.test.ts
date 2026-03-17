@@ -7,6 +7,7 @@ import {
   testTryApplyQuarantinedMessages,
 } from "../../src/local-first/Db.js";
 import { ownerIdToOwnerIdBytes } from "../../src/local-first/Owner.js";
+import { encodeAndEncryptDbChange } from "../../src/local-first/Protocol.js";
 import { serializeQuery } from "../../src/local-first/Query.js";
 import type {
   DbWorkerInput,
@@ -148,6 +149,22 @@ test("testHandleMutation writes local and shared changes", async () => {
 
   expect(result.value.type).toBe("Mutate");
   expect(result.value.messagesByOwnerId.size).toBe(1);
+
+  const ownerMessages = result.value.messagesByOwnerId.get(testAppOwner.id);
+  expect(ownerMessages).toBeDefined();
+  if (!ownerMessages) return;
+
+  const expectedStoredBytes = ownerMessages.reduce(
+    (sum, message) =>
+      sum + encodeAndEncryptDbChange(deps)(message, deps.encryptionKey).length,
+    0,
+  );
+  const usageRows = run.deps.sqlite.exec<{ storedBytes: number }>(sql`
+    select storedBytes
+    from evolu_usage
+    where ownerId = ${ownerIdToOwnerIdBytes(testAppOwner.id)};
+  `).rows;
+  expect(usageRows).toEqual([{ storedBytes: expectedStoredBytes }]);
 
   const todoRows = run.deps.sqlite.exec<{ title: string }>(sql`
     select title from todo order by title;
