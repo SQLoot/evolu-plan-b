@@ -59,9 +59,6 @@ export type {
 export { createQueryBuilder } from "./local-first/Schema.js";
 export type {
   SyncOwner,
-  // NetworkError,
-  // PaymentRequiredError,
-  // ServerError,
   SyncState,
 } from "./local-first/Sync.js";
 export type {

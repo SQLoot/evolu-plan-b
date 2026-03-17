@@ -63,7 +63,7 @@ export type SharedWorkerInput =
   | {
       readonly type: "CreateEvolu";
       readonly name: Name;
-      readonly appOwner: SyncOwner;
+      readonly appOwner?: SyncOwner;
       readonly evoluPort: NativeMessagePort<EvoluOutput, EvoluInput>;
       readonly dbWorkerPort: NativeMessagePort<DbWorkerInput, DbWorkerOutput>;
     };
@@ -199,7 +199,9 @@ export const initSharedWorker =
                   const result = await runWithSharedEvoluDeps.daemon(
                     createSharedEvolu({
                       name: message.name,
-                      appOwner: message.appOwner,
+                      ...(message.appOwner === undefined
+                        ? {}
+                        : { appOwner: message.appOwner }),
                       postTabOutput,
                       onDispose: () => {
                         void runWithSharedEvoluDeps.daemon(
@@ -329,7 +331,7 @@ const createSharedEvolu =
     onDispose,
   }: {
     name: Name;
-    appOwner: SyncOwner;
+    appOwner?: SyncOwner;
     postTabOutput: Callback<EvoluTabOutput>;
     onDispose: () => void;
   }): Task<

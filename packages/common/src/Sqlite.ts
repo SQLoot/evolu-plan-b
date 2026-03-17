@@ -270,12 +270,11 @@ export const createSqlite =
       void sqlite[Symbol.asyncDispose]();
     };
 
+    daemonSignal.addEventListener("abort", disposeOnAbort, { once: true });
     if (daemonSignal.aborted) {
       await sqlite[Symbol.asyncDispose]();
       return err({ type: "AbortError", reason: daemonSignal.reason });
     }
-
-    daemonSignal.addEventListener("abort", disposeOnAbort, { once: true });
 
     return ok(sqlite);
   };
@@ -525,7 +524,11 @@ export const getSqliteSchema =
 
     const indexNamePrefixFilter =
       excludeIndexNamePrefix != null
-        ? ` and name not like '${excludeIndexNamePrefix.replaceAll("'", "''")}%'`
+        ? ` and name not like '${excludeIndexNamePrefix
+            .replaceAll("\\", "\\\\")
+            .replaceAll("%", "\\%")
+            .replaceAll("_", "\\_")
+            .replaceAll("'", "''")}%' ESCAPE '\\'`
         : "";
 
     const indexesRows = deps.sqlite.exec<{ name: string; sql: string }>(

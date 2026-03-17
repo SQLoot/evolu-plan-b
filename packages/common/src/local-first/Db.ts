@@ -169,7 +169,11 @@ export const initDbWorker =
 
       void run.daemon(async (run) => {
         const lockResult = await run(leaderLock.lock(name));
-        if (lockResult.ok) stack.use(lockResult.value);
+        if (!lockResult.ok) {
+          console.info("leaderLock not acquired");
+          return lockResult;
+        }
+        stack.use(lockResult.value);
         console.info("leaderLock acquired");
         port.postMessage({ type: "LeaderAcquired", name });
         return run.addDeps({
@@ -599,6 +603,7 @@ const _createClientStorage =
         // check if this owner is within quota before accepting the data.
         // This prevents an owner from exceeding storage limits when receiving
         // data shared by other collaborators.
+        if (encryptedMessages.length === 0) return ok();
 
         const messages: Array<CrdtMessage> = [];
 

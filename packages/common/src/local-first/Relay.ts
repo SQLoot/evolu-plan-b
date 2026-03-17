@@ -12,7 +12,7 @@ import {
 } from "../Array.js";
 import { assert } from "../Assert.js";
 import type { TimingSafeEqualDep } from "../Crypto.js";
-import { err, getOk, ok } from "../Result.js";
+import { err, ok } from "../Result.js";
 import type { SqliteDep } from "../Sqlite.js";
 import { sql } from "../Sqlite.js";
 import { createMutexByKey } from "../Task.js";
@@ -184,12 +184,14 @@ export const createRelaySqliteStorage =
               return ok();
             }
 
-            const usage = getOk(
-              getOwnerUsage(deps)(
-                ownerIdBytes,
-                firstInArray(newMessages).timestamp,
-              ),
+            const usageResult = getOwnerUsage(deps)(
+              ownerIdBytes,
+              firstInArray(newMessages).timestamp,
             );
+            if (!usageResult.ok) {
+              return usageResult;
+            }
+            const usage = usageResult.value;
 
             const incomingBytes = newMessages.reduce(
               (sum, m) => sum + m.change.length,
