@@ -527,14 +527,13 @@ export const getSqliteSchema =
       (tables[tableName] ??= new Set()).add(columnName);
     });
 
-    const indexNamePrefixFilter =
-      excludeIndexNamePrefix != null
-        ? ` and name not like '${excludeIndexNamePrefix
+    const escapedIndexNamePrefix =
+      excludeIndexNamePrefix == null
+        ? null
+        : `${excludeIndexNamePrefix
             .replaceAll("\\", "\\\\")
             .replaceAll("%", "\\%")
-            .replaceAll("_", "\\_")
-            .replaceAll("'", "''")}%' ESCAPE '\\'`
-        : "";
+            .replaceAll("_", "\\_")}%`;
 
     const indexesRows = deps.sqlite.exec<{ name: string; sql: string | null }>(
       sql`
@@ -545,7 +544,9 @@ export const getSqliteSchema =
           ${sql.raw(
             excludeSqliteInternalIndexes ? "and name not like 'sqlite_%'" : "",
           )}
-          ${sql.raw(indexNamePrefixFilter)};
+          ${sql.raw(escapedIndexNamePrefix == null ? "" : "and name not like ")}
+          ${escapedIndexNamePrefix ?? sql.raw("")}
+          ${sql.raw(escapedIndexNamePrefix == null ? "" : "ESCAPE '\\'")};
       `,
     );
 

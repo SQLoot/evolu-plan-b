@@ -873,6 +873,21 @@ describe("getSqliteSchema", () => {
     `);
   });
 
+  test("excludeIndexNamePrefix escapes LIKE wildcards safely", async () => {
+    await using run = await testCreateRunWithSqlite(testCreateSqliteDeps());
+    const { sqlite } = run.deps;
+
+    sqlite.exec(sql`create table t_like (id text primary key, value text);`);
+    sqlite.exec(sql`create index "abc%_idx" on t_like (value);`);
+    sqlite.exec(sql`create index abcXYZidx on t_like (value);`);
+
+    const schema = getSqliteSchema(run.deps)({
+      excludeIndexNamePrefix: "abc%_",
+    });
+
+    expect(schema.indexes.map((index) => index.name)).toEqual(["abcXYZidx"]);
+  });
+
   test("excludeSqliteInternalIndexes false includes internal index rows but null SQL is skipped", async () => {
     await using run = await testCreateRunWithSqlite(testCreateSqliteDeps());
     const { sqlite } = run.deps;

@@ -176,7 +176,9 @@ export const createRelaySqliteStorage =
             );
             const newMessages = filterArray(
               messagesWithTimestampBytes,
-              (m) => !existingTimestampsSet.has(m.timestamp.toString()),
+              (m) =>
+                m.change.length > 0 &&
+                !existingTimestampsSet.has(m.timestamp.toString()),
             );
 
             // Nothing to write
@@ -197,9 +199,6 @@ export const createRelaySqliteStorage =
               (sum, m) => sum + m.change.length,
               0,
             );
-            if (incomingBytes === 0) {
-              return ok();
-            }
             const newStoredBytes = PositiveInt.orThrow(
               (usage.storedBytes ?? 0) + incomingBytes,
             );
