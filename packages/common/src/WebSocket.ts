@@ -339,7 +339,7 @@ export const testCreateWebSocket =
     } = {},
   ): CreateWebSocket =>
   () =>
-  () => {
+  async () => {
     if (options.throwOnCreate) {
       throw new Error("testCreateWebSocket is configured to throw on create");
     }

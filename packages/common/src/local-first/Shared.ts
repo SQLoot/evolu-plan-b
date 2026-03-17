@@ -156,9 +156,6 @@ export const initSharedWorker =
                   const result = await run.daemon(
                     createSharedEvolu({
                       name: message.name,
-                      ...(message.appOwner === undefined
-                        ? {}
-                        : { appOwner: message.appOwner }),
                       postTabOutput,
                       onDispose: () => {
                         void run.daemon(
@@ -275,12 +272,10 @@ export interface QueuedResult {
 const createSharedEvolu =
   ({
     name,
-    appOwner: _appOwner,
     postTabOutput,
     onDispose,
   }: {
     name: Name;
-    appOwner?: SyncOwner;
     postTabOutput: Callback<EvoluTabOutput>;
     onDispose: () => void;
   }): Task<SharedEvolu, never, SharedWorkerDeps> =>

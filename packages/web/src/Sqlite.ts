@@ -114,10 +114,13 @@ export const createWasmSqliteDriver: CreateSqliteDriver =
             if (query.parameters.length > 0) prepared.bind(query.parameters);
 
             const rows = [];
-            while (prepared.step()) {
-              rows.push(prepared.get({}));
+            try {
+              while (prepared.step()) {
+                rows.push(prepared.get({}));
+              }
+            } finally {
+              prepared.reset();
             }
-            prepared.reset();
 
             return {
               rows: rows as ReadonlyArray<SqliteRow>,

@@ -56,7 +56,7 @@ const browserWsEnabled = envValue === "1";
 const wsTest = isServer || browserWsEnabled ? test : test.skip;
 
 test("testCreateWebSocket mirrors production ready states", async () => {
-  const result = testCreateWebSocket({ isOpen: false })()();
+  const result = await testCreateWebSocket({ isOpen: false })()();
   assert(result.ok);
 
   const ws = result.value;

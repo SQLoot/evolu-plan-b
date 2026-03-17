@@ -368,7 +368,12 @@ export const createSync =
           /* v8 ignore start */
           // Defensive cleanup for a resolved socket after disposal.
           if (resourceDisposed || isDisposed) {
-            void disposeSocket(socket);
+            void disposeSocket(socket).catch((error) => {
+              deps.console.warn("[sync]", "disposeSocketFailed", {
+                transportKey,
+                error,
+              });
+            });
           }
           /* v8 ignore stop */
         },
