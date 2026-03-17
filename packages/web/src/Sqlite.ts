@@ -110,6 +110,7 @@ export const createWasmSqliteDriver: CreateSqliteDriver =
           const prepared = cache.get(query);
 
           if (prepared) {
+            prepared.clearBindings();
             if (query.parameters.length > 0) prepared.bind(query.parameters);
 
             const rows = [];

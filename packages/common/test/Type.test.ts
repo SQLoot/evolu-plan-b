@@ -936,8 +936,8 @@ test("id", () => {
   expectTypeOf(UserId.Parent).toEqualTypeOf<string>();
   expectTypeOf(UserId.ParentError).toEqualTypeOf<StringError>();
 
-  const OrderId = id("Order");
-  type OrderId = typeof OrderId.Type;
+  const _OrderId = id("Order");
+  type OrderId = typeof _OrderId.Type;
   expectTypeOf<UserId>().not.toEqualTypeOf<OrderId>();
 });
 

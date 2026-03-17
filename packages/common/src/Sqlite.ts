@@ -497,12 +497,17 @@ export const getSqliteSchema =
   (deps: SqliteDep) =>
   ({
     excludeIndexNamePrefix,
+    excludeSqliteInternalIndexes = true,
   }: {
     /**
      * If provided, indexes with names starting with this prefix are excluded in
      * SQLite query.
      */
     excludeIndexNamePrefix?: string;
+    /**
+     * Excludes SQLite internal indexes like sqlite_autoindex_* by default.
+     */
+    excludeSqliteInternalIndexes?: boolean;
   } = {}): SqliteSchema => {
     const tables = createRecord<string, Set<string>>();
 
@@ -531,30 +536,34 @@ export const getSqliteSchema =
             .replaceAll("'", "''")}%' ESCAPE '\\'`
         : "";
 
-    const indexesRows = deps.sqlite.exec<{ name: string; sql: string }>(
+    const indexesRows = deps.sqlite.exec<{ name: string; sql: string | null }>(
       sql`
         select name, sql
         from sqlite_master
         where
           type = 'index'
-          and name not like 'sqlite_%'
+          ${sql.raw(
+            excludeSqliteInternalIndexes ? "and name not like 'sqlite_%'" : "",
+          )}
           ${sql.raw(indexNamePrefixFilter)};
       `,
     );
 
-    const indexes = indexesRows.rows.map(
-      (row): SqliteIndex => ({
-        name: row.name,
-        /**
-         * SQLite returns "CREATE INDEX" for "create index" for some reason.
-         * Other keywords remain unchanged. We have to normalize the casing for
-         * schema comparison manually.
-         */
-        sql: row.sql
-          .replace("CREATE INDEX", "create index")
-          .replace("CREATE UNIQUE INDEX", "create unique index"),
-      }),
-    );
+    const indexes = indexesRows.rows
+      .filter((row): row is { name: string; sql: string } => row.sql != null)
+      .map(
+        (row): SqliteIndex => ({
+          name: row.name,
+          /**
+           * SQLite returns "CREATE INDEX" for "create index" for some reason.
+           * Other keywords remain unchanged. We have to normalize the casing for
+           * schema comparison manually.
+           */
+          sql: row.sql
+            .replace("CREATE INDEX", "create index")
+            .replace("CREATE UNIQUE INDEX", "create unique index"),
+        }),
+      );
 
     return { tables, indexes };
   };
@@ -577,8 +586,20 @@ export interface SqliteSnapshot {
  * The snapshot includes current {@link SqliteSchema} and all rows from every
  * discovered table. Table order follows `schema.tables` iteration order.
  */
-export const getSqliteSnapshot = (deps: SqliteDep): SqliteSnapshot => {
-  const schema = getSqliteSchema(deps)();
+export const getSqliteSnapshot = (
+  deps: SqliteDep,
+  {
+    excludeIndexNamePrefix,
+    excludeSqliteInternalIndexes = false,
+  }: {
+    excludeIndexNamePrefix?: string;
+    excludeSqliteInternalIndexes?: boolean;
+  } = {},
+): SqliteSnapshot => {
+  const schema = getSqliteSchema(deps)({
+    ...(excludeIndexNamePrefix === undefined ? {} : { excludeIndexNamePrefix }),
+    excludeSqliteInternalIndexes,
+  });
 
   const tables: SqliteSnapshot["tables"] = [];
 

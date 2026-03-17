@@ -211,23 +211,26 @@ export const createSync =
 
     const disposeSocket = async (webSocket: unknown): Promise<void> => {
       if (!webSocket) return;
-      if (
-        typeof webSocket === "object" &&
-        webSocket !== null &&
-        Symbol.asyncDispose in webSocket
-      ) {
-        await (
+      if (typeof webSocket !== "object") return;
+      if (Symbol.asyncDispose in webSocket) {
+        const asyncDispose = (
           webSocket as {
-            [Symbol.asyncDispose]: () => Promise<void>;
+            [Symbol.asyncDispose]?: () => Promise<void>;
           }
-        )[Symbol.asyncDispose]();
-        return;
-      }
-      (
-        webSocket as {
-          [Symbol.dispose]: () => void;
+        )[Symbol.asyncDispose];
+        if (typeof asyncDispose === "function") {
+          await asyncDispose.call(webSocket);
+          return;
         }
-      )[Symbol.dispose]();
+      }
+      if (Symbol.dispose in webSocket) {
+        const dispose = (
+          webSocket as {
+            [Symbol.dispose]?: () => void;
+          }
+        )[Symbol.dispose];
+        if (typeof dispose === "function") dispose.call(webSocket);
+      }
     };
 
     const createResource = (transport: OwnerTransport): WebSocket => {
