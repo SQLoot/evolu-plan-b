@@ -158,9 +158,9 @@ export const initEvoluWorker =
       if (entry) postTabOutput({ type: "ConsoleEntry", entry });
     });
 
-    run.defer(() => {
+    const lifetime = run.create();
+    lifetime.onAbort(() => {
       unsubscribe();
-      return ok();
     });
 
     return ok();

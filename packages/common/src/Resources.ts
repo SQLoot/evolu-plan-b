@@ -19,6 +19,19 @@ import {
 } from "./Time.js";
 import { PositiveInt, type Typed } from "./Type.js";
 
+type AsyncOrSyncDisposable = Disposable | AsyncDisposable;
+
+const disposeResource = async (
+  resource: AsyncOrSyncDisposable,
+): Promise<void> => {
+  if (Symbol.asyncDispose in resource) {
+    await resource[Symbol.asyncDispose]();
+    return;
+  }
+
+  resource[Symbol.dispose]();
+};
+
 /**
  * Async reference-counted resource management.
  *
@@ -26,7 +39,7 @@ import { PositiveInt, type Typed } from "./Type.js";
  * while at least one consumer is attached.
  */
 export interface Resources<
-  TResource extends Disposable,
+  TResource extends AsyncOrSyncDisposable,
   TResourceId extends string,
   TResourceConfig,
   TConsumer,
@@ -59,7 +72,7 @@ export interface Resources<
 
 /** Configuration for async {@link Resources}. */
 export interface AsyncResourcesConfig<
-  TResource extends Disposable,
+  TResource extends AsyncOrSyncDisposable,
   TResourceId extends string,
   TResourceConfig,
   TConsumer,
@@ -166,7 +179,7 @@ export interface LegacyResourcesConfig<
 }
 
 const createAsyncResources = <
-  TResource extends Disposable,
+  TResource extends AsyncOrSyncDisposable,
   TResourceId extends string,
   TResourceConfig,
   TConsumer,
@@ -220,7 +233,7 @@ const createAsyncResources = <
         await using run = createRun();
         const result = await run(
           unabortable(
-            mutexByResourceId.withLock(resourceId, () => {
+            mutexByResourceId.withLock(resourceId, async () => {
               disposalTimeoutByResourceId.delete(resourceId);
 
               if (consumerIdsByResourceId.hasA(resourceId)) return ok();
@@ -230,7 +243,7 @@ const createAsyncResources = <
               if (!resource) return ok();
 
               resourcesById.delete(resourceId);
-              resource[Symbol.dispose]();
+              await disposeResource(resource);
               return ok();
             }),
           ),
@@ -403,7 +416,7 @@ const createAsyncResources = <
         }
 
         for (const resource of resourcesById.values()) {
-          resource[Symbol.dispose]();
+          await disposeResource(resource);
         }
         resourcesById.clear();
         consumerRefCountsByResourceId.clear();
@@ -767,7 +780,7 @@ export function createResources<
   TConsumerId
 >;
 export function createResources<
-  TResource extends Disposable,
+  TResource extends AsyncOrSyncDisposable,
   TResourceId extends string,
   TResourceConfig,
   TConsumer,
@@ -781,41 +794,27 @@ export function createResources<
     TConsumerId
   >,
 ): Resources<TResource, TResourceId, TResourceConfig, TConsumer, TConsumerId>;
-export function createResources<
-  TResource extends Disposable,
-  TResourceId extends string,
-  TResourceConfig,
-  TConsumer,
-  TConsumerId extends string,
->(
+export function createResources(
   configOrDeps:
     | TimeDep
     | AsyncResourcesConfig<
-        TResource,
-        TResourceId,
-        TResourceConfig,
-        TConsumer,
-        TConsumerId
+        AsyncOrSyncDisposable,
+        string,
+        unknown,
+        unknown,
+        string
       >,
-):
-  | Resources<TResource, TResourceId, TResourceConfig, TConsumer, TConsumerId>
-  | ((
-      config: LegacyResourcesConfig<
-        TResource,
-        TResourceId,
-        TResourceConfig,
-        TConsumer,
-        TConsumerId
-      >,
-    ) => LegacyResources<
-      TResource,
-      TResourceId,
-      TResourceConfig,
-      TConsumer,
-      TConsumerId
-    >) {
+): unknown {
   if (isTimeDep(configOrDeps)) {
-    return (config) => createLegacyResources(configOrDeps, config);
+    return (
+      config: LegacyResourcesConfig<
+        Disposable,
+        string,
+        unknown,
+        unknown,
+        string
+      >,
+    ) => createLegacyResources(configOrDeps, config);
   }
 
   return createAsyncResources(configOrDeps);

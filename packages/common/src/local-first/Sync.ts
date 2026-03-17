@@ -209,6 +209,30 @@ export const createSync =
       getSyncOwner,
     })(config);
 
+    const disposeSocket = async (webSocket: unknown): Promise<void> => {
+      if (!webSocket) return;
+      if (typeof webSocket !== "object") return;
+      if (Symbol.asyncDispose in webSocket) {
+        const asyncDispose = (
+          webSocket as {
+            [Symbol.asyncDispose]?: () => Promise<void>;
+          }
+        )[Symbol.asyncDispose];
+        if (typeof asyncDispose === "function") {
+          await asyncDispose.call(webSocket);
+          return;
+        }
+      }
+      if (Symbol.dispose in webSocket) {
+        const dispose = (
+          webSocket as {
+            [Symbol.dispose]?: () => void;
+          }
+        )[Symbol.dispose];
+        if (typeof dispose === "function") dispose.call(webSocket);
+      }
+    };
+
     const createResource = (transport: OwnerTransport): WebSocket => {
       const transportKey = createTransportKey(transport);
 
@@ -256,13 +280,21 @@ export const createSync =
 
         isOpen: () => !resourceDisposed && (socket?.isOpen() ?? false),
 
-        [Symbol.dispose]: () => {
+        [Symbol.asyncDispose]: async () => {
           if (resourceDisposed) return;
           resourceDisposed = true;
           pendingSends.length = 0;
           webSocketsByTransportKey.delete(transportKey);
-          socket?.[Symbol.dispose]();
-          void run[Symbol.asyncDispose]();
+          try {
+            await disposeSocket(socket);
+          } catch (error) {
+            deps.console.warn("[sync]", "disposeSocketFailed", {
+              transportKey,
+              error,
+            });
+          } finally {
+            await run[Symbol.asyncDispose]();
+          }
         },
       };
 
@@ -336,7 +368,12 @@ export const createSync =
           /* v8 ignore start */
           // Defensive cleanup for a resolved socket after disposal.
           if (resourceDisposed || isDisposed) {
-            socket[Symbol.dispose]();
+            void disposeSocket(socket).catch((error) => {
+              deps.console.warn("[sync]", "disposeSocketFailed", {
+                transportKey,
+                error,
+              });
+            });
           }
           /* v8 ignore stop */
         },

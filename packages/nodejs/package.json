@@ -28,14 +28,14 @@
     "clean": "bun ../../scripts/rm.mts .turbo node_modules dist coverage"
   },
   "dependencies": {
-    "better-sqlite3": "^12.6.2",
+    "better-sqlite3": "^12.8.0",
     "ws": "^8.19.0"
   },
   "devDependencies": {
     "@evolu/common": "workspace:*",
     "@evolu/tsconfig": "workspace:*",
     "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^25.3.3",
+    "@types/node": "^25.5.0",
     "@types/ws": "^8.18.1",
     "typescript": "^5.9.3"
   },

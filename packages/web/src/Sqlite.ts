@@ -63,77 +63,91 @@ export const createWasmSqliteDriver: CreateSqliteDriver =
     // @ts-expect-error Missing types (update @evolu/sqlite-wasm types)
     sqlite3.capi.sqlite3mc_vfs_create("opfs", 1);
 
-    let db: Database;
-    switch (options?.mode) {
-      case "memory":
-        db = new sqlite3.oo1.DB(":memory:");
-        break;
-      case "encrypted": {
-        const pool = await sqlite3.installOpfsSAHPoolVfs({
-          directory: `.${name}`,
-        });
-        db = new pool.OpfsSAHPoolDb(
-          "file:evolu1.db?vfs=multipleciphers-opfs-sahpool",
-        );
+    const stack = new globalThis.DisposableStack();
+    try {
+      let db: Database;
+      switch (options?.mode) {
+        case "memory":
+          db = new sqlite3.oo1.DB(":memory:");
+          break;
+        case "encrypted": {
+          const pool = await sqlite3.installOpfsSAHPoolVfs({
+            directory: `.${name}`,
+          });
+          db = new pool.OpfsSAHPoolDb(
+            "file:evolu1.db?vfs=multipleciphers-opfs-sahpool",
+          );
+          break;
+        }
+        default: {
+          const pool = await sqlite3.installOpfsSAHPoolVfs({ name });
+          db = new pool.OpfsSAHPoolDb("file:evolu1.db");
+        }
+      }
+
+      db = stack.adopt(db, (db) => {
+        db.close();
+      });
+
+      if (options?.mode === "encrypted") {
         db.exec(`
           PRAGMA cipher = 'sqlcipher';
           PRAGMA key = "x'${bytesToHex(options.encryptionKey)}'";
         `);
-        break;
       }
-      default: {
-        const pool = await sqlite3.installOpfsSAHPoolVfs({ name });
-        db = new pool.OpfsSAHPoolDb("file:evolu1.db");
-      }
-    }
 
-    let isDisposed = false;
+      const cache = stack.use(
+        createPreparedStatementsCache<PreparedStatement>(
+          (sql) => db.prepare(sql),
+          (statement) => {
+            statement.finalize();
+          },
+        ),
+      );
 
-    const cache = createPreparedStatementsCache<PreparedStatement>(
-      (sql) => db.prepare(sql),
-      (statement) => {
-        statement.finalize();
-      },
-    );
+      return ok({
+        exec: (query) => {
+          const prepared = cache.get(query);
 
-    return ok({
-      exec: (query) => {
-        const prepared = cache.get(query);
+          if (prepared) {
+            prepared.clearBindings();
+            if (query.parameters.length > 0) prepared.bind(query.parameters);
 
-        if (prepared) {
-          if (query.parameters.length > 0) prepared.bind(query.parameters);
+            const rows = [];
+            try {
+              while (prepared.step()) {
+                rows.push(prepared.get({}));
+              }
+            } finally {
+              prepared.reset();
+            }
 
-          const rows = [];
-          while (prepared.step()) {
-            rows.push(prepared.get({}));
+            return {
+              rows: rows as ReadonlyArray<SqliteRow>,
+              changes: db.changes(),
+            };
           }
-          prepared.reset();
 
-          return {
-            rows: rows as ReadonlyArray<SqliteRow>,
-            changes: db.changes(),
-          };
-        }
+          const rows = db.exec(query.sql, {
+            returnValue: "resultRows",
+            rowMode: "object",
+            bind: query.parameters,
+          }) as ReadonlyArray<SqliteRow>;
 
-        const rows = db.exec(query.sql, {
-          returnValue: "resultRows",
-          rowMode: "object",
-          bind: query.parameters,
-        }) as ReadonlyArray<SqliteRow>;
+          const changes = db.changes();
 
-        const changes = db.changes();
+          return { rows, changes };
+        },
 
-        return { rows, changes };
-      },
+        export: () => sqlite3.capi.sqlite3_js_db_export(db),
 
-      export: () => sqlite3.capi.sqlite3_js_db_export(db),
-
-      [Symbol.dispose]: () => {
-        if (isDisposed) return;
-        isDisposed = true;
-        // poolUtil.unlink?
-        cache[Symbol.dispose]();
-        db.close();
-      },
-    });
+        [Symbol.dispose]: () => {
+          // poolUtil.unlink?
+          stack.dispose();
+        },
+      });
+    } catch (error) {
+      stack.dispose();
+      throw error;
+    }
   };

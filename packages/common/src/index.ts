@@ -17,7 +17,6 @@ export * from "./Eq.js";
 export * from "./Error.js";
 export * from "./Function.js";
 export * from "./Identicon.js";
-export * from "./Listeners.js";
 // Local-first essentials.
 export type { EvoluError } from "./local-first/Error.js";
 export type {
@@ -30,19 +29,17 @@ export type {
 export { AppName, createEvolu } from "./local-first/Evolu.js";
 export * from "./local-first/LocalAuth.js";
 export * from "./local-first/Owner.js";
-export type {
-  InferRow,
-  KyselyNotNull,
-  Query,
-  QueryRows,
-  Row,
-} from "./local-first/Query.js";
 export {
   evoluJsonArrayFrom,
   evoluJsonBuildObject,
   evoluJsonObjectFrom,
   getJsonObjectArgs,
+  type InferRow,
+  type KyselyNotNull,
   kyselySql,
+  type Query,
+  type QueryRows,
+  type Row,
 } from "./local-first/Query.js";
 export type {
   AnyStandardSchemaV1,
@@ -61,15 +58,8 @@ export type {
 } from "./local-first/Schema.js";
 export { createQueryBuilder } from "./local-first/Schema.js";
 export type {
-  NetworkError,
-  PaymentRequiredError,
-  ServerError,
   SyncOwner,
   SyncState,
-  SyncStateInitial,
-  SyncStateIsNotSynced,
-  SyncStateIsSynced,
-  SyncStateIsSyncing,
 } from "./local-first/Sync.js";
 export type {
   TimestampBytes,
@@ -95,12 +85,13 @@ export * from "./Redacted.js";
 export * from "./Ref.js";
 export * from "./RefCount.js";
 export * from "./Relation.js";
-export * from "./Resources.js";
+export * from "./Resource.js";
 export * from "./Result.js";
 export * from "./Set.js";
 export * from "./Sqlite.js";
 export * from "./Store.js";
 export * from "./String.js";
+export * from "./StructuralMap.js";
 export * from "./Task.js";
 export * from "./Test.js";
 export * from "./Time.js";

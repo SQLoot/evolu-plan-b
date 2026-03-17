@@ -34,7 +34,7 @@ const require = createRequire(import.meta.url);
 
 export const testTimingSafeEqual: TimingSafeEqual = timingSafeEqual;
 
-/** In-memory better-sqlite3 driver for tests. */
+/** In-memory sqlite driver for tests with Bun and Node fallbacks. */
 export const testCreateSqliteDriver: CreateSqliteDriver = (name) =>
   createBetterSqliteDriver(name, { mode: "memory" });
 
@@ -55,9 +55,7 @@ export const testCreateSqliteDeps: TestCreateSqliteDeps = Object.assign(
 
 export const testCreateRunWithSqlite = async (): Promise<
   Run<TestDeps & CreateSqliteDriverDep & SqliteDep>
-> => {
-  return createTestRunWithSqlite(testCreateSqliteDeps);
-};
+> => createTestRunWithSqlite(testCreateSqliteDeps);
 
 interface StatementLike {
   readonly reader?: boolean;

@@ -5,11 +5,11 @@
  */
 
 import {
-  type CreateRunner,
-  createRunner as createCommonRunner,
+  type CreateRun,
+  createRun as createCommonRun,
   createUnknownError,
-  type Runner,
-  type RunnerDeps,
+  type Run,
+  type RunDeps,
 } from "@evolu/common";
 
 /**
@@ -19,7 +19,7 @@ import {
  * `SIGHUP` (console close/terminal disconnect), or `SIGBREAK` (Windows
  * Ctrl-Break).
  *
- * @group Node.js Runner
+ * @group Node.js Run
  */
 export type Shutdown = Promise<void>;
 
@@ -28,42 +28,36 @@ export interface ShutdownDep {
 }
 
 /**
- * Creates {@link Runner} for Node.js with global error handling and graceful
+ * Creates {@link Run} for Node.js with global error handling and graceful
  * shutdown.
  *
  * Registers `uncaughtException` and `unhandledRejection` handlers that log
  * errors and initiate graceful shutdown. Adds a `shutdown` promise to deps that
  * resolves on termination signals (`SIGINT`, `SIGTERM`, `SIGHUP`). Handlers are
- * removed when the Runner is disposed.
+ * removed when the Run is disposed.
  *
  * ### Example
  *
  * ```ts
- * const console = createConsole({
- *   formatter: createConsoleFormatter()({
- *     timestampFormat: "relative",
- *   }),
- * });
- *
  * const deps = { ...createRelayDeps(), console };
  *
- * await using run = createRunner(deps);
- * await using stack = run.stack();
+ * await using run = createRun(deps);
+ * await using stack = new AsyncDisposableStack();
  *
- * await stack.use(startRelay({ port: 4000 }));
+ * stack.use(await run.orThrow(startRelay({ port: 4000 })));
  *
  * await run.deps.shutdown;
  * ```
  *
- * @group Node.js Runner
+ * @group Node.js Run
  */
-export const createRunner: CreateRunner<RunnerDeps & ShutdownDep> = <D>(
+export const createRun: CreateRun<RunDeps & ShutdownDep> = <D>(
   deps?: D,
-): Runner<RunnerDeps & ShutdownDep & D> => {
+): Run<RunDeps & ShutdownDep & D> => {
   const { promise: shutdown, resolve: resolveShutdown } =
     Promise.withResolvers<void>();
 
-  const run = createCommonRunner({ ...deps, shutdown } as D & ShutdownDep);
+  const run = createCommonRun({ ...deps, shutdown } as D & ShutdownDep);
 
   const console = run.deps.console.child("global");
 
@@ -99,7 +93,6 @@ export const createRunner: CreateRunner<RunnerDeps & ShutdownDep> = <D>(
 };
 
 /**
- * @deprecated Use {@link createRunner}. Kept for `upstream/common-v8`
- * compatibility.
+ * @deprecated Use {@link createRun}. Kept for fork compatibility.
  */
-export const createRun: typeof createRunner = createRunner;
+export const createRunner: typeof createRun = createRun;

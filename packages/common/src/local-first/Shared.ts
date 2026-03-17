@@ -15,7 +15,6 @@ import { assert } from "../Assert.js";
 import { createCallbacks } from "../Callbacks.js";
 import type { ConsoleEntry, ConsoleLevel } from "../Console.js";
 import { exhaustiveCheck } from "../Function.js";
-import { createResources, type Resources } from "../Resources.js";
 import { ok } from "../Result.js";
 import { spaced } from "../Schedule.js";
 import type { NonEmptyReadonlySet } from "../Set.js";
@@ -23,7 +22,7 @@ import { createMutexByKey, type Fiber, repeat, type Task } from "../Task.js";
 import type { TimeDep, TimeoutId } from "../Time.js";
 import { createId, type Id, type Name } from "../Type.js";
 import type { Callback, ExtractType } from "../Types.js";
-import type { CreateWebSocketDep, WebSocket } from "../WebSocket.js";
+import type { CreateWebSocketDep } from "../WebSocket.js";
 import type {
   SharedWorker as CommonSharedWorker,
   MessagePort,
@@ -32,7 +31,7 @@ import type {
   WorkerDeps,
 } from "../Worker.js";
 import type { EvoluError } from "./Error.js";
-import type { OwnerId, OwnerTransport } from "./Owner.js";
+import type { OwnerId } from "./Owner.js";
 import {
   makePatches,
   type Patch,
@@ -47,10 +46,6 @@ export type SharedWorker = CommonSharedWorker<SharedWorkerInput>;
 
 export interface SharedWorkerDep {
   readonly sharedWorker: SharedWorker;
-}
-
-interface TransportsDep {
-  readonly transports: SharedTransportResources;
 }
 
 export type SharedWorkerDeps = WorkerDeps & CreateWebSocketDep & TimeDep;
@@ -116,8 +111,7 @@ export const initSharedWorker =
     self: SharedWorkerSelf<SharedWorkerInput>,
   ): Task<AsyncDisposableStack, never, SharedWorkerDeps> =>
   async (run) => {
-    const { createMessagePort, consoleStoreOutputEntry, createWebSocket } =
-      run.deps;
+    const { createMessagePort, consoleStoreOutputEntry } = run.deps;
     const console = run.deps.console.child("SharedWorker");
 
     // TODO: Use heartbeat to detect and prune dead ports.
@@ -129,34 +123,8 @@ export const initSharedWorker =
       else for (const port of tabPorts) port.postMessage(output);
     };
 
-    const createTransportId = (transport: OwnerTransport): string =>
-      `${transport.type}:${transport.url}`;
+    await using stack = new AsyncDisposableStack();
 
-    await using stack = run.stack();
-
-    const transports = stack.use(
-      createResources<WebSocket, string, OwnerTransport, SyncOwner, OwnerId>({
-        createResource: async (transport) => {
-          const transportId = createTransportId(transport);
-          console.info("createTransportResource", { transportId });
-          return await run.daemon.orThrow(
-            createWebSocket(transport.url, {
-              binaryType: "arraybuffer",
-              onOpen: () => {
-                console.debug("transportOpen", { transportId });
-              },
-              onClose: () => {
-                console.debug("transportClose", { transportId });
-              },
-            }),
-          );
-        },
-        getResourceId: createTransportId,
-        getConsumerId: (owner) => owner.id,
-      }),
-    );
-
-    const runWithSharedEvoluDeps = run.addDeps({ transports });
     const sharedEvolusByName = new Map<Name, SharedEvolu>();
     const sharedEvolusMutexByName = stack.use(createMutexByKey<Name>());
 
@@ -180,20 +148,17 @@ export const initSharedWorker =
           }
 
           case "CreateEvolu": {
-            void runWithSharedEvoluDeps.daemon(
+            void run.daemon(
               sharedEvolusMutexByName.withLock(message.name, async () => {
                 let sharedEvolu = sharedEvolusByName.get(message.name);
 
                 if (sharedEvolu == null) {
-                  const result = await runWithSharedEvoluDeps.daemon(
+                  const result = await run.daemon(
                     createSharedEvolu({
                       name: message.name,
-                      ...(message.appOwner
-                        ? { appOwner: message.appOwner }
-                        : {}),
                       postTabOutput,
                       onDispose: () => {
-                        void runWithSharedEvoluDeps.daemon(
+                        void run.daemon(
                           sharedEvolusMutexByName.withLock(
                             message.name,
                             async () => {
@@ -304,29 +269,19 @@ export interface QueuedResult {
   readonly response: QueuedResponse;
 }
 
-type SharedTransportResources = Resources<
-  WebSocket,
-  string,
-  OwnerTransport,
-  SyncOwner,
-  OwnerId
->;
-
 const createSharedEvolu =
   ({
     name,
-    appOwner,
     postTabOutput,
     onDispose,
   }: {
     name: Name;
-    appOwner?: SyncOwner;
     postTabOutput: Callback<EvoluTabOutput>;
     onDispose: () => void;
-  }): Task<SharedEvolu, never, SharedWorkerDeps & TransportsDep> =>
-  async (run) => {
+  }): Task<SharedEvolu, never, SharedWorkerDeps> =>
+  (run) => {
     const console = run.deps.console.child(name).child("SharedWorker");
-    const { createMessagePort, transports } = run.deps;
+    const { createMessagePort } = run.deps;
 
     const evoluPorts = new Map<Id, MessagePort<EvoluOutput, EvoluInput>>();
     const dbWorkerPorts = new Set<MessagePort<DbWorkerInput, DbWorkerOutput>>();
@@ -342,12 +297,6 @@ const createSharedEvolu =
     let queueProcessingFiber: Fiber<void, never, WorkerDeps> | null = null;
     let activeQueueCallbackId: Id | null = null;
     let activeLeaderTimeout: TimeoutId | null = null;
-
-    const ownerTransports = appOwner?.transports ?? emptyArray;
-
-    if (appOwner) {
-      await run(transports.addConsumer(appOwner, ownerTransports));
-    }
 
     const clearActiveLeaderTimeout = (): void => {
       if (!activeLeaderTimeout) return;
@@ -590,11 +539,8 @@ const createSharedEvolu =
     return ok({
       addPorts,
 
+      // eslint-disable-next-line @typescript-eslint/require-await
       [Symbol.asyncDispose]: async () => {
-        if (appOwner) {
-          await run(transports.removeConsumer(appOwner, ownerTransports));
-        }
-
         clearActiveLeaderTimeout();
         queueProcessingFiber?.abort();
         queueProcessingFiber = null;

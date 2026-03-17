@@ -5,7 +5,7 @@
  */
 
 import {
-  type CreateRunner,
+  type CreateRun,
   createRun as createCommonRun,
   createInMemoryLeaderLock,
   createUnknownError,
@@ -13,6 +13,7 @@ import {
   ok,
   type Run,
   type RunDeps,
+  unabortable,
 } from "@evolu/common";
 
 const inMemoryLeaderLock = createInMemoryLeaderLock();
@@ -30,30 +31,35 @@ const createLeaseRelease = () => {
   };
 };
 
-/** Creates a {@link LeaderLock} backed by the Web Locks API. */
+/**
+ * Creates a {@link LeaderLock} backed by the Web Locks API.
+ *
+ * Waiting for the web platform lock is intentionally unabortable. If a caller starts
+ * waiting and its {@link Run} or fiber is later aborted, the underlying Web
+ * Locks request keeps waiting until the browser grants the lock. Only the
+ * returned lease releases it.
+ */
 export const createLeaderLock = (): LeaderLock => ({
-  acquire: (name) => async (run) => {
+  lock: (name) => async (run) => {
     const locks = globalThis.navigator?.locks;
-    if (!locks) return run(inMemoryLeaderLock.acquire(name));
+    if (!locks) return run(unabortable(inMemoryLeaderLock.lock(name)));
 
     const acquired = Promise.withResolvers<void>();
     const requestFailed = Promise.withResolvers<void>();
     const release = createLeaseRelease();
 
-    run.onAbort(release.resolve);
-
     let request: Promise<unknown>;
     try {
       request = locks.request(
         `evolu-leaderlock-${name}`,
-        { mode: "exclusive", signal: run.signal },
+        { mode: "exclusive" },
         async () => {
           acquired.resolve();
           await release.promise;
         },
       );
     } catch {
-      return run(inMemoryLeaderLock.acquire(name));
+      return run(unabortable(inMemoryLeaderLock.lock(name)));
     }
 
     void request.catch(() => {
@@ -67,11 +73,14 @@ export const createLeaderLock = (): LeaderLock => ({
 
     if (state === "failed") {
       release.resolve();
-      return run(inMemoryLeaderLock.acquire(name));
+      return run(unabortable(inMemoryLeaderLock.lock(name)));
     }
 
     return ok({
-      [Symbol.dispose]: release.resolve,
+      [Symbol.asyncDispose]: async () => {
+        release.resolve();
+        return Promise.resolve();
+      },
     });
   },
 });
@@ -80,7 +89,7 @@ export const createLeaderLock = (): LeaderLock => ({
  * Creates {@link Run} for the web platform with global error handling.
  *
  * Registers `error` and `unhandledrejection` handlers that log errors to the
- * console. Handlers are removed when the run is disposed.
+ * console. Handlers are removed when the Run is disposed.
  *
  * ### Example
  *
@@ -92,14 +101,12 @@ export const createLeaderLock = (): LeaderLock => ({
  * });
  *
  * await using run = createRun({ console });
- * await using stack = run.stack();
+ * await using stack = new AsyncDisposableStack();
  *
- * await stack.use(startApp());
+ * stack.use(await run.orThrow(startApp()));
  * ```
- *
- * @group Web Platform Runner
  */
-export const createRun: CreateRunner<RunDeps> = <D>(
+export const createRun: CreateRun<RunDeps> = <D>(
   deps?: D,
 ): Run<RunDeps & D> => {
   const run = createCommonRun(deps);
@@ -125,6 +132,6 @@ export const createRun: CreateRunner<RunDeps> = <D>(
 };
 
 /**
- * @deprecated Use {@link createRun}.
+ * @deprecated Use {@link createRun}. Kept for fork compatibility.
  */
-export const createRunner = createRun;
+export const createRunner: typeof createRun = createRun;

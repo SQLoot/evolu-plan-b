@@ -128,14 +128,14 @@ jobs:
       - name: Relay smoke tests (Bun runtime)
         if: matrix.runtime == 'bun'
         run: >
-          bunx vitest run --project unit
+          bunx vitest run --project "@evolu/common (nodejs)"
           packages/common/test/WebSocket.test.ts
           packages/common/test/local-first/Relay.test.ts
 
       - name: Relay smoke tests (Node runtime)
         if: matrix.runtime == 'node'
         run: >
-          node ./node_modules/vitest/vitest.mjs run --project unit
+          node ./node_modules/vitest/vitest.mjs run --project "@evolu/common (nodejs)"
           packages/common/test/WebSocket.test.ts
           packages/common/test/local-first/Relay.test.ts
 

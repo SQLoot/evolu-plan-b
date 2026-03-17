@@ -11,6 +11,7 @@ import {
   mapArray,
   type NonEmptyReadonlyArray,
 } from "./Array.js";
+import type { assertNotAborted } from "./Assert.js";
 import { assert } from "./Assert.js";
 import { type Console, type ConsoleDep, createConsole } from "./Console.js";
 import type { RandomBytes, RandomBytesDep } from "./Crypto.js";
@@ -32,6 +33,7 @@ import type { Done, NextResult, Ok, Result } from "./Result.js";
 import { err, getOrThrow, ok, tryAsync } from "./Result.js";
 import type { Schedule, ScheduleStep } from "./Schedule.js";
 import { addToSet, deleteFromSet, emptySet } from "./Set.js";
+import { createStructuralMap, type StructuralKey } from "./StructuralMap.js";
 import type { testCreateRun } from "./Test.js";
 import type { Duration, Time, TimeDep } from "./Time.js";
 import { createTime, durationToMillis, Millis } from "./Time.js";
@@ -56,7 +58,7 @@ import {
 import type {
   Awaitable,
   Callback,
-  CallbackWithCleanup,
+  CallbackWithTeardown,
   Int1To100,
   isPromiseLike,
   Mutable,
@@ -73,7 +75,7 @@ import type {
  * forget" bugs.
  *
  * - **Automatic cancellation** — abort propagates to all descendants
- * - **Guaranteed cleanup** — resources always released
+ * - **Guaranteed cleanup** — resources always cleaned up
  * - **Observable state** — inspect what’s running and why
  *
  * Evolu implements structured concurrency with these types:
@@ -83,8 +85,6 @@ import type {
  * - **{@link Run}** — a callable object that runs Tasks, manages their lifecycle,
  *   provides dependencies, and creates Fibers
  * - **{@link Fiber}** — awaitable, abortable/disposable handle to a running Task
- * - **{@link AsyncDisposableStack}** — Task-aware resource management that
- *   completes even when aborted
  *
  * Evolu's structured concurrency core is minimal — one function with a several
  * flags and helper methods using native APIs.
@@ -180,9 +180,9 @@ import type {
  * concurrency, racing, retries, timeouts, and collection processing. It
  * intentionally does not provide generic chain, flatMap, or pipe-style helpers
  * for ordinary sequential Task composition, because that would duplicate plain
- * control flow and create API ambiguity. While this can look verbose, it is
- * explicit, transparent, debuggable, and avoids pipes and nested helper
- * chains.
+ * control flow and create API ambiguity. While it may seem verbose, it is
+ * explicit, transparent, and avoids pipes and nested helpers, which are harder
+ * to debug.
  *
  * ### Building a better fetch
  *
@@ -319,20 +319,25 @@ import type {
  * Evolu uses standard JavaScript
  * {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Resource_management | resource management}.
  *
- * For Task-based disposal, Evolu provides {@link AsyncDisposableStack} — a
- * wrapper around the native
+ * Use the
  * {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/AsyncDisposableStack | AsyncDisposableStack}
- * where methods accept {@link Task} for acquisition. All operations run
- * {@link unabortable}, ensuring resources are acquired and released even when
- * abort is requested.
+ * for async resource ownership.
  *
  * ### Example
  *
  * ```ts
- * await using stack = run.stack();
- * stack.defer(task);
- * const conn = await stack.use(openConnection);
- * const session = await stack.adopt(login, logout);
+ * await using stack = new AsyncDisposableStack();
+ *
+ * const fooResult = await run(createFoo());
+ * if (!fooResult.ok) return fooResult;
+ * const foo = stack.use(fooResult.value);
+ *
+ * stack.defer(async () => {
+ *   await run.asUnabortableDaemon(closeConnection);
+ * });
+ * stack.adopt(session, async (session) => {
+ *   await run.asUnabortableDaemon(logout(session));
+ * });
  * ```
  *
  * ## Awaitable
@@ -358,8 +363,8 @@ import type {
  * {@link isPromiseLike} detection and two-phase disposal (sync first, async if
  * needed, and a flag for callers) — Evolu prefers plain functions for sync code
  * because most operations involve I/O, which is inherently async, and when we
- * need sync, it's for simplicity (no dependencies) and performance (zero
- * abstraction).
+ * need sync, it's for simplicity (ideally no dependencies) and performance
+ * (zero abstraction overhead).
  *
  * Sync functions should be fast, so there's no need to monitor them. They
  * should take values, not dependencies — following the
@@ -375,7 +380,41 @@ import type {
  * code inside the worker needs no monitoring; the async call to the worker
  * provides it.
  *
+ * ## Glossary
+ *
+ * - **Cleanup** — generic umbrella term when the exact lifecycle operation is not
+ *   important.
+ * - **Dispose / disposal** — owner-driven cleanup via JavaScript resource
+ *   management (`Symbol.dispose`, `Symbol.asyncDispose`, `using`,
+ *   `AsyncDisposableStack`).
+ * - **Create** — construct a new value or a resource.
+ * - **Acquire** — obtain a usable resource. Acquisition may create a new
+ *   resource, borrow one, open one, or take a lease/lock.
+ * - **Release** — relinquish a previously acquired resource or lease. Release
+ *   pairs with acquire and need not mean disposal; examples include unlock,
+ *   logout, or returning a pooled resource.
+ *
  * ## FAQ
+ *
+ * ### Why can `Task<T, never, D>` still return `AbortError`?
+ *
+ * The `E` type parameter represents domain errors, not abort control flow.
+ *
+ * `AbortError` comes from the {@link Run} runtime. A Task can still return it:
+ *
+ * - Before execution, when the parent or root {@link Run} is already stopped
+ * - During execution, when an abortable Task is aborted
+ * - At settlement, when abort was requested before the Task result was observed
+ *
+ * So `Task<T, never, D>` means "no domain errors", not "cannot fail at all".
+ *
+ * This also applies to {@link unabortable}. `unabortable(task)` only prevents
+ * abort from interrupting the Task after it has started running. It cannot
+ * force execution to start on a parent or root {@link Run} that is already
+ * disposing or settled, so it can still return {@link AbortError} before
+ * execution begins. If that abort would indicate a lifecycle bug in your code,
+ * use {@link assertNotAborted} to crash immediately instead of threading the
+ * impossible case through domain logic.
  *
  * ### Where is fork and join?
  *
@@ -452,13 +491,20 @@ export type InferTaskDone<T extends AnyTask> =
  * Error returned when a {@link Task} is aborted via
  * {@link https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal | AbortSignal}.
  *
+ * This is structured-concurrency control flow, not a domain error. It plays a
+ * role similar to an interrupt: in most code, propagate it unchanged or ignore
+ * it when cleanup is already handled by the runtime.
+ *
  * The `reason` field is `unknown` by design — use typed errors for business
  * logic. If you need to inspect the reason, use type guards like
  * `RaceLostError.is(reason)`.
  *
- * In most code, treat `AbortError` as control flow rather than business logic.
- * Propagate it unchanged and handle domain errors separately. Inspect
- * `AbortError.reason` only when you need reason-specific behavior.
+ * When a piece of logic must continue once started, wrap it with
+ * {@link unabortable}. That prevents ordinary mid-flight interruption, but it
+ * does not erase {@link AbortError} from the type because the Task can still be
+ * rejected before it starts, for example on an already-stopped {@link Run}. In
+ * those cases, abort usually indicates a lifecycle bug, so use
+ * `assertNotAborted` if you want to fail fast.
  *
  * @group Core Types
  */
@@ -507,7 +553,28 @@ export interface Run<D = unknown> extends AsyncDisposable {
   /** Runs a {@link Task} and returns a {@link Fiber} handle. */
   <T, E>(task: Task<T, E, D>): Fiber<T, E, D>;
 
-  /** Runs a {@link Task} and throws if the returned {@link Result} is an error. */
+  /**
+   * Runs a {@link Task} and throws if the returned {@link Result} is an error.
+   *
+   * Use this where failure should crash the current flow instead of being
+   * handled locally.
+   *
+   * This is the async equivalent of {@link getOrThrow}. It runs the Task, awaits
+   * its {@link Result}, and returns the value on success.
+   *
+   * **When to use:**
+   *
+   * - Application startup or composition-root setup where errors must stop the
+   *   program immediately
+   * - Module-level constants
+   * - Test setup with values that are expected to be valid
+   *
+   * Prefer `await run(task)` with an explicit `if (!result.ok)` check in
+   * ordinary application logic where the caller can recover, retry, or choose a
+   * different flow.
+   *
+   * Throws: `Error` with the original Task error attached as `cause`.
+   */
   readonly orThrow: <T, E>(task: Task<T, E, D>) => Promise<T>;
 
   /** Unique {@link Id} for this Run. */
@@ -529,8 +596,10 @@ export interface Run<D = unknown> extends AsyncDisposable {
    * If already aborted, the callback is invoked immediately. For
    * {@link unabortable} Tasks, the callback is never invoked.
    *
-   * Intentionally synchronous — abort is signal propagation, not cleanup. Use
-   * {@link Run.defer} for async cleanup that must run regardless of abort.
+   * Intentionally synchronous. Use for immediate abort-time teardown such as
+   * removing listeners or clearing timers. Use {@link Run.asUnabortableDaemon}
+   * when bridging async cleanup into `AsyncDisposableStack.defer` or
+   * `AsyncDisposableStack.adopt`.
    */
   readonly onAbort: (callback: Callback<unknown>) => void;
 
@@ -573,12 +642,18 @@ export interface Run<D = unknown> extends AsyncDisposable {
   onEvent: ((event: RunEvent) => void) | undefined;
 
   /**
-   * The root daemon {@link Run}.
+   * The root {@link Run} of this Task tree.
    *
-   * The daemon is the root Run of the Task tree. Tasks started with
-   * `run.daemon(task)` are attached to that root Run instead of the current
-   * Run, so they can outlive the current Task and keep running until the root
-   * Run is disposed.
+   * It is called `daemon` because that is how it should be used: for
+   * long-running work that must not be disposed when the current Task settles.
+   * Normal child Runs are disposed by their parent when they settle. The root
+   * Run has no parent, so work started with `run.daemon(task)` is attached to
+   * that root Run instead of the current Run and keeps running until the root
+   * Run is disposed manually.
+   *
+   * In application code, that usually means disposing the root Run on process
+   * shutdown in Node.js or when another platform-specific lifecycle hook is
+   * available. Browsers do not provide a fully reliable app termination hook.
    *
    * ### Example
    *
@@ -588,13 +663,49 @@ export interface Run<D = unknown> extends AsyncDisposable {
    *   run(helperTask);
    *
    *   // Outlives myTask, aborted when the root Run is disposed
-   *   run.daemon(backgroundSync);
+   *   const backgroundFiber = run.daemon(backgroundSync);
+   *
+   *   // Can still be aborted manually if needed
+   *   backgroundFiber.abort();
    *
    *   return ok();
    * };
    * ```
+   *
+   * For a long-lived reusable {@link Run}, use {@link Run.create}.
    */
   readonly daemon: Run<D>;
+
+  /**
+   * Wraps a {@link Task} with {@link unabortable} and runs it on
+   * {@link Run.daemon}.
+   *
+   * It's useful for `AsyncDisposableStack.defer` and
+   * `AsyncDisposableStack.adopt` callbacks. Those callbacks are outside the
+   * {@link Task} tree, so this bridges their async cleanup back into a
+   * {@link Task} that runs on the root daemon.
+   *
+   * More generally, this is equivalent to `run.daemon(unabortable(task))`. It
+   * can be used for cleanup or any other daemonized unabortable logic.
+   *
+   * This does not bypass root disposal. If the root {@link Run} has already
+   * started disposing, this cannot start new work.
+   *
+   * ### Example
+   *
+   * ```ts
+   * await using stack = new AsyncDisposableStack();
+   *
+   * stack.defer(async () => {
+   *   await run.asUnabortableDaemon(closeConnection);
+   * });
+   *
+   * stack.adopt(session, async (session) => {
+   *   await run.asUnabortableDaemon(logout(session));
+   * });
+   * ```
+   */
+  readonly asUnabortableDaemon: <T, E>(task: Task<T, E, D>) => Fiber<T, E, D>;
 
   /**
    * Creates a {@link Run} from this Run.
@@ -602,60 +713,18 @@ export interface Run<D = unknown> extends AsyncDisposable {
    * Like {@link createRun}, the returned Run is daemon: it stays running until
    * disposed. Unlike {@link createRun}, it shares the same Deps as this Run.
    *
-   * Useful for running Tasks with one reusable Run that can be disposed
-   * manually. Disposing it aborts all running child Tasks and causes later
-   * calls through it to be aborted as well.
+   * Use this for long-lived disposable resources that need to own async work.
+   * The resource creates one internal Run with `run.create()` and uses that Run
+   * for all of its work. Disposing the resource then disposes that internal
+   * Run, which aborts in-flight child Tasks, waits for them to settle, and
+   * rejects later calls through it.
+   *
+   * Typical examples are database clients, connection pools, workers, or other
+   * reusable resources with async methods and an async dispose operation.
    *
    * To run a single Task as daemon, use {@link Run.daemon}.
    */
   readonly create: () => Run<D>;
-
-  /**
-   * Creates an {@link AsyncDisposable} that runs a cleanup callback or
-   * {@link Task} when disposed.
-   *
-   * Use for a one-off Task; for multiple, use {@link Run.stack} instead.
-   *
-   * ### Example
-   *
-   * ```ts
-   * // One-off Task with defer
-   * await using _ = run.defer(task);
-   *
-   * // For more Tasks, a stack is more practical
-   * await using stack = run.stack();
-   * stack.defer(taskA);
-   * stack.defer(taskB);
-   *
-   * // Spread to make any object disposable with Task
-   * const connection = {
-   *   send: (data: Data) => {
-   *     //
-   *   },
-   *   ...run.defer(async (run) => {
-   *     await run(notifyPeers);
-   *     return ok();
-   *   }),
-   * };
-   * // connection[Symbol.asyncDispose] is now defined
-   * ```
-   */
-  readonly defer: (
-    onDisposeAsync: Task<void, never, D> | (() => Awaitable<void>),
-  ) => AsyncDisposable;
-
-  /**
-   * Creates an {@link AsyncDisposableStack}.
-   *
-   * ### Example
-   *
-   * ```ts
-   * await using stack = run.stack();
-   * stack.defer(task);
-   * const conn = await stack.use(openConnection);
-   * ```
-   */
-  readonly stack: () => AsyncDisposableStack<D>;
 
   /** Returns the dependencies passed to {@link createRun}. */
   readonly deps: RunDeps & D;
@@ -688,9 +757,9 @@ export interface Run<D = unknown> extends AsyncDisposable {
    *   (config: Config): Task<void, InitError, CreateDbDep> =>
    *   async (run) => {
    *     const { createDb } = run.deps;
-   *     await using stack = run.stack();
+   *     await using stack = new AsyncDisposableStack();
    *
-   *     const db = await stack.use(createDb(config.connectionString));
+   *     const db = stack.use(await run.orThrow(startApp()));
    *     if (!db.ok) return db;
    *
    *     const runWithDb = run.addDeps({ db: db.value });
@@ -727,6 +796,11 @@ export interface Run<D = unknown> extends AsyncDisposable {
    */
   readonly addDeps: <E extends NewKeys<E, D>>(extraDeps: E) => Run<D & E>;
 }
+
+/**
+ * @deprecated Use {@link Run}. Kept for fork compatibility.
+ */
+export type Runner<D = unknown> = Run<D>;
 
 /**
  * `Fiber` is a handle to a running {@link Task} that can be awaited, aborted, or
@@ -877,8 +951,8 @@ export type InferFiberDeps<F extends Fiber<any, any, any>> =
  * - {@link unabortableMask} provides `restore` to restore the previous mask
  * - Tasks inherit their parent's mask by default
  *
- * This enables nested acquire/use/release patterns where each level can have
- * its own abortable section while outer acquisitions remain protected.
+ * This enables nested resource lifecycle patterns where each level can have its
+ * own abortable section while outer acquisitions remain protected.
  *
  * UI/debugging tools can use this to visually distinguish protected Tasks
  * (e.g., different icon or color) and explain why abort requests are ignored.
@@ -1006,211 +1080,6 @@ export const RunEvent = /*#__PURE__*/ object({
 export interface RunEvent extends InferType<typeof RunEvent> {}
 
 /**
- * Task-aware wrapper around native
- * {@link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/AsyncDisposableStack | AsyncDisposableStack}.
- *
- * All Tasks run via this stack are {@link unabortable} and run with
- * {@link Run.daemon}, ensuring acquisition and cleanup complete even if abort is
- * requested.
- *
- * ### Example
- *
- * ```ts
- * const task: Task<void, Error> = async (run) => {
- *   await using stack = run.stack();
- *
- *   const a = await stack.use(acquireA);
- *   if (!a.ok) return a;
- *
- *   const b = await stack.use(acquireB);
- *   if (!b.ok) return b; // a released
- *
- *   stack.defer(sendAnalytics);
- *
- *   // work with a.value, b.value...
- *   return ok();
- * }; // b released, then a released, then analytics sent
- * ```
- *
- * @group Resource management
- */
-export class AsyncDisposableStack<D = unknown> implements AsyncDisposable {
-  readonly #stack = new globalThis.AsyncDisposableStack();
-  readonly #daemon: Run<D>["daemon"];
-
-  constructor(run: Run<D>) {
-    this.#daemon = run.daemon;
-  }
-
-  #run<T, E>(task: Task<T, E, D>): Fiber<T, E, D> {
-    return this.#daemon(unabortable(task));
-  }
-
-  #runVoid(
-    task: Task<void, any, D> | (() => Awaitable<void>),
-  ): PromiseLike<void> {
-    return this.#run(task as Task<void, any, D>).then(lazyVoid);
-  }
-
-  /**
-   * Registers a cleanup callback or {@link Task} to run when the stack is
-   * disposed.
-   *
-   * Deferred Tasks run in LIFO order and are unabortable.
-   *
-   * ### Example
-   *
-   * ```ts
-   * const task: Task<void> = async (run) => {
-   *   await using stack = run.stack();
-   *
-   *   stack.defer(() => {
-   *     console.log("cleanup");
-   *     return ok();
-   *   });
-   *
-   *   // ... do work
-   *   return ok();
-   * };
-   * // "cleanup" logs when stack is disposed
-   * ```
-   *
-   * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/AsyncDisposableStack/defer
-   */
-  defer(onDisposeAsync: Task<void, never, D> | (() => Awaitable<void>)): void {
-    this.#stack.defer(() => this.#runVoid(onDisposeAsync));
-  }
-
-  /**
-   * Registers a disposable resource and returns it.
-   *
-   * Accepts either a direct value (sync) or a {@link Task} (async acquisition).
-   * Resources are disposed in LIFO order. Acquisition is unabortable.
-   *
-   * ### Example
-   *
-   * ```ts
-   * const task: Task<void> = async (run) => {
-   *   await using stack = run.stack();
-   *
-   *   const db = await stack.use(createDatabase());
-   *   if (!db.ok) return db;
-   *
-   *   const conn = await stack.use(createConnection(db.value));
-   *   if (!conn.ok) return conn;
-   *
-   *   // Use conn.value...
-   *   return ok();
-   * };
-   * // conn and db disposed automatically in LIFO order
-   * ```
-   *
-   * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/AsyncDisposableStack/use
-   */
-  use<T extends AsyncDisposable | Disposable | null | undefined>(value: T): T;
-  use<T extends AsyncDisposable | Disposable | null | undefined, E>(
-    acquire: Task<T, E, D>,
-  ): PromiseLike<Result<T, E | AbortError>>;
-  use<T extends AsyncDisposable | Disposable | null | undefined, E>(
-    valueOrAcquire: T | Task<T, E, D>,
-  ): T | PromiseLike<Result<T, E | AbortError>> {
-    if (
-      valueOrAcquire == null ||
-      Symbol.dispose in valueOrAcquire ||
-      Symbol.asyncDispose in valueOrAcquire
-    ) {
-      return this.#stack.use(valueOrAcquire as T);
-    }
-    return this.#run(valueOrAcquire).then((result) => {
-      if (result.ok) this.#stack.use(result.value);
-      return result;
-    });
-  }
-
-  /**
-   * Acquires a resource and registers a custom release {@link Task}.
-   *
-   * Runs `acquire` to get a resource and registers `release` to run when the
-   * stack is disposed. Use for resources that need cleanup but don't implement
-   * {@link Disposable} or {@link AsyncDisposable}. If the resource is disposable,
-   * use {@link use} instead.
-   *
-   * ### Example
-   *
-   * ```ts
-   * await using stack = run.stack();
-   *
-   * const session = await stack.adopt(login(credentials), (session) =>
-   *   logout(session),
-   * );
-   * if (!session.ok) return session;
-   *
-   * // Use session.value...
-   * // logout(session.value) runs automatically when stack is disposed
-   * ```
-   *
-   * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/AsyncDisposableStack/adopt
-   */
-  async adopt<T, E = never>(
-    acquire: Task<T, E, D>,
-    release: (resource: T) => Task<void, never, D>,
-  ): Promise<Result<T, E | AbortError>> {
-    const result = await this.#run(acquire);
-    if (result.ok) {
-      this.#stack.adopt(result.value, (v) => this.#runVoid(release(v)));
-    }
-    return result;
-  }
-
-  /**
-   * Transfers disposal responsibility to a new stack, marking this one
-   * disposed.
-   *
-   * Enables transferring ownership out of the current scope — if an error
-   * occurs, resources are disposed; if successful, the caller takes ownership.
-   *
-   * ### Example
-   *
-   * ```ts
-   * const createBundle: Task<Bundle, CreateBundleError> = async (run) => {
-   *   await using stack = run.stack();
-   *
-   *   const a = await stack.use(createResource("a"));
-   *   if (!a.ok) return a;
-   *
-   *   const b = await stack.use(createResource("b"));
-   *   if (!b.ok) return b;
-   *
-   *   const moved = stack.move();
-   *   return ok({
-   *     a: a.value,
-   *     b: b.value,
-   *     [Symbol.asyncDispose]: () => moved.disposeAsync(),
-   *   });
-   * };
-   * ```
-   *
-   * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DisposableStack/move
-   */
-  move(): globalThis.AsyncDisposableStack {
-    return this.#stack.move();
-  }
-
-  /** Whether this stack has been disposed. */
-  get disposed(): boolean {
-    return this.#stack.disposed;
-  }
-
-  disposeAsync(): Promise<void> {
-    return this.#stack.disposeAsync();
-  }
-
-  [Symbol.asyncDispose](): Promise<void> {
-    return this.#stack.disposeAsync();
-  }
-}
-
-/**
  * Configuration for {@link Run} behavior.
  *
  * @group Monitoring
@@ -1253,6 +1122,11 @@ export interface CreateRun<BaseDeps> {
   (): Run<BaseDeps>;
   <D>(deps: D): Run<BaseDeps & D>;
 }
+
+/**
+ * @deprecated Use {@link CreateRun}. Kept for fork compatibility.
+ */
+export type CreateRunner<BaseDeps> = CreateRun<BaseDeps>;
 
 /**
  * Creates root {@link Run}.
@@ -1334,20 +1208,9 @@ export const createRun: CreateRun<RunDeps> = <D>(
 };
 
 /**
- * Backward-compatible alias for older API naming.
- *
- * Prefer {@link Run} and {@link createRun} in new code.
+ * @deprecated Use {@link createRun}. Kept for fork compatibility.
  */
-export type Runner<D = unknown> = Run<D>;
-export type RunnerDeps = RunDeps;
-export type CreateRunner<D extends RunDeps = RunDeps> = CreateRun<D>;
-
-/**
- * Backward-compatible alias for older API naming.
- *
- * Prefer {@link createRun} in new code.
- */
-export const createRunner = createRun;
+export const createRunner: typeof createRun = createRun;
 
 /** Internal Run properties, hidden from public API via TypeScript types. */
 interface RunInternal<D extends RunDeps = RunDeps> extends Run<D> {
@@ -1499,12 +1362,9 @@ const createRunInternal =
       };
 
       run.daemon = daemon ?? self;
+      run.asUnabortableDaemon = (task) => self.daemon(unabortable(task));
+
       run.create = () => run.daemon(createDeferred().task).run;
-      run.defer = (task) => ({
-        [Symbol.asyncDispose]: () =>
-          self.daemon(unabortable(task as Task<void, never, D>)).then(lazyVoid),
-      });
-      run.stack = () => new AsyncDisposableStack(self);
 
       Object.defineProperty(run, "deps", { get: depsRef.get });
 
@@ -1615,7 +1475,11 @@ const abortBehavior =
  *
  * If the parent {@link Run} is already disposing or settled, `run(task)`
  * short-circuits before task execution and returns `err(AbortError)` with
- * {@link runStoppedError} as reason.
+ * {@link runStoppedError} as reason. So `unabortable` means “do not interrupt
+ * this Task once it has started”, not “remove AbortError from its type”.
+ *
+ * When that pre-start abort would be a programmer error, assert it explicitly
+ * with `assertNotAborted` after awaiting the result.
  *
  * ### Example
  *
@@ -1739,12 +1603,13 @@ export function concurrently<T, E, D = unknown>(
   taskOrFallback?: Task<T, E, D>,
 ): Task<T, E, D> {
   const isTask = isFunction(concurrencyOrTask);
-  const task = (() => {
-    if (isTask) return concurrencyOrTask;
-    assert(taskOrFallback, "Task is required when concurrency is provided.");
-    return taskOrFallback;
-  })();
-
+  let task: Task<T, E, D>;
+  if (isTask) {
+    task = concurrencyOrTask;
+  } else {
+    assert(taskOrFallback != null, "task is required");
+    task = taskOrFallback;
+  }
   return Object.assign((run: Run<D>) => run(task), {
     [concurrencyBehaviorSymbol]: isTask ? maxPositiveInt : concurrencyOrTask,
   });
@@ -1813,27 +1678,28 @@ export const yieldNow: Task<void> = () =>
     (reason): AbortError => createAbortError(reason),
   );
 
-const scheduler = (
-  globalThis as unknown as {
-    readonly scheduler?: { readonly yield?: unknown };
-  }
-).scheduler;
+const scheduler = globalThis as unknown as {
+  readonly scheduler?: { readonly yield?: unknown };
+  readonly setImmediate?: (callback: () => void) => unknown;
+};
 
-const yieldImpl: () => Promise<void> =
-  typeof scheduler?.yield === "function"
-    ? () => (scheduler.yield as () => Promise<void>)()
-    : "setImmediate" in globalThis
-      ? () =>
-          new Promise<void>((resolve) => {
-            const setImmediateFn = (
-              globalThis as unknown as {
-                readonly setImmediate?: (callback: () => void) => unknown;
-              }
-            ).setImmediate;
-            if (typeof setImmediateFn === "function") setImmediateFn(resolve);
-            else setTimeout(resolve, 0);
-          })
-      : () => new Promise<void>((r) => setTimeout(r, 0)); // Safari
+const yieldImpl = (): Promise<void> => {
+  const schedulerApi = scheduler.scheduler;
+  if (typeof schedulerApi?.yield === "function") {
+    return Reflect.apply(
+      schedulerApi.yield as () => Promise<void>,
+      schedulerApi,
+      [],
+    );
+  }
+
+  const setImmediateFn = scheduler.setImmediate;
+  if (typeof setImmediateFn === "function") {
+    return new Promise<void>((resolve) => void setImmediateFn(resolve));
+  }
+
+  return new Promise<void>((resolve) => setTimeout(resolve, 0)); // Safari
+};
 
 /**
  * Creates a {@link Task} from a callback-based API.
@@ -1841,7 +1707,7 @@ const yieldImpl: () => Promise<void> =
  * Use this to wrap callback-style APIs (event listeners, Node.js callbacks,
  * etc.) into Tasks with proper abort handling.
  *
- * Optionally return a cleanup function that runs on abort.
+ * Optionally return a teardown function that runs on abort.
  *
  * ### Example
  *
@@ -1873,16 +1739,16 @@ const yieldImpl: () => Promise<void> =
  */
 export const callback =
   <T, E = never>(
-    callback: CallbackWithCleanup<{
-      ok: Callback<T>;
-      err: Callback<E>;
-      signal: AbortSignal;
-      deps: RunDeps;
+    callback: CallbackWithTeardown<{
+      readonly ok: Callback<T>;
+      readonly err: Callback<E>;
+      readonly signal: AbortSignal;
+      readonly deps: RunDeps;
     }>,
   ): Task<T, E> =>
   (run) =>
     new Promise((resolve) => {
-      const cleanup = callback({
+      const teardown = callback({
         ok: (value) => resolve(ok(value)),
         err: (error) => resolve(err(error)),
         signal: run.signal,
@@ -1890,7 +1756,7 @@ export const callback =
       });
 
       run.onAbort((reason) => {
-        if (cleanup) cleanup();
+        if (teardown) teardown();
         resolve(err(createAbortError(reason)));
       });
     });
@@ -2726,7 +2592,8 @@ const semaphoreDisposedAbortError: AbortError = createAbortError(
  *
  * @group Concurrency primitives
  */
-export interface SemaphoreByKey<K extends string = string> extends Disposable {
+export interface SemaphoreByKey<K extends StructuralKey = StructuralKey>
+  extends Disposable {
   /**
    * Executes a {@link Task} while holding one permit for a specific key.
    *
@@ -2755,24 +2622,20 @@ export interface SemaphoreByKey<K extends string = string> extends Disposable {
  *
  * @group Concurrency primitives
  */
-export const createSemaphoreByKey = <K extends string = string>(
+export const createSemaphoreByKey = <K extends StructuralKey = StructuralKey>(
   permits: Concurrency,
 ): SemaphoreByKey<K> => {
   type KeyedSemaphore = Semaphore & {
-    __disposing: boolean;
+    __disposing?: boolean;
   };
 
-  const semaphoresByKey = new Map<K, KeyedSemaphore>();
+  const semaphoresByKey = createStructuralMap<K, KeyedSemaphore>();
   let disposed = false;
+
   const getActiveSemaphore = (key: K): KeyedSemaphore | undefined => {
     const semaphore = semaphoresByKey.get(key);
     if (!semaphore) return undefined;
     if (!semaphore.__disposing) return semaphore;
-
-    if (semaphoresByKey.get(key) === semaphore) {
-      semaphoresByKey.delete(key);
-    }
-
     return undefined;
   };
 
@@ -2784,25 +2647,28 @@ export const createSemaphoreByKey = <K extends string = string>(
 
       let semaphore = getActiveSemaphore(key);
       if (!semaphore) {
-        semaphore = Object.assign(createSemaphore(permits), {
-          __disposing: false,
-        });
+        semaphore = createSemaphore(permits) as KeyedSemaphore;
         semaphoresByKey.set(key, semaphore);
       }
 
       using _ = {
         [Symbol.dispose]: () => {
           if (semaphoresByKey.get(key) !== semaphore) return;
-
           const snapshot = semaphore.snapshot();
           if (snapshot.taken !== 0 || snapshot.waiting !== 0) return;
 
           semaphore.__disposing = true;
 
-          if (semaphoresByKey.get(key) !== semaphore) return;
+          if (semaphoresByKey.get(key) !== semaphore) {
+            semaphore.__disposing = false;
+            return;
+          }
 
-          const drainedSnapshot = semaphore.snapshot();
-          if (drainedSnapshot.taken !== 0 || drainedSnapshot.waiting !== 0) {
+          const snapshotAfterMark = semaphore.snapshot();
+          if (
+            snapshotAfterMark.taken !== 0 ||
+            snapshotAfterMark.waiting !== 0
+          ) {
             semaphore.__disposing = false;
             return;
           }
@@ -2906,7 +2772,8 @@ export const createMutex = (): Mutex => {
  *
  * @group Concurrency primitives
  */
-export interface MutexByKey<K extends string = string> extends Disposable {
+export interface MutexByKey<K extends StructuralKey = StructuralKey>
+  extends Disposable {
   /**
    * Executes a {@link Task} while holding the mutex lock for a specific key.
    *
@@ -2924,7 +2791,7 @@ export interface MutexByKey<K extends string = string> extends Disposable {
  * @group Concurrency primitives
  */
 export const createMutexByKey = <
-  K extends string = string,
+  K extends StructuralKey = StructuralKey,
 >(): MutexByKey<K> => {
   const semaphoreByKey = createSemaphoreByKey<K>(minPositiveInt);
 
@@ -2939,113 +2806,104 @@ export const createMutexByKey = <
 /**
  * {@link Ref} protected by a {@link Mutex}.
  *
- * `MutexRef` stores mutable state and serializes all operations through an
- * internal {@link Mutex}. Reads, writes, and updates observe one consistent
- * state transition at a time. If the update fails or is aborted, the previous
- * state is preserved.
+ * `MutexRef` serializes all operations through an internal {@link Mutex}. Reads,
+ * writes, and updates observe one consistent value transition at a time. If the
+ * update fails or is aborted, the previous value is preserved.
  *
- * Typical use cases are small stateful coordinators such as caches, session
- * state, in-memory registries, and counters whose transitions need to run
- * {@link Task}s atomically.
+ * Typical use cases are small coordinators such as caches, session values,
+ * in-memory registries, and counters whose transitions need to run {@link Task}s
+ * atomically.
  *
  * @group Concurrency primitives
  */
 export interface MutexRef<T> extends Disposable {
-  /** Returns the current state. */
+  /** Returns the current value. */
   readonly get: Task<T>;
 
-  /** Sets the state. */
-  readonly set: (state: T) => Task<void>;
+  /** Sets the current value. */
+  readonly set: (value: T) => Task<void>;
 
-  /** Sets the state and returns the previous state. */
-  readonly getAndSet: (state: T) => Task<T>;
+  /** Sets the current value and returns the previous value. */
+  readonly getAndSet: (value: T) => Task<T>;
 
-  /** Sets the state and returns the current state after the update. */
-  readonly setAndGet: (state: T) => Task<T>;
+  /** Sets the current value and returns it. */
+  readonly setAndGet: (value: T) => Task<T>;
 
-  /** Updates the state. */
+  /** Updates the current value. */
   readonly update: <E = never, D = unknown>(
     updater: (current: T) => Task<T, E, D>,
   ) => Task<void, E, D>;
 
-  /** Updates the state and returns the previous state. */
+  /** Updates the current value and returns the previous value. */
   readonly getAndUpdate: <E = never, D = unknown>(
     updater: (current: T) => Task<T, E, D>,
   ) => Task<T, E, D>;
 
-  /** Updates the state and returns the current state after the update. */
+  /** Updates the current value and returns it. */
   readonly updateAndGet: <E = never, D = unknown>(
     updater: (current: T) => Task<T, E, D>,
   ) => Task<T, E, D>;
 
-  /** Modifies the state and returns a computed result from the transition. */
+  /** Modifies the current value and returns a computed result. */
   readonly modify: <R, E = never, D = unknown>(
-    updater: (current: T) => Task<readonly [result: R, nextState: T], E, D>,
+    modifier: (current: T) => Task<readonly [result: R, nextValue: T], E, D>,
   ) => Task<R, E, D>;
 }
 
 /**
- * Creates a {@link MutexRef} with the given initial state.
+ * Creates a {@link MutexRef} with the given initial immutable value.
  *
  * @group Concurrency primitives
  */
-export const createMutexRef = <T>(initialState: T): MutexRef<T> => {
-  let currentState = initialState;
+export const createMutexRef = <T>(initialValue: T): MutexRef<T> => {
+  const ref = createRef(initialValue);
   const mutex = createMutex();
 
   return {
-    get: mutex.withLock(() => ok(currentState)),
+    get: mutex.withLock(() => ok(ref.get())),
 
-    set: (state) =>
+    set: (value) =>
       mutex.withLock(() => {
-        currentState = state;
+        ref.set(value);
         return ok();
       }),
 
-    getAndSet: (state) =>
-      mutex.withLock(() => {
-        const previousState = currentState;
-        currentState = state;
-        return ok(previousState);
-      }),
+    getAndSet: (value) => mutex.withLock(() => ok(ref.getAndSet(value))),
 
-    setAndGet: (state) =>
-      mutex.withLock(() => {
-        currentState = state;
-        return ok(currentState);
-      }),
+    setAndGet: (value) => mutex.withLock(() => ok(ref.setAndGet(value))),
 
     update: (updater) =>
       mutex.withLock(async (run) => {
-        const nextState = await run(updater(currentState));
-        if (!nextState.ok) return nextState;
-        currentState = nextState.value;
+        const nextValue = await run(updater(ref.get()));
+        if (!nextValue.ok) return nextValue;
+        ref.set(nextValue.value);
         return ok();
       }),
 
     getAndUpdate: (updater) =>
       mutex.withLock(async (run) => {
-        const previousState = currentState;
-        const nextState = await run(updater(currentState));
-        if (!nextState.ok) return nextState;
-        currentState = nextState.value;
-        return ok(previousState);
+        const previousValue = ref.get();
+        const nextValue = await run(updater(previousValue));
+        if (!nextValue.ok) return nextValue;
+        ref.set(nextValue.value);
+        return ok(previousValue);
       }),
 
     updateAndGet: (updater) =>
       mutex.withLock(async (run) => {
-        const nextState = await run(updater(currentState));
-        if (!nextState.ok) return nextState;
-        currentState = nextState.value;
-        return ok(currentState);
+        const currentValue = ref.get();
+        const nextValue = await run(updater(currentValue));
+        if (!nextValue.ok) return nextValue;
+        ref.set(nextValue.value);
+        return ok(nextValue.value);
       }),
 
-    modify: (updater) =>
+    modify: (modifier) =>
       mutex.withLock(async (run) => {
-        const nextState = await run(updater(currentState));
-        if (!nextState.ok) return nextState;
-        const [result, updatedState] = nextState.value;
-        currentState = updatedState;
+        const nextValue = await run(modifier(ref.get()));
+        if (!nextValue.ok) return nextValue;
+        const [result, updatedValue] = nextValue.value;
+        ref.set(updatedValue);
         return ok(result);
       }),
 
@@ -3056,14 +2914,15 @@ export const createMutexRef = <T>(initialState: T): MutexRef<T> => {
 /**
  * Cross-platform leader lock abstraction.
  *
- * `acquire` blocks until leadership is acquired.
+ * `lock` returns a {@link Task} that waits until leadership is acquired and
+ * yields a lease.
  *
- * Returns {@link Disposable} lease. Dispose it to release leadership.
+ * Returns {@link AsyncDisposable} lease. Dispose it to release leadership.
  *
  * @group Concurrency primitives
  */
 export interface LeaderLock {
-  readonly acquire: (name: Name) => Task<Disposable>;
+  readonly lock: (name: Name) => Task<AsyncDisposable>;
 }
 
 /** @group Concurrency primitives */
@@ -3084,26 +2943,41 @@ export const createInMemoryLeaderLock = (): LeaderLock => {
   const mutexByName = createMutexByKey<Name>();
 
   return {
-    acquire: (name) => async (run) => {
-      // Two gates are needed: one to wait until lock acquisition and one to
-      // keep the lock held until lease disposal.
-      const onAcquired = Promise.withResolvers<void>();
-      const onRelease = Promise.withResolvers<void>();
+    lock: (name) => async (run) => {
+      const leaseRun = run.create();
+      const released = createDeferred<void>();
+      const acquired = createDeferred<void>();
 
-      void run.daemon(
-        mutexByName.withLock(name, async () => {
-          onAcquired.resolve();
-          await onRelease.promise;
+      void leaseRun(
+        mutexByName.withLock(name, async (run) => {
+          acquired.resolve(ok());
+          await run(released.task);
           return ok();
         }),
+      ).then(
+        (result) => {
+          if (result.ok) return;
+          acquired.resolve(err(result.error));
+          void leaseRun[Symbol.asyncDispose]();
+        },
+        (error: unknown) => {
+          acquired.resolve(err(createAbortError(error)));
+          void leaseRun[Symbol.asyncDispose]();
+        },
       );
 
-      await onAcquired.promise;
+      const acquiredResult = await run(acquired.task);
+      if (!acquiredResult.ok) {
+        assert(
+          AbortError.is(acquiredResult.error),
+          "Leader lock acquisition deferred must not be disposed.",
+        );
+        void leaseRun[Symbol.asyncDispose]();
+        return err(acquiredResult.error);
+      }
 
       return ok({
-        [Symbol.dispose]: () => {
-          onRelease.resolve();
-        },
+        [Symbol.asyncDispose]: leaseRun[Symbol.asyncDispose],
       });
     },
   };
@@ -3129,6 +3003,8 @@ export interface CollectOptions<Collect extends boolean = true> {
    */
   readonly abortReason?: unknown;
 }
+
+type NoValue = undefined;
 
 /**
  * Fails fast on first error across multiple {@link Task}s.
@@ -3219,7 +3095,7 @@ export function all<T, E, D>(
 export function all<T, E, D>(
   tasks: Iterable<Task<T, E, D>> | Readonly<Record<string, Task<T, E, D>>>,
   options: CollectOptions<false>,
-): Task<void, E, D>;
+): Task<undefined, E, D>;
 
 export function all(
   input: CollectInput,
@@ -3354,7 +3230,7 @@ export function allSettled<T, E, D>(
 export function allSettled<T, E, D>(
   tasks: Iterable<Task<T, E, D>> | Readonly<Record<string, Task<T, E, D>>>,
   options: CollectOptions<false>,
-): Task<void, never, D>;
+): Task<undefined, never, D>;
 
 export function allSettled(
   input: Iterable<AnyTask> | Readonly<Record<string, AnyTask>>,
@@ -3380,8 +3256,6 @@ export interface AllSettledAbortError
 export const allSettledAbortError: AllSettledAbortError = {
   type: "AllSettledAbortError",
 };
-
-type NoCollect = ReturnType<() => void>;
 
 /**
  * Maps values to {@link Task}s, failing fast on first error.
@@ -3448,13 +3322,13 @@ export function map<A, T, E, D>(
   items: Iterable<A> | Readonly<Record<string, A>>,
   task: (a: A) => Task<T, E, D>,
   options: CollectOptions<false>,
-): Task<void, E, D>;
+): Task<undefined, E, D>;
 
 export function map<A, T, E, D>(
   items: MapInput<A>,
   fn: (a: A) => Task<T, E, D>,
   { abortReason = mapAbortError, ...options }: CollectOptions<boolean> = {},
-): Task<ReadonlyArray<T> | Record<string, T> | NoCollect, E, D> {
+): Task<ReadonlyArray<T> | Record<string, T> | NoValue, E, D> {
   const mapped = mapInput(items, fn);
   return all(
     mapped as Iterable<Task<T, E, D>>,
@@ -3557,7 +3431,7 @@ export function mapSettled<A, T, E, D>(
   items: Iterable<A> | Readonly<Record<string, A>>,
   task: (a: A) => Task<T, E, D>,
   options: CollectOptions<false>,
-): Task<void, never, D>;
+): Task<undefined, never, D>;
 
 export function mapSettled<A, T, E, D>(
   items: MapInput<A>,
@@ -3566,7 +3440,7 @@ export function mapSettled<A, T, E, D>(
 ): Task<
   | ReadonlyArray<Result<T, E | AbortError>>
   | Record<string, Result<T, E | AbortError>>
-  | NoCollect,
+  | NoValue,
   never,
   D
 > {
@@ -3680,7 +3554,8 @@ const collect = (
 
   if (isIterable(input)) {
     const array = arrayFrom(input as Iterable<unknown>);
-    if (!isNonEmptyArray(array)) return () => ok(emptyArray);
+    if (!isNonEmptyArray(array))
+      return () => ok(collect ? emptyArray : undefined);
 
     return pool(array as ReadonlyArray<Task<unknown, unknown>>, {
       stopOn,
@@ -3695,12 +3570,12 @@ const collect = (
     keys.push(key);
     taskArray.push((input as Record<string, AnyTask>)[key]);
   }
-  if (keys.length === 0) return () => ok(emptyRecord);
+  if (keys.length === 0) return () => ok(collect ? emptyRecord : undefined);
 
   return async (run) => {
     const result = await run(pool(taskArray, { stopOn, collect, abortReason }));
     if (!result.ok) return result;
-    if (!collect) return ok();
+    if (!collect) return ok(undefined);
     const record = createRecord();
     for (let i = 0; i < keys.length; i++) {
       record[keys[i]] = (result.value as Array<unknown>)[i];
@@ -3779,7 +3654,7 @@ function pool<D>(
     collect: false;
     abortReason: unknown;
   },
-): Task<void, never, D>;
+): Task<undefined, never, D>;
 
 /** Internal overload for {@link collect} with dynamic stopOn/collect. */
 function pool(
@@ -3804,7 +3679,7 @@ function pool<T, E>(
     abortReason: unknown;
     allFailed?: AnyAllFailed;
   },
-): Task<ReadonlyArray<unknown> | T | NoCollect, E> {
+): Task<ReadonlyArray<unknown> | T | NoValue, E> {
   const tasks = arrayFrom(tasksIterable);
   const { length } = tasks;
   if (length === 0) return () => ok(emptyArray);
@@ -3867,9 +3742,9 @@ function pool<T, E>(
     const workerCount = Math.min(run.concurrency, length);
     const workers = arrayFrom(workerCount, () => run.daemon(worker));
 
-    await using _ = run.defer(() => {
+    using _ = new DisposableStack();
+    _.defer(() => {
       abortWorkers(abortReason);
-      return ok();
     });
 
     run.onAbort((reason) => {
@@ -3885,21 +3760,18 @@ function pool<T, E>(
       return err(run.signal.reason as AbortError);
     }
 
-    if (!stopOn) return results ? ok(results) : ok();
+    if (!stopOn) return results ? ok(results) : ok(undefined);
     if (stopped) return stopped;
     if (results) return ok(results);
     // For all/allSettled/map/mapSettled with collect: false (no allFailed handler)
-    if (!allFailed) return ok();
+    if (!allFailed) return ok(undefined);
 
     if (allFailed === "completion") {
-      assert(
-        lastResult,
-        "Expected completion result for allFailed=completion.",
-      );
+      assert(lastResult != null, "expected at least one result");
       return lastResult;
     }
 
-    assert(lastIndexResult, "Expected last index result for allFailed=index.");
+    assert(lastIndexResult != null, "expected last index result");
     return lastIndexResult;
   };
 }

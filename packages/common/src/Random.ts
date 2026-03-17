@@ -6,6 +6,13 @@
 
 import type { Brand } from "./Brand.js";
 
+interface Arc4RngSnapshot {
+  readonly seed: string | number;
+  readonly i: number;
+  readonly j: number;
+  readonly state: ReadonlyArray<number>;
+}
+
 const arc4StartDenom = 281_474_976_710_656;
 const arc4Significance = 4_503_599_627_370_496;
 const arc4Overflow = 9_007_199_254_740_992;
@@ -47,23 +54,8 @@ class Arc4Rng {
   private j = 0;
   private readonly state: Array<number>;
 
-  constructor(seed?: string | number);
-  constructor(snapshot?: {
-    readonly seed: string | number;
-    readonly i: number;
-    readonly j: number;
-    readonly state: ReadonlyArray<number>;
-  });
   constructor(
-    seedOrSnapshot:
-      | string
-      | number
-      | {
-          readonly seed: string | number;
-          readonly i: number;
-          readonly j: number;
-          readonly state: ReadonlyArray<number>;
-        } = createDefaultSeed(),
+    seedOrSnapshot: string | number | Arc4RngSnapshot = createDefaultSeed(),
   ) {
     if (typeof seedOrSnapshot === "object") {
       this.seed = seedOrSnapshot.seed;
