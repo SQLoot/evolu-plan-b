@@ -611,30 +611,37 @@ const _createClientStorage =
           const change = decryptAndDecodeDbChange(message, deps.encryptionKey);
           if (!change.ok) {
             onError(change.error);
-            return ok();
+            continue;
           }
           messages.push({ timestamp: message.timestamp, change: change.value });
         }
+        if (messages.length === 0) return ok();
 
-        let clockTimestamp = deps.clock.get();
+        const clockTimestamp = deps.clock.get();
+        let validatedClockTimestamp = clockTimestamp;
+        const timestampErrors = [];
 
         for (const message of messages) {
           const nextTimestamp = receiveTimestamp(deps)(
-            clockTimestamp,
+            validatedClockTimestamp,
             message.timestamp,
           );
           if (!nextTimestamp.ok) {
-            onError(nextTimestamp.error);
-            return ok();
+            timestampErrors.push(nextTimestamp.error);
+            continue;
           }
-          clockTimestamp = nextTimestamp.value;
+          validatedClockTimestamp = nextTimestamp.value;
+        }
+        if (timestampErrors.length > 0) {
+          timestampErrors.forEach(onError);
+          return ok();
         }
 
         assertNonEmptyReadonlyArray(messages);
 
         return deps.sqlite.transaction(() => {
           applyMessages(deps)(ownerIdBytesToOwnerId(ownerIdBytes), messages);
-          deps.clock.save(clockTimestamp);
+          deps.clock.save(validatedClockTimestamp);
           return ok();
         });
       },

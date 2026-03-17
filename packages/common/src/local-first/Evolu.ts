@@ -412,9 +412,6 @@ export interface Evolu<S extends EvoluSchema = EvoluSchema>
   // TODO: Add exportHistory.
 
   /**
-   * // TODO: Ten naming je furt divnej, syncOwner? subscribeOwner? // hmm, use
-   * je ale ok, cleanup vracet teda? uvidime.
-   *
    * Use a {@link SyncOwner}. Returns a {@link UnuseOwner}.
    *
    * Using an owner means syncing it with its transports, or the transports

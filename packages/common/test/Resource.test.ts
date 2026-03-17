@@ -1210,6 +1210,51 @@ describe("createSharedResourceByKey", () => {
         expect(createCallCount).toBe(2);
       });
 
+      test("reacquire during async disposal keeps the keyed entry tracked", async () => {
+        if (disposeKind !== "async") return;
+
+        const time = testCreateTime();
+        await using run = testCreateRun({ time });
+
+        const finishDispose = Promise.withResolvers<void>();
+        let createCallCount = 0;
+
+        const createKeyedResource =
+          (key: string): Task<TestResource> =>
+          () =>
+            ok({
+              id: `${key}-${++createCallCount}`,
+              isDisposed: () => false,
+              [Symbol.asyncDispose]: async () => {
+                await finishDispose.promise;
+              },
+            });
+
+        await using sharedResourceByKey = await run.orThrow(
+          createSharedResourceByKey(createKeyedResource, {
+            idleDisposeAfter: "1ms",
+          }),
+        );
+
+        const first = await run.orThrow(sharedResourceByKey.acquire("a"));
+        await run.orThrow(sharedResourceByKey.release("a"));
+        time.advance("1ms");
+        await testWaitForMacrotask();
+
+        const reacquire = run(sharedResourceByKey.acquire("a"));
+        await testWaitForMacrotask();
+        finishDispose.resolve();
+
+        const secondResult = await reacquire;
+        expect(secondResult.ok).toBe(true);
+        if (!secondResult.ok) return;
+
+        expect(secondResult.value.id).toBe("a-2");
+        expect(secondResult.value).not.toBe(first);
+        expect(await run.orThrow(sharedResourceByKey.getCount("a"))).toBe(1);
+        await run.orThrow(sharedResourceByKey.release("a"));
+      });
+
       test("dispose aborts later operations", async () => {
         await using run = testCreateRun();
 

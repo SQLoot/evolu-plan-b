@@ -321,8 +321,8 @@ export const createSharedResourceByKey = <
   create: (key: K) => Task<T, never, D>,
   { idleDisposeAfter, onDisposed }: SharedResourceByKeyOptions<K> = {},
 ): Task<SharedResourceByKey<K, T, D>, never, D> =>
-  unabortable<SharedResourceByKey<K, T, D>, never, D>((run) => {
-    const sharedResourceByKeyRun = run.create();
+  unabortable<SharedResourceByKey<K, T, D>, never, D>((rootRun) => {
+    const sharedResourceByKeyRun = rootRun.create();
     const sharedResourcesByKey = createStructuralMap<K, SharedResource<T, D>>();
 
     const stack = new AsyncDisposableStack();
@@ -348,8 +348,30 @@ export const createSharedResourceByKey = <
                   createSharedResource(create(key), {
                     idleDisposeAfter,
                     onDisposed: () => {
-                      sharedResourcesByKey.delete(key);
-                      onDisposed?.(key);
+                      const disposedSharedResource = sharedResource;
+                      if (!disposedSharedResource) return;
+
+                      void rootRun.asUnabortableDaemon(
+                        mutexByKey.withLock(key, async (cleanupRun) => {
+                          if (
+                            sharedResourcesByKey.get(key) !==
+                            disposedSharedResource
+                          ) {
+                            return ok();
+                          }
+
+                          const countResult = await cleanupRun(
+                            disposedSharedResource.getCount,
+                          );
+                          if (!countResult.ok || countResult.value > 0) {
+                            return ok();
+                          }
+
+                          sharedResourcesByKey.delete(key);
+                          onDisposed?.(key);
+                          return ok();
+                        }),
+                      );
                     },
                   }),
                 );

@@ -80,7 +80,7 @@
     "@bokuweb/zstd-wasm": "^0.0.27",
     "@types/better-sqlite3": "^7.6.13",
     "@types/ws": "^8.18.1",
-    "better-sqlite3": "^12.6.2",
+    "better-sqlite3": "^12.8.0",
     "fast-check": "^4.6.0",
     "playwright": "^1.58.2",
     "typescript": "^5.9.3",
