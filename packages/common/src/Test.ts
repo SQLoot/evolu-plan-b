@@ -4,29 +4,19 @@
  * @module
  */
 
-import { type TestConsoleDep, testCreateConsole } from "./Console.js";
-import {
-  Entropy32,
-  type RandomBytesDep,
-  testCreateRandomBytes,
-} from "./Crypto.js";
+import { testCreateConsole, type TestConsoleDep } from "./Console.js";
+import { Entropy32, testCreateRandomBytes } from "./Crypto.js";
 import { createAppOwner, OwnerSecret } from "./local-first/Owner.js";
 import {
-  type RandomDep,
-  type RandomLibDep,
   testCreateRandom,
   testCreateRandomLib,
+  type RandomLibDep,
 } from "./Random.js";
-import { createRunner, type Runner } from "./Task.js";
-import { minMillis, setTimeout, type TimeDep, testCreateTime } from "./Time.js";
+import { createRun, type Run, type RunDeps, type Runner } from "./Task.js";
+import { minMillis, setTimeout, testCreateTime, type Duration } from "./Time.js";
 import { SimpleName } from "./Type.js";
 
-/** Test deps created by {@link testCreateDeps}. */
-export type TestDeps = TestConsoleDep &
-  RandomBytesDep &
-  RandomDep &
-  RandomLibDep &
-  TimeDep;
+export type TestDeps = RunDeps & TestConsoleDep & RandomLibDep;
 
 /**
  * Creates test dependencies for proper isolation.
@@ -38,7 +28,7 @@ export type TestDeps = TestConsoleDep &
  * ```ts
  * test("my test", async () => {
  *   const deps = testCreateDeps();
- *   await using run = testCreateRunner(deps);
+ *   await using run = testCreateRun(deps);
  *
  *   const fiber = run(sleep("1s"));
  *   deps.time.advance("1s");
@@ -59,7 +49,7 @@ export const testCreateDeps = (options?: {
 };
 
 /**
- * Creates a test {@link Runner} with deterministic deps.
+ * Creates a test {@link Run} with deterministic deps.
  *
  * Uses {@link TestDeps} which provides seeded random values, ensuring
  * deterministic fiber IDs, timestamps, and other generated values. This makes
@@ -71,18 +61,33 @@ export const testCreateDeps = (options?: {
  *
  * ```ts
  * // Basic usage with TestDeps
- * await using run = testCreateRunner();
+ * await using run = testCreateRun();
  *
  * // Override specific deps
- * await using run = testCreateRunner({ time: customTime });
+ * await using run = testCreateRun({ time: customTime });
  *
  * // Add custom deps
  * interface HttpDep {
  *   readonly http: Http;
  * }
- * await using run = testCreateRunner({ http });
- * // run is Runner<TestDeps & HttpDep>
+ * await using run = testCreateRun({ http });
+ * // run is Run<TestDeps & HttpDep>
  * ```
+ */
+export function testCreateRun(): Run<TestDeps>;
+
+/** With custom dependencies merged into {@link TestDeps}. */
+export function testCreateRun<D>(deps: D): Run<TestDeps & D>;
+
+export function testCreateRun<D>(deps?: D): Run<TestDeps & D> {
+  const defaults = testCreateDeps();
+  return createRun<TestDeps & D>({ ...defaults, ...deps } as TestDeps & D);
+}
+
+/**
+ * Backward-compatible alias for fork naming.
+ *
+ * Prefer {@link testCreateRun} in new code.
  */
 export function testCreateRunner(): Runner<TestDeps>;
 
@@ -90,16 +95,8 @@ export function testCreateRunner(): Runner<TestDeps>;
 export function testCreateRunner<D>(deps: D): Runner<TestDeps & D>;
 
 export function testCreateRunner<D>(deps?: D): Runner<TestDeps & D> {
-  const defaults = testCreateDeps();
-  return createRunner<TestDeps & D>({ ...defaults, ...deps } as TestDeps & D);
+  return testCreateRun(deps);
 }
-
-/**
- * Backward-compatible alias for upstream naming.
- *
- * Prefer {@link testCreateRunner} in SQLoot code.
- */
-export const testCreateRun: typeof testCreateRunner = testCreateRunner;
 
 // Deterministic test values for reproducible fixtures. Keep eager test values
 // here to avoid affecting tree-shaking baselines.
@@ -117,5 +114,8 @@ export const testOwnerSecret = /*#__PURE__*/ OwnerSecret.orThrow(testEntropy32);
 export const testAppOwner = /*#__PURE__*/ createAppOwner(testOwnerSecret);
 
 export const testName = /*#__PURE__*/ SimpleName.orThrow("Name");
-/** Returns a Promise that resolves on the next macrotask. */
-export const testWaitForMacrotask = (): Promise<void> => setTimeout(minMillis);
+
+/** Returns a Promise that resolves after a macrotask delay. */
+export const testWaitForMacrotask = (
+  duration: Duration = minMillis,
+): Promise<void> => setTimeout(duration);

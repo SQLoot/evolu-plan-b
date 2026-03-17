@@ -1,7 +1,6 @@
-import { mkdirSync } from "node:fs";
 import { createConsole, createConsoleFormatter } from "@evolu/common";
-import { createRelayDeps, createRunner, startRelay } from "@evolu/nodejs";
-import { startBunRelay } from "./startBunRelay.js";
+import { createRelayDeps, createRun, startRelay } from "@evolu/nodejs";
+import { mkdirSync } from "fs";
 
 // Ensure the database is created in a predictable location for Docker.
 mkdirSync("data", { recursive: true });
@@ -16,24 +15,23 @@ const console = createConsole({
 
 const deps = { ...createRelayDeps(), console };
 
-await using run = createRunner(deps);
-await using stack = run.stack();
+await using run = createRun(deps);
+await using stack = new AsyncDisposableStack();
 
-const isBunRuntime = (globalThis as { readonly Bun?: unknown }).Bun != null;
-const startRelayTask = isBunRuntime ? startBunRelay : startRelay;
+stack.use(
+  await run.orThrow(
+    startRelay({
+      port: 4000,
 
-await stack.use(
-  startRelayTask({
-    port: 4000,
+      // Note: Relay requires URL in format ws://host:port/<ownerId>
+      // isOwnerAllowed: (_ownerId) => true,
 
-    // Note: Relay requires URL in format ws://host:port/<ownerId>
-    // isOwnerAllowed: (_ownerId) => true,
-
-    isOwnerWithinQuota: (_ownerId, requiredBytes) => {
-      const maxBytes = 1024 * 1024; // 1MB
-      return requiredBytes <= maxBytes;
-    },
-  }),
+      isOwnerWithinQuota: (_ownerId, requiredBytes) => {
+        const maxBytes = 1024 * 1024; // 1MB
+        return requiredBytes <= maxBytes;
+      },
+    }),
+  ),
 );
 
 await run.deps.shutdown;

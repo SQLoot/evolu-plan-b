@@ -78,7 +78,7 @@ wsTest("connects, receives message, sends message, and disposes", async () => {
   await vi.waitFor(() => expect(messages).toHaveLength(2));
   expect(messages).toEqual([utf8ToBytes("welcome"), utf8ToBytes("hello")]);
 
-  ws[Symbol.dispose]();
+  await ws[Symbol.asyncDispose]();
   expect(ws.getReadyState()).toBe("closed");
 });
 
@@ -102,7 +102,7 @@ wsTest("calls onOpen callback", async () => {
   expect(ws.isOpen()).toBe(true);
   expect(ws.getReadyState()).toBe("open");
 
-  ws[Symbol.dispose]();
+  await ws[Symbol.asyncDispose]();
   expect(ws.isOpen()).toBe(false);
 });
 
@@ -128,7 +128,7 @@ wsTest("does not call onClose when disposed", async () => {
 
   await vi.waitFor(() => expect(openCalled).toBe(true));
 
-  ws[Symbol.dispose]();
+  await ws[Symbol.asyncDispose]();
 
   expect(closeCalled).toBe(false);
 });
@@ -141,10 +141,8 @@ wsTest("send returns error when socket is not ready", async () => {
   assert(result.ok);
   const ws = result.value;
 
-  // Dispose immediately to close socket
-  ws[Symbol.dispose]();
+  await ws[Symbol.asyncDispose]();
 
-  // Now send should fail
   const sendResult = ws.send("test");
   expect(sendResult.ok).toBe(false);
   if (!sendResult.ok) {
@@ -170,7 +168,7 @@ wsTest("supports protocols as array", async () => {
   const ws = result.value;
 
   await vi.waitFor(() => expect(openCalled).toBe(true));
-  ws[Symbol.dispose]();
+  await ws[Symbol.asyncDispose]();
 });
 
 wsTest("supports protocols as string", async () => {
@@ -191,13 +189,12 @@ wsTest("supports protocols as string", async () => {
   const ws = result.value;
 
   await vi.waitFor(() => expect(openCalled).toBe(true));
-  ws[Symbol.dispose]();
+  await ws[Symbol.asyncDispose]();
 });
 
 wsTest("getReadyState returns connecting when socket is null", async () => {
   await using run = createRunner();
 
-  // Create with invalid URL and no retries to test null socket state
   const result = await run(
     createWebSocket("ws://localhost:1", {
       schedule: take(0)(spaced("1ms")),
@@ -207,10 +204,9 @@ wsTest("getReadyState returns connecting when socket is null", async () => {
   assert(result.ok);
   const ws = result.value;
 
-  // After failed connection with no retries, socket is null
   await vi.waitFor(() => expect(ws.getReadyState()).toBe("connecting"));
 
-  ws[Symbol.dispose]();
+  await ws[Symbol.asyncDispose]();
 });
 
 wsTest("calls onError on connection failure", async () => {
@@ -218,10 +214,9 @@ wsTest("calls onError on connection failure", async () => {
 
   const errors: Array<WebSocketError> = [];
 
-  // Use invalid port to trigger connection error
   const result = await run(
     createWebSocket("ws://localhost:1", {
-      schedule: take(0)(spaced("1ms")), // No retry - fail immediately
+      schedule: take(0)(spaced("1ms")),
       onError: (error) => {
         errors.push(error);
       },
@@ -234,7 +229,7 @@ wsTest("calls onError on connection failure", async () => {
   await vi.waitFor(() => expect(errors.length).toBeGreaterThan(0));
   expect(errors[0]?.type).toBe("WebSocketConnectError");
 
-  ws[Symbol.dispose]();
+  await ws[Symbol.asyncDispose]();
 });
 
 wsTest("calls onClose when server closes connection", async () => {
@@ -244,7 +239,7 @@ wsTest("calls onClose when server closes connection", async () => {
 
   const result = await run(
     createWebSocket(getServerUrl("close"), {
-      schedule: take(0)(spaced("1ms")), // No retry
+      schedule: take(0)(spaced("1ms")),
       onClose: () => {
         closeCalled = true;
       },
@@ -255,8 +250,7 @@ wsTest("calls onClose when server closes connection", async () => {
   const ws = result.value;
 
   await vi.waitFor(() => expect(closeCalled).toBe(true));
-
-  ws[Symbol.dispose]();
+  await ws[Symbol.asyncDispose]();
 });
 
 wsTest("does not retry when shouldRetryOnClose returns false", async () => {
@@ -287,7 +281,7 @@ wsTest("does not retry when shouldRetryOnClose returns false", async () => {
   expect(closeCount).toBe(1);
   expect(errors).toHaveLength(0);
 
-  ws[Symbol.dispose]();
+  await ws[Symbol.asyncDispose]();
 });
 
 wsTest("reconnects after server closes connection", async () => {
@@ -299,7 +293,7 @@ wsTest("reconnects after server closes connection", async () => {
   const result = await run(
     createWebSocket(getServerUrl("close-after-message"), {
       binaryType: "arraybuffer",
-      schedule: spaced("1ms"), // Fast retry
+      schedule: spaced("1ms"),
       onMessage: (data) => {
         assert(data instanceof ArrayBuffer);
         messages.push(new Uint8Array(data));
@@ -313,15 +307,13 @@ wsTest("reconnects after server closes connection", async () => {
   assert(result.ok);
   const ws = result.value;
 
-  // Trigger close by sending a message (server closes after first message)
   await vi.waitFor(() => expect(messages).toHaveLength(1));
   ws.send("trigger-close");
 
-  // Wait for reconnection (should receive "hello" from both connections)
   await vi.waitFor(() => expect(messages.length).toBeGreaterThanOrEqual(2));
   expect(closeCount).toBeGreaterThan(0);
 
-  ws[Symbol.dispose]();
+  await ws[Symbol.asyncDispose]();
 });
 
 wsTest("reports RetryError when schedule is exhausted", async () => {
@@ -329,11 +321,9 @@ wsTest("reports RetryError when schedule is exhausted", async () => {
 
   const errors: Array<WebSocketError> = [];
 
-  // Use close endpoint so each connection attempt succeeds then closes,
-  // triggering retry until schedule is exhausted
   const result = await run(
     createWebSocket(getServerUrl("close"), {
-      schedule: take(2)(spaced("1ms")), // Allow 2 retries then exhaust
+      schedule: take(2)(spaced("1ms")),
       onError: (error) => {
         errors.push(error);
       },
@@ -350,7 +340,7 @@ wsTest("reports RetryError when schedule is exhausted", async () => {
     ]
   `);
 
-  ws[Symbol.dispose]();
+  await ws[Symbol.asyncDispose]();
 });
 
 wsTest("WebSocketConnectionError behavior on abrupt termination", async () => {
@@ -361,7 +351,7 @@ wsTest("WebSocketConnectionError behavior on abrupt termination", async () => {
 
   const result = await run(
     createWebSocket(getServerUrl("terminate"), {
-      schedule: take(0)(spaced("1ms")), // No retry
+      schedule: take(0)(spaced("1ms")),
       onError: (error) => {
         errors.push(error);
       },
@@ -376,29 +366,40 @@ wsTest("WebSocketConnectionError behavior on abrupt termination", async () => {
 
   await vi.waitFor(() => expect(closeCalled).toBe(true), { timeout: 2000 });
 
-  // Map errors to snapshot-friendly shape (Event internals differ across platforms)
   const mapped = errors.map((e) =>
     e.type === "RetryError"
       ? { type: e.type, attempts: e.attempts, causeType: e.cause.type }
       : { type: e.type },
   );
 
-  // Assert invariants instead of exact snapshots (platform differences exist)
-  // All platforms should receive a RetryError with WebSocketConnectionCloseError cause
-  const retryError = mapped.find((e) => e.type === "RetryError");
-  expect(retryError).toBeDefined();
-  expect(retryError).toMatchObject({
-    type: "RetryError",
-    attempts: 1,
-    causeType: "WebSocketConnectionCloseError",
-  });
+  const isWebKit =
+    !isServer &&
+    (await import("vitest/browser").then((m) => m.server.browser === "webkit"));
 
-  // Some platforms (Server/WebKit) also fire WebSocketConnectionError, but it's optional
-  const hasConnectionError = mapped.some(
-    (e) => e.type === "WebSocketConnectionError",
-  );
-  // Just verify it's present or not, don't assert a specific expectation
-  expect(typeof hasConnectionError).toBe("boolean");
+  if (isWebKit) {
+    expect(mapped).toMatchInlineSnapshot(`
+      [
+        {
+          "type": "WebSocketConnectionError",
+        },
+        {
+          "attempts": 1,
+          "causeType": "WebSocketConnectionCloseError",
+          "type": "RetryError",
+        },
+      ]
+    `);
+  } else {
+    expect(mapped).toMatchInlineSnapshot(`
+      [
+        {
+          "attempts": 1,
+          "causeType": "WebSocketConnectionCloseError",
+          "type": "RetryError",
+        },
+      ]
+    `);
+  }
 
-  ws[Symbol.dispose]();
+  await ws[Symbol.asyncDispose]();
 });

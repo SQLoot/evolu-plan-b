@@ -58,11 +58,11 @@ import { String, type Typed } from "./Type.js";
  * );
  * if (ws.ok) {
  *   ws.value.send("Hello");
- *   // Later: ws.value[Symbol.dispose]();
+ *   // Later: await ws.value[Symbol.asyncDispose]();
  * }
  * ```
  */
-export interface WebSocket extends Disposable {
+export interface WebSocket extends AsyncDisposable {
   /**
    * Send data through the WebSocket connection. Returns {@link Result} with an
    * error if the data couldn't be sent.
@@ -167,8 +167,7 @@ export interface WebSocketConnectError extends Typed<"WebSocketConnectError"> {
  *
  * https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/error_event
  */
-export interface WebSocketConnectionError
-  extends Typed<"WebSocketConnectionError"> {
+export interface WebSocketConnectionError extends Typed<"WebSocketConnectionError"> {
   readonly event: Event;
 }
 
@@ -177,8 +176,7 @@ export type WebSocketRetryError =
   | WebSocketConnectionCloseError;
 
 /** An error that occurs when the connection is closed by the server. */
-export interface WebSocketConnectionCloseError
-  extends Typed<"WebSocketConnectionCloseError"> {
+export interface WebSocketConnectionCloseError extends Typed<"WebSocketConnectionCloseError"> {
   readonly event: CloseEvent;
 }
 
@@ -199,7 +197,7 @@ export const createWebSocket: CreateWebSocket =
     } = {},
   ) =>
   async (run) => {
-    await using stack = run.stack();
+    const stack = new AsyncDisposableStack();
 
     let socket: globalThis.WebSocket | null = null;
     let disposed = false;
@@ -297,9 +295,50 @@ export const createWebSocket: CreateWebSocket =
       isOpen: () =>
         !disposed && socket?.readyState === globalThis.WebSocket.OPEN,
 
-      [Symbol.dispose]() {
+      [Symbol.asyncDispose]: async () => {
         disposed = true;
-        void moved.disposeAsync();
+        await moved.disposeAsync();
+      },
+    });
+  };
+
+/** Creates a deterministic in-memory {@link CreateWebSocket} for testing. */
+export const testCreateWebSocket =
+  (
+    options: {
+      /** Throw immediately when a socket is created. */
+      readonly throwOnCreate?: boolean;
+
+      /** Initial open state of created sockets. Defaults to true. */
+      readonly isOpen?: boolean;
+    } = {},
+  ): CreateWebSocket =>
+  () =>
+  () => {
+    if (options.throwOnCreate) {
+      throw new Error("testCreateWebSocket is configured to throw on create");
+    }
+
+    let isDisposed = false;
+    let isOpen = options.isOpen ?? true;
+
+    return ok({
+      send: () => {
+        if (isDisposed || !isOpen) return err({ type: "WebSocketSendError" });
+        return ok();
+      },
+
+      getReadyState: () => {
+        if (isDisposed) return "closed";
+        return isOpen ? "open" : "closed";
+      },
+
+      isOpen: () => !isDisposed && isOpen,
+
+      [Symbol.asyncDispose]: () => {
+        isDisposed = true;
+        isOpen = false;
+        return Promise.resolve();
       },
     });
   };
@@ -310,28 +349,3 @@ const nativeToStringState: Record<number, WebSocketReadyState> = {
   [globalThis.WebSocket.CLOSING]: "closing",
   [globalThis.WebSocket.CLOSED]: "closed",
 };
-
-export interface TestCreateWebSocketOptions {
-  readonly throwOnCreate?: boolean;
-}
-
-/**
- * Test helper that creates a deterministic {@link CreateWebSocket} adapter.
- */
-export const testCreateWebSocket =
-  ({
-    throwOnCreate = false,
-  }: TestCreateWebSocketOptions = {}): CreateWebSocket =>
-  () =>
-  async () => {
-    if (throwOnCreate) {
-      throw new Error("testCreateWebSocket: throwOnCreate");
-    }
-
-    return ok({
-      send: () => ok(),
-      getReadyState: () => "open",
-      isOpen: () => true,
-      [Symbol.dispose]: () => {},
-    });
-  };

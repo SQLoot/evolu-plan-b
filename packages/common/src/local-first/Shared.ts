@@ -8,22 +8,21 @@ import {
   emptyArray,
   firstInArray,
   isNonEmptyArray,
-  type NonEmptyReadonlyArray,
   shiftFromArray,
+  type NonEmptyReadonlyArray,
 } from "../Array.js";
 import { assert } from "../Assert.js";
 import { createCallbacks } from "../Callbacks.js";
 import type { ConsoleEntry, ConsoleLevel } from "../Console.js";
 import { exhaustiveCheck } from "../Function.js";
-import { createResources, type Resources } from "../Resources.js";
 import { ok } from "../Result.js";
 import { spaced } from "../Schedule.js";
 import type { NonEmptyReadonlySet } from "../Set.js";
-import { createMutexByKey, type Fiber, repeat, type Task } from "../Task.js";
+import { createMutexByKey, repeat, type Fiber, type Task } from "../Task.js";
 import type { TimeDep, TimeoutId } from "../Time.js";
 import { createId, type Id, type Name } from "../Type.js";
 import type { Callback, ExtractType } from "../Types.js";
-import type { CreateWebSocketDep, WebSocket } from "../WebSocket.js";
+import type { CreateWebSocketDep } from "../WebSocket.js";
 import type {
   SharedWorker as CommonSharedWorker,
   MessagePort,
@@ -32,7 +31,7 @@ import type {
   WorkerDeps,
 } from "../Worker.js";
 import type { EvoluError } from "./Error.js";
-import type { OwnerId, OwnerTransport } from "./Owner.js";
+import type { OwnerId } from "./Owner.js";
 import {
   makePatches,
   type Patch,
@@ -49,9 +48,9 @@ export interface SharedWorkerDep {
   readonly sharedWorker: SharedWorker;
 }
 
-interface TransportsDep {
-  readonly transports: SharedTransportResources;
-}
+// interface TransportsDep {
+//   readonly transports: SharedTransportResources;
+// }
 
 export type SharedWorkerDeps = WorkerDeps & CreateWebSocketDep & TimeDep;
 
@@ -64,7 +63,7 @@ export type SharedWorkerInput =
   | {
       readonly type: "CreateEvolu";
       readonly name: Name;
-      readonly appOwner?: SyncOwner;
+      readonly appOwner: SyncOwner;
       readonly evoluPort: NativeMessagePort<EvoluOutput, EvoluInput>;
       readonly dbWorkerPort: NativeMessagePort<DbWorkerInput, DbWorkerOutput>;
     };
@@ -116,8 +115,11 @@ export const initSharedWorker =
     self: SharedWorkerSelf<SharedWorkerInput>,
   ): Task<AsyncDisposableStack, never, SharedWorkerDeps> =>
   async (run) => {
-    const { createMessagePort, consoleStoreOutputEntry, createWebSocket } =
-      run.deps;
+    const {
+      createMessagePort,
+      consoleStoreOutputEntry,
+      createWebSocket: _createWebSocket,
+    } = run.deps;
     const console = run.deps.console.child("SharedWorker");
 
     // TODO: Use heartbeat to detect and prune dead ports.
@@ -129,34 +131,43 @@ export const initSharedWorker =
       else for (const port of tabPorts) port.postMessage(output);
     };
 
-    const createTransportId = (transport: OwnerTransport): string =>
-      `${transport.type}:${transport.url}`;
+    // const createTransportId = (transport: OwnerTransport): string =>
+    //   `${transport.type}:${transport.url}`;
 
-    await using stack = run.stack();
+    await using stack = new AsyncDisposableStack();
 
-    const transports = stack.use(
-      createResources<WebSocket, string, OwnerTransport, SyncOwner, OwnerId>({
-        createResource: async (transport) => {
-          const transportId = createTransportId(transport);
-          console.info("createTransportResource", { transportId });
-          return await run.daemon.orThrow(
-            createWebSocket(transport.url, {
-              binaryType: "arraybuffer",
-              onOpen: () => {
-                console.debug("transportOpen", { transportId });
-              },
-              onClose: () => {
-                console.debug("transportClose", { transportId });
-              },
-            }),
-          );
-        },
-        getResourceId: createTransportId,
-        getConsumerId: (owner) => owner.id,
-      }),
-    );
+    // const transports = stack.use(
+    //   createResources<WebSocket, string, OwnerTransport, SyncOwner, OwnerId>({
+    //     createResource: async (transport) => {
+    //       const transportId = createTransportId(transport);
+    //       console.info("createTransportResource", { transportId });
+    //       return await run.daemon.orThrow(
+    //         createWebSocket(transport.url, {
+    //           binaryType: "arraybuffer",
+    //           onOpen: () => {
+    //             console.debug("transportOpen", { transportId });
+    //           },
+    //           onClose: () => {
+    //             console.debug("transportClose", { transportId });
+    //           },
+    //         }),
+    //       );
+    //     },
+    //     getResourceId: createTransportId,
+    //     getConsumerId: (owner) => owner.id,
+    //   }),
+    // );
 
-    const runWithSharedEvoluDeps = run.addDeps({ transports });
+    const runWithSharedEvoluDeps = run;
+    // .addDeps({ transports });
+
+    // tady bych mel jednu vec
+    // const sharedEvoluResources = run.addDeps({ transports })(
+    //  createResourcesByKey(() => ))
+    // sharedEvoluResources.lock(name)
+    // onDispose, release?
+    // use, unuse? hmm
+
     const sharedEvolusByName = new Map<Name, SharedEvolu>();
     const sharedEvolusMutexByName = stack.use(createMutexByKey<Name>());
 
@@ -188,9 +199,7 @@ export const initSharedWorker =
                   const result = await runWithSharedEvoluDeps.daemon(
                     createSharedEvolu({
                       name: message.name,
-                      ...(message.appOwner
-                        ? { appOwner: message.appOwner }
-                        : {}),
+                      appOwner: message.appOwner,
                       postTabOutput,
                       onDispose: () => {
                         void runWithSharedEvoluDeps.daemon(
@@ -304,29 +313,35 @@ export interface QueuedResult {
   readonly response: QueuedResponse;
 }
 
-type SharedTransportResources = Resources<
-  WebSocket,
-  string,
-  OwnerTransport,
-  SyncOwner,
-  OwnerId
->;
+// type SharedTransportResources = Resources<
+//   WebSocket,
+//   string,
+//   OwnerTransport,
+//   SyncOwner,
+//   OwnerId
+// >;
 
 const createSharedEvolu =
   ({
     name,
-    appOwner,
+    appOwner: _appOwner,
     postTabOutput,
     onDispose,
   }: {
     name: Name;
-    appOwner?: SyncOwner;
+    appOwner: SyncOwner;
     postTabOutput: Callback<EvoluTabOutput>;
     onDispose: () => void;
-  }): Task<SharedEvolu, never, SharedWorkerDeps & TransportsDep> =>
-  async (run) => {
+  }): Task<
+    SharedEvolu,
+    never,
+    SharedWorkerDeps
+    /*& TransportsDep*/
+  > =>
+  (run) => {
     const console = run.deps.console.child(name).child("SharedWorker");
-    const { createMessagePort, transports } = run.deps;
+    const { createMessagePort } = run.deps;
+    // transports
 
     const evoluPorts = new Map<Id, MessagePort<EvoluOutput, EvoluInput>>();
     const dbWorkerPorts = new Set<MessagePort<DbWorkerInput, DbWorkerOutput>>();
@@ -343,11 +358,9 @@ const createSharedEvolu =
     let activeQueueCallbackId: Id | null = null;
     let activeLeaderTimeout: TimeoutId | null = null;
 
-    const ownerTransports = appOwner?.transports ?? emptyArray;
+    // const ownerTransports = appOwner.transports ?? emptyArray;
 
-    if (appOwner) {
-      await run(transports.addConsumer(appOwner, ownerTransports));
-    }
+    // await run(transports.addConsumer(appOwner, ownerTransports));
 
     const clearActiveLeaderTimeout = (): void => {
       if (!activeLeaderTimeout) return;
@@ -590,10 +603,9 @@ const createSharedEvolu =
     return ok({
       addPorts,
 
+      // eslint-disable-next-line @typescript-eslint/require-await
       [Symbol.asyncDispose]: async () => {
-        if (appOwner) {
-          await run(transports.removeConsumer(appOwner, ownerTransports));
-        }
+        // await run(transports.removeConsumer(appOwner, ownerTransports));
 
         clearActiveLeaderTimeout();
         queueProcessingFiber?.abort();

@@ -158,9 +158,8 @@ export const initEvoluWorker =
       if (entry) postTabOutput({ type: "ConsoleEntry", entry });
     });
 
-    run.defer(() => {
+    run.onAbort(() => {
       unsubscribe();
-      return ok();
     });
 
     return ok();

@@ -1,6 +1,5 @@
 import {
   type CreateSqliteDriverDep,
-  callback,
   createSqlite,
   getOrThrow,
   isPromiseLike,
@@ -95,11 +94,11 @@ export const startBunRelay =
       throw new Error("startBunRelay requires Bun runtime.");
     }
 
-    await using stack = _run.stack();
+    await using stack = new AsyncDisposableStack();
     const console = _run.deps.console.child("relay");
 
     const relayName = name ?? SimpleName.orThrow("evolu-relay");
-    const sqlite = getOrThrow(await stack.use(createSqlite(relayName)));
+    const sqlite = stack.use(await _run.orThrow(createSqlite(relayName)));
     const deps = { ..._run.deps, sqlite };
 
     createBaseSqliteStorageTables(deps);
@@ -255,17 +254,13 @@ export const startBunRelay =
 
     stack.defer(() => {
       console.info("Shutdown complete");
-      return ok();
     });
 
-    stack.defer(
-      callback(({ ok }) => {
-        console.info("Shutting down...");
-        server.stop(true);
-        console.info("Bun server stopped");
-        ok();
-      }),
-    );
+    stack.defer(() => {
+      console.info("Shutting down...");
+      server.stop(true);
+      console.info("Bun server stopped");
+    });
 
     console.info(`Started on port ${port} (Bun native runtime)`);
 

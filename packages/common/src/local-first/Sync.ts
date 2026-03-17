@@ -209,6 +209,27 @@ export const createSync =
       getSyncOwner,
     })(config);
 
+    const disposeSocket = async (webSocket: unknown): Promise<void> => {
+      if (!webSocket) return;
+      if (
+        typeof webSocket === "object" &&
+        webSocket !== null &&
+        Symbol.asyncDispose in webSocket
+      ) {
+        await (
+          webSocket as {
+            [Symbol.asyncDispose]: () => Promise<void>;
+          }
+        )[Symbol.asyncDispose]();
+        return;
+      }
+      (
+        webSocket as {
+          [Symbol.dispose]: () => void;
+        }
+      )[Symbol.dispose]();
+    };
+
     const createResource = (transport: OwnerTransport): WebSocket => {
       const transportKey = createTransportKey(transport);
 
@@ -256,13 +277,13 @@ export const createSync =
 
         isOpen: () => !resourceDisposed && (socket?.isOpen() ?? false),
 
-        [Symbol.dispose]: () => {
+        [Symbol.asyncDispose]: async () => {
           if (resourceDisposed) return;
           resourceDisposed = true;
           pendingSends.length = 0;
           webSocketsByTransportKey.delete(transportKey);
-          socket?.[Symbol.dispose]();
-          void run[Symbol.asyncDispose]();
+          await disposeSocket(socket);
+          await run[Symbol.asyncDispose]();
         },
       };
 
@@ -336,7 +357,7 @@ export const createSync =
           /* v8 ignore start */
           // Defensive cleanup for a resolved socket after disposal.
           if (resourceDisposed || isDisposed) {
-            socket[Symbol.dispose]();
+            void disposeSocket(socket);
           }
           /* v8 ignore stop */
         },

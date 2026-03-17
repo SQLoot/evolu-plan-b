@@ -1677,14 +1677,18 @@ export const yieldNow: Task<void> = () =>
 const scheduler = (
   globalThis as unknown as {
     readonly scheduler?: { readonly yield?: unknown };
+    readonly setImmediate?: (callback: () => void) => unknown;
   }
-).scheduler;
+);
+
+const schedulerYield = scheduler.scheduler?.yield;
+const setImmediateFn = scheduler.setImmediate;
 
 const yieldImpl: () => Promise<void> =
-  typeof scheduler?.yield === "function"
-    ? () => (scheduler.yield as () => Promise<void>)()
-    : typeof setImmediate !== "undefined"
-      ? () => new Promise<void>((resolve) => setImmediate(resolve))
+  typeof schedulerYield === "function"
+    ? () => (schedulerYield as () => Promise<void>)()
+    : typeof setImmediateFn === "function"
+      ? () => new Promise<void>((resolve) => void setImmediateFn(resolve))
       : () => new Promise<void>((r) => setTimeout(r, 0)); // Safari
 
 /**

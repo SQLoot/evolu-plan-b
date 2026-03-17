@@ -63,6 +63,7 @@ export const createWasmSqliteDriver: CreateSqliteDriver =
     // @ts-expect-error Missing types (update @evolu/sqlite-wasm types)
     sqlite3.capi.sqlite3mc_vfs_create("opfs", 1);
 
+    const stack = new globalThis.DisposableStack();
     let db: Database;
     switch (options?.mode) {
       case "memory":
@@ -87,13 +88,17 @@ export const createWasmSqliteDriver: CreateSqliteDriver =
       }
     }
 
-    let isDisposed = false;
+    db = stack.adopt(db, (db) => {
+      db.close();
+    });
 
-    const cache = createPreparedStatementsCache<PreparedStatement>(
-      (sql) => db.prepare(sql),
-      (statement) => {
-        statement.finalize();
-      },
+    const cache = stack.use(
+      createPreparedStatementsCache<PreparedStatement>(
+        (sql) => db.prepare(sql),
+        (statement) => {
+          statement.finalize();
+        },
+      ),
     );
 
     return ok({
@@ -129,11 +134,8 @@ export const createWasmSqliteDriver: CreateSqliteDriver =
       export: () => sqlite3.capi.sqlite3_js_db_export(db),
 
       [Symbol.dispose]: () => {
-        if (isDisposed) return;
-        isDisposed = true;
         // poolUtil.unlink?
-        cache[Symbol.dispose]();
-        db.close();
+        stack.dispose();
       },
     });
   };

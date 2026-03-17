@@ -4,6 +4,7 @@
  * @module
  */
 
+import { assertNotDisposed } from "./Assert.js";
 import type { Brand } from "./Brand.js";
 import type { EncryptionKey } from "./Crypto.js";
 import type { Eq } from "./Eq.js";
@@ -12,7 +13,7 @@ import { createRecord } from "./Object.js";
 import type { Result } from "./Result.js";
 import { err, ok } from "./Result.js";
 import type { Run, Task } from "./Task.js";
-import { type TestDeps, testCreateRun, testName } from "./Test.js";
+import { testCreateRun, testName, type TestDeps } from "./Test.js";
 import type { InferType, Name, Typed } from "./Type.js";
 import {
   array,
@@ -20,8 +21,8 @@ import {
   Number,
   object,
   record,
-  String,
   set,
+  String,
   Uint8Array,
   union,
 } from "./Type.js";
@@ -33,7 +34,7 @@ import {
  * {@link https://github.com/WiseLibs/better-sqlite3/issues/262 | better concurrency}
  * for SQLite.
  */
-export interface Sqlite extends Disposable {
+export interface Sqlite extends AsyncDisposable {
   readonly exec: <R extends SqliteRow = SqliteRow>(
     query: SqliteQuery,
   ) => SqliteExecResult<R>;
@@ -56,16 +57,8 @@ export interface Sqlite extends Disposable {
    * Exported databases are forwarded through worker `postMessage` transfer
    * lists, which require transferable `ArrayBuffer` backing.
    */
-  readonly export: () => SqliteExportFile;
+  readonly export: () => Uint8Array<ArrayBuffer>;
 }
-
-/**
- * Exported SQLite bytes with transferable ArrayBuffer backing.
- *
- * Kept as an intersection instead of `Uint8Array<ArrayBuffer>` for broader
- * TypeScript compatibility.
- */
-export type SqliteExportFile = Uint8Array & { readonly buffer: ArrayBuffer };
 
 export interface SqliteDep {
   readonly sqlite: Sqlite;
@@ -157,7 +150,7 @@ export interface SqliteDriver extends Disposable {
    * Exported databases are forwarded through worker `postMessage` transfer
    * lists, which require transferable `ArrayBuffer` backing.
    */
-  readonly export: () => SqliteExportFile;
+  readonly export: () => Uint8Array<ArrayBuffer>;
 }
 
 /** Creates a {@link SqliteDriver}. */
@@ -194,16 +187,20 @@ export const createSqlite =
   async (run) => {
     const { createSqliteDriver } = run.deps;
     const console = run.deps.console.child("sql");
+    const stack = new AsyncDisposableStack();
 
     const driverResult = await run(createSqliteDriver(name, options));
     if (!driverResult.ok) return driverResult;
-    const driver = driverResult.value;
+    const driver = stack.use(driverResult.value);
     console.debug("SQLite driver created");
 
-    let isDisposed = false;
+    const moved = stack.move();
+    const daemonSignal = run.daemon.signal;
+    let disposePromise: Promise<void> | null = null;
 
     const sqlite: Sqlite = {
       exec: <R extends SqliteRow = SqliteRow>(query: SqliteQuery) => {
+        assertNotDisposed(moved);
         console.debug({ query });
 
         const label =
@@ -231,7 +228,8 @@ export const createSqlite =
         return result as SqliteExecResult<R>;
       },
 
-      transaction: ((callback: () => Result<unknown, unknown> | undefined) => {
+      transaction: ((callback: () => Result<unknown, unknown> | void) => {
+        assertNotDisposed(moved);
         console.debug("begin");
         driver.exec(sql`begin;`);
 
@@ -254,30 +252,30 @@ export const createSqlite =
         return result;
       }) as SqliteTransaction,
 
-      export: () => driver.export(),
+      export: () => {
+        assertNotDisposed(moved);
+        return driver.export();
+      },
 
-      [Symbol.dispose]: () => {
-        if (isDisposed) return;
-        isDisposed = true;
+      [Symbol.asyncDispose]: () => {
+        if (disposePromise) return disposePromise;
+
         daemonSignal.removeEventListener("abort", disposeOnAbort);
-        driver[Symbol.dispose]();
+        disposePromise = moved.disposeAsync();
+        return disposePromise;
       },
     };
 
-    const daemonSignal = run.daemon.signal;
     const disposeOnAbort = () => {
-      sqlite[Symbol.dispose]();
+      void sqlite[Symbol.asyncDispose]();
     };
 
-    // Ensure Sqlite never outlives the root run even when callers forget to
-    // dispose it explicitly. When Sqlite is disposed manually, remove the abort
-    // listener so long-lived root runs do not accumulate stale hooks.
     if (daemonSignal.aborted) {
-      disposeOnAbort();
+      await sqlite[Symbol.asyncDispose]();
       return err({ type: "AbortError", reason: daemonSignal.reason });
-    } else {
-      daemonSignal.addEventListener("abort", disposeOnAbort, { once: true });
     }
+
+    daemonSignal.addEventListener("abort", disposeOnAbort, { once: true });
 
     return ok(sqlite);
   };
@@ -500,20 +498,12 @@ export const getSqliteSchema =
   (deps: SqliteDep) =>
   ({
     excludeIndexNamePrefix,
-    excludeSqliteInternalIndexes = true,
   }: {
     /**
      * If provided, indexes with names starting with this prefix are excluded in
      * SQLite query.
      */
     excludeIndexNamePrefix?: string;
-
-    /**
-     * Excludes SQLite internal indexes prefixed with `sqlite_`.
-     *
-     * @default true
-     */
-    excludeSqliteInternalIndexes?: boolean;
   } = {}): SqliteSchema => {
     const tables = createRecord<string, Set<string>>();
 
@@ -533,60 +523,43 @@ export const getSqliteSchema =
       (tables[tableName] ??= new Set()).add(columnName);
     });
 
-    const escapeLikePattern = (s: string) =>
-      s.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
-
-    const indexesRows =
+    const indexNamePrefixFilter =
       excludeIndexNamePrefix != null
-        ? deps.sqlite.exec<{ name: string; sql: string | null }>(
-            sql`
-              select name, sql
-              from sqlite_master
-              where
-                type = 'index'
-                ${sql.raw(
-                  excludeSqliteInternalIndexes
-                    ? "and name not like 'sqlite_%'"
-                    : "",
-                )}
-                and name not like ${`${escapeLikePattern(excludeIndexNamePrefix)}%`} escape '\\';
-            `,
-          )
-        : deps.sqlite.exec<{ name: string; sql: string | null }>(
-            sql`
-              select name, sql
-              from sqlite_master
-              where
-                type = 'index'
-                ${sql.raw(
-                  excludeSqliteInternalIndexes
-                    ? "and name not like 'sqlite_%'"
-                    : "",
-                )};
-            `,
-          );
+        ? ` and name not like '${excludeIndexNamePrefix.replaceAll("'", "''")}%'`
+        : "";
 
-    const indexes = indexesRows.rows.flatMap((row): Array<SqliteIndex> => {
-      if (row.sql == null) return [];
-      return [
-        {
-          name: row.name,
-          /**
-           * SQLite returns "CREATE INDEX" for "create index" for some reason.
-           * Other keywords remain unchanged. We have to normalize the casing
-           * for schema comparison manually.
-           */
-          sql: row.sql
-            .replace("CREATE INDEX", "create index")
-            .replace("CREATE UNIQUE INDEX", "create unique index"),
-        },
-      ];
-    });
+    const indexesRows = deps.sqlite.exec<{ name: string; sql: string }>(
+      sql`
+        select name, sql
+        from sqlite_master
+        where
+          type = 'index'
+          and name not like 'sqlite_%'
+          ${sql.raw(indexNamePrefixFilter)};
+      `,
+    );
+
+    const indexes = indexesRows.rows.map(
+      (row): SqliteIndex => ({
+        name: row.name,
+        /**
+         * SQLite returns "CREATE INDEX" for "create index" for some reason.
+         * Other keywords remain unchanged. We have to normalize the casing for
+         * schema comparison manually.
+         */
+        sql: row.sql
+          .replace("CREATE INDEX", "create index")
+          .replace("CREATE UNIQUE INDEX", "create unique index"),
+      }),
+    );
 
     return { tables, indexes };
   };
 
-/** Returns schema and full table contents for inspection and testing. */
+/**
+ * Returns {@link SqliteSchema} and full {@link SqliteRow} table contents for
+ * inspection and testing.
+ */
 export interface SqliteSnapshot {
   readonly schema: SqliteSchema;
   readonly tables: Array<{
@@ -595,10 +568,14 @@ export interface SqliteSnapshot {
   }>;
 }
 
+/**
+ * Captures a full {@link SqliteSnapshot} for testing and diagnostics.
+ *
+ * The snapshot includes current {@link SqliteSchema} and all rows from every
+ * discovered table. Table order follows `schema.tables` iteration order.
+ */
 export const getSqliteSnapshot = (deps: SqliteDep): SqliteSnapshot => {
-  const schema = getSqliteSchema(deps)({
-    excludeSqliteInternalIndexes: false,
-  });
+  const schema = getSqliteSchema(deps)();
 
   const tables: SqliteSnapshot["tables"] = [];
 
