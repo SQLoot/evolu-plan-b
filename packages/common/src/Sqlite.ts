@@ -13,7 +13,7 @@ import { createRecord } from "./Object.js";
 import type { Result } from "./Result.js";
 import { err, ok } from "./Result.js";
 import type { Run, Task } from "./Task.js";
-import { testCreateRun, testName, type TestDeps } from "./Test.js";
+import { type TestDeps, testCreateRun, testName } from "./Test.js";
 import type { InferType, Name, Typed } from "./Type.js";
 import {
   array,
@@ -21,8 +21,8 @@ import {
   Number,
   object,
   record,
-  set,
   String,
+  set,
   Uint8Array,
   union,
 } from "./Type.js";
@@ -228,7 +228,7 @@ export const createSqlite =
         return result as SqliteExecResult<R>;
       },
 
-      transaction: ((callback: () => Result<unknown, unknown> | void) => {
+      transaction: ((callback: () => Result<unknown, unknown> | undefined) => {
         assertNotDisposed(moved);
         console.debug("begin");
         driver.exec(sql`begin;`);

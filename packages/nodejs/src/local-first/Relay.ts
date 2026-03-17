@@ -1,20 +1,22 @@
+import { existsSync } from "node:fs";
+import { createServer } from "node:http";
 import {
+  type CreateSqliteDriverDep,
   createRandom,
   createRelation,
   createSqlite,
-  type CreateSqliteDriverDep,
   isPromiseLike,
   Name,
+  type OwnerId,
   ok,
-  OwnerId,
   type RandomDep,
   type Task,
   type TimingSafeEqualDep,
   Uint8Array,
 } from "@evolu/common";
 import {
-  applyProtocolMessageAsRelay,
   type ApplyProtocolMessageAsRelayOptions,
+  applyProtocolMessageAsRelay,
   createBaseSqliteStorageTables,
   createRelaySqliteStorage,
   createRelayStorageTables,
@@ -23,8 +25,6 @@ import {
   type Relay,
   type RelayConfig,
 } from "@evolu/common/local-first";
-import { existsSync } from "fs";
-import { createServer } from "http";
 import { WebSocket, WebSocketServer } from "ws";
 import { createTimingSafeEqual } from "../Crypto.js";
 import { createBetterSqliteDriver } from "../Sqlite.js";
@@ -213,11 +213,7 @@ export const startRelay =
             }
           }
 
-          console.debug(
-            "broadcast",
-            ownerId,
-            sockets.size,
-          );
+          console.debug("broadcast", ownerId, sockets.size);
         },
       };
 

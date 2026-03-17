@@ -5,12 +5,12 @@
  */
 
 import {
-  createInMemoryLeaderLock,
-  createRun as createCommonRun,
-  createUnknownError,
-  ok,
   type CreateRun,
+  createRun as createCommonRun,
+  createInMemoryLeaderLock,
+  createUnknownError,
   type LeaderLock,
+  ok,
   type Run,
   type RunDeps,
   unabortable,
@@ -50,10 +50,14 @@ export const createLeaderLock = (): LeaderLock => ({
 
     let request: Promise<unknown>;
     try {
-      request = locks.request(`evolu-leaderlock-${name}`, { mode: "exclusive" }, async () => {
-        acquired.resolve();
-        await release.promise;
-      });
+      request = locks.request(
+        `evolu-leaderlock-${name}`,
+        { mode: "exclusive" },
+        async () => {
+          acquired.resolve();
+          await release.promise;
+        },
+      );
     } catch {
       return run(unabortable(inMemoryLeaderLock.lock(name)));
     }
@@ -71,7 +75,6 @@ export const createLeaderLock = (): LeaderLock => ({
       release.resolve();
       return run(unabortable(inMemoryLeaderLock.lock(name)));
     }
-
 
     return ok({
       [Symbol.asyncDispose]: async () => {

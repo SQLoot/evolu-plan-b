@@ -1,7 +1,6 @@
 import {
   type CreateSqliteDriverDep,
   createSqlite,
-  getOrThrow,
   isPromiseLike,
   type OwnerId,
   ok,

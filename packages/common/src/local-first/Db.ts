@@ -12,11 +12,11 @@ import {
 } from "../Array.js";
 import { assertNonEmptyReadonlyArray } from "../Assert.js";
 import type { ConsoleLevel } from "../Console.js";
-import {
+import type {
+  DecryptWithXChaCha20Poly1305Error,
   EncryptionKey,
-  type DecryptWithXChaCha20Poly1305Error,
-  type EncryptionKeyDep,
-  type RandomBytesDep,
+  EncryptionKeyDep,
+  RandomBytesDep,
 } from "../Crypto.js";
 import { lazyFalse, lazyVoid } from "../Function.js";
 import { createRecord, getProperty, objectToEntries } from "../Object.js";
@@ -31,17 +31,17 @@ import type {
 import {
   booleanToSqliteBoolean,
   createSqlite,
-  sql,
   SqliteBoolean,
+  type SqliteValue,
+  sql,
   sqliteBooleanToBoolean,
-  SqliteValue,
 } from "../Sqlite.js";
-import { type LeaderLockDep, type Task } from "../Task.js";
+import type { LeaderLockDep, Task } from "../Task.js";
 import { Millis, millisToDateIso, type TimeDep } from "../Time.js";
 import type { Name } from "../Type.js";
 import {
-  Id,
-  IdBytes,
+  type Id,
+  type IdBytes,
   idBytesToId,
   idToIdBytes,
   minPositiveInt,
@@ -59,9 +59,9 @@ import { ownerIdBytesToOwnerId, ownerIdToOwnerIdBytes } from "./Owner.js";
 import {
   decryptAndDecodeDbChange,
   encodeAndEncryptDbChange,
-  protocolVersion,
   type ProtocolInvalidDataError,
   type ProtocolTimestampMismatchError,
+  protocolVersion,
 } from "./Protocol.js";
 import { deserializeQuery, type Query } from "./Query.js";
 import type { MutationChange, SqliteSchemaDep } from "./Schema.js";
@@ -77,16 +77,16 @@ import type {
   QueuedResponse,
 } from "./Shared.js";
 import {
+  type BaseSqliteStorage,
+  type BaseSqliteStorageDep,
+  type CrdtMessage,
   createBaseSqliteStorage,
   createBaseSqliteStorageTables,
   DbChange,
   getOwnerUsage,
   getTimestampInsertStrategy,
-  updateOwnerUsage,
-  type BaseSqliteStorage,
-  type BaseSqliteStorageDep,
-  type CrdtMessage,
   type Storage,
+  updateOwnerUsage,
 } from "./Storage.js";
 import type {
   Timestamp,
@@ -99,10 +99,10 @@ import {
   defaultTimestampMaxDrift,
   receiveTimestamp,
   sendTimestamp,
-  TimestampBytes,
+  type TimestampBytes,
+  type TimestampConfigDep,
   timestampBytesToTimestamp,
   timestampToTimestampBytes,
-  type TimestampConfigDep,
 } from "./Timestamp.js";
 
 export type DbWorker = Worker<DbWorkerInit>;
@@ -117,6 +117,8 @@ export interface DbWorkerInit {
 }
 
 export type CreateDbWorker = () => DbWorker;
+
+const processedRequestIdsLimit = 10_000;
 
 export interface CreateDbWorkerDep {
   readonly createDbWorker: CreateDbWorker;
@@ -221,15 +223,38 @@ const startDbWorker =
      * SharedWorker repeats sends until it gets a response, so handling here
      * must be idempotent and ignore already processed IDs.
      *
-     * TODO: Bound memory growth by evicting old IDs.
+     * processedRequestIds combines a size-based bound with time-based
+     * expiration to limit memory growth and reduce replay windows.
      */
     const processedRequestIds = new Set<Id>();
+    const processedRequestIdsOrder: Array<{
+      readonly id: Id;
+      readonly processedAt: Millis;
+    }> = [];
+    const processedRequestIdTtl = Millis.orThrow(5 * 60 * 1000);
 
     const { port } = run.deps;
 
     port.onMessage = ({ callbackId, request, evoluPortId }) => {
+      const now = run.deps.time.now();
+
+      while (processedRequestIdsOrder.length > 0) {
+        const oldest = processedRequestIdsOrder[0];
+        if (now - oldest.processedAt <= processedRequestIdTtl) break;
+        processedRequestIdsOrder.shift();
+        processedRequestIds.delete(oldest.id);
+      }
+
       if (processedRequestIds.has(callbackId)) return;
       processedRequestIds.add(callbackId);
+      processedRequestIdsOrder.push({
+        id: callbackId,
+        processedAt: now,
+      });
+      if (processedRequestIdsOrder.length > processedRequestIdsLimit) {
+        const oldest = processedRequestIdsOrder.shift();
+        if (oldest) processedRequestIds.delete(oldest.id);
+      }
 
       // console.debug("onQueuedEvoluInput", callbackId);
 
@@ -867,7 +892,13 @@ const loadQueries =
 
 export const testStartDbWorker = startDbWorker;
 
+export const testCreateClock = createClock;
+
 export const testInitializeDb = initializeDb;
+
+export const testHandleMutation = handleMutation;
+
+export const testTryApplyQuarantinedMessages = tryApplyQuarantinedMessages;
 
 //   reset: (deps) => (message) => {
 //     const result = deps.sqlite.transaction(() => {

@@ -4,9 +4,9 @@
  * @module
  */
 
-import { isPlainObject } from "./Object.js";
 import { assert } from "./Assert.js";
-import { uint8ArrayToBase64Url, type JsonValue } from "./Type.js";
+import { isPlainObject } from "./Object.js";
+import { type JsonValue, uint8ArrayToBase64Url } from "./Type.js";
 
 /**
  * Immutable structural key.
@@ -59,9 +59,8 @@ export type StructuralArrayInput = ReadonlyArray<StructuralKey>;
  * distinct keys or very hot paths, prefer native stable keys with a native
  * `Map`.
  */
-export interface StructuralMap<K extends StructuralKey, V> extends Iterable<
-  readonly [K, V]
-> {
+export interface StructuralMap<K extends StructuralKey, V>
+  extends Iterable<readonly [K, V]> {
   readonly size: number;
   readonly clear: () => void;
   readonly delete: (key: K) => boolean;
@@ -131,9 +130,7 @@ export const createStructuralMap = <
       }
     },
 
-    [Symbol.iterator]: function () {
-      return map.entries();
-    },
+    [Symbol.iterator]: () => map.entries(),
   };
 
   return map;

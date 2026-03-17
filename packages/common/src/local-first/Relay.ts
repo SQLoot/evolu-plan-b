@@ -16,13 +16,13 @@ import { err, getOk, ok } from "../Result.js";
 import type { SqliteDep } from "../Sqlite.js";
 import { sql } from "../Sqlite.js";
 import { createMutexByKey } from "../Task.js";
-import { Name, PositiveInt } from "../Type.js";
-import { isPromiseLike, type Awaitable } from "../Types.js";
+import { type Name, PositiveInt } from "../Type.js";
+import { type Awaitable, isPromiseLike } from "../Types.js";
 import {
-  OwnerId,
-  ownerIdBytesToOwnerId,
+  type OwnerId,
   // OwnerTransport,
-  OwnerWriteKey,
+  type OwnerWriteKey,
+  ownerIdBytesToOwnerId,
 } from "./Owner.js";
 import type {
   EncryptedDbChange,
@@ -195,6 +195,9 @@ export const createRelaySqliteStorage =
               (sum, m) => sum + m.change.length,
               0,
             );
+            if (incomingBytes === 0) {
+              return ok();
+            }
             const newStoredBytes = PositiveInt.orThrow(
               (usage.storedBytes ?? 0) + incomingBytes,
             );

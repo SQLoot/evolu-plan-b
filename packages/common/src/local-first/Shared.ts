@@ -8,8 +8,8 @@ import {
   emptyArray,
   firstInArray,
   isNonEmptyArray,
-  shiftFromArray,
   type NonEmptyReadonlyArray,
+  shiftFromArray,
 } from "../Array.js";
 import { assert } from "../Assert.js";
 import { createCallbacks } from "../Callbacks.js";
@@ -18,7 +18,7 @@ import { exhaustiveCheck } from "../Function.js";
 import { ok } from "../Result.js";
 import { spaced } from "../Schedule.js";
 import type { NonEmptyReadonlySet } from "../Set.js";
-import { createMutexByKey, repeat, type Fiber, type Task } from "../Task.js";
+import { createMutexByKey, type Fiber, repeat, type Task } from "../Task.js";
 import type { TimeDep, TimeoutId } from "../Time.js";
 import { createId, type Id, type Name } from "../Type.js";
 import type { Callback, ExtractType } from "../Types.js";

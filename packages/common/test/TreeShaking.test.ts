@@ -184,8 +184,8 @@ const normalizeBundleSize = (
   }
 
   if (fixture === "task-example") {
-    if (gzip >= 5350 && gzip <= 5450) gzip = 5395;
-    if (raw >= 14250 && raw <= 14500) raw = 14356;
+    if (gzip >= 5100 && gzip <= 5225) gzip = 5150;
+    if (raw >= 13400 && raw <= 13700) raw = 13516;
   }
 
   if (fixture === "type-object") {
@@ -215,8 +215,8 @@ describe("tree-shaking", () => {
           "raw": 1602,
         },
         "task-example": {
-          "gzip": 5395,
-          "raw": 14356,
+          "gzip": 5150,
+          "raw": 13516,
         },
         "type-object": {
           "gzip": 1937,

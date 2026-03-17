@@ -32,10 +32,19 @@
       "source": "./src/local-first/index.ts",
       "import": "./dist/src/local-first/index.js",
       "default": "./dist/src/local-first/index.js"
+    },
+    "./polyfills": {
+      "types": "./dist/src/Polyfills.d.ts",
+      "source": "./src/Polyfills.ts",
+      "import": "./dist/src/Polyfills.js",
+      "default": "./dist/src/Polyfills.js"
     }
   },
   "typesVersions": {
     "*": {
+      "polyfills": [
+        "./dist/src/Polyfills.d.ts"
+      ],
       "local-first": [
         "./dist/src/local-first/index.d.ts"
       ]

@@ -51,19 +51,19 @@ import {
   PositiveInt,
   type Typed,
   typed,
-  union,
   Unknown,
   UnknownResult,
+  union,
 } from "./Type.js";
-import type { isPromiseLike } from "./Types.js";
-import {
-  type Awaitable,
-  type Callback,
-  type CallbackWithTeardown,
-  type Int1To100,
-  type Mutable,
-  type NewKeys,
-  type Predicate,
+import type {
+  Awaitable,
+  Callback,
+  CallbackWithTeardown,
+  Int1To100,
+  isPromiseLike,
+  Mutable,
+  NewKeys,
+  Predicate,
 } from "./Types.js";
 
 /**
@@ -992,10 +992,8 @@ export interface RunStateRunning extends Typed<"Running"> {}
 
 export interface RunStateDisposing extends Typed<"Disposing"> {}
 
-export interface RunStateSettled<
-  T = unknown,
-  E = unknown,
-> extends Typed<"Settled"> {
+export interface RunStateSettled<T = unknown, E = unknown>
+  extends Typed<"Settled"> {
   /**
    * The Run's completion value.
    *
@@ -1605,7 +1603,13 @@ export function concurrently<T, E, D = unknown>(
   taskOrFallback?: Task<T, E, D>,
 ): Task<T, E, D> {
   const isTask = isFunction(concurrencyOrTask);
-  const task = isTask ? concurrencyOrTask : taskOrFallback!;
+  let task: Task<T, E, D>;
+  if (isTask) {
+    task = concurrencyOrTask;
+  } else {
+    assert(taskOrFallback != null, "task is required");
+    task = taskOrFallback;
+  }
   return Object.assign((run: Run<D>) => run(task), {
     [concurrencyBehaviorSymbol]: isTask ? maxPositiveInt : concurrencyOrTask,
   });
@@ -1674,22 +1678,28 @@ export const yieldNow: Task<void> = () =>
     (reason): AbortError => createAbortError(reason),
   );
 
-const scheduler = (
-  globalThis as unknown as {
-    readonly scheduler?: { readonly yield?: unknown };
-    readonly setImmediate?: (callback: () => void) => unknown;
+const scheduler = globalThis as unknown as {
+  readonly scheduler?: { readonly yield?: unknown };
+  readonly setImmediate?: (callback: () => void) => unknown;
+};
+
+const yieldImpl = (): Promise<void> => {
+  const schedulerApi = scheduler.scheduler;
+  if (typeof schedulerApi?.yield === "function") {
+    return Reflect.apply(
+      schedulerApi.yield as () => Promise<void>,
+      schedulerApi,
+      [],
+    );
   }
-);
 
-const schedulerYield = scheduler.scheduler?.yield;
-const setImmediateFn = scheduler.setImmediate;
+  const setImmediateFn = scheduler.setImmediate;
+  if (typeof setImmediateFn === "function") {
+    return new Promise<void>((resolve) => void setImmediateFn(resolve));
+  }
 
-const yieldImpl: () => Promise<void> =
-  typeof schedulerYield === "function"
-    ? () => (schedulerYield as () => Promise<void>)()
-    : typeof setImmediateFn === "function"
-      ? () => new Promise<void>((resolve) => void setImmediateFn(resolve))
-      : () => new Promise<void>((r) => setTimeout(r, 0)); // Safari
+  return new Promise<void>((resolve) => setTimeout(resolve, 0)); // Safari
+};
 
 /**
  * Creates a {@link Task} from a callback-based API.
@@ -2256,9 +2266,8 @@ export const createDeferred = <T, E = never>(): Deferred<T, E> => {
 export const DeferredDisposedError = /*#__PURE__*/ typed(
   "DeferredDisposedError",
 );
-export interface DeferredDisposedError extends InferType<
-  typeof DeferredDisposedError
-> {}
+export interface DeferredDisposedError
+  extends InferType<typeof DeferredDisposedError> {}
 
 /**
  * {@link DeferredDisposedError} used as abort reason in {@link createDeferred}.
@@ -2559,9 +2568,8 @@ export const createSemaphore = (permits: Concurrency): Semaphore => {
 export const SemaphoreDisposedError = /*#__PURE__*/ typed(
   "SemaphoreDisposedError",
 );
-export interface SemaphoreDisposedError extends InferType<
-  typeof SemaphoreDisposedError
-> {}
+export interface SemaphoreDisposedError
+  extends InferType<typeof SemaphoreDisposedError> {}
 
 /**
  * {@link SemaphoreDisposedError} used as abort reason in {@link createSemaphore}.
@@ -2584,9 +2592,8 @@ const semaphoreDisposedAbortError: AbortError = createAbortError(
  *
  * @group Concurrency primitives
  */
-export interface SemaphoreByKey<
-  K extends StructuralKey = StructuralKey,
-> extends Disposable {
+export interface SemaphoreByKey<K extends StructuralKey = StructuralKey>
+  extends Disposable {
   /**
    * Executes a {@link Task} while holding one permit for a specific key.
    *
@@ -2765,9 +2772,8 @@ export const createMutex = (): Mutex => {
  *
  * @group Concurrency primitives
  */
-export interface MutexByKey<
-  K extends StructuralKey = StructuralKey,
-> extends Disposable {
+export interface MutexByKey<K extends StructuralKey = StructuralKey>
+  extends Disposable {
   /**
    * Executes a {@link Task} while holding the mutex lock for a specific key.
    *
@@ -2988,6 +2994,8 @@ export interface CollectOptions<Collect extends boolean = true> {
   readonly abortReason?: unknown;
 }
 
+type NoValue = undefined;
+
 /**
  * Fails fast on first error across multiple {@link Task}s.
  *
@@ -3077,7 +3085,7 @@ export function all<T, E, D>(
 export function all<T, E, D>(
   tasks: Iterable<Task<T, E, D>> | Readonly<Record<string, Task<T, E, D>>>,
   options: CollectOptions<false>,
-): Task<void, E, D>;
+): Task<undefined, E, D>;
 
 export function all(
   input: CollectInput,
@@ -3212,7 +3220,7 @@ export function allSettled<T, E, D>(
 export function allSettled<T, E, D>(
   tasks: Iterable<Task<T, E, D>> | Readonly<Record<string, Task<T, E, D>>>,
   options: CollectOptions<false>,
-): Task<void, never, D>;
+): Task<undefined, never, D>;
 
 export function allSettled(
   input: Iterable<AnyTask> | Readonly<Record<string, AnyTask>>,
@@ -3227,9 +3235,8 @@ export function allSettled(
  * @group Composition
  */
 export const AllSettledAbortError = /*#__PURE__*/ typed("AllSettledAbortError");
-export interface AllSettledAbortError extends InferType<
-  typeof AllSettledAbortError
-> {}
+export interface AllSettledAbortError
+  extends InferType<typeof AllSettledAbortError> {}
 
 /**
  * {@link AllSettledAbortError} used as abort reason in {@link allSettled}.
@@ -3305,13 +3312,13 @@ export function map<A, T, E, D>(
   items: Iterable<A> | Readonly<Record<string, A>>,
   task: (a: A) => Task<T, E, D>,
   options: CollectOptions<false>,
-): Task<void, E, D>;
+): Task<undefined, E, D>;
 
 export function map<A, T, E, D>(
   items: MapInput<A>,
   fn: (a: A) => Task<T, E, D>,
   { abortReason = mapAbortError, ...options }: CollectOptions<boolean> = {},
-): Task<ReadonlyArray<T> | Record<string, T> | void, E, D> {
+): Task<ReadonlyArray<T> | Record<string, T> | NoValue, E, D> {
   const mapped = mapInput(items, fn);
   return all(
     mapped as Iterable<Task<T, E, D>>,
@@ -3414,7 +3421,7 @@ export function mapSettled<A, T, E, D>(
   items: Iterable<A> | Readonly<Record<string, A>>,
   task: (a: A) => Task<T, E, D>,
   options: CollectOptions<false>,
-): Task<void, never, D>;
+): Task<undefined, never, D>;
 
 export function mapSettled<A, T, E, D>(
   items: MapInput<A>,
@@ -3423,7 +3430,7 @@ export function mapSettled<A, T, E, D>(
 ): Task<
   | ReadonlyArray<Result<T, E | AbortError>>
   | Record<string, Result<T, E | AbortError>>
-  | void,
+  | NoValue,
   never,
   D
 > {
@@ -3558,7 +3565,7 @@ const collect = (
   return async (run) => {
     const result = await run(pool(taskArray, { stopOn, collect, abortReason }));
     if (!result.ok) return result;
-    if (!collect) return ok();
+    if (!collect) return ok(undefined);
     const record = createRecord();
     for (let i = 0; i < keys.length; i++) {
       record[keys[i]] = (result.value as Array<unknown>)[i];
@@ -3637,7 +3644,7 @@ function pool<D>(
     collect: false;
     abortReason: unknown;
   },
-): Task<void, never, D>;
+): Task<undefined, never, D>;
 
 /** Internal overload for {@link collect} with dynamic stopOn/collect. */
 function pool(
@@ -3662,7 +3669,7 @@ function pool<T, E>(
     abortReason: unknown;
     allFailed?: AnyAllFailed;
   },
-): Task<ReadonlyArray<unknown> | T | void, E> {
+): Task<ReadonlyArray<unknown> | T | NoValue, E> {
   const tasks = arrayFrom(tasksIterable);
   const { length } = tasks;
   if (length === 0) return () => ok(emptyArray);
@@ -3743,13 +3750,19 @@ function pool<T, E>(
       return err(run.signal.reason as AbortError);
     }
 
-    if (!stopOn) return results ? ok(results) : ok();
+    if (!stopOn) return results ? ok(results) : ok(undefined);
     if (stopped) return stopped;
     if (results) return ok(results);
     // For all/allSettled/map/mapSettled with collect: false (no allFailed handler)
-    if (!allFailed) return ok();
+    if (!allFailed) return ok(undefined);
 
-    return allFailed === "completion" ? lastResult! : lastIndexResult!;
+    if (allFailed === "completion") {
+      assert(lastResult != null, "expected at least one result");
+      return lastResult;
+    }
+
+    assert(lastIndexResult != null, "expected last index result");
+    return lastIndexResult;
   };
 }
 

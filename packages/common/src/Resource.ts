@@ -8,16 +8,16 @@ import { assert, assertNotAborted } from "./Assert.js";
 import { ok } from "./Result.js";
 import { createStructuralMap, type StructuralKey } from "./StructuralMap.js";
 import {
+  type AbortError,
   createMutex,
   createMutexByKey,
-  sleep,
-  unabortable,
-  type AbortError,
   type Fiber,
   type MutexRef,
+  sleep,
   type Task,
+  unabortable,
 } from "./Task.js";
-import { type Duration } from "./Time.js";
+import type { Duration } from "./Time.js";
 import { NonNegativeInt } from "./Type.js";
 
 /**
@@ -58,10 +58,8 @@ export type BorrowedResource<T extends Resource> = Omit<
  * The create Task must not fail. If it could fail, the current resource would
  * be disposed without the next resource installed.
  */
-export interface ResourceRef<
-  T extends Resource,
-  D = unknown,
-> extends AsyncDisposable {
+export interface ResourceRef<T extends Resource, D = unknown>
+  extends AsyncDisposable {
   /** Returns the current resource. */
   readonly get: Task<BorrowedResource<T>, never, D>;
 
@@ -124,10 +122,8 @@ export const createResourceRef = <T extends Resource, D>(
  * successful calls to {@link SharedResource.acquire | acquire}. Releasing more
  * times than acquired is a programmer error checked with {@link assert}.
  */
-export interface SharedResource<
-  T extends Resource,
-  D = unknown,
-> extends AsyncDisposable {
+export interface SharedResource<T extends Resource, D = unknown>
+  extends AsyncDisposable {
   /**
    * Acquires a shared reference.
    *
@@ -304,9 +300,8 @@ export interface SharedResourceByKey<
 }
 
 /** Options for {@link createSharedResourceByKey}. */
-export interface SharedResourceByKeyOptions<
-  K extends StructuralKey,
-> extends Pick<SharedResourceOptions, "idleDisposeAfter"> {
+export interface SharedResourceByKeyOptions<K extends StructuralKey>
+  extends Pick<SharedResourceOptions, "idleDisposeAfter"> {
   /** Called after `key`'s current resource is disposed and cleared. */
   readonly onDisposed?: (key: K) => void;
 }

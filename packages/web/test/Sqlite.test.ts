@@ -1,9 +1,9 @@
 import {
+  type CreateSqliteDriverDep,
   createSqlite,
   Name,
   sql,
   testCreateRun,
-  type CreateSqliteDriverDep,
 } from "@evolu/common";
 import { installPolyfills } from "@evolu/common/polyfills";
 import { assert, describe, expect, test } from "vitest";

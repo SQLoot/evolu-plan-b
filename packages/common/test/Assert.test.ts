@@ -1,17 +1,15 @@
 import { describe, expect, expectTypeOf, test } from "vitest";
 import {
   assert,
-  assertNotAborted,
-  assertNotDisposed,
   assertNonEmptyArray,
   assertNonEmptyReadonlyArray,
+  assertNotAborted,
+  assertNotDisposed,
   assertType,
 } from "../src/Assert.js";
-import type { Ok } from "../src/Result.js";
-import type { Result } from "../src/Result.js";
+import type { Ok, Result } from "../src/Result.js";
 import { err, ok } from "../src/Result.js";
-import { AbortError } from "../src/Task.js";
-import { runStoppedError } from "../src/Task.js";
+import { AbortError, runStoppedError } from "../src/Task.js";
 import type { Typed } from "../src/Type.js";
 
 interface MyError extends Typed<"MyError"> {}

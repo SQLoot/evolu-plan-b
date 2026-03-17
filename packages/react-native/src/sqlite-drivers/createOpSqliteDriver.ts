@@ -1,7 +1,7 @@
 import {
   bytesToHex,
-  createPreparedStatementsCache,
   type CreateSqliteDriver,
+  createPreparedStatementsCache,
   lazyVoid,
   ok,
   type SqliteRow,
@@ -54,7 +54,19 @@ export const createOpSqliteDriver: CreateSqliteDriver =
       // FIXME: op-sqlite does not expose binary, but a path to the database file
       // another react native dependency would be needed to implement this
       export: () => {
-        throw new Error("TODO: Not implemented yet");
+        let message =
+          "Database export is not supported with @op-engineering/op-sqlite.";
+
+        try {
+          const dbPath = db.getDbPath?.();
+          if (dbPath) {
+            message += ` Database path: ${dbPath}.`;
+          }
+        } catch {
+          // Best-effort path lookup only.
+        }
+
+        throw new Error(message);
       },
 
       [Symbol.dispose]: () => {
