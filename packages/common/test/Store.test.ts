@@ -227,6 +227,31 @@ describe("subscribe", () => {
     expect(listener1).toHaveBeenCalledTimes(1);
     expect(listener2).toHaveBeenCalledTimes(1);
   });
+
+  test("uses a listener snapshot during notifications", () => {
+    const store = createStore(0);
+    const calls: Array<string> = [];
+
+    let unsubscribeSecond = () => {};
+
+    store.subscribe(() => {
+      calls.push("first");
+      unsubscribeSecond();
+      store.subscribe(() => {
+        calls.push("third");
+      });
+    });
+
+    unsubscribeSecond = store.subscribe(() => {
+      calls.push("second");
+    });
+
+    store.set(1);
+    expect(calls).toEqual(["first", "second"]);
+
+    store.set(2);
+    expect(calls).toEqual(["first", "second", "first", "third"]);
+  });
 });
 
 describe("dispose", () => {

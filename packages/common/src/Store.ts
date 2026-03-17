@@ -61,7 +61,8 @@ export const createStore = <T>(initialState: T, eq?: Eq<T>): Store<T> => {
 
   const notifyIfChanged = (previousState: T): void => {
     if (!equality(previousState, ref.get())) {
-      for (const listener of listeners) listener();
+      const currentListeners = Array.from(listeners);
+      for (const listener of currentListeners) listener();
     }
   };
 
