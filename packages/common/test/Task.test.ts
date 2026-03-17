@@ -5848,6 +5848,34 @@ describe("concurrency", () => {
       const third = await run.orThrow(leaderLock.lock(testName));
       await third[Symbol.asyncDispose]();
     });
+
+    test("acquisition does not hang when background lease run rejects", async () => {
+      const leaderLock = createInMemoryLeaderLock();
+      const disposeLeaseRun = vi.fn(async () => {});
+
+      const rejectingLeaseRun = Object.assign(
+        (() => Promise.reject("lease-failed")) as unknown as Run,
+        {
+          [Symbol.asyncDispose]: disposeLeaseRun,
+        },
+      );
+
+      let fakeRun!: Run;
+      fakeRun = Object.assign(
+        ((task: Task<unknown, unknown, unknown>) =>
+          Promise.resolve(task(fakeRun))) as unknown as Run,
+        {
+          create: () => rejectingLeaseRun,
+          onAbort: () => undefined,
+          [Symbol.asyncDispose]: async () => {},
+        },
+      );
+
+      await expect(leaderLock.lock(testName)(fakeRun)).resolves.toEqual(
+        err({ type: "AbortError", reason: "lease-failed" }),
+      );
+      expect(disposeLeaseRun).toHaveBeenCalled();
+    });
   });
 });
 

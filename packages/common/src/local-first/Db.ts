@@ -613,6 +613,7 @@ const _createClientStorage =
         if (encryptedMessages.length === 0) return ok();
 
         const messages: Array<CrdtMessage> = [];
+        let incomingBytesSum = 0;
 
         for (const message of encryptedMessages) {
           const change = decryptAndDecodeDbChange(message, deps.encryptionKey);
@@ -620,9 +621,12 @@ const _createClientStorage =
             onError(change.error);
             continue;
           }
+          incomingBytesSum += message.change.length;
           messages.push({ timestamp: message.timestamp, change: change.value });
         }
         if (messages.length === 0) return ok();
+
+        const incomingBytes = PositiveInt.orThrow(incomingBytesSum);
 
         const clockTimestamp = deps.clock.get();
         let validatedClockTimestamp = clockTimestamp;
@@ -647,7 +651,11 @@ const _createClientStorage =
         assertNonEmptyReadonlyArray(messages);
 
         return deps.sqlite.transaction(() => {
-          applyMessages(deps)(ownerIdBytesToOwnerId(ownerIdBytes), messages);
+          applyMessages(deps)(
+            ownerIdBytesToOwnerId(ownerIdBytes),
+            messages,
+            incomingBytes,
+          );
           deps.clock.save(validatedClockTimestamp);
           return ok();
         });
@@ -810,7 +818,11 @@ const applyMessages =
       RandomDep &
       SqliteDep,
   ) =>
-  (ownerId: OwnerId, messages: NonEmptyReadonlyArray<CrdtMessage>): void => {
+  (
+    ownerId: OwnerId,
+    messages: NonEmptyReadonlyArray<CrdtMessage>,
+    incomingBytes?: PositiveInt,
+  ): void => {
     const ownerIdBytes = ownerIdToOwnerIdBytes(ownerId);
 
     const usage = getOwnerUsage(deps)(
@@ -870,17 +882,19 @@ const applyMessages =
       );
     }
 
-    const incomingBytes = PositiveInt.orThrow(
-      messages.reduce(
-        (sum, message) =>
-          sum +
-          encodeAndEncryptDbChange(deps)(message, deps.encryptionKey).length,
-        0,
-      ),
-    );
+    const resolvedIncomingBytes =
+      incomingBytes ??
+      PositiveInt.orThrow(
+        messages.reduce(
+          (sum, message) =>
+            sum +
+            encodeAndEncryptDbChange(deps)(message, deps.encryptionKey).length,
+          0,
+        ),
+      );
     const nextStoredBytes = getNextStoredBytes(
       usage.value.storedBytes,
-      incomingBytes,
+      resolvedIncomingBytes,
     );
     updateOwnerUsage(deps)(
       ownerIdBytes,

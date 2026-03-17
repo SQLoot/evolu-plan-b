@@ -8,14 +8,14 @@ import { assert, assertNotAborted } from "./Assert.js";
 import { ok } from "./Result.js";
 import { createStructuralMap, type StructuralKey } from "./StructuralMap.js";
 import {
-  type AbortError,
   createMutex,
   createMutexByKey,
+  sleep,
+  unabortable,
+  type AbortError,
   type Fiber,
   type MutexRef,
-  sleep,
   type Task,
-  unabortable,
 } from "./Task.js";
 import type { Duration } from "./Time.js";
 import { NonNegativeInt } from "./Type.js";
@@ -183,9 +183,13 @@ export const createSharedResource = <T extends Resource, D>(
 
     const disposeCurrent = async () => {
       if (!current) return;
-      await current.stack.disposeAsync();
+      const toDispose = current;
       current = undefined;
-      onDisposed?.();
+      try {
+        await toDispose.stack.disposeAsync();
+      } finally {
+        onDisposed?.();
+      }
     };
     stack.defer(disposeCurrent);
 

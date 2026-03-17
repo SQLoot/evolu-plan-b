@@ -2954,6 +2954,16 @@ export const createInMemoryLeaderLock = (): LeaderLock => {
           await run(released.task);
           return ok();
         }),
+      ).then(
+        (result) => {
+          if (result.ok) return;
+          acquired.resolve(err(result.error));
+          void leaseRun[Symbol.asyncDispose]();
+        },
+        (error: unknown) => {
+          acquired.resolve(err(createAbortError(error)));
+          void leaseRun[Symbol.asyncDispose]();
+        },
       );
 
       const acquiredResult = await run(acquired.task);
