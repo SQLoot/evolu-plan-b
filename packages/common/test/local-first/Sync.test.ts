@@ -1086,6 +1086,52 @@ test("createSync invokes websocket lifecycle handlers and disposes deferred sock
   expect(warns.some((entry) => entry[1] === "onError")).toBe(true);
 });
 
+test("createSync logs socket dispose failures and still tears down", async () => {
+  await using run = await testCreateRunWithSqlite();
+  prepareSyncTables(run.deps);
+
+  const warns: Array<ReadonlyArray<unknown>> = [];
+  let socketDisposed = 0;
+
+  const sync = createSync({
+    ...run.deps,
+    console: {
+      ...run.deps.console,
+      warn: (...args) => {
+        warns.push(args);
+      },
+    },
+    clock: createInMemoryClock(run.deps),
+    sqliteSchema: testSqliteSchema,
+    createWebSocket: () => async () =>
+      ok({
+        send: () => ok(),
+        getReadyState: () => "open",
+        isOpen: () => true,
+        [Symbol.asyncDispose]: async () => {
+          socketDisposed += 1;
+          throw new Error("socket-dispose-failed");
+        },
+      }),
+    timestampConfig: { maxDrift: defaultTimestampMaxDrift },
+  })({
+    appOwner: testAppOwner,
+    transports: [{ type: "WebSocket", url: "ws://localhost:4011" }],
+    disposalDelayMs: 0,
+    onError: () => {},
+    onReceive: () => {},
+  });
+
+  sync.useOwner(true, testAppOwner);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  sync[Symbol.dispose]();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  expect(socketDisposed).toBe(1);
+  expect(warns.some((entry) => entry[1] === "disposeSocketFailed")).toBe(true);
+});
+
 test("createSync logs warning when removing consumer with mismatched transports", async () => {
   await using run = await testCreateRunWithSqlite();
   prepareSyncTables(run.deps);

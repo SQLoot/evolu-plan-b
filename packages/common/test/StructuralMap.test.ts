@@ -179,4 +179,12 @@ describe("createStructuralMap", () => {
       "Structural keys must be JSON-like values or Uint8Array.",
     );
   });
+
+  test("rejects non-Uint8Array object keys with a clear type name", () => {
+    const map = createStructuralMap<string, string>();
+
+    expect(() => map.set(new Date() as never, "value")).toThrow(
+      "StructuralMap keys must be JSON-like values or Uint8Array; received Date.",
+    );
+  });
 });

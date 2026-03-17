@@ -141,6 +141,13 @@ interface Entry<K extends StructuralKey, V> {
   readonly value: V;
 }
 
+const isUint8Array = (value: object): value is Uint8Array =>
+  value instanceof globalThis.Uint8Array ||
+  Object.prototype.toString.call(value) === "[object Uint8Array]";
+
+const formatUnsupportedStructuralKeyType = (value: object): string =>
+  value.constructor?.name ?? Object.prototype.toString.call(value);
+
 const serializeStructuralKey = (
   value: StructuralKey,
   keyIdByObject: WeakMap<object, string>,
@@ -174,8 +181,12 @@ const serializeStructuralKey = (
         path.add(value);
         keyId = serializeStructuralObject(value, keyIdByObject, path);
         path.delete(value);
+      } else if (isUint8Array(value)) {
+        keyId = `u:${uint8ArrayToBase64Url(value)}`;
       } else {
-        keyId = `u:${uint8ArrayToBase64Url(value as Uint8Array)}`;
+        throw new Error(
+          `StructuralMap keys must be JSON-like values or Uint8Array; received ${formatUnsupportedStructuralKeyType(value)}.`,
+        );
       }
 
       keyIdByObject.set(value, keyId);

@@ -285,8 +285,16 @@ export const createSync =
           resourceDisposed = true;
           pendingSends.length = 0;
           webSocketsByTransportKey.delete(transportKey);
-          await disposeSocket(socket);
-          await run[Symbol.asyncDispose]();
+          try {
+            await disposeSocket(socket);
+          } catch (error) {
+            deps.console.warn("[sync]", "disposeSocketFailed", {
+              transportKey,
+              error,
+            });
+          } finally {
+            await run[Symbol.asyncDispose]();
+          }
         },
       };
 
