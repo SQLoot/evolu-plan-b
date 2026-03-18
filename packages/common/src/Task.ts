@@ -2418,6 +2418,9 @@ export interface SemaphoreSnapshot {
   /** Currently available permits. */
   readonly available: NonNegativeInt;
 
+  /** Whether no permits are taken and no Tasks are waiting. */
+  readonly isIdle: boolean;
+
   /** Whether the semaphore has been disposed. */
   readonly disposed: boolean;
 }
@@ -2538,6 +2541,7 @@ export const createSemaphore = (permits: Concurrency): Semaphore => {
       taken,
       waiting: NonNegativeInt.orThrow(waiters.length),
       available: NonNegativeInt.orThrow(permits - taken),
+      isIdle: taken === 0 && waiters.length === 0,
       disposed,
     }),
 
@@ -2655,7 +2659,7 @@ export const createSemaphoreByKey = <K extends StructuralKey = StructuralKey>(
         [Symbol.dispose]: () => {
           if (semaphoresByKey.get(key) !== semaphore) return;
           const snapshot = semaphore.snapshot();
-          if (snapshot.taken !== 0 || snapshot.waiting !== 0) return;
+          if (!snapshot.isIdle) return;
 
           semaphore.__disposing = true;
 
@@ -2665,10 +2669,7 @@ export const createSemaphoreByKey = <K extends StructuralKey = StructuralKey>(
           }
 
           const snapshotAfterMark = semaphore.snapshot();
-          if (
-            snapshotAfterMark.taken !== 0 ||
-            snapshotAfterMark.waiting !== 0
-          ) {
+          if (!snapshotAfterMark.isIdle) {
             semaphore.__disposing = false;
             return;
           }
