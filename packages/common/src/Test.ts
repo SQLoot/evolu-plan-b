@@ -120,7 +120,15 @@ export const testAppOwner = /*#__PURE__*/ createAppOwner(testOwnerSecret);
 
 export const testName = /*#__PURE__*/ SimpleName.orThrow("Name");
 
-/** Returns a Promise that resolves after a macrotask delay. */
+/**
+ * Returns a Promise that resolves after a macrotask delay.
+ *
+ * Use this to model a real async boundary in a test double, for example an
+ * async disposer that should not complete in the same turn.
+ *
+ * Avoid using it to coordinate assertions in tests. Waiting for scheduler turns
+ * instead of an explicit signal tends to make tests indirect and brittle.
+ */
 export const testWaitForMacrotask = (
   duration: Duration = minMillis,
 ): Promise<void> => setTimeout(duration);
