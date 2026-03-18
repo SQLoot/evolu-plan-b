@@ -11,14 +11,15 @@ import {
   type NonEmptyReadonlyArray,
   shiftFromArray,
 } from "../Array.js";
-import { assert } from "../Assert.js";
+import { assert, assertNotAborted } from "../Assert.js";
 import { createCallbacks } from "../Callbacks.js";
 import type { ConsoleEntry, ConsoleLevel } from "../Console.js";
 import { exhaustiveCheck } from "../Function.js";
+import { createSharedResourceByKey } from "../Resource.js";
 import { ok } from "../Result.js";
 import { spaced } from "../Schedule.js";
 import type { NonEmptyReadonlySet } from "../Set.js";
-import { createMutexByKey, type Fiber, repeat, type Task } from "../Task.js";
+import { type Fiber, repeat, type Task } from "../Task.js";
 import type { TimeDep, TimeoutId } from "../Time.js";
 import { createId, type Id, type Name } from "../Type.js";
 import type { Callback, ExtractType } from "../Types.js";
@@ -124,9 +125,15 @@ export const initSharedWorker =
     };
 
     await using stack = new AsyncDisposableStack();
-
-    const sharedEvolusByName = new Map<Name, SharedEvolu>();
-    const sharedEvolusMutexByName = stack.use(createMutexByKey<Name>());
+    const initSharedWorkerRun = run.create();
+    const sharedEvolusByNamePromise = run.orThrow(
+      createSharedResourceByKey((name: Name) =>
+        createSharedEvolu({
+          name,
+          postTabOutput,
+        }),
+      ),
+    );
 
     self.onConnect = (port) => {
       console.debug("onConnect");
@@ -148,48 +155,24 @@ export const initSharedWorker =
           }
 
           case "CreateEvolu": {
-            void run.daemon(
-              sharedEvolusMutexByName.withLock(message.name, async () => {
-                let sharedEvolu = sharedEvolusByName.get(message.name);
+            void initSharedWorkerRun(async (run) => {
+              const sharedEvolusByName = await sharedEvolusByNamePromise;
+              const sharedEvoluResult = await run(
+                sharedEvolusByName.acquire(message.name),
+              );
+              assertNotAborted(sharedEvoluResult);
 
-                if (sharedEvolu == null) {
-                  const result = await run.daemon(
-                    createSharedEvolu({
-                      name: message.name,
-                      postTabOutput,
-                      onDispose: () => {
-                        void run.daemon(
-                          sharedEvolusMutexByName.withLock(
-                            message.name,
-                            async () => {
-                              const maybeSharedEvolu = sharedEvolusByName.get(
-                                message.name,
-                              );
-                              if (!maybeSharedEvolu) return ok();
-
-                              try {
-                                await maybeSharedEvolu[Symbol.asyncDispose]();
-                              } finally {
-                                sharedEvolusByName.delete(message.name);
-                              }
-
-                              return ok();
-                            },
-                          ),
-                        );
-                      },
-                    }),
+              sharedEvoluResult.value.addPorts(
+                message.evoluPort,
+                message.dbWorkerPort,
+                () => {
+                  void initSharedWorkerRun(
+                    sharedEvolusByName.release(message.name),
                   );
-                  if (!result.ok) return result;
-
-                  sharedEvolu = result.value;
-                  sharedEvolusByName.set(message.name, sharedEvolu);
-                }
-
-                sharedEvolu.addPorts(message.evoluPort, message.dbWorkerPort);
-                return ok();
-              }),
-            );
+                },
+              );
+              return ok();
+            });
             break;
           }
           default:
@@ -197,6 +180,8 @@ export const initSharedWorker =
         }
       };
     };
+
+    stack.use(await sharedEvolusByNamePromise);
 
     stack.defer(
       consoleStoreOutputEntry.subscribe(() => {
@@ -214,6 +199,7 @@ interface SharedEvolu extends AsyncDisposable {
   readonly addPorts: (
     evoluPort: NativeMessagePort<EvoluOutput, EvoluInput>,
     dbWorkerPort: NativeMessagePort<DbWorkerInput, DbWorkerOutput>,
+    releaseSharedEvolu: () => void,
   ) => void;
 }
 
@@ -273,11 +259,9 @@ const createSharedEvolu =
   ({
     name,
     postTabOutput,
-    onDispose,
   }: {
     name: Name;
     postTabOutput: Callback<EvoluTabOutput>;
-    onDispose: () => void;
   }): Task<SharedEvolu, never, SharedWorkerDeps> =>
   (run) => {
     const console = run.deps.console.child(name).child("SharedWorker");
@@ -297,6 +281,7 @@ const createSharedEvolu =
     let queueProcessingFiber: Fiber<void, never, WorkerDeps> | null = null;
     let activeQueueCallbackId: Id | null = null;
     let activeLeaderTimeout: TimeoutId | null = null;
+    let isDisposed = false;
 
     const clearActiveLeaderTimeout = (): void => {
       if (!activeLeaderTimeout) return;
@@ -434,7 +419,13 @@ const createSharedEvolu =
     const addPorts = (
       nativeEvoluPort: NativeMessagePort<EvoluOutput, EvoluInput>,
       nativeDbWorkerPort: NativeMessagePort<DbWorkerInput, DbWorkerOutput>,
+      releaseSharedEvolu: () => void,
     ): void => {
+      assert(
+        !isDisposed,
+        "SharedEvolu.addPorts must not be called after disposal.",
+      );
+
       const evoluPort = createMessagePort<EvoluOutput, EvoluInput>(
         nativeEvoluPort,
       );
@@ -483,6 +474,8 @@ const createSharedEvolu =
       evoluPort.onMessage = (evoluMessage) => {
         switch (evoluMessage.type) {
           case "Dispose": {
+            if (!evoluPorts.has(evoluPortId)) break;
+
             console.info("evoluDispose", {
               name,
               evoluPortId,
@@ -493,6 +486,7 @@ const createSharedEvolu =
               isNonEmptyArray(queue) && queue[0].evoluPortId === evoluPortId;
 
             evoluPorts.delete(evoluPortId);
+            dbWorkerPorts.delete(dbWorkerPort);
             rowsByQueryByEvoluPortId.delete(evoluPortId);
 
             for (let i = queue.length - 1; i >= 0; i -= 1) {
@@ -515,8 +509,8 @@ const createSharedEvolu =
               activeDbWorkerPort = null;
             }
 
-            if (evoluPorts.size === 0) onDispose();
-            ensureQueueProcessing();
+            if (evoluPorts.size > 0) ensureQueueProcessing();
+            releaseSharedEvolu();
 
             // TODO: Decided what to do with DbWorker but probably dispose it, but
             // https://bugs.webkit.org/show_bug.cgi?id=301520
@@ -541,6 +535,7 @@ const createSharedEvolu =
 
       // eslint-disable-next-line @typescript-eslint/require-await
       [Symbol.asyncDispose]: async () => {
+        isDisposed = true;
         clearActiveLeaderTimeout();
         queueProcessingFiber?.abort();
         queueProcessingFiber = null;
