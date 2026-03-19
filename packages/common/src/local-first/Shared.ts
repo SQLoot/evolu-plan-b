@@ -156,22 +156,60 @@ export const initSharedWorker =
 
           case "CreateEvolu": {
             void initSharedWorkerRun(async (run) => {
-              const sharedEvolusByName = await sharedEvolusByNamePromise;
-              const sharedEvoluResult = await run(
-                sharedEvolusByName.acquire(message.name),
-              );
-              assertNotAborted(sharedEvoluResult);
+              let sharedEvolusByName:
+                | Awaited<typeof sharedEvolusByNamePromise>
+                | undefined;
+              let needsRelease = false;
 
-              sharedEvoluResult.value.addPorts(
-                message.evoluPort,
-                message.dbWorkerPort,
-                () => {
-                  void initSharedWorkerRun(
+              try {
+                sharedEvolusByName = await sharedEvolusByNamePromise;
+                const sharedEvolusByNameForMessage = sharedEvolusByName;
+                const sharedEvoluResult = await run(
+                  sharedEvolusByNameForMessage.acquire(message.name),
+                );
+                assertNotAborted(sharedEvoluResult);
+                needsRelease = true;
+
+                sharedEvoluResult.value.addPorts(
+                  message.evoluPort,
+                  message.dbWorkerPort,
+                  () => {
+                    void initSharedWorkerRun(
+                      sharedEvolusByNameForMessage.release(message.name),
+                    ).then(undefined, (error: unknown) => {
+                      console.error("Failed to release shared evolu", {
+                        name: message.name,
+                        error,
+                      });
+                    });
+                  },
+                );
+
+                needsRelease = false;
+                return ok();
+              } catch (error) {
+                console.error("Failed to create shared evolu", {
+                  name: message.name,
+                  error,
+                });
+
+                if (needsRelease && sharedEvolusByName) {
+                  const releaseResult = await initSharedWorkerRun(
                     sharedEvolusByName.release(message.name),
                   );
-                },
-              );
-              return ok();
+                  if (!releaseResult.ok) {
+                    console.error(
+                      "Failed to release shared evolu after CreateEvolu failure",
+                      {
+                        name: message.name,
+                        error: releaseResult.error,
+                      },
+                    );
+                  }
+                }
+
+                return ok();
+              }
             });
             break;
           }
