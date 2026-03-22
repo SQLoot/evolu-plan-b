@@ -65,7 +65,7 @@
     "@noble/ciphers": "^2.1.1",
     "@noble/hashes": "^2.0.1",
     "@scure/bip39": "^2.0.1",
-    "kysely": "^0.28.12",
+    "kysely": "^0.28.13",
     "msgpackr": "^1.11.9",
     "zod": "^4.3.6"
   },

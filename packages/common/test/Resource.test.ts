@@ -24,7 +24,14 @@ type DisposeKind = "sync" | "async";
 
 const testCreateResource =
   (disposeKind: DisposeKind) =>
-  (id: string): Task<TestResource> => {
+  (
+    id: string,
+    {
+      onDispose,
+    }: {
+      onDispose?: (() => void) | undefined;
+    } = {},
+  ): Task<TestResource> => {
     let disposed = false;
 
     return () =>
@@ -35,12 +42,14 @@ const testCreateResource =
           ? {
               [Symbol.dispose]: () => {
                 disposed = true;
+                onDispose?.();
               },
             }
           : {
               [Symbol.asyncDispose]: async () => {
                 await testWaitForMacrotask();
                 disposed = true;
+                onDispose?.();
               },
             }),
       });
@@ -51,6 +60,16 @@ const expectRunStopped = async (result: PromiseLike<AnyResult>) => {
     err({ type: "AbortError", reason: runStoppedError }),
   );
 };
+
+interface TestRunSnapshot {
+  readonly children: ReadonlyArray<TestRunSnapshot>;
+}
+
+const countRunDescendants = (snapshot: TestRunSnapshot): number =>
+  snapshot.children.reduce(
+    (count, child) => count + 1 + countRunDescendants(child),
+    0,
+  );
 
 const createThrowingResource = (
   disposeKind: DisposeKind,
@@ -465,6 +484,20 @@ describe("createSharedResource", () => {
     expectTypeOf<SharedResource<TestResource>["getCount"]>().toEqualTypeOf<
       Task<NonNegativeInt>
     >();
+
+    expectTypeOf<SharedResource<TestResource>["snapshot"]>().toEqualTypeOf<
+      () => {
+        readonly isIdle: boolean;
+        readonly mutex: {
+          readonly permits: number;
+          readonly taken: number;
+          readonly waiting: number;
+          readonly available: number;
+          readonly isIdle: boolean;
+          readonly disposed: boolean;
+        };
+      }
+    >();
   });
 
   test("create aborts on a stopped root Run", async () => {
@@ -474,6 +507,26 @@ describe("createSharedResource", () => {
     await expectRunStopped(
       run(createSharedResource(testCreateResource("sync")("r1"))),
     );
+  });
+
+  test("snapshot exposes initial state", async () => {
+    await using run = testCreateRun();
+
+    await using sharedResource = await run.orThrow(
+      createSharedResource(testCreateResource("sync")("resource-1")),
+    );
+
+    expect(sharedResource.snapshot()).toEqual({
+      isIdle: true,
+      mutex: {
+        permits: 1,
+        taken: 0,
+        waiting: 0,
+        available: 1,
+        isIdle: true,
+        disposed: false,
+      },
+    });
   });
 
   test("acquire aborts before publishing a resource when the shared resource is disposed", async () => {
@@ -1169,6 +1222,34 @@ describe("createSharedResourceByKey", () => {
 
         const next = await run.orThrow(sharedResourceByKey.acquire("a"));
         expect(next).not.toBe(resource);
+      });
+
+      test("idle eviction disposes the removed keyed shared-resource wrapper", async () => {
+        const time = testCreateTime();
+        await using run = testCreateRun({ time });
+
+        const disposed = Promise.withResolvers<void>();
+        await using sharedResourceByKey = await run.orThrow(
+          createSharedResourceByKey((key: string) => createResource(key), {
+            idleDisposeAfter: "10ms",
+            onDisposed: () => {
+              disposed.resolve();
+            },
+          }),
+        );
+
+        expect(countRunDescendants(run.snapshot())).toBe(1);
+
+        await run.orThrow(sharedResourceByKey.acquire("a"));
+        expect(countRunDescendants(run.snapshot())).toBe(2);
+
+        await run.orThrow(sharedResourceByKey.release("a"));
+
+        time.advance("10ms");
+        await disposed.promise;
+        await testWaitForMacrotask();
+
+        expect(countRunDescendants(run.snapshot())).toBe(1);
       });
 
       test("release disposes after idleDisposeAfter elapses and reacquire cancels it", async () => {
