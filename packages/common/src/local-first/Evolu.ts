@@ -5,7 +5,7 @@
  */
 
 import { emptyArray, mapArray } from "../Array.js";
-import { assert } from "../Assert.js";
+import { assert, assertNotDisposed } from "../Assert.js";
 import { createCallbacks } from "../Callbacks.js";
 import type { ConsoleDep } from "../Console.js";
 import { createConsole } from "../Console.js";
@@ -831,6 +831,8 @@ export const createEvolu =
         kind: Kind,
       ): Mutation<S, Kind> =>
       (table, values, options) => {
+        assertNotDisposed(moved);
+
         const {
           id = createId(run.deps),
           isDeleted,
@@ -863,6 +865,8 @@ export const createEvolu =
     const loadQuery = <R extends Row>(
       query: Query<R>,
     ): Promise<QueryRows<R>> => {
+      assertNotDisposed(moved);
+
       const loadingPromise = loadingPromisesByQuery.get(query);
       if (loadingPromise) {
         return loadingPromise.promise as Promise<QueryRows<R>>;
@@ -883,8 +887,13 @@ export const createEvolu =
       return typedPromise as Promise<QueryRows<R>>;
     };
 
-    const getQueryRows = <R extends Row>(query: Query<R>): QueryRows<R> =>
-      (rowsByQueryMapStore.get().get(query) ?? emptyArray) as QueryRows<R>;
+    const getQueryRows = <R extends Row>(query: Query<R>): QueryRows<R> => {
+      assertNotDisposed(moved);
+
+      return (rowsByQueryMapStore.get().get(query) ?? emptyArray) as QueryRows<
+        R
+      >;
+    };
 
     const moved = stack.move();
 
@@ -906,6 +915,8 @@ export const createEvolu =
         ],
 
       subscribeQuery: (query) => (listener) => {
+        assertNotDisposed(moved);
+
         subscribedQueriesRefCount.increment(query);
 
         let previousRows: unknown = null;
@@ -926,6 +937,8 @@ export const createEvolu =
       getQueryRows,
 
       exportDatabase: () => {
+        assertNotDisposed(moved);
+
         if (!exportDatabasePending) {
           exportDatabasePending =
             Promise.withResolvers<Uint8Array<ArrayBuffer>>();
@@ -935,6 +948,8 @@ export const createEvolu =
       },
 
       useOwner: (owner) => {
+        assertNotDisposed(moved);
+
         const syncOwner: SyncOwner = {
           ...owner,
           transports: owner.transports ?? transports ?? emptyArray,
