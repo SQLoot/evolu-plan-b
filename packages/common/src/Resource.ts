@@ -6,6 +6,7 @@
 
 import { assert, assertNotAborted } from "./Assert.js";
 import { ok } from "./Result.js";
+import type { Structural } from "./Structural.js";
 import { createStructuralMap, type StructuralKey } from "./StructuralMap.js";
 import {
   type AbortError,
@@ -380,6 +381,7 @@ export const createSharedResourceByKey = <
   unabortable<SharedResourceByKey<K, T, D>, never, D>((run) => {
     const sharedResourceByKeyRun = run.create();
     const sharedResourcesByKey = createStructuralMap<K, SharedResource<T, D>>();
+    const toStructuralKey = (key: K): Structural<K> => key as Structural<K>;
 
     const stack = new AsyncDisposableStack();
     const mutexByKey = stack.use(createMutexByKey<K>());
@@ -397,7 +399,9 @@ export const createSharedResourceByKey = <
         unabortable<BorrowedResource<T>, never, D>(() =>
           sharedResourceByKeyRun(
             mutexByKey.withLock(key, async (run) => {
-              let sharedResource = sharedResourcesByKey.get(key);
+              let sharedResource = sharedResourcesByKey.get(
+                toStructuralKey(key),
+              );
 
               if (!sharedResource) {
                 const sharedResourceResult = await run(
@@ -414,10 +418,11 @@ export const createSharedResourceByKey = <
                           );
 
                           if (
-                            sharedResourcesByKey.get(key) === sharedResource &&
+                            sharedResourcesByKey.get(toStructuralKey(key)) ===
+                              sharedResource &&
                             sharedResource.snapshot().isIdle
                           ) {
-                            sharedResourcesByKey.delete(key);
+                            sharedResourcesByKey.delete(toStructuralKey(key));
                             await sharedResource[Symbol.asyncDispose]();
                           }
                           return ok();
@@ -429,7 +434,7 @@ export const createSharedResourceByKey = <
                 assertNotAborted(sharedResourceResult);
 
                 sharedResource = sharedResourceResult.value;
-                sharedResourcesByKey.set(key, sharedResource);
+                sharedResourcesByKey.set(toStructuralKey(key), sharedResource);
               }
 
               return run(sharedResource.acquire);
@@ -441,7 +446,9 @@ export const createSharedResourceByKey = <
         unabortable<void, never, D>(() =>
           sharedResourceByKeyRun(
             mutexByKey.withLock(key, async () => {
-              const sharedResource = sharedResourcesByKey.get(key);
+              const sharedResource = sharedResourcesByKey.get(
+                toStructuralKey(key),
+              );
               assert(
                 sharedResource,
                 "Release must not be called more times than acquire.",
@@ -454,7 +461,9 @@ export const createSharedResourceByKey = <
       getCount: (key) => () =>
         sharedResourceByKeyRun(
           mutexByKey.withLock(key, async (run) => {
-            const sharedResource = sharedResourcesByKey.get(key);
+            const sharedResource = sharedResourcesByKey.get(
+              toStructuralKey(key),
+            );
             if (!sharedResource) return ok(NonNegativeInt.orThrow(0));
             return run(sharedResource.getCount);
           }),

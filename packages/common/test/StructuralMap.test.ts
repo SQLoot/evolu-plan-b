@@ -185,7 +185,7 @@ describe("createStructuralMap", () => {
     const map = createStructuralMap<string, string>();
 
     expect(() => map.set((() => undefined) as never, "value")).toThrow(
-      "StructuralMap keys must be JSON-like values, undefined, or Uint8Array; received function.",
+      "Structural keys must be JSON-like values, undefined, or Uint8Array; received function.",
     );
   });
 
@@ -193,7 +193,7 @@ describe("createStructuralMap", () => {
     const map = createStructuralMap<string, string>();
 
     expect(() => map.set(new Date() as never, "value")).toThrow(
-      "StructuralMap keys must be JSON-like values, undefined, or Uint8Array; received Date.",
+      "Structural keys must be JSON-like values, undefined, or Uint8Array; received Date.",
     );
   });
 });

@@ -33,6 +33,7 @@ import type { Done, NextResult, Ok, Result } from "./Result.js";
 import { err, getOrThrow, ok, tryAsync } from "./Result.js";
 import type { Schedule, ScheduleStep } from "./Schedule.js";
 import { addToSet, deleteFromSet, emptySet } from "./Set.js";
+import type { Structural } from "./Structural.js";
 import { createStructuralMap, type StructuralKey } from "./StructuralMap.js";
 import type { testCreateRun } from "./Test.js";
 import type { Duration, Time, TimeDep } from "./Time.js";
@@ -2635,9 +2636,10 @@ export const createSemaphoreByKey = <K extends StructuralKey = StructuralKey>(
 
   const semaphoresByKey = createStructuralMap<K, KeyedSemaphore>();
   let disposed = false;
+  const toStructuralKey = (key: K): Structural<K> => key as Structural<K>;
 
   const getActiveSemaphore = (key: K): KeyedSemaphore | undefined => {
-    const semaphore = semaphoresByKey.get(key);
+    const semaphore = semaphoresByKey.get(toStructuralKey(key));
     if (!semaphore) return undefined;
     if (!semaphore.__disposing) return semaphore;
     return undefined;
@@ -2652,18 +2654,20 @@ export const createSemaphoreByKey = <K extends StructuralKey = StructuralKey>(
       let semaphore = getActiveSemaphore(key);
       if (!semaphore) {
         semaphore = createSemaphore(permits) as KeyedSemaphore;
-        semaphoresByKey.set(key, semaphore);
+        semaphoresByKey.set(toStructuralKey(key), semaphore);
       }
 
       using _ = {
         [Symbol.dispose]: () => {
-          if (semaphoresByKey.get(key) !== semaphore) return;
+          const structuralKey = toStructuralKey(key);
+
+          if (semaphoresByKey.get(structuralKey) !== semaphore) return;
           const snapshot = semaphore.snapshot();
           if (!snapshot.isIdle) return;
 
           semaphore.__disposing = true;
 
-          if (semaphoresByKey.get(key) !== semaphore) {
+          if (semaphoresByKey.get(structuralKey) !== semaphore) {
             semaphore.__disposing = false;
             return;
           }
@@ -2674,7 +2678,7 @@ export const createSemaphoreByKey = <K extends StructuralKey = StructuralKey>(
             return;
           }
 
-          semaphoresByKey.delete(key);
+          semaphoresByKey.delete(structuralKey);
           semaphore[Symbol.dispose]();
         },
       };
