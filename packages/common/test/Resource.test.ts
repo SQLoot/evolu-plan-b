@@ -3,13 +3,15 @@ import {
   createResourceRef,
   createSharedResource,
   createSharedResourceByKey,
+  createSharedResourceByKeyWithClaims,
   type Resource,
   type ResourceRef,
   type SharedResource,
   type SharedResourceByKey,
+  type SharedResourceByKeySnapshot,
+  type SharedResourceByKeyWithClaims,
 } from "../src/Resource.js";
 import { type AnyResult, err, ok, type Result } from "../src/Result.js";
-import type { StructuralKey } from "../src/StructuralMap.js";
 import { type AbortError, runStoppedError, type Task } from "../src/Task.js";
 import { testCreateRun, testWaitForMacrotask } from "../src/Test.js";
 import { type Duration, testCreateTime } from "../src/Time.js";
@@ -298,7 +300,6 @@ describe("createResourceRef", () => {
           return result;
         });
 
-        await testWaitForMacrotask();
         expect(getResolved).toBe(false);
 
         createCanFinish.resolve();
@@ -477,26 +478,18 @@ describe("createSharedResource", () => {
       >
     >();
 
+    expectTypeOf<SharedResource<TestResource>["get"]>().toEqualTypeOf<
+      () =>
+        | Omit<TestResource, typeof Symbol.dispose | typeof Symbol.asyncDispose>
+        | undefined
+    >();
+
     expectTypeOf<SharedResource<TestResource>["release"]>().toEqualTypeOf<
       Task<void>
     >();
 
     expectTypeOf<SharedResource<TestResource>["getCount"]>().toEqualTypeOf<
       Task<NonNegativeInt>
-    >();
-
-    expectTypeOf<SharedResource<TestResource>["snapshot"]>().toEqualTypeOf<
-      () => {
-        readonly isIdle: boolean;
-        readonly mutex: {
-          readonly permits: number;
-          readonly taken: number;
-          readonly waiting: number;
-          readonly available: number;
-          readonly isIdle: boolean;
-          readonly disposed: boolean;
-        };
-      }
     >();
   });
 
@@ -507,26 +500,6 @@ describe("createSharedResource", () => {
     await expectRunStopped(
       run(createSharedResource(testCreateResource("sync")("r1"))),
     );
-  });
-
-  test("snapshot exposes initial state", async () => {
-    await using run = testCreateRun();
-
-    await using sharedResource = await run.orThrow(
-      createSharedResource(testCreateResource("sync")("resource-1")),
-    );
-
-    expect(sharedResource.snapshot()).toEqual({
-      isIdle: true,
-      mutex: {
-        permits: 1,
-        taken: 0,
-        waiting: 0,
-        available: 1,
-        isIdle: true,
-        disposed: false,
-      },
-    });
   });
 
   test("acquire aborts before publishing a resource when the shared resource is disposed", async () => {
@@ -563,32 +536,6 @@ describe("createSharedResource", () => {
     expect(resource.isDisposed()).toBe(false);
   });
 
-  test("onDisposed is called after current disposal completes", async () => {
-    const time = testCreateTime();
-    await using run = testCreateRun({ time });
-
-    const events: Array<string> = [];
-    const resource = await run.orThrow(testCreateResource("sync")("r1"));
-    await using sharedResource = await run.orThrow(
-      createSharedResource(() => ok(resource), {
-        idleDisposeAfter: "10ms",
-        onDisposed: () => {
-          events.push(resource.isDisposed() ? "disposed" : "not-disposed");
-        },
-      }),
-    );
-
-    await run.orThrow(sharedResource.acquire);
-    await run.orThrow(sharedResource.release);
-
-    expect(events).toEqual([]);
-
-    time.advance("10ms");
-    await testWaitForMacrotask();
-
-    expect(events).toEqual(["disposed"]);
-  });
-
   for (const { label, disposeKind, createResource } of [
     {
       label: "with sync dispose",
@@ -613,11 +560,13 @@ describe("createSharedResource", () => {
           }),
         );
 
+        expect(sharedResource.get()).toBeUndefined();
         expect(await run.orThrow(sharedResource.getCount)).toBe(0);
 
         const resource = await run.orThrow(sharedResource.acquire);
 
         expect(resource.id).toBe("resource-1");
+        expect(sharedResource.get()).toBe(resource);
         expect(resource.isDisposed()).toBe(false);
         expect(createCallCount).toBe(1);
         expect(await run.orThrow(sharedResource.getCount)).toBe(1);
@@ -671,7 +620,6 @@ describe("createSharedResource", () => {
           return result;
         });
 
-        await testWaitForMacrotask();
         expect(firstResolved).toBe(false);
         expect(secondResolved).toBe(false);
         expect(createCallCount).toBe(1);
@@ -739,125 +687,158 @@ describe("createSharedResource", () => {
         expect(await run.orThrow(sharedResource.getCount)).toBe(1);
       });
 
-      test("release disposes after idleDisposeAfter elapses", async () => {
-        const time = testCreateTime();
-        await using run = testCreateRun({ time });
+      describe("idleDisposeAfter", () => {
+        test("release keeps the resource alive until idleDisposeAfter elapses", async () => {
+          const time = testCreateTime();
+          await using run = testCreateRun({ time });
 
-        const resource = await run.orThrow(createResource("resource-1"));
-        await using sharedResource = await run.orThrow(
-          createSharedResource(() => ok(resource), {
-            idleDisposeAfter: "10ms",
-          }),
-        );
-
-        await run.orThrow(sharedResource.acquire);
-        await run.orThrow(sharedResource.release);
-
-        expect(await run.orThrow(sharedResource.getCount)).toBe(0);
-        expect(resource.isDisposed()).toBe(false);
-
-        time.advance("9ms");
-        await testWaitForMacrotask();
-        expect(resource.isDisposed()).toBe(false);
-
-        time.advance("1ms");
-        await testWaitForMacrotask();
-        await testWaitForMacrotask();
-        expect(resource.isDisposed()).toBe(true);
-      });
-
-      test("acquire cancels pending idle disposal and reuses the current resource", async () => {
-        const time = testCreateTime();
-        await using run = testCreateRun({ time });
-
-        let createCallCount = 0;
-        await using sharedResource = await run.orThrow(
-          createSharedResource(
-            async (run) => {
-              createCallCount += 1;
-              return run(createResource(`resource-${createCallCount}`));
-            },
-            {
+          const disposed = Promise.withResolvers<void>();
+          const resource = await run.orThrow(
+            createResource("resource-1", {
+              onDispose: disposed.resolve,
+            }),
+          );
+          await using sharedResource = await run.orThrow(
+            createSharedResource(() => ok(resource), {
               idleDisposeAfter: "10ms",
-            },
-          ),
-        );
+            }),
+          );
 
-        const first = await run.orThrow(sharedResource.acquire);
-        await run.orThrow(sharedResource.release);
+          await run.orThrow(sharedResource.acquire);
+          await run.orThrow(sharedResource.release);
 
-        time.advance("9ms");
-        const second = await run.orThrow(sharedResource.acquire);
+          expect(sharedResource.get()).toBe(resource);
+          expect(resource.isDisposed()).toBe(false);
 
-        expect(second).toBe(first);
-        expect(first.isDisposed()).toBe(false);
-        expect(createCallCount).toBe(1);
-        expect(await run.orThrow(sharedResource.getCount)).toBe(1);
+          time.advance("10ms");
+          await disposed.promise;
 
-        time.advance("10ms");
-        await testWaitForMacrotask();
-        expect(first.isDisposed()).toBe(false);
+          expect(sharedResource.get()).toBeUndefined();
+          expect(resource.isDisposed()).toBe(true);
+        });
 
-        await run.orThrow(sharedResource.release);
-        time.advance("10ms");
-        await testWaitForMacrotask();
-        await testWaitForMacrotask();
-        expect(first.isDisposed()).toBe(true);
-      });
+        test("release disposes after idleDisposeAfter elapses", async () => {
+          const time = testCreateTime();
+          await using run = testCreateRun({ time });
 
-      test("acquire after timeout fires cancels the stale idle disposal", async () => {
-        const time = testCreateTime();
-        await using run = testCreateRun({ time });
-
-        let createCallCount = 0;
-        await using sharedResource = await run.orThrow(
-          createSharedResource(
-            async (run) => {
-              createCallCount += 1;
-              return run(createResource(`resource-${createCallCount}`));
-            },
-            {
+          const disposed = Promise.withResolvers<void>();
+          const resource = await run.orThrow(
+            createResource("resource-1", {
+              onDispose: disposed.resolve,
+            }),
+          );
+          await using sharedResource = await run.orThrow(
+            createSharedResource(() => ok(resource), {
               idleDisposeAfter: "10ms",
-            },
-          ),
-        );
+            }),
+          );
 
-        const first = await run.orThrow(sharedResource.acquire);
-        await run.orThrow(sharedResource.release);
+          await run.orThrow(sharedResource.acquire);
+          await run.orThrow(sharedResource.release);
 
-        time.advance("10ms");
-        const second = await run.orThrow(sharedResource.acquire);
+          expect(await run.orThrow(sharedResource.getCount)).toBe(0);
+          expect(resource.isDisposed()).toBe(false);
 
-        expect(second).toBe(first);
-        expect(createCallCount).toBe(1);
-        expect(await run.orThrow(sharedResource.getCount)).toBe(1);
+          time.advance("9ms");
+          expect(resource.isDisposed()).toBe(false);
 
-        await testWaitForMacrotask();
-        expect(first.isDisposed()).toBe(false);
-      });
+          time.advance("1ms");
+          await disposed.promise;
+          expect(resource.isDisposed()).toBe(true);
+        });
 
-      test("dispose cancels pending idle disposal and disposes immediately", async () => {
-        const time = testCreateTime();
-        await using run = testCreateRun({ time });
+        test("acquire cancels pending idle disposal and reuses the current resource", async () => {
+          const time = testCreateTime();
+          await using run = testCreateRun({ time });
 
-        const resource = await run.orThrow(createResource("resource-1"));
-        const sharedResource = await run.orThrow(
-          createSharedResource(() => ok(resource), {
-            idleDisposeAfter: "10ms",
-          }),
-        );
+          let createCallCount = 0;
+          const disposed = Promise.withResolvers<void>();
+          await using sharedResource = await run.orThrow(
+            createSharedResource(
+              async (run) => {
+                createCallCount += 1;
+                return run(
+                  createResource(`resource-${createCallCount}`, {
+                    onDispose:
+                      createCallCount === 1 ? disposed.resolve : undefined,
+                  }),
+                );
+              },
+              {
+                idleDisposeAfter: "10ms",
+              },
+            ),
+          );
 
-        await run.orThrow(sharedResource.acquire);
-        await run.orThrow(sharedResource.release);
+          const first = await run.orThrow(sharedResource.acquire);
+          await run.orThrow(sharedResource.release);
 
-        expect(resource.isDisposed()).toBe(false);
+          time.advance("9ms");
+          const second = await run.orThrow(sharedResource.acquire);
 
-        await sharedResource[Symbol.asyncDispose]();
-        expect(resource.isDisposed()).toBe(true);
+          expect(second).toBe(first);
+          expect(first.isDisposed()).toBe(false);
+          expect(createCallCount).toBe(1);
+          expect(await run.orThrow(sharedResource.getCount)).toBe(1);
 
-        time.advance("10ms");
-        await testWaitForMacrotask();
-        expect(resource.isDisposed()).toBe(true);
+          time.advance("10ms");
+          expect(first.isDisposed()).toBe(false);
+
+          await run.orThrow(sharedResource.release);
+          time.advance("10ms");
+          await disposed.promise;
+          expect(first.isDisposed()).toBe(true);
+        });
+
+        test("acquire after timeout fires cancels the stale idle disposal", async () => {
+          const time = testCreateTime();
+          await using run = testCreateRun({ time });
+
+          let createCallCount = 0;
+          await using sharedResource = await run.orThrow(
+            createSharedResource(
+              async (run) => {
+                createCallCount += 1;
+                return run(createResource(`resource-${createCallCount}`));
+              },
+              {
+                idleDisposeAfter: "10ms",
+              },
+            ),
+          );
+
+          const first = await run.orThrow(sharedResource.acquire);
+          await run.orThrow(sharedResource.release);
+
+          time.advance("10ms");
+          const second = await run.orThrow(sharedResource.acquire);
+
+          expect(second).toBe(first);
+          expect(createCallCount).toBe(1);
+          expect(await run.orThrow(sharedResource.getCount)).toBe(1);
+
+          expect(first.isDisposed()).toBe(false);
+        });
+
+        test("dispose cancels pending idle disposal and disposes immediately", async () => {
+          const time = testCreateTime();
+          await using run = testCreateRun({ time });
+
+          const resource = await run.orThrow(createResource("resource-1"));
+          const sharedResource = await run.orThrow(
+            createSharedResource(() => ok(resource), {
+              idleDisposeAfter: "10ms",
+            }),
+          );
+
+          await run.orThrow(sharedResource.acquire);
+          await run.orThrow(sharedResource.release);
+
+          expect(resource.isDisposed()).toBe(false);
+
+          await sharedResource[Symbol.asyncDispose]();
+          expect(resource.isDisposed()).toBe(true);
+        });
       });
 
       test("acquire completes resource creation despite caller abort", async () => {
@@ -961,15 +942,7 @@ describe("createSharedResource", () => {
 
 describe("createSharedResourceByKey", () => {
   test("types require non-failing keyed create Tasks", () => {
-    expectTypeOf<typeof createSharedResourceByKey>().toEqualTypeOf<
-      <K extends StructuralKey, T extends Disposable | AsyncDisposable, D>(
-        create: (key: K) => Task<T, never, D>,
-        options?: {
-          readonly idleDisposeAfter?: Duration;
-          readonly onDisposed?: (key: K) => void;
-        },
-      ) => Task<SharedResourceByKey<K, T, D>, never, D>
-    >();
+    expectTypeOf<typeof createSharedResourceByKey>().toBeFunction();
 
     expectTypeOf<
       SharedResourceByKey<"a", TestResource>["acquire"]
@@ -981,6 +954,14 @@ describe("createSharedResourceByKey", () => {
       >
     >();
 
+    expectTypeOf<SharedResourceByKey<"a", TestResource>["get"]>().toEqualTypeOf<
+      (
+        key: "a",
+      ) =>
+        | Omit<TestResource, typeof Symbol.dispose | typeof Symbol.asyncDispose>
+        | undefined
+    >();
+
     expectTypeOf<
       SharedResourceByKey<"a", TestResource>["release"]
     >().toEqualTypeOf<(key: "a") => Task<void>>();
@@ -988,6 +969,10 @@ describe("createSharedResourceByKey", () => {
     expectTypeOf<
       SharedResourceByKey<"a", TestResource>["getCount"]
     >().toEqualTypeOf<(key: "a") => Task<NonNegativeInt>>();
+
+    expectTypeOf<
+      SharedResourceByKey<"a", TestResource>["snapshot"]
+    >().toEqualTypeOf<() => SharedResourceByKeySnapshot<"a", TestResource>>();
   });
 
   test("create aborts on a stopped root Run", async () => {
@@ -1001,38 +986,6 @@ describe("createSharedResourceByKey", () => {
         ),
       ),
     );
-  });
-
-  test("onDisposed is called with the key after keyed disposal completes", async () => {
-    const time = testCreateTime();
-    await using run = testCreateRun({ time });
-
-    const events: Array<string> = [];
-    const resource = await run.orThrow(testCreateResource("sync")("a"));
-    await using sharedResourceByKey = await run.orThrow(
-      createSharedResourceByKey(
-        (key: string) => {
-          expect(key).toBe("a");
-          return () => ok(resource);
-        },
-        {
-          idleDisposeAfter: "10ms",
-          onDisposed: (key) => {
-            events.push(resource.isDisposed() ? key : `not-disposed:${key}`);
-          },
-        },
-      ),
-    );
-
-    await run.orThrow(sharedResourceByKey.acquire("a"));
-    await run.orThrow(sharedResourceByKey.release("a"));
-
-    expect(events).toEqual([]);
-
-    time.advance("10ms");
-    await testWaitForMacrotask();
-
-    expect(events).toEqual(["a"]);
   });
 
   test("structurally equal object keys share one resource", async () => {
@@ -1117,14 +1070,80 @@ describe("createSharedResourceByKey", () => {
           createSharedResourceByKey(createKeyedResource),
         );
 
+        expect(sharedResourceByKey.get("a")).toBeUndefined();
         const first = await run.orThrow(sharedResourceByKey.acquire("a"));
         const second = await run.orThrow(sharedResourceByKey.acquire("a"));
 
         expect(first).toBe(second);
+        expect(sharedResourceByKey.get("a")).toBe(first);
         expect(first.id).toBe("a");
         expect(createCalls).toEqual(["a"]);
         expect(await run.orThrow(sharedResourceByKey.getCount("a"))).toBe(2);
         expect(await run.orThrow(sharedResourceByKey.getCount("b"))).toBe(0);
+      });
+
+      describe("snapshot", () => {
+        test("exposes current resources and keyed mutex state", async () => {
+          await using run = testCreateRun();
+
+          await using sharedResourceByKey = await run.orThrow(
+            createSharedResourceByKey((key: string) => createResource(key)),
+          );
+
+          expect(sharedResourceByKey.snapshot()).toEqual({
+            resourcesByKey: new Map(),
+            mutexByKey: new Map(),
+          });
+
+          const resourceA = await run.orThrow(sharedResourceByKey.acquire("a"));
+          const resourceB = await run.orThrow(sharedResourceByKey.acquire("b"));
+
+          const snapshot = sharedResourceByKey.snapshot();
+
+          expect(snapshot.resourcesByKey).toEqual(
+            new Map([
+              ["a", resourceA],
+              ["b", resourceB],
+            ]),
+          );
+          expect(snapshot.mutexByKey).toEqual(
+            new Map([
+              ["a", null],
+              ["b", null],
+            ]),
+          );
+        });
+
+        test("skips keys whose first acquire has not produced a resource yet", async () => {
+          await using run = testCreateRun();
+
+          const createStarted = Promise.withResolvers<void>();
+          const allowCreate = Promise.withResolvers<void>();
+
+          const createKeyedResource =
+            (key: string): Task<TestResource> =>
+            async (run) => {
+              createStarted.resolve();
+              await allowCreate.promise;
+              return run(createResource(key));
+            };
+
+          await using createdSharedResourceByKey = await run.orThrow(
+            createSharedResourceByKey(createKeyedResource),
+          );
+
+          const acquire = run(createdSharedResourceByKey.acquire("a"));
+
+          await createStarted.promise;
+
+          expect(createdSharedResourceByKey.snapshot()).toEqual({
+            resourcesByKey: new Map(),
+            mutexByKey: new Map(),
+          });
+
+          allowCreate.resolve();
+          await expect(acquire).resolves.toMatchObject({ ok: true });
+        });
       });
 
       test("different keys keep independent resources and counts", async () => {
@@ -1188,17 +1207,20 @@ describe("createSharedResourceByKey", () => {
           },
         );
 
-        await testWaitForMacrotask();
         expect(firstResolved).toBe(false);
         expect(secondResolved).toBe(false);
         expect(createCallCount).toBe(1);
 
         createCanFinish.resolve();
 
-        const first = await run.orThrow(() => firstAcquire);
-        const second = await run.orThrow(() => secondAcquire);
+        const firstResult = await firstAcquire;
+        const secondResult = await secondAcquire;
 
-        expect(first).toBe(second);
+        expect(firstResult.ok).toBe(true);
+        expect(secondResult.ok).toBe(true);
+        if (!firstResult.ok || !secondResult.ok) return;
+
+        expect(firstResult.value).toBe(secondResult.value);
         expect(await run.orThrow(sharedResourceByKey.getCount("a"))).toBe(2);
       });
 
@@ -1224,116 +1246,195 @@ describe("createSharedResourceByKey", () => {
         expect(next).not.toBe(resource);
       });
 
-      test("idle eviction disposes the removed keyed shared-resource wrapper", async () => {
-        const time = testCreateTime();
-        await using run = testCreateRun({ time });
+      describe("idleDisposeAfter", () => {
+        test("idle eviction disposes the removed keyed shared-resource wrapper", async () => {
+          const time = testCreateTime();
+          await using run = testCreateRun({ time });
 
-        const disposed = Promise.withResolvers<void>();
-        await using sharedResourceByKey = await run.orThrow(
-          createSharedResourceByKey((key: string) => createResource(key), {
-            idleDisposeAfter: "10ms",
-            onDisposed: () => {
-              disposed.resolve();
-            },
-          }),
-        );
-
-        expect(countRunDescendants(run.snapshot())).toBe(1);
-
-        await run.orThrow(sharedResourceByKey.acquire("a"));
-        expect(countRunDescendants(run.snapshot())).toBe(2);
-
-        await run.orThrow(sharedResourceByKey.release("a"));
-
-        time.advance("10ms");
-        await disposed.promise;
-        await testWaitForMacrotask();
-
-        expect(countRunDescendants(run.snapshot())).toBe(1);
-      });
-
-      test("release disposes after idleDisposeAfter elapses and reacquire cancels it", async () => {
-        const time = testCreateTime();
-        await using run = testCreateRun({ time });
-
-        let createCallCount = 0;
-        const createKeyedResource =
-          (key: string): Task<TestResource> =>
-          async (run) => {
-            createCallCount += 1;
-            return run(createResource(`${key}-${createCallCount}`));
-          };
-        await using sharedResourceByKey = await run.orThrow(
-          createSharedResourceByKey(createKeyedResource, {
-            idleDisposeAfter: "10ms",
-          }),
-        );
-
-        const first = await run.orThrow(sharedResourceByKey.acquire("a"));
-        await run.orThrow(sharedResourceByKey.release("a"));
-
-        time.advance("9ms");
-        const second = await run.orThrow(sharedResourceByKey.acquire("a"));
-
-        expect(second).toBe(first);
-        expect(await run.orThrow(sharedResourceByKey.getCount("a"))).toBe(1);
-
-        await run.orThrow(sharedResourceByKey.release("a"));
-        time.advance("10ms");
-        await testWaitForMacrotask();
-        await testWaitForMacrotask();
-
-        expect(first.isDisposed()).toBe(true);
-        expect(await run.orThrow(sharedResourceByKey.getCount("a"))).toBe(0);
-
-        const third = await run.orThrow(sharedResourceByKey.acquire("a"));
-        expect(third).not.toBe(first);
-        expect(createCallCount).toBe(2);
-      });
-
-      test("reacquire during async disposal keeps the keyed entry tracked", async () => {
-        if (disposeKind !== "async") return;
-
-        const time = testCreateTime();
-        await using run = testCreateRun({ time });
-
-        const finishDispose = Promise.withResolvers<void>();
-        let createCallCount = 0;
-
-        const createKeyedResource =
-          (key: string): Task<TestResource> =>
-          () =>
-            ok({
-              id: `${key}-${++createCallCount}`,
-              isDisposed: () => false,
-              [Symbol.asyncDispose]: async () => {
-                await finishDispose.promise;
+          const disposed = Promise.withResolvers<void>();
+          await using sharedResourceByKey = await run.orThrow(
+            createSharedResourceByKey((key: string) => createResource(key), {
+              idleDisposeAfter: "10ms",
+              onDisposed: () => {
+                disposed.resolve();
               },
-            });
+            }),
+          );
 
-        await using sharedResourceByKey = await run.orThrow(
-          createSharedResourceByKey(createKeyedResource, {
-            idleDisposeAfter: "1ms",
-          }),
-        );
+          expect(countRunDescendants(run.snapshot())).toBe(1);
 
-        const first = await run.orThrow(sharedResourceByKey.acquire("a"));
-        await run.orThrow(sharedResourceByKey.release("a"));
-        time.advance("1ms");
-        await testWaitForMacrotask();
+          await run.orThrow(sharedResourceByKey.acquire("a"));
+          expect(countRunDescendants(run.snapshot())).toBe(2);
 
-        const reacquire = run(sharedResourceByKey.acquire("a"));
-        await testWaitForMacrotask();
-        finishDispose.resolve();
+          await run.orThrow(sharedResourceByKey.release("a"));
 
-        const secondResult = await reacquire;
-        expect(secondResult.ok).toBe(true);
-        if (!secondResult.ok) return;
+          time.advance("10ms");
+          await disposed.promise;
+          await testWaitForMacrotask();
 
-        expect(secondResult.value.id).toBe("a-2");
-        expect(secondResult.value).not.toBe(first);
-        expect(await run.orThrow(sharedResourceByKey.getCount("a"))).toBe(1);
-        await run.orThrow(sharedResourceByKey.release("a"));
+          expect(countRunDescendants(run.snapshot())).toBe(1);
+        });
+
+        test("onDisposed fires when a key's resource is disposed", async () => {
+          const time = testCreateTime();
+          await using run = testCreateRun({ time });
+
+          const disposedKeys: Array<string> = [];
+          const onDisposedCalled = Promise.withResolvers<void>();
+          await using sharedResourceByKey = await run.orThrow(
+            createSharedResourceByKey((key: string) => createResource(key), {
+              idleDisposeAfter: "10ms",
+              onDisposed: (key) => {
+                disposedKeys.push(key);
+                onDisposedCalled.resolve();
+              },
+            }),
+          );
+
+          await run.orThrow(sharedResourceByKey.acquire("a"));
+          await run.orThrow(sharedResourceByKey.release("a"));
+
+          expect(sharedResourceByKey.get("a")?.id).toBe("a");
+          expect(disposedKeys).toEqual([]);
+
+          time.advance("10ms");
+          await onDisposedCalled.promise;
+
+          expect(sharedResourceByKey.get("a")).toBeUndefined();
+          expect(disposedKeys).toEqual(["a"]);
+        });
+
+        test("release disposes after idleDisposeAfter elapses and reacquire cancels it", async () => {
+          const time = testCreateTime();
+          await using run = testCreateRun({ time });
+
+          let createCallCount = 0;
+          const firstDisposed = Promise.withResolvers<void>();
+          const createKeyedResource =
+            (key: string): Task<TestResource> =>
+            async (run) => {
+              createCallCount += 1;
+              return run(
+                createResource(`${key}-${createCallCount}`, {
+                  onDispose:
+                    createCallCount === 1
+                      ? () => {
+                          firstDisposed.resolve();
+                        }
+                      : undefined,
+                }),
+              );
+            };
+          await using sharedResourceByKey = await run.orThrow(
+            createSharedResourceByKey(createKeyedResource, {
+              idleDisposeAfter: "10ms",
+            }),
+          );
+
+          const first = await run.orThrow(sharedResourceByKey.acquire("a"));
+          await run.orThrow(sharedResourceByKey.release("a"));
+
+          time.advance("9ms");
+          const second = await run.orThrow(sharedResourceByKey.acquire("a"));
+
+          expect(second).toBe(first);
+          expect(await run.orThrow(sharedResourceByKey.getCount("a"))).toBe(1);
+
+          await run.orThrow(sharedResourceByKey.release("a"));
+          time.advance("10ms");
+          await firstDisposed.promise;
+
+          expect(first.isDisposed()).toBe(true);
+          expect(await run.orThrow(sharedResourceByKey.getCount("a"))).toBe(0);
+
+          const third = await run.orThrow(sharedResourceByKey.acquire("a"));
+          expect(third).not.toBe(first);
+          expect(createCallCount).toBe(2);
+        });
+
+        test("dispose cancels pending keyed idle disposal and disposes current resources", async () => {
+          const time = testCreateTime();
+          await using run = testCreateRun({ time });
+
+          const resource = await run.orThrow(createResource("a"));
+          const sharedResourceByKey = await run.orThrow(
+            createSharedResourceByKey(() => () => ok(resource), {
+              idleDisposeAfter: "10ms",
+            }),
+          );
+
+          await run.orThrow(sharedResourceByKey.acquire("a"));
+          await run.orThrow(sharedResourceByKey.release("a"));
+
+          await sharedResourceByKey[Symbol.asyncDispose]();
+
+          expect(resource.isDisposed()).toBe(true);
+        });
+
+        test("stale disposal callback must not remove a key that is reacquired concurrently", async () => {
+          const time = testCreateTime();
+          await using run = testCreateRun({ time });
+
+          let createCallCount = 0;
+          const firstDisposeStarted = Promise.withResolvers<void>();
+          const firstDisposeCanFinish = Promise.withResolvers<void>();
+
+          const createKeyedResource =
+            (key: string): Task<TestResource> =>
+            () => {
+              createCallCount += 1;
+
+              let disposed = false;
+              const resourceId = `${key}-${createCallCount}`;
+              const isFirstResource = createCallCount === 1;
+
+              return ok({
+                id: resourceId,
+                isDisposed: () => disposed,
+                [Symbol.asyncDispose]: async () => {
+                  if (isFirstResource) {
+                    firstDisposeStarted.resolve();
+                    await firstDisposeCanFinish.promise;
+                  }
+                  disposed = true;
+                },
+              });
+            };
+
+          await using sharedResourceByKey = await run.orThrow(
+            createSharedResourceByKey(createKeyedResource, {
+              idleDisposeAfter: "10ms",
+            }),
+          );
+
+          const first = await run.orThrow(sharedResourceByKey.acquire("a"));
+          await run.orThrow(sharedResourceByKey.release("a"));
+
+          time.advance("10ms");
+          await firstDisposeStarted.promise;
+
+          const reacquire = run(sharedResourceByKey.acquire("a"));
+
+          firstDisposeCanFinish.resolve();
+
+          const second = await run.orThrow(() => reacquire);
+
+          expect(second).not.toBe(first);
+          expect(second.id).toBe("a-2");
+          expect(await run.orThrow(sharedResourceByKey.getCount("a"))).toBe(1);
+
+          const third = await run.orThrow(sharedResourceByKey.acquire("a"));
+
+          expect(third).toBe(second);
+          expect(createCallCount).toBe(2);
+          expect(await run.orThrow(sharedResourceByKey.getCount("a"))).toBe(2);
+
+          await run.orThrow(sharedResourceByKey.release("a"));
+          expect(await run.orThrow(sharedResourceByKey.getCount("a"))).toBe(1);
+
+          await run.orThrow(sharedResourceByKey.release("a"));
+          expect(await run.orThrow(sharedResourceByKey.getCount("a"))).toBe(0);
+        });
       });
 
       test("dispose aborts later operations", async () => {
@@ -1466,346 +1567,584 @@ describe("createSharedResourceByKey", () => {
   }
 });
 
-// type ConsumerId = string & Brand<"ConsumerId">;
-
-// interface _ResourceConfig {
-//   readonly key: ResourceKey;
-// }
-
-// interface _Consumer {
-//   readonly id: ConsumerId;
-// }
-
-// test("addConsumer creates resource and indexes consumer-resource relation", async () => {
-//   await using run = testCreateRun();
-
-//   await using resources = createResources<
-//     TestResource,
-//     ResourceKey,
-//     ResourceConfig,
-//     Consumer,
-//     ConsumerId
-//   >({
-//     createResource: (resourceConfig) => testCreateResource(resourceConfig.key),
-//     getResourceId: (resourceConfig) => resourceConfig.key,
-//     getConsumerId: (consumer) => consumer.id,
-//   });
-
-//   const consumer: Consumer = { id: "consumer-1" as ConsumerId };
-//   const resourceConfig: ResourceConfig = { key: "resource-1"  };
-
-//   await run(resources.addConsumer(consumer, [resourceConfig]));
-
-//   expect(resources.getConsumerIdsForResource(resourceConfig.key)).toEqual(
-//     new Set([consumer.id]),
-//   );
-
-//   const resourcesForConsumer = resources.getResourcesForConsumerId(consumer.id);
-//   expect(resourcesForConsumer.size).toBe(1);
-
-//   const [resource] = Array.from(resourcesForConsumer);
-//   expect(resource.id).toBe(resourceConfig.key);
-
-//   await run(resources.removeConsumer(consumer, [resourceConfig]));
-// });
-
-// test("addConsumer reuses existing resource for the same key", async () => {
-//   await using run = testCreateRun();
-
-//   let createResourceCallCount = 0;
-//   await using resources = createResources<
-//     TestResource,
-//     ResourceKey,
-//     ResourceConfig,
-//     Consumer,
-//     ConsumerId
-//   >({
-//     createResource: (resourceConfig) => {
-//       createResourceCallCount += 1;
-//       return testCreateResource(resourceConfig.key);
-//     },
-//     getResourceId: (resourceConfig) => resourceConfig.key,
-//     getConsumerId: (consumer) => consumer.id,
-//   });
-
-//   const consumer1: Consumer = { id: "consumer-1" as ConsumerId };
-//   const consumer2: Consumer = { id: "consumer-2" as ConsumerId };
-//   const resourceConfig: ResourceConfig = { key: "resource-1" as ResourceKey };
-
-//   await run(resources.addConsumer(consumer1, [resourceConfig]));
-//   await run(resources.addConsumer(consumer2, [resourceConfig]));
-
-//   expect(createResourceCallCount).toBe(1);
-//   expect(resources.getConsumerIdsForResource(resourceConfig.key)).toEqual(
-//     new Set([consumer1.id, consumer2.id]),
-//   );
-// });
-
-// test("lookups return empty sets for unknown keys", async () => {
-//   await using _run = testCreateRun();
-
-//   await using resources = createResources<
-//     TestResource,
-//     ResourceKey,
-//     ResourceConfig,
-//     Consumer,
-//     ConsumerId
-//   >({
-//     createResource: (resourceConfig) => testCreateResource(resourceConfig.key),
-//     getResourceId: (resourceConfig) => resourceConfig.key,
-//     getConsumerId: (consumer) => consumer.id,
-//   });
-
-//   expect(
-//     resources.getConsumerIdsForResource("resource-missing" as ResourceKey),
-//   ).toEqual(new Set());
-//   expect(
-//     resources.getResourcesForConsumerId("consumer-missing" as ConsumerId),
-//   ).toEqual(new Set());
-// });
-
-// test("removeConsumer disposes resource when last consumer is removed", async () => {
-//   await using run = testCreateRun();
-
-//   await using resources = createResources<
-//     TestResource,
-//     ResourceKey,
-//     ResourceConfig,
-//     Consumer,
-//     ConsumerId
-//   >({
-//     createResource: (resourceConfig) => testCreateResource(resourceConfig.key),
-//     getResourceId: (resourceConfig) => resourceConfig.key,
-//     getConsumerId: (consumer) => consumer.id,
-//   });
-
-//   const consumer: Consumer = { id: "consumer-1" as ConsumerId };
-//   const resourceConfig: ResourceConfig = { key: "resource-1" as ResourceKey };
-
-//   await run(resources.addConsumer(consumer, [resourceConfig]));
-//   const [resource] = Array.from(
-//     resources.getResourcesForConsumerId(consumer.id),
-//   );
-
-//   await run(resources.removeConsumer(consumer, [resourceConfig]));
-
-//   expect(resource.isDisposed()).toBe(true);
-//   expect(resources.getConsumerIdsForResource(resourceConfig.key)).toEqual(
-//     new Set(),
-//   );
-//   expect(resources.getResourcesForConsumerId(consumer.id)).toEqual(new Set());
-// });
-
-// test("removeConsumer decrements reference count for repeated addConsumer", async () => {
-//   await using run = testCreateRun();
-
-//   await using resources = createResources<
-//     TestResource,
-//     ResourceKey,
-//     ResourceConfig,
-//     Consumer,
-//     ConsumerId
-//   >({
-//     createResource: (resourceConfig) => testCreateResource(resourceConfig.key),
-//     getResourceId: (resourceConfig) => resourceConfig.key,
-//     getConsumerId: (consumer) => consumer.id,
-//   });
-
-//   const consumer: Consumer = { id: "consumer-1" as ConsumerId };
-//   const resourceConfig: ResourceConfig = { key: "resource-1" as ResourceKey };
-
-//   await run(resources.addConsumer(consumer, [resourceConfig]));
-//   await run(resources.addConsumer(consumer, [resourceConfig]));
-
-//   const [resource] = Array.from(
-//     resources.getResourcesForConsumerId(consumer.id),
-//   );
-
-//   await run(resources.removeConsumer(consumer, [resourceConfig]));
-//   expect(resource.isDisposed()).toBe(false);
-//   expect(resources.getConsumerIdsForResource(resourceConfig.key)).toEqual(
-//     new Set([consumer.id]),
-//   );
-
-//   await run(resources.removeConsumer(consumer, [resourceConfig]));
-//   expect(resource.isDisposed()).toBe(true);
-//   expect(resources.getConsumerIdsForResource(resourceConfig.key)).toEqual(
-//     new Set(),
-//   );
-//   expect(resources.getResourcesForConsumerId(consumer.id)).toEqual(new Set());
-// });
-
-// test("removeConsumer is no-op for unknown resource and unknown consumer", async () => {
-//   await using run = testCreateRun();
-
-//   await using resources = createResources<
-//     TestResource,
-//     ResourceKey,
-//     ResourceConfig,
-//     Consumer,
-//     ConsumerId
-//   >({
-//     createResource: (resourceConfig) => testCreateResource(resourceConfig.key),
-//     getResourceId: (resourceConfig) => resourceConfig.key,
-//     getConsumerId: (consumer) => consumer.id,
-//   });
-
-//   const consumer1: Consumer = { id: "consumer-1" as ConsumerId };
-//   const consumer2: Consumer = { id: "consumer-2" as ConsumerId };
-//   const existingResourceConfig: ResourceConfig = {
-//     key: "resource-1" as ResourceKey,
-//   };
-//   const missingResourceConfig: ResourceConfig = {
-//     key: "resource-missing" as ResourceKey,
-//   };
-
-//   await run(resources.addConsumer(consumer1, [existingResourceConfig]));
-
-//   await run(resources.removeConsumer(consumer1, [missingResourceConfig]));
-//   await run(resources.removeConsumer(consumer2, [existingResourceConfig]));
-
-//   expect(
-//     resources.getConsumerIdsForResource(existingResourceConfig.key),
-//   ).toEqual(new Set([consumer1.id]));
-//   expect(resources.getResourcesForConsumerId(consumer1.id).size).toBe(1);
-// });
-
-// test("removeConsumer preserves symmetry when ref counts are already cleared", async () => {
-//   await using run = testCreateRun();
-
-//   await using resources = createResources<
-//     TestResource,
-//     ResourceKey,
-//     ResourceConfig,
-//     Consumer,
-//     ConsumerId
-//   >({
-//     createResource: (resourceConfig) => testCreateResource(resourceConfig.key),
-//     getResourceId: (resourceConfig) => resourceConfig.key,
-//     getConsumerId: (consumer) => consumer.id,
-//   });
-
-//   const consumer: Consumer = { id: "consumer-1" as ConsumerId };
-//   const resourceConfig: ResourceConfig = { key: "resource-1" as ResourceKey };
-
-//   await run(resources.addConsumer(consumer, [resourceConfig]));
-//   await run(resources.removeConsumer(consumer, [resourceConfig]));
-
-//   // First removal disposes and clears ref counts; mutex instance remains cached.
-//   await run(resources.removeConsumer(consumer, [resourceConfig]));
-
-//   expect(resources.getConsumerIdsForResource(resourceConfig.key)).toEqual(
-//     new Set(),
-//   );
-//   expect(resources.getResourcesForConsumerId(consumer.id)).toEqual(new Set());
-// });
-
-// test("concurrent add/remove on same resource is serialized", async () => {
-//   await using run = testCreateRun();
-
-//   const onCreateRelease = Promise.withResolvers<void>();
-//   let createResourceCallCount = 0;
-//   let disposeCallCount = 0;
-
-//   await using resources = createResources<
-//     TestResource,
-//     ResourceKey,
-//     ResourceConfig,
-//     Consumer,
-//     ConsumerId
-//   >({
-//     createResource: async (resourceConfig) => {
-//       createResourceCallCount += 1;
-//       await onCreateRelease.promise;
-
-//       let disposed = false;
-//       return {
-//         id: resourceConfig.key,
-//         isDisposed: () => disposed,
-//         [Symbol.dispose]: () => {
-//           disposed = true;
-//           disposeCallCount += 1;
-//         },
-//       };
-//     },
-//     getResourceId: (resourceConfig) => resourceConfig.key,
-//     getConsumerId: (consumer) => consumer.id,
-//   });
-
-//   const consumer1: Consumer = { id: "consumer-1" as ConsumerId };
-//   const consumer2: Consumer = { id: "consumer-2" as ConsumerId };
-//   const resourceConfig: ResourceConfig = { key: "resource-1" as ResourceKey };
-
-//   const add1 = run(resources.addConsumer(consumer1, [resourceConfig]));
-//   const add2 = run(resources.addConsumer(consumer2, [resourceConfig]));
-
-//   onCreateRelease.resolve();
-
-//   await Promise.all([add1, add2]);
-
-//   expect(createResourceCallCount).toBe(1);
-//   expect(resources.getConsumerIdsForResource(resourceConfig.key)).toEqual(
-//     new Set([consumer1.id, consumer2.id]),
-//   );
-
-//   const remove1 = run(resources.removeConsumer(consumer1, [resourceConfig]));
-//   const remove2 = run(resources.removeConsumer(consumer2, [resourceConfig]));
-//   await Promise.all([remove1, remove2]);
-
-//   expect(disposeCallCount).toBe(1);
-//   expect(resources.getConsumerIdsForResource(resourceConfig.key)).toEqual(
-//     new Set(),
-//   );
-// });
-
-// test("queued addConsumer during last removeConsumer does not fail", async () => {
-//   await using run = testCreateRun();
-
-//   let createResourceCallCount = 0;
-//   let disposeCallCount = 0;
-
-//   await using resources = createResources<
-//     TestResource,
-//     ResourceKey,
-//     ResourceConfig,
-//     Consumer,
-//     ConsumerId
-//   >({
-//     createResource: (resourceConfig) => {
-//       createResourceCallCount += 1;
-//       let disposed = false;
-
-//       return Promise.resolve({
-//         id: resourceConfig.key,
-//         isDisposed: () => disposed,
-//         [Symbol.dispose]: () => {
-//           disposeCallCount += 1;
-//           disposed = true;
-//         },
-//       });
-//     },
-//     getResourceId: (resourceConfig) => resourceConfig.key,
-//     getConsumerId: (consumer) => consumer.id,
-//   });
-
-//   const consumer1: Consumer = { id: "consumer-1" as ConsumerId };
-//   const consumer2: Consumer = { id: "consumer-2" as ConsumerId };
-//   const resourceConfig: ResourceConfig = { key: "resource-1" as ResourceKey };
-
-//   await run(resources.addConsumer(consumer1, [resourceConfig]));
-
-//   const remove = run(resources.removeConsumer(consumer1, [resourceConfig]));
-//   const queuedAdd = run(resources.addConsumer(consumer2, [resourceConfig]));
-
-//   await remove;
-//   await queuedAdd;
-
-//   expect(createResourceCallCount).toBe(2);
-//   expect(disposeCallCount).toBe(1);
-//   expect(resources.getConsumerIdsForResource(resourceConfig.key)).toEqual(
-//     new Set([consumer2.id]),
-//   );
-
-//   await run(resources.removeConsumer(consumer2, [resourceConfig]));
-//   expect(disposeCallCount).toBe(2);
-// });
+describe("createSharedResourceByKeyWithClaims", () => {
+  test("types require non-failing keyed create Tasks", () => {
+    expectTypeOf<typeof createSharedResourceByKeyWithClaims>().toBeFunction();
+
+    expectTypeOf<
+      SharedResourceByKeyWithClaims<"key", "claim", TestResource>["addClaim"]
+    >().toEqualTypeOf<
+      (claim: "claim", resourceKeys: ReadonlyArray<"key">) => Task<void>
+    >();
+
+    expectTypeOf<
+      SharedResourceByKeyWithClaims<"key", "claim", TestResource>["removeClaim"]
+    >().toEqualTypeOf<
+      (claim: "claim", resourceKeys: ReadonlyArray<"key">) => Task<void>
+    >();
+
+    expectTypeOf<
+      SharedResourceByKeyWithClaims<"key", "claim", TestResource>["getResource"]
+    >().toEqualTypeOf<
+      (
+        key: "key",
+      ) =>
+        | Omit<TestResource, typeof Symbol.dispose | typeof Symbol.asyncDispose>
+        | undefined
+    >();
+
+    expectTypeOf<
+      SharedResourceByKeyWithClaims<
+        "key",
+        "claim",
+        TestResource
+      >["getClaimsForResource"]
+    >().toEqualTypeOf<(key: "key") => ReadonlySet<"claim">>();
+
+    expectTypeOf<
+      SharedResourceByKeyWithClaims<
+        "key",
+        "claim",
+        TestResource
+      >["getResourceKeysForClaim"]
+    >().toEqualTypeOf<(claim: "claim") => ReadonlySet<"key">>();
+
+    expectTypeOf<
+      SharedResourceByKeyWithClaims<
+        "key",
+        "claim",
+        TestResource
+      >["getResourcesForClaim"]
+    >().toEqualTypeOf<
+      (
+        claim: "claim",
+      ) => ReadonlySet<
+        Omit<TestResource, typeof Symbol.dispose | typeof Symbol.asyncDispose>
+      >
+    >();
+  });
+
+  test("types accept interface-shaped keys and claims", () => {
+    interface Transport {
+      readonly type: "WebSocket";
+      readonly url: string;
+    }
+
+    interface Claim {
+      readonly ownerId: string;
+    }
+
+    const addClaim: SharedResourceByKeyWithClaims<
+      Transport,
+      Claim,
+      TestResource
+    >["addClaim"] = (_claim, _resourceKeys) => () => ok();
+
+    expect(addClaim).toBeTypeOf("function");
+  });
+
+  test("repeated structural retain across calls increments pair ref count without duplicating relations", async () => {
+    await using run = testCreateRun();
+
+    const firstClaimAdded: Array<string> = [];
+    const lastClaimRemoved: Array<string> = [];
+    const createCalls: Array<string> = [];
+
+    await using sharedResourceByKeyWithClaims = await run.orThrow(
+      createSharedResourceByKeyWithClaims(
+        (key: { readonly transport: string }) => {
+          createCalls.push(key.transport);
+          return testCreateResource("sync")(key.transport);
+        },
+        {
+          onFirstClaimAdded: (resource, key) => {
+            firstClaimAdded.push(`${resource.id}:${key.transport}`);
+          },
+          onLastClaimRemoved: (resource, key) => {
+            lastClaimRemoved.push(`${resource.id}:${key.transport}`);
+          },
+        },
+      ),
+    );
+
+    await run.orThrow(
+      sharedResourceByKeyWithClaims.addClaim({ ownerId: "owner-1" }, [
+        { transport: "ws://one" },
+      ]),
+    );
+    await run.orThrow(
+      sharedResourceByKeyWithClaims.addClaim({ ownerId: "owner-1" }, [
+        { transport: "ws://one" },
+      ]),
+    );
+
+    const resource = sharedResourceByKeyWithClaims.getResource({
+      transport: "ws://one",
+    });
+
+    expect(resource?.id).toBe("ws://one");
+    expect(createCalls).toEqual(["ws://one"]);
+    expect(firstClaimAdded).toEqual(["ws://one:ws://one"]);
+    expect(lastClaimRemoved).toEqual([]);
+    expect(
+      sharedResourceByKeyWithClaims.getClaimsForResource({
+        transport: "ws://one",
+      }),
+    ).toEqual(new Set([{ ownerId: "owner-1" }]));
+    expect(
+      sharedResourceByKeyWithClaims.getResourceKeysForClaim({
+        ownerId: "owner-1",
+      }),
+    ).toEqual(new Set([{ transport: "ws://one" }]));
+    expect(
+      sharedResourceByKeyWithClaims.getResourcesForClaim({
+        ownerId: "owner-1",
+      }),
+    ).toEqual(new Set([resource]));
+
+    await run.orThrow(
+      sharedResourceByKeyWithClaims.removeClaim({ ownerId: "owner-1" }, [
+        { transport: "ws://one" },
+      ]),
+    );
+
+    expect(resource?.isDisposed()).toBe(false);
+    expect(
+      sharedResourceByKeyWithClaims.getClaimsForResource({
+        transport: "ws://one",
+      }),
+    ).toEqual(new Set([{ ownerId: "owner-1" }]));
+
+    await run.orThrow(
+      sharedResourceByKeyWithClaims.removeClaim({ ownerId: "owner-1" }, [
+        { transport: "ws://one" },
+      ]),
+    );
+
+    expect(resource?.isDisposed()).toBe(true);
+    expect(lastClaimRemoved).toEqual(["ws://one:ws://one"]);
+    expect(
+      sharedResourceByKeyWithClaims.getResource({ transport: "ws://one" }),
+    ).toBeUndefined();
+    expect(
+      sharedResourceByKeyWithClaims.getClaimsForResource({
+        transport: "ws://one",
+      }),
+    ).toEqual(new Set());
+    expect(
+      sharedResourceByKeyWithClaims.getResourceKeysForClaim({
+        ownerId: "owner-1",
+      }),
+    ).toEqual(new Set());
+    expect(
+      sharedResourceByKeyWithClaims.getResourcesForClaim({
+        ownerId: "owner-1",
+      }),
+    ).toEqual(new Set());
+  });
+
+  test("multiple structural claims share one key until the last claim is removed", async () => {
+    await using run = testCreateRun();
+
+    const firstClaimAdded: Array<string> = [];
+    const lastClaimRemoved: Array<string> = [];
+
+    await using sharedResourceByKeyWithClaims = await run.orThrow(
+      createSharedResourceByKeyWithClaims(
+        (key: { readonly transport: string }) =>
+          testCreateResource("sync")(key.transport),
+        {
+          onFirstClaimAdded: (_resource, key) => {
+            firstClaimAdded.push(key.transport);
+          },
+          onLastClaimRemoved: (_resource, key) => {
+            lastClaimRemoved.push(key.transport);
+          },
+        },
+      ),
+    );
+
+    await run.orThrow(
+      sharedResourceByKeyWithClaims.addClaim({ ownerId: "owner-1" }, [
+        { transport: "ws://shared" },
+      ]),
+    );
+    await run.orThrow(
+      sharedResourceByKeyWithClaims.addClaim({ ownerId: "owner-2" }, [
+        { transport: "ws://shared" },
+      ]),
+    );
+
+    const resource = sharedResourceByKeyWithClaims.getResource({
+      transport: "ws://shared",
+    });
+
+    expect(firstClaimAdded).toEqual(["ws://shared"]);
+    expect(
+      sharedResourceByKeyWithClaims.getClaimsForResource({
+        transport: "ws://shared",
+      }),
+    ).toEqual(new Set([{ ownerId: "owner-1" }, { ownerId: "owner-2" }]));
+
+    await run.orThrow(
+      sharedResourceByKeyWithClaims.removeClaim({ ownerId: "owner-1" }, [
+        { transport: "ws://shared" },
+      ]),
+    );
+
+    expect(resource?.isDisposed()).toBe(false);
+    expect(lastClaimRemoved).toEqual([]);
+    expect(
+      sharedResourceByKeyWithClaims.getClaimsForResource({
+        transport: "ws://shared",
+      }),
+    ).toEqual(new Set([{ ownerId: "owner-2" }]));
+
+    await run.orThrow(
+      sharedResourceByKeyWithClaims.removeClaim({ ownerId: "owner-2" }, [
+        { transport: "ws://shared" },
+      ]),
+    );
+
+    expect(resource?.isDisposed()).toBe(true);
+    expect(lastClaimRemoved).toEqual(["ws://shared"]);
+  });
+
+  test("addClaim throws on duplicate structural resource keys in one call", async () => {
+    await using run = testCreateRun();
+
+    await using sharedResourceByKeyWithClaims = await run.orThrow(
+      createSharedResourceByKeyWithClaims(
+        (key: { readonly transport: string }) =>
+          testCreateResource("sync")(key.transport),
+      ),
+    );
+
+    await expect(
+      run(
+        sharedResourceByKeyWithClaims.addClaim("owner-1", [
+          { transport: "ws://one" },
+          { transport: "ws://one" },
+        ]),
+      ),
+    ).rejects.toThrow("resourceKeys must not contain structural duplicates.");
+  });
+
+  test("idleDisposeAfter keeps the current resource observable until sync disposal completes", async () => {
+    const time = testCreateTime();
+    await using run = testCreateRun({ time });
+
+    const disposed = Promise.withResolvers<void>();
+    await using sharedResourceByKeyWithClaims = await run.orThrow(
+      createSharedResourceByKeyWithClaims(
+        (key: string) =>
+          testCreateResource("sync")(key, {
+            onDispose: () => {
+              disposed.resolve();
+            },
+          }),
+        {
+          idleDisposeAfter: "10ms",
+        },
+      ),
+    );
+
+    await run.orThrow(sharedResourceByKeyWithClaims.addClaim("owner-1", ["a"]));
+    const resource = sharedResourceByKeyWithClaims.getResource("a");
+
+    await run.orThrow(
+      sharedResourceByKeyWithClaims.removeClaim("owner-1", ["a"]),
+    );
+
+    expect(sharedResourceByKeyWithClaims.getClaimsForResource("a")).toEqual(
+      new Set(),
+    );
+    expect(
+      sharedResourceByKeyWithClaims.getResourceKeysForClaim("owner-1"),
+    ).toEqual(new Set());
+    expect(
+      sharedResourceByKeyWithClaims.getResourcesForClaim("owner-1"),
+    ).toEqual(new Set());
+    expect(sharedResourceByKeyWithClaims.getResource("a")).toBe(resource);
+
+    time.advance("10ms");
+    await disposed.promise;
+    await testWaitForMacrotask();
+
+    expect(sharedResourceByKeyWithClaims.getResource("a")).toBeUndefined();
+  });
+
+  test("idleDisposeAfter stops exposing the resource once async disposal starts", async () => {
+    const time = testCreateTime();
+    await using run = testCreateRun({ time });
+
+    const disposeStarted = Promise.withResolvers<void>();
+    const disposeFinished = Promise.withResolvers<void>();
+    const disposeCanFinish = Promise.withResolvers<void>();
+
+    await using sharedResourceByKeyWithClaims = await run.orThrow(
+      createSharedResourceByKeyWithClaims(
+        (key: string): Task<TestResource> => {
+          let disposed = false;
+
+          return () =>
+            ok({
+              id: key,
+              isDisposed: () => disposed,
+              [Symbol.asyncDispose]: async () => {
+                disposeStarted.resolve();
+                await disposeCanFinish.promise;
+                disposed = true;
+                disposeFinished.resolve();
+              },
+            });
+        },
+        {
+          idleDisposeAfter: "10ms",
+        },
+      ),
+    );
+
+    await run.orThrow(sharedResourceByKeyWithClaims.addClaim("owner-1", ["a"]));
+    const resource = sharedResourceByKeyWithClaims.getResource("a");
+
+    await run.orThrow(
+      sharedResourceByKeyWithClaims.removeClaim("owner-1", ["a"]),
+    );
+
+    expect(sharedResourceByKeyWithClaims.getResource("a")).toBe(resource);
+
+    time.advance("10ms");
+    await disposeStarted.promise;
+
+    expect(resource?.isDisposed()).toBe(false);
+    expect(sharedResourceByKeyWithClaims.getResource("a")).toBeUndefined();
+
+    disposeCanFinish.resolve();
+    await disposeFinished.promise;
+    await testWaitForMacrotask();
+
+    expect(resource?.isDisposed()).toBe(true);
+    expect(sharedResourceByKeyWithClaims.getResource("a")).toBeUndefined();
+    disposeCanFinish.resolve();
+  });
+
+  test("removing one of multiple keys keeps structural claim matching intact", async () => {
+    await using run = testCreateRun();
+
+    await using sharedResourceByKeyWithClaims = await run.orThrow(
+      createSharedResourceByKeyWithClaims((key: string) =>
+        testCreateResource("sync")(key),
+      ),
+    );
+
+    const firstClaim = { ownerId: "owner-1", encryptionKey: "enc-1" };
+    const equivalentClaim = { encryptionKey: "enc-1", ownerId: "owner-1" };
+
+    await run.orThrow(
+      sharedResourceByKeyWithClaims.addClaim(firstClaim, ["a", "b"]),
+    );
+
+    await run.orThrow(
+      sharedResourceByKeyWithClaims.removeClaim(equivalentClaim, ["a"]),
+    );
+
+    expect(
+      sharedResourceByKeyWithClaims.getResourceKeysForClaim(equivalentClaim),
+    ).toEqual(new Set(["b"]));
+    expect(sharedResourceByKeyWithClaims.getClaimsForResource("b")).toEqual(
+      new Set([firstClaim]),
+    );
+
+    await run.orThrow(
+      sharedResourceByKeyWithClaims.removeClaim(equivalentClaim, ["b"]),
+    );
+
+    expect(
+      sharedResourceByKeyWithClaims.getResourceKeysForClaim(firstClaim),
+    ).toEqual(new Set());
+  });
+
+  test("stale disposal callback does not hide a reacquired resource", async () => {
+    const time = testCreateTime();
+    await using run = testCreateRun({ time });
+
+    let createCallCount = 0;
+    const firstDisposeStarted = Promise.withResolvers<void>();
+    const firstDisposeCanFinish = Promise.withResolvers<void>();
+
+    await using sharedResourceByKeyWithClaims = await run.orThrow(
+      createSharedResourceByKeyWithClaims(
+        (key: string): Task<TestResource> =>
+          () => {
+            createCallCount += 1;
+
+            let disposed = false;
+            const resourceId = `${key}-${createCallCount}`;
+            const isFirstResource = createCallCount === 1;
+
+            return ok({
+              id: resourceId,
+              isDisposed: () => disposed,
+              [Symbol.asyncDispose]: async () => {
+                if (isFirstResource) {
+                  firstDisposeStarted.resolve();
+                  await firstDisposeCanFinish.promise;
+                }
+                disposed = true;
+              },
+            });
+          },
+        {
+          idleDisposeAfter: "10ms",
+        },
+      ),
+    );
+
+    await run.orThrow(sharedResourceByKeyWithClaims.addClaim("owner-1", ["a"]));
+    const first = sharedResourceByKeyWithClaims.getResource("a");
+
+    await run.orThrow(
+      sharedResourceByKeyWithClaims.removeClaim("owner-1", ["a"]),
+    );
+
+    time.advance("10ms");
+    await firstDisposeStarted.promise;
+
+    const reacquire = run(
+      sharedResourceByKeyWithClaims.addClaim("owner-2", ["a"]),
+    );
+
+    firstDisposeCanFinish.resolve();
+    await run.orThrow(() => reacquire);
+    await testWaitForMacrotask();
+
+    const second = sharedResourceByKeyWithClaims.getResource("a");
+
+    expect(first?.id).toBe("a-1");
+    expect(second?.id).toBe("a-2");
+    expect(second).not.toBe(first);
+    expect(sharedResourceByKeyWithClaims.getClaimsForResource("a")).toEqual(
+      new Set(["owner-2"]),
+    );
+    expect(
+      sharedResourceByKeyWithClaims.getResourceKeysForClaim("owner-2"),
+    ).toEqual(new Set(["a"]));
+    expect(createCallCount).toBe(2);
+  });
+
+  test("removeClaim throws on duplicate structural resource keys in one call", async () => {
+    await using run = testCreateRun();
+
+    await using sharedResourceByKeyWithClaims = await run.orThrow(
+      createSharedResourceByKeyWithClaims(
+        (key: { readonly transport: string }) =>
+          testCreateResource("sync")(key.transport),
+      ),
+    );
+
+    await run.orThrow(
+      sharedResourceByKeyWithClaims.addClaim("owner-1", [
+        { transport: "ws://one" },
+      ]),
+    );
+
+    await expect(
+      run(
+        sharedResourceByKeyWithClaims.removeClaim("owner-1", [
+          { transport: "ws://one" },
+          { transport: "ws://one" },
+        ]),
+      ),
+    ).rejects.toThrow("resourceKeys must not contain structural duplicates.");
+  });
+
+  test("removeClaim throws on over-removal", async () => {
+    await using run = testCreateRun();
+
+    await using sharedResourceByKeyWithClaims = await run.orThrow(
+      createSharedResourceByKeyWithClaims((key: string) =>
+        testCreateResource("sync")(key),
+      ),
+    );
+
+    await expect(
+      run(sharedResourceByKeyWithClaims.removeClaim("owner-1", ["a"])),
+    ).rejects.toThrow(
+      "Claim-resource pair must not be removed more times than added.",
+    );
+  });
+
+  test("dispose aborts claim operations before resource cleanup finishes", async () => {
+    await using run = testCreateRun();
+
+    const disposeStarted = Promise.withResolvers<void>();
+    const disposeCanFinish = Promise.withResolvers<void>();
+
+    const sharedResourceByKeyWithClaims = await run.orThrow(
+      createSharedResourceByKeyWithClaims((key: string): Task<TestResource> => {
+        let disposed = false;
+
+        return () =>
+          ok({
+            id: key,
+            isDisposed: () => disposed,
+            [Symbol.asyncDispose]: async () => {
+              disposeStarted.resolve();
+              await disposeCanFinish.promise;
+              disposed = true;
+            },
+          });
+      }),
+    );
+
+    await run.orThrow(sharedResourceByKeyWithClaims.addClaim("owner-1", ["a"]));
+
+    const disposePromise = sharedResourceByKeyWithClaims[Symbol.asyncDispose]();
+    await disposeStarted.promise;
+
+    await expectRunStopped(
+      run(sharedResourceByKeyWithClaims.addClaim("owner-2", ["b"])),
+    );
+    await expectRunStopped(
+      run(sharedResourceByKeyWithClaims.removeClaim("owner-1", ["a"])),
+    );
+
+    disposeCanFinish.resolve();
+    await disposePromise;
+  });
+
+  test("dispose aborts later operations", async () => {
+    await using run = testCreateRun();
+
+    const sharedResourceByKeyWithClaims = await run.orThrow(
+      createSharedResourceByKeyWithClaims((key: string) =>
+        testCreateResource("sync")(key),
+      ),
+    );
+
+    await run.orThrow(sharedResourceByKeyWithClaims.addClaim("owner-1", ["a"]));
+    const resource = sharedResourceByKeyWithClaims.getResource("a");
+
+    await sharedResourceByKeyWithClaims[Symbol.asyncDispose]();
+
+    expect(resource?.isDisposed()).toBe(true);
+    expect(sharedResourceByKeyWithClaims.getResource("a")).toBeUndefined();
+    expect(sharedResourceByKeyWithClaims.getClaimsForResource("a")).toEqual(
+      new Set(),
+    );
+    expect(
+      sharedResourceByKeyWithClaims.getResourceKeysForClaim("owner-1"),
+    ).toEqual(new Set());
+    expect(
+      sharedResourceByKeyWithClaims.getResourcesForClaim("owner-1"),
+    ).toEqual(new Set());
+
+    await expectRunStopped(
+      run(sharedResourceByKeyWithClaims.addClaim("owner-1", ["a"])),
+    );
+    await expectRunStopped(
+      run(sharedResourceByKeyWithClaims.removeClaim("owner-1", ["a"])),
+    );
+  });
+});

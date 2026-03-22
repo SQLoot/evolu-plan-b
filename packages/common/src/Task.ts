@@ -2597,8 +2597,7 @@ const semaphoreDisposedAbortError: AbortError = createAbortError(
  *
  * @group Concurrency primitives
  */
-export interface SemaphoreByKey<K extends StructuralKey = StructuralKey>
-  extends Disposable {
+export interface SemaphoreByKey<K = StructuralKey> extends Disposable {
   /**
    * Executes a {@link Task} while holding one permit for a specific key.
    *
@@ -2627,7 +2626,7 @@ export interface SemaphoreByKey<K extends StructuralKey = StructuralKey>
  *
  * @group Concurrency primitives
  */
-export const createSemaphoreByKey = <K extends StructuralKey = StructuralKey>(
+export const createSemaphoreByKey = <K = StructuralKey>(
   permits: Concurrency,
 ): SemaphoreByKey<K> => {
   type KeyedSemaphore = Semaphore & {
@@ -2777,8 +2776,7 @@ export const createMutex = (): Mutex => {
  *
  * @group Concurrency primitives
  */
-export interface MutexByKey<K extends StructuralKey = StructuralKey>
-  extends Disposable {
+export interface MutexByKey<K = StructuralKey> extends Disposable {
   /**
    * Executes a {@link Task} while holding the mutex lock for a specific key.
    *
@@ -2795,9 +2793,7 @@ export interface MutexByKey<K extends StructuralKey = StructuralKey>
  *
  * @group Concurrency primitives
  */
-export const createMutexByKey = <
-  K extends StructuralKey = StructuralKey,
->(): MutexByKey<K> => {
+export const createMutexByKey = <K = StructuralKey>(): MutexByKey<K> => {
   const semaphoreByKey = createSemaphoreByKey<K>(minPositiveInt);
 
   return {
