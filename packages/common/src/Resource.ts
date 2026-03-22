@@ -25,7 +25,7 @@ import {
   unabortable,
 } from "./Task.js";
 import type { Duration } from "./Time.js";
-import { NonNegativeInt, PositiveInt } from "./Type.js";
+import { NonNegativeInt, PositiveInt, zeroNonNegativeInt } from "./Type.js";
 
 /**
  * Disposable resource.
@@ -222,7 +222,7 @@ export const createSharedResource = <T extends Resource, D>(
   unabortable<SharedResource<T, D>, never, D>((run) => {
     const sharedResourceRun = run.create();
 
-    let acquireCount = NonNegativeInt.orThrow(0);
+    let acquireCount = zeroNonNegativeInt;
     let current: OwnedResource<T> | undefined;
     let idleDisposeFiber: Fiber<void, AbortError, D> | undefined;
 
@@ -479,7 +479,7 @@ export const createSharedResourceByKey = <
         sharedResourceByKeyRun(
           mutexByKey.withLock(toMutexKey(key), async (run) => {
             const sharedResource = sharedResourcesByKey.get(key);
-            if (!sharedResource) return ok(NonNegativeInt.orThrow(0));
+            if (!sharedResource) return ok(zeroNonNegativeInt);
             return run(sharedResource.getCount);
           }),
         ),
@@ -781,7 +781,7 @@ interface RefCount extends Disposable {
 
 const createRefCount = (): RefCount => {
   const stack = new DisposableStack();
-  let count = NonNegativeInt.orThrow(0);
+  let count = zeroNonNegativeInt;
   const moved = stack.move();
 
   return {
@@ -839,8 +839,6 @@ export interface RefCountByKey<TKey> extends Disposable {
 /** Creates {@link RefCountByKey}. */
 export const createRefCountByKey = <TKey>(): RefCountByKey<TKey> => {
   const stack = new DisposableStack();
-  const zero = NonNegativeInt.orThrow(0);
-
   const refCountByKey = stack.adopt(new Map<TKey, RefCount>(), (counts) => {
     for (const refCount of counts.values()) refCount[Symbol.dispose]();
     counts.clear();
@@ -876,7 +874,7 @@ export const createRefCountByKey = <TKey>(): RefCountByKey<TKey> => {
 
     getCount: (key) => {
       assertNotDisposed(moved);
-      return refCountByKey.get(key)?.getCount() ?? zero;
+      return refCountByKey.get(key)?.getCount() ?? zeroNonNegativeInt;
     },
 
     has: (key) => {

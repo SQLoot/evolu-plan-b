@@ -12,8 +12,8 @@ import { err, ok } from "./Result.js";
 import {
   brand,
   lessThanOrEqualTo,
-  minPositiveInt,
   type NonNegativeInt,
+  onePositiveInt,
   PositiveInt,
 } from "./Type.js";
 import type { Predicate, WidenLiteral } from "./Types.js";
@@ -111,7 +111,7 @@ export type FibonacciIndex = typeof FibonacciIndex.Type;
 
 /** Returns the Fibonacci number at the given index (1-indexed: 1,1,2,3,5,8,...). */
 export const fibonacciAt = (index: FibonacciIndex): PositiveInt => {
-  if (index <= 2) return minPositiveInt;
+  if (index <= 2) return onePositiveInt;
   let a = 1;
   let b = 1;
   for (let i = 3; i <= index; i++) [a, b] = [b, a + b];

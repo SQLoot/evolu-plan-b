@@ -68,6 +68,7 @@ import {
   dateToDateIso,
   NonNegativeInt,
   PositiveInt,
+  zeroNonNegativeInt,
 } from "../../src/Type.js";
 import { testCreateRunWithSqliteAndRelayStorage } from "../_deps.js";
 import {
@@ -564,7 +565,7 @@ describe("decodeRle", () => {
     const buffer = createBuffer();
     // value=1, runLength=0 (malicious: would infinite-loop)
     encodeNonNegativeInt(buffer, NonNegativeInt.orThrow(1));
-    encodeNonNegativeInt(buffer, NonNegativeInt.orThrow(0));
+    encodeNonNegativeInt(buffer, zeroNonNegativeInt);
 
     expect(() =>
       decodeRle(buffer, NonNegativeInt.orThrow(1), () =>

@@ -226,6 +226,7 @@ import {
   PositiveInt,
   type Typed,
   uint8ArrayToBase64Url,
+  zeroNonNegativeInt,
 } from "../Type.js";
 import type { Predicate } from "../Types.js";
 import {
@@ -542,7 +543,7 @@ export const createProtocolMessageForSync =
 
     const didSplitRange = splitRange(deps)(
       ownerIdBytes,
-      NonNegativeInt.orThrow(0),
+      zeroNonNegativeInt,
       size,
       InfiniteUpperBound,
       buffer,
@@ -801,7 +802,7 @@ export interface TimestampsBuffer {
 }
 
 export const createTimestampsBuffer = (): TimestampsBuffer => {
-  let count = NonNegativeInt.orThrow(0);
+  let count = zeroNonNegativeInt;
   const countBuffer = createBuffer();
 
   const syncCount = () => {
@@ -868,9 +869,9 @@ const createRunLengthEncoder = <T>(
   encodeValue: (buffer: Buffer, value: T) => void,
 ): RunLengthEncoder<T> => {
   const buffer = createBuffer();
-  let previousLength = NonNegativeInt.orThrow(0);
+  let previousLength = zeroNonNegativeInt;
   let previousValue = null as T | null;
-  let runLength = NonNegativeInt.orThrow(0);
+  let runLength = zeroNonNegativeInt;
 
   return {
     add: (value) => {
@@ -1308,7 +1309,7 @@ const sync =
     }
 
     let prevUpperBound: RangeUpperBound | null = null;
-    let prevIndex = NonNegativeInt.orThrow(0);
+    let prevIndex = zeroNonNegativeInt;
 
     let skip = false;
     let nonSkipRangeAdded = false;
@@ -1551,7 +1552,7 @@ const splitRange =
 
       deps.storage.iterate(
         ownerId,
-        NonNegativeInt.orThrow(0),
+        zeroNonNegativeInt,
         itemCount,
         (timestamp) => {
           range.timestamps.add(timestampBytesToTimestamp(timestamp));
