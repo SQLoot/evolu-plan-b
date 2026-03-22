@@ -595,15 +595,42 @@ export const createEvolu =
     );
     const subscribedQueriesRefCount = stack.use(createRefCountByKey<Query>());
 
-    const onMutateCompleteCallbacks = stack.use(createCallbacks(run.deps));
-    const evoluError =
-      (run.deps as Partial<EvoluErrorDep>).evoluError ??
-      stack.use(createStore<EvoluError | null>(null));
+    /**
+     * Settle pending query loads during disposal so awaiting callers and React
+     * `use` thenables do not hang forever during teardown.
+     */
+    const loadingPromisesByQuery = stack.adopt(
+      new Map<Query, LoadingPromise>(),
+      (loadingPromisesByQuery) => {
+        for (const loadingPromise of loadingPromisesByQuery.values()) {
+          if (loadingPromise.promise.status === "fulfilled") continue;
+          fulfillLoadingPromise(loadingPromise, emptyArray);
+        }
+        loadingPromisesByQuery.clear();
+      },
+    );
 
-    let exportDatabasePending = null as PromiseWithResolvers<
-      Uint8Array<ArrayBuffer>
-    > | null;
-    const loadingPromisesByQuery = new Map<Query, LoadingPromise>();
+    const fulfillLoadingPromise = (
+      loadingPromise: LoadingPromise,
+      rows: QueryRows,
+    ): void => {
+      /**
+       * Pending promises must be resolved in place to preserve identity for
+       * current awaiters. Fulfilled promises are replaced with a new resolved
+       * promise so future loads see the latest rows.
+       */
+      if (loadingPromise.promise.status !== "fulfilled") {
+        loadingPromise.resolve(rows);
+      } else {
+        loadingPromise.promise = Promise.resolve(rows);
+      }
+
+      /** See {@link LoadingPromise.promise}. */
+      void Object.assign(loadingPromise.promise, {
+        status: "fulfilled",
+        value: rows,
+      });
+    };
 
     /**
      * Mutations and refreshes invalidate query snapshots. Keep loading promises
@@ -624,6 +651,20 @@ export const createEvolu =
         }
       }
     };
+
+    const onMutateCompleteCallbacks = stack.use(createCallbacks(run.deps));
+    const evoluError =
+      (run.deps as Partial<EvoluErrorDep>).evoluError ??
+      stack.use(createStore<EvoluError | null>(null));
+
+    let exportDatabasePending = null as PromiseWithResolvers<
+      Uint8Array<ArrayBuffer>
+    > | null;
+
+    stack.defer(() => {
+      exportDatabasePending?.reject({ type: "EvoluDisposedError" });
+      exportDatabasePending = null;
+    });
 
     const mutateBatch = stack.use(
       createMicrotaskBatch<{
@@ -722,22 +763,7 @@ export const createEvolu =
               const rows = nextRowsByQueryMap.get(query);
               assert(rows, "Expected patched query rows to exist.");
 
-              /**
-               * Pending promises must be resolved in place to preserve identity
-               * for current awaiters. Fulfilled promises are replaced with a
-               * new resolved promise so future loads see the latest rows.
-               */
-              if (loadingPromise.promise.status !== "fulfilled") {
-                loadingPromise.resolve(rows);
-              } else {
-                loadingPromise.promise = Promise.resolve(rows);
-              }
-
-              /** See {@link LoadingPromise.promise}. */
-              void Object.assign(loadingPromise.promise, {
-                status: "fulfilled",
-                value: rows,
-              });
+              fulfillLoadingPromise(loadingPromise, rows);
 
               /**
                * Release promises flagged during mutation when they finish
@@ -788,6 +814,10 @@ export const createEvolu =
       };
 
       postMessage = evoluChannel.port1.postMessage;
+
+      stack.defer(() => {
+        postMessage({ type: "Dispose" });
+      });
     }
 
     const useOwnerBatch = stack.use(
@@ -928,10 +958,7 @@ export const createEvolu =
       },
 
       [Symbol.asyncDispose]: () => {
-        console.info("disposeEvolu");
-        exportDatabasePending?.reject({ type: "EvoluDisposedError" });
-        exportDatabasePending = null;
-        postMessage({ type: "Dispose" });
+        console.info("dispose");
         return moved.disposeAsync();
       },
     } as Evolu<S>);
