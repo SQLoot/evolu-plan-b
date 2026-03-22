@@ -890,9 +890,8 @@ export const createEvolu =
     const getQueryRows = <R extends Row>(query: Query<R>): QueryRows<R> => {
       assertNotDisposed(moved);
 
-      return (rowsByQueryMapStore.get().get(query) ?? emptyArray) as QueryRows<
-        R
-      >;
+      return (rowsByQueryMapStore.get().get(query) ??
+        emptyArray) as QueryRows<R>;
     };
 
     const moved = stack.move();

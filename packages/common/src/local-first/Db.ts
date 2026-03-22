@@ -6,6 +6,7 @@
 
 import {
   appendToArray,
+  emptyArray,
   firstInArray,
   type NonEmptyArray,
   type NonEmptyReadonlyArray,
@@ -780,7 +781,7 @@ const handleMutation =
       const rowsByQuery = loadQueries(deps)(message.subscribedQueries);
       const protocolMessagesByOwnerId = new Map<OwnerId, ProtocolMessage>();
 
-      for (const owner of message.syncOwners) {
+      for (const owner of message.syncOwners ?? emptyArray) {
         const ownerMessages = messagesByOwnerId.get(owner.id);
         if (!ownerMessages) continue;
 
