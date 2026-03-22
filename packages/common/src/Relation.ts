@@ -103,6 +103,30 @@ export const createRelation = <A, B>(): Relation<A, B> => {
   const bToA = new Map<B, Set<A>>();
   let sizeInternal = 0;
 
+  const removePair = (a: A, b: B): void => {
+    const bSet = aToB.get(a);
+    // This should only fail if a leaked view was mutated via an unsafe cast.
+    assertRelationMappingConsistency(bSet);
+    assertRelationMappingConsistency(bSet.has(b));
+
+    bSet.delete(b);
+    if (bSet.size === 0) {
+      aToB.delete(a);
+    }
+
+    const aSet = bToA.get(b);
+    // This should only fail if a leaked view was mutated via an unsafe cast.
+    assertRelationMappingConsistency(aSet);
+    assertRelationMappingConsistency(aSet.has(a));
+
+    aSet.delete(a);
+    if (aSet.size === 0) {
+      bToA.delete(b);
+    }
+
+    sizeInternal--;
+  };
+
   const relation: Relation<A, B> = {
     add(a: A, b: B) {
       let bSet = aToB.get(a);
@@ -124,22 +148,8 @@ export const createRelation = <A, B>(): Relation<A, B> => {
     },
 
     remove(a: A, b: B) {
-      const bSet = aToB.get(a);
-      if (!bSet?.has(b)) return false;
-
-      bSet.delete(b);
-      if (bSet.size === 0) {
-        aToB.delete(a);
-      }
-
-      const aSet = bToA.get(b);
-      assert(aSet, "Relation mapping inconsistency");
-
-      aSet.delete(a);
-      if (aSet.size === 0) {
-        bToA.delete(b);
-      }
-      sizeInternal--;
+      if (!aToB.get(a)?.has(b)) return false;
+      removePair(a, b);
       return true;
     },
 
@@ -181,36 +191,14 @@ export const createRelation = <A, B>(): Relation<A, B> => {
     deleteA(a: A) {
       const bSet = aToB.get(a);
       if (!bSet) return false;
-      const removed = bSet.size;
-      for (const b of bSet) {
-        const aSet = bToA.get(b);
-        if (aSet) {
-          aSet.delete(a);
-          if (aSet.size === 0) {
-            bToA.delete(b);
-          }
-        }
-      }
-      aToB.delete(a);
-      sizeInternal -= removed;
+      for (const b of Array.from(bSet)) removePair(a, b);
       return true;
     },
 
     deleteB(b: B) {
       const aSet = bToA.get(b);
       if (!aSet) return false;
-      const removed = aSet.size;
-      for (const a of aSet) {
-        const bSet = aToB.get(a);
-        if (bSet) {
-          bSet.delete(b);
-          if (bSet.size === 0) {
-            aToB.delete(a);
-          }
-        }
-      }
-      bToA.delete(b);
-      sizeInternal -= removed;
+      for (const a of Array.from(aSet)) removePair(a, b);
       return true;
     },
 
@@ -234,4 +222,10 @@ export const createRelation = <A, B>(): Relation<A, B> => {
   };
 
   return relation;
+};
+
+const assertRelationMappingConsistency: (
+  condition: unknown,
+) => asserts condition = (condition) => {
+  assert(condition, "Relation mapping inconsistency");
 };
