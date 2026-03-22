@@ -13,7 +13,7 @@ import { createUnknownError } from "../Error.js";
 import { exhaustiveCheck } from "../Function.js";
 import { createMicrotaskBatch } from "../Microtask.js";
 import type { FlushSyncDep, ReloadAppDep } from "../Platform.js";
-import { createRefCount } from "../RefCount.js";
+import { createRefCountByKey } from "../Resource.js";
 import { err, ok } from "../Result.js";
 import { isNonEmptySet } from "../Set.js";
 import { SqliteBoolean, sqliteBooleanToBoolean } from "../Sqlite.js";
@@ -570,9 +570,6 @@ export const createEvolu =
     const console = run.deps.console.child(name).child("Evolu");
     console.info("createEvolu");
 
-    const rowsByQueryMapStore = createStore<RowsByQueryMap>(new Map());
-    const subscribedQueriesRefCount = createRefCount<Query>();
-
     interface LoadingPromise {
       /**
        * React tracks `status`/`value`/`reason` on thenables passed to `use`.
@@ -591,9 +588,12 @@ export const createEvolu =
       releaseOnResolve: boolean;
     }
 
-    const loadingPromisesByQuery = new Map<Query, LoadingPromise>();
-
     await using stack = new AsyncDisposableStack();
+
+    const rowsByQueryMapStore = stack.use(
+      createStore<RowsByQueryMap>(new Map()),
+    );
+    const subscribedQueriesRefCount = stack.use(createRefCountByKey<Query>());
 
     const onMutateCompleteCallbacks = stack.use(createCallbacks(run.deps));
     const evoluError =
@@ -603,6 +603,7 @@ export const createEvolu =
     let exportDatabasePending = null as PromiseWithResolvers<
       Uint8Array<ArrayBuffer>
     > | null;
+    const loadingPromisesByQuery = new Map<Query, LoadingPromise>();
 
     /**
      * Mutations and refreshes invalidate query snapshots. Keep loading promises

@@ -4,7 +4,7 @@
  * @module
  */
 
-import { assert, assertNotAborted } from "./Assert.js";
+import { assert, assertNotAborted, assertNotDisposed } from "./Assert.js";
 import { ok } from "./Result.js";
 import {
   createStructuralMap,
@@ -25,7 +25,7 @@ import {
   unabortable,
 } from "./Task.js";
 import type { Duration } from "./Time.js";
-import { NonNegativeInt } from "./Type.js";
+import { NonNegativeInt, PositiveInt } from "./Type.js";
 
 /**
  * Disposable resource.
@@ -772,6 +772,126 @@ export const createSharedResourceByKeyWithClaims = <
       });
     },
   );
+
+interface RefCount extends Disposable {
+  readonly increment: () => PositiveInt;
+  readonly decrement: () => NonNegativeInt;
+  readonly getCount: () => NonNegativeInt;
+}
+
+const createRefCount = (): RefCount => {
+  const stack = new DisposableStack();
+  let count = NonNegativeInt.orThrow(0);
+  const moved = stack.move();
+
+  return {
+    increment: () => {
+      assertNotDisposed(moved);
+      const nextCount = PositiveInt.orThrow(count + 1);
+      count = nextCount;
+      return nextCount;
+    },
+
+    decrement: () => {
+      assertNotDisposed(moved);
+      assert(count > 0, "RefCount must not be decremented below zero.");
+      count = NonNegativeInt.orThrow(count - 1);
+      return count;
+    },
+
+    getCount: () => {
+      assertNotDisposed(moved);
+      return count;
+    },
+
+    [Symbol.dispose]: () => moved.dispose(),
+  };
+};
+
+/**
+ * Reference counts keyed by identity.
+ *
+ * Keys use reference identity, the same as `Map` keys. Decrementing a missing
+ * key is a programmer error checked with {@link assert}.
+ */
+export interface RefCountByKey<TKey> extends Disposable {
+  /** Increments key count and returns the new count. */
+  readonly increment: (key: TKey) => PositiveInt;
+
+  /**
+   * Decrements key count and returns the new count.
+   *
+   * Decrementing a missing key is a programmer error checked with
+   * {@link assert}.
+   */
+  readonly decrement: (key: TKey) => NonNegativeInt;
+
+  /** Gets current count for key. Returns `0` when the key is not tracked. */
+  readonly getCount: (key: TKey) => NonNegativeInt;
+
+  /** Returns `true` when the key is tracked with count greater than zero. */
+  readonly has: (key: TKey) => boolean;
+
+  /** Returns all currently tracked keys. */
+  readonly keys: () => ReadonlySet<TKey>;
+}
+
+/** Creates {@link RefCountByKey}. */
+export const createRefCountByKey = <TKey>(): RefCountByKey<TKey> => {
+  const stack = new DisposableStack();
+  const zero = NonNegativeInt.orThrow(0);
+
+  const refCountByKey = stack.adopt(new Map<TKey, RefCount>(), (counts) => {
+    for (const refCount of counts.values()) refCount[Symbol.dispose]();
+    counts.clear();
+  });
+
+  const moved = stack.move();
+
+  const getRefCount = (key: TKey): RefCount => {
+    let refCount = refCountByKey.get(key);
+    if (!refCount) {
+      refCount = createRefCount();
+      refCountByKey.set(key, refCount);
+    }
+    return refCount;
+  };
+
+  return {
+    increment: (key) => {
+      assertNotDisposed(moved);
+      return getRefCount(key).increment();
+    },
+
+    decrement: (key) => {
+      assertNotDisposed(moved);
+      const refCount = getRefCount(key);
+      const nextCount = refCount.decrement();
+      if (nextCount === 0) {
+        refCount[Symbol.dispose]();
+        refCountByKey.delete(key);
+      }
+      return nextCount;
+    },
+
+    getCount: (key) => {
+      assertNotDisposed(moved);
+      return refCountByKey.get(key)?.getCount() ?? zero;
+    },
+
+    has: (key) => {
+      assertNotDisposed(moved);
+      return refCountByKey.has(key);
+    },
+
+    keys: () => {
+      assertNotDisposed(moved);
+      return new Set(refCountByKey.keys());
+    },
+
+    [Symbol.dispose]: () => moved.dispose(),
+  };
+};
 
 interface OwnedResource<T extends Resource> {
   readonly resource: BorrowedResource<T>;
