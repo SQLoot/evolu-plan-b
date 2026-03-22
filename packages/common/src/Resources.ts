@@ -10,6 +10,7 @@ import { createRefCount, type RefCount } from "./RefCount.js";
 import { createRelation } from "./Relation.js";
 import type { Result } from "./Result.js";
 import { err, ok } from "./Result.js";
+import type { Structural } from "./Structural.js";
 import { createMutexByKey, createRun, type Task, unabortable } from "./Task.js";
 import {
   createTime,
@@ -216,6 +217,12 @@ const createAsyncResources = <
   let disposing = false;
   let disposePromise: Promise<void> | null = null;
 
+  const withResourceLock = <T, E, D>(
+    resourceId: TResourceId,
+    task: Task<T, E, D>,
+  ): Task<T, E, D> =>
+    mutexByResourceId.withLock(resourceId as Structural<TResourceId>, task);
+
   const clearDisposalTimeout = (resourceId: TResourceId): void => {
     const timeout = disposalTimeoutByResourceId.get(resourceId);
     if (!timeout) return;
@@ -233,7 +240,7 @@ const createAsyncResources = <
         await using run = createRun();
         const result = await run(
           unabortable(
-            mutexByResourceId.withLock(resourceId, async () => {
+            withResourceLock(resourceId, async () => {
               disposalTimeoutByResourceId.delete(resourceId);
 
               if (consumerIdsByResourceId.hasA(resourceId)) return ok();
@@ -272,7 +279,7 @@ const createAsyncResources = <
 
         const result = await run(
           unabortable(
-            mutexByResourceId.withLock(resourceId, async () => {
+            withResourceLock(resourceId, async () => {
               if (disposing) return ok();
               clearDisposalTimeout(resourceId);
 
@@ -325,7 +332,7 @@ const createAsyncResources = <
 
         const result = await run(
           unabortable(
-            mutexByResourceId.withLock(
+            withResourceLock(
               resourceId,
               (): Result<void, RemoveConsumerError> => {
                 if (disposing) return ok();
@@ -407,7 +414,7 @@ const createAsyncResources = <
 
         for (const resourceId of drainIds) {
           const result = await run(
-            unabortable(mutexByResourceId.withLock(resourceId, () => ok())),
+            unabortable(withResourceLock(resourceId, () => ok())),
           );
           assert(
             result.ok,

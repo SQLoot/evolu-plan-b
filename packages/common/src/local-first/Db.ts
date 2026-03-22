@@ -20,7 +20,6 @@ import type {
 } from "../Crypto.js";
 import { lazyFalse, lazyVoid } from "../Function.js";
 import { createRecord, getProperty, objectToEntries } from "../Object.js";
-import type { RandomDep } from "../Random.js";
 import { ok, type Result } from "../Result.js";
 import type {
   CreateSqliteDriverDep,
@@ -57,9 +56,11 @@ import type {
 import type { OwnerId, OwnerIdBytes } from "./Owner.js";
 import { ownerIdBytesToOwnerId, ownerIdToOwnerIdBytes } from "./Owner.js";
 import {
+  createProtocolMessageFromCrdtMessages,
   decryptAndDecodeDbChange,
   encodeAndEncryptDbChange,
   type ProtocolInvalidDataError,
+  type ProtocolMessage,
   type ProtocolTimestampMismatchError,
   protocolVersion,
 } from "./Protocol.js";
@@ -73,7 +74,6 @@ import {
 import type {
   DbWorkerInput,
   DbWorkerOutput,
-  EvoluInput,
   QueuedResponse,
 } from "./Shared.js";
 import {
@@ -125,7 +125,10 @@ export interface CreateDbWorkerDep {
   readonly createDbWorker: CreateDbWorker;
 }
 
-export type DbWorkerDeps = WorkerDeps & LeaderLockDep & CreateSqliteDriverDep;
+export type DbWorkerDeps = WorkerDeps &
+  LeaderLockDep &
+  CreateSqliteDriverDep &
+  RandomBytesDep;
 
 export interface PortDep {
   readonly port: MessagePort<DbWorkerOutput, DbWorkerInput>;
@@ -579,7 +582,6 @@ const _createClientStorage =
       SqliteSchemaDep &
       EncryptionKeyDep &
       RandomBytesDep &
-      RandomDep &
       SqliteDep &
       TimeDep &
       TimestampConfigDep,
@@ -728,13 +730,13 @@ const handleMutation =
       EncryptionKeyDep &
       RandomBytesDep &
       SqliteSchemaDep &
-      RandomDep &
+      RandomBytesDep &
       SqliteDep &
       TimeDep &
       TimestampConfigDep,
   ) =>
   (
-    message: ExtractType<EvoluInput, "Mutate">,
+    message: ExtractType<DbWorkerInput["request"], "Mutate">,
   ): Result<
     ExtractType<QueuedResponse, "Mutate">,
     | TimestampDriftError
@@ -776,10 +778,24 @@ const handleMutation =
       if (clockChanged) deps.clock.save(clockTimestamp);
 
       const rowsByQuery = loadQueries(deps)(message.subscribedQueries);
+      const protocolMessagesByOwnerId = new Map<OwnerId, ProtocolMessage>();
+
+      for (const owner of message.syncOwners) {
+        const ownerMessages = messagesByOwnerId.get(owner.id);
+        if (!ownerMessages) continue;
+
+        protocolMessagesByOwnerId.set(
+          owner.id,
+          createProtocolMessageFromCrdtMessages(deps)(owner, ownerMessages),
+        );
+      }
 
       return ok({
         type: "Mutate",
         messagesByOwnerId,
+        // TODO: Split sync packaging into a separate queued step so local UI
+        // updates do not wait for protocol message generation.
+        protocolMessagesByOwnerId,
         rowsByQuery,
       });
     });
@@ -815,7 +831,6 @@ const applyMessages =
       EncryptionKeyDep &
       RandomBytesDep &
       SqliteSchemaDep &
-      RandomDep &
       SqliteDep,
   ) =>
   (

@@ -403,7 +403,7 @@ export const createSharedResourceByKey = <
   unabortable<SharedResourceByKey<K, T, D>, never, D>((run) => {
     const sharedResourceByKeyRun = run.create();
     const sharedResourcesByKey = createStructuralMap<K, SharedResource<T, D>>();
-    const toMutexKey = (key: Structural<K>): K => key as K;
+    const toMutexKey = (key: Structural<K>): Structural<K> => key;
 
     const stack = new AsyncDisposableStack();
 
@@ -591,7 +591,7 @@ export const createSharedResourceByKeyWithClaims = <
   unabortable<SharedResourceByKeyWithClaims<K, C, T, D>, never, D>(
     async (run) => {
       const sharedResourceClaimsRun = run.create();
-      const toMutexKey = (key: Structural<K>): K => key as K;
+      const toMutexKey = (key: Structural<K>): Structural<K> => key;
 
       await using stack = new AsyncDisposableStack();
 

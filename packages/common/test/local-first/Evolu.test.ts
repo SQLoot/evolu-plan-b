@@ -1,4 +1,5 @@
 import { describe, expect, expectTypeOf, test } from "vitest";
+import { emptyArray } from "../../src/Array.js";
 import { assert } from "../../src/Assert.js";
 import type { Brand } from "../../src/Brand.js";
 import type { ConsoleEntry, TestConsole } from "../../src/Console.js";
@@ -19,6 +20,10 @@ import {
   createEvoluDeps,
   testAppName,
 } from "../../src/local-first/Evolu.js";
+import {
+  createOwnerWebSocketTransport,
+  type SyncOwner,
+} from "../../src/local-first/Owner.js";
 import { testQuery, testQuery2 } from "../../src/local-first/Query.js";
 import { createQueryBuilder } from "../../src/local-first/Schema.js";
 import {
@@ -449,6 +454,131 @@ describe("unit tests", () => {
           "writeKey": uint8:[107,116,39,189,145,48,68,79,11,181,104,47,132,89,107,220],
         }
       `);
+    });
+
+    describe("useOwner", () => {
+      test("posts in a microtask with fallback transports", async () => {
+        const transport = createOwnerWebSocketTransport({
+          url: "wss://example.com",
+          ownerId: testAppOwner.id,
+        });
+
+        await using run = testCreateRun(testCreateEvoluDeps());
+        const evolu = await run.orThrow(
+          createEvolu(Schema, {
+            appName: testAppName,
+            appOwner: testAppOwner,
+            transports: [transport],
+          }),
+        );
+
+        evolu.useOwner(testAppOwner);
+
+        expect(run.deps.evoluInputs).toEqual([]);
+
+        await testWaitForWorkerMessage();
+
+        expect(run.deps.evoluInputs).toEqual([
+          {
+            type: "UseOwner",
+            actions: [
+              {
+                owner: { ...testAppOwner, transports: [transport] },
+                action: "add",
+              },
+            ],
+          },
+        ]);
+      });
+
+      test("preserves same-tick add and remove order", async () => {
+        await using run = testCreateRun(testCreateEvoluDeps());
+        const evolu = await run.orThrow(testCreateEvolu);
+
+        const unuseOwner = evolu.useOwner(testAppOwner);
+        unuseOwner();
+
+        expect(run.deps.evoluInputs).toEqual([]);
+
+        await testWaitForWorkerMessage();
+
+        expect(run.deps.evoluInputs).toEqual([
+          {
+            type: "UseOwner",
+            actions: [
+              {
+                owner: { ...testAppOwner, transports: emptyArray },
+                action: "add",
+              },
+              {
+                owner: { ...testAppOwner, transports: emptyArray },
+                action: "remove",
+              },
+            ],
+          },
+        ]);
+      });
+
+      test("throws when unuseOwner is called twice", async () => {
+        await using run = testCreateRun(testCreateEvoluDeps());
+        const evolu = await run.orThrow(testCreateEvolu);
+
+        const unuseOwner = evolu.useOwner(testAppOwner);
+        await testWaitForWorkerMessage();
+        run.deps.evoluInputs.length = 0;
+
+        unuseOwner();
+
+        expect(() => {
+          unuseOwner();
+        }).toThrow("UnuseOwner can be called only once.");
+
+        await testWaitForWorkerMessage();
+
+        expect(run.deps.evoluInputs).toEqual([
+          {
+            type: "UseOwner",
+            actions: [
+              {
+                owner: { ...testAppOwner, transports: emptyArray },
+                action: "remove",
+              },
+            ],
+          },
+        ]);
+      });
+
+      test("flush keeps call order before mutate batch", async () => {
+        const transport = createOwnerWebSocketTransport({
+          url: "wss://example.com",
+          ownerId: testAppOwner.id,
+        });
+        const syncOwner: SyncOwner = {
+          ...testAppOwner,
+          transports: [transport],
+        };
+
+        await using run = testCreateRun(testCreateEvoluDeps());
+        const evolu = await run.orThrow(
+          createEvolu(Schema, {
+            appName: testAppName,
+            appOwner: testAppOwner,
+          }),
+        );
+
+        evolu.useOwner(syncOwner);
+        evolu.insert("todo", {
+          title: NonEmptyString100.orThrow("Queued after useOwner"),
+        });
+
+        await testWaitForWorkerMessage();
+
+        expect(run.deps.evoluInputs[0]).toEqual({
+          type: "UseOwner",
+          actions: [{ owner: syncOwner, action: "add" }],
+        });
+        expect(run.deps.evoluInputs[1]?.type).toBe("Mutate");
+      });
     });
   });
 
@@ -1513,7 +1643,7 @@ describe("integration tests", () => {
             "rows": [
               {
                 "column": "title",
-                "id": uint8:[185,126,78,86,121,212,229,131,46,19,238,32,216,90,112,10],
+                "id": uint8:[249,25,30,78,250,233,45,235,6,250,53,220,201,165,183,49],
                 "ownerId": uint8:[213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184],
                 "table": "todo",
                 "timestamp": uint8:[0,0,0,0,0,0,0,1,76,30,181,71,191,84,133,34],
@@ -1521,7 +1651,7 @@ describe("integration tests", () => {
               },
               {
                 "column": "createdAt",
-                "id": uint8:[185,126,78,86,121,212,229,131,46,19,238,32,216,90,112,10],
+                "id": uint8:[249,25,30,78,250,233,45,235,6,250,53,220,201,165,183,49],
                 "ownerId": uint8:[213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184],
                 "table": "todo",
                 "timestamp": uint8:[0,0,0,0,0,0,0,1,76,30,181,71,191,84,133,34],
@@ -1562,7 +1692,7 @@ describe("integration tests", () => {
             "rows": [
               {
                 "createdAt": "1970-01-01T00:00:00.000Z",
-                "id": "uX5OVnnU5YMuE-4g2FpwCg",
+                "id": "-RkeTvrpLesG-jXcyaW3MQ",
                 "isCompleted": null,
                 "isDeleted": null,
                 "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",

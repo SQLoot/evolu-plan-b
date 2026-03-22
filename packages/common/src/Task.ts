@@ -33,8 +33,11 @@ import type { Done, NextResult, Ok, Result } from "./Result.js";
 import { err, getOrThrow, ok, tryAsync } from "./Result.js";
 import type { Schedule, ScheduleStep } from "./Schedule.js";
 import { addToSet, deleteFromSet, emptySet } from "./Set.js";
-import type { Structural } from "./Structural.js";
-import { createStructuralMap, type StructuralKey } from "./StructuralMap.js";
+import {
+  createStructuralMap,
+  type Structural,
+  type StructuralKey,
+} from "./Structural.js";
 import type { testCreateRun } from "./Test.js";
 import type { Duration, Time, TimeDep } from "./Time.js";
 import { createTime, durationToMillis, Millis } from "./Time.js";
@@ -2603,7 +2606,10 @@ export interface SemaphoreByKey<K = StructuralKey> extends Disposable {
    *
    * Behaves like {@link Semaphore.withPermit}, scoped to `key`.
    */
-  readonly withPermit: <T, E, D>(key: K, task: Task<T, E, D>) => Task<T, E, D>;
+  readonly withPermit: <T, E, D>(
+    key: Structural<K>,
+    task: Task<T, E, D>,
+  ) => Task<T, E, D>;
 
   /**
    * Executes a {@link Task} while holding permits for a specific key.
@@ -2611,12 +2617,12 @@ export interface SemaphoreByKey<K = StructuralKey> extends Disposable {
    * Behaves like {@link Semaphore.withPermits}, scoped to `key`.
    */
   readonly withPermits: <T, E, D>(
-    key: K,
+    key: Structural<K>,
     permits: Concurrency,
   ) => (task: Task<T, E, D>) => Task<T, E, D>;
 
   /** Returns current semaphore state for a key, or `null` if absent. */
-  readonly snapshot: (key: K) => SemaphoreSnapshot | null;
+  readonly snapshot: (key: Structural<K>) => SemaphoreSnapshot | null;
 }
 
 /**
@@ -2635,9 +2641,11 @@ export const createSemaphoreByKey = <K = StructuralKey>(
 
   const semaphoresByKey = createStructuralMap<K, KeyedSemaphore>();
   let disposed = false;
-  const toStructuralKey = (key: K): Structural<K> => key as Structural<K>;
+  const toStructuralKey = (key: Structural<K>): Structural<K> => key;
 
-  const getActiveSemaphore = (key: K): KeyedSemaphore | undefined => {
+  const getActiveSemaphore = (
+    key: Structural<K>,
+  ): KeyedSemaphore | undefined => {
     const semaphore = semaphoresByKey.get(toStructuralKey(key));
     if (!semaphore) return undefined;
     if (!semaphore.__disposing) return semaphore;
@@ -2645,7 +2653,7 @@ export const createSemaphoreByKey = <K = StructuralKey>(
   };
 
   const withPermits =
-    <T, E, D>(key: K, requestedPermits: Concurrency) =>
+    <T, E, D>(key: Structural<K>, requestedPermits: Concurrency) =>
     (task: Task<T, E, D>): Task<T, E, D> =>
     async (run: Run<D>) => {
       if (disposed) return err(semaphoreDisposedAbortError);
@@ -2686,8 +2694,10 @@ export const createSemaphoreByKey = <K = StructuralKey>(
     };
 
   return {
-    withPermit: <T, E, D>(key: K, task: Task<T, E, D>): Task<T, E, D> =>
-      withPermits<T, E, D>(key, 1)(task),
+    withPermit: <T, E, D>(
+      key: Structural<K>,
+      task: Task<T, E, D>,
+    ): Task<T, E, D> => withPermits<T, E, D>(key, 1)(task),
 
     withPermits,
 
@@ -2782,10 +2792,13 @@ export interface MutexByKey<K = StructuralKey> extends Disposable {
    *
    * Behaves like {@link Mutex.withLock}, scoped to `key`.
    */
-  readonly withLock: <T, E, D>(key: K, task: Task<T, E, D>) => Task<T, E, D>;
+  readonly withLock: <T, E, D>(
+    key: Structural<K>,
+    task: Task<T, E, D>,
+  ) => Task<T, E, D>;
 
   /** Returns the current mutex state for `key`, or `null` if absent. */
-  readonly snapshot: (key: K) => SemaphoreSnapshot | null;
+  readonly snapshot: (key: Structural<K>) => SemaphoreSnapshot | null;
 }
 
 /**
@@ -2797,8 +2810,10 @@ export const createMutexByKey = <K = StructuralKey>(): MutexByKey<K> => {
   const semaphoreByKey = createSemaphoreByKey<K>(minPositiveInt);
 
   return {
-    withLock: <T, E, D>(key: K, task: Task<T, E, D>): Task<T, E, D> =>
-      semaphoreByKey.withPermit(key, task),
+    withLock: <T, E, D>(
+      key: Structural<K>,
+      task: Task<T, E, D>,
+    ): Task<T, E, D> => semaphoreByKey.withPermit(key, task),
     snapshot: semaphoreByKey.snapshot,
     [Symbol.dispose]: semaphoreByKey[Symbol.dispose],
   };

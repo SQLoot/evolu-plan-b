@@ -54,6 +54,7 @@ export const createEvoluDeps = (
       createWebSocket,
       createSqliteDriver: deps.createSqliteDriver,
       leaderLock,
+      randomBytes: createRandomBytes(),
     });
   };
 
