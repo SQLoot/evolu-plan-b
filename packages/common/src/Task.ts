@@ -1667,11 +1667,17 @@ const scheduler = (
   }
 ).scheduler;
 
+const setImmediateImpl = (
+  globalThis as typeof globalThis & {
+    readonly setImmediate?: (callback: () => void) => unknown;
+  }
+).setImmediate;
+
 const yieldImpl: () => Promise<void> =
   typeof scheduler?.yield === "function"
     ? () => (scheduler.yield as () => Promise<void>)()
-    : typeof setImmediate !== "undefined"
-      ? () => new Promise<void>((resolve) => setImmediate(resolve))
+    : typeof setImmediateImpl !== "undefined"
+      ? () => new Promise<void>((resolve) => setImmediateImpl(resolve))
       : () => new Promise<void>((r) => setTimeout(r, 0)); // Safari
 
 /**

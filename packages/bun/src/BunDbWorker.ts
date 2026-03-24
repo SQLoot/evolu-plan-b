@@ -13,13 +13,84 @@ import {
   Database,
   type SQLQueryBindings,
 } from "bun:sqlite";
-import type {
-  ExperimentalDbWorkerInput as DbWorkerInput,
-  ExperimentalDbWorkerMutateResponseMessage as DbWorkerMutateResponseMessage,
-  ExperimentalDbWorkerOutput as DbWorkerOutput,
-  ExperimentalDbWorkerQueryResponseMessage as DbWorkerQueryResponseMessage,
-  Row,
-} from "@evolu/common/local-first";
+
+export type Row = Record<string, unknown>;
+
+export type DbWorkerInput =
+  | {
+      readonly type: "DbWorkerInit";
+      readonly dbName: string;
+      readonly schemaVersion: number;
+    }
+  | {
+      readonly type: "DbWorkerGetAppOwner";
+    }
+  | {
+      readonly type: "DbWorkerQuery";
+      readonly requestId: number;
+      readonly sql: string;
+      readonly params?: ReadonlyArray<unknown>;
+    }
+  | {
+      readonly type: "DbWorkerMutate";
+      readonly requestId: number;
+      readonly sql: string;
+      readonly params: ReadonlyArray<unknown>;
+    }
+  | {
+      readonly type: "DbWorkerExport";
+      readonly requestId: number;
+    }
+  | {
+      readonly type: "DbWorkerReset";
+      readonly requestId: number;
+    }
+  | {
+      readonly type: "DbWorkerClose";
+      readonly requestId: number;
+    };
+
+export type DbWorkerQueryResponseMessage = {
+  readonly type: "DbWorkerQueryResponse";
+  readonly requestId: number;
+  readonly rows: ReadonlyArray<Row>;
+};
+
+export type DbWorkerMutateResponseMessage = {
+  readonly type: "DbWorkerMutateResponse";
+  readonly requestId: number;
+  readonly changes: number;
+};
+
+export type DbWorkerOutput =
+  | {
+      readonly type: "DbWorkerError";
+      readonly requestId?: number | undefined;
+      readonly error: string;
+    }
+  | {
+      readonly type: "DbWorkerInitResponse";
+      readonly success: boolean;
+    }
+  | {
+      readonly type: "DbWorkerAppOwner";
+      readonly appOwner: unknown | null;
+    }
+  | DbWorkerQueryResponseMessage
+  | DbWorkerMutateResponseMessage
+  | {
+      readonly type: "DbWorkerExportResponse";
+      readonly requestId: number;
+      readonly data: Uint8Array<ArrayBuffer>;
+    }
+  | {
+      readonly type: "DbWorkerResetResponse";
+      readonly requestId: number;
+    }
+  | {
+      readonly type: "DbWorkerCloseResponse";
+      readonly requestId: number;
+    };
 
 type BunStatement = ReturnType<BunDatabase["query"]>;
 

@@ -13,7 +13,7 @@ import { createRecord } from "./Object.js";
 import type { Result } from "./Result.js";
 import { err, ok } from "./Result.js";
 import type { Run, Task } from "./Task.js";
-import { type TestDeps, testCreateRun, testName } from "./Test.js";
+import { testCreateRun, type TestDeps } from "./Test.js";
 import type { InferType, Name, Typed } from "./Type.js";
 import {
   array,
@@ -23,6 +23,7 @@ import {
   record,
   String,
   set,
+  testName,
   Uint8Array,
   union,
 } from "./Type.js";

@@ -20,7 +20,8 @@ import {
   testCreateRunWithSqlite,
 } from "../src/Sqlite.js";
 import { sleep } from "../src/Task.js";
-import { testCreateRun, testName } from "../src/Test.js";
+import { testCreateRun } from "../src/Test.js";
+import { testName } from "../src/Type.js";
 import { testCreateSqliteDeps } from "./_deps.js";
 
 describe("eqSqliteValue", () => {

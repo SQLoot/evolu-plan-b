@@ -2,13 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type {
-  ExperimentalDbWorkerInput as DbWorkerInput,
-  ExperimentalDbWorkerOutput as DbWorkerOutput,
-} from "@evolu/common/local-first";
 import {
-  type BunDbWorkerScope,
   runBunDbWorkerScope,
+  type BunDbWorkerScope,
+  type DbWorkerInput,
+  type DbWorkerOutput,
 } from "../src/BunDbWorker.js";
 
 const expectMessage = <T extends DbWorkerOutput["type"]>(

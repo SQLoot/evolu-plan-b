@@ -449,14 +449,14 @@ describe("unit tests", () => {
       );
 
       expect(evolu.appOwner).toMatchInlineSnapshot(`
-      {
-        "encryptionKey": uint8:[50,42,177,193,76,197,92,240,100,30,92,209,205,42,108,45,195,37,118,158,238,206,161,144,11,241,190,167,14,254,186,53],
-        "id": "t_xEbmXuICrgDm3Ob0_afw",
-        "mnemonic": "old jungle over boy ankle suggest service source civil insane end silver polar swap flight diagram keep fix gauge social wink subway bronze leader",
-        "type": "AppOwner",
-        "writeKey": uint8:[129,228,239,103,127,237,0,59,174,241,77,12,26,180,213,14],
-      }
-    `);
+        {
+          "encryptionKey": uint8:[51,231,177,91,230,145,176,109,130,148,152,121,45,182,111,94,53,215,154,110,96,244,72,84,84,159,250,76,118,95,103,5],
+          "id": "SUVItd3dEQ8CLSsCqwJahA",
+          "mnemonic": "duck still purse lock purpose orchard silver differ clean night measure jewel accident visual knee spring extra winner inner fade estate cushion flock live",
+          "type": "AppOwner",
+          "writeKey": uint8:[107,116,39,189,145,48,68,79,11,181,104,47,132,89,107,220],
+        }
+      `);
     });
 
     describe("useOwner", () => {
@@ -1787,7 +1787,7 @@ describe("integration tests", () => {
             "name": "evolu_config",
             "rows": [
               {
-                "clock": uint8:[0,0,0,0,0,0,0,1,2,0,125,85,114,123,39,28],
+                "clock": uint8:[0,0,0,0,0,0,0,1,76,30,181,71,191,84,133,34],
               },
             ],
           },
@@ -1796,18 +1796,18 @@ describe("integration tests", () => {
             "rows": [
               {
                 "column": "title",
-                "id": uint8:[192,25,220,129,232,160,52,142,147,60,132,127,87,13,194,106],
-                "ownerId": uint8:[251,208,27,154,71,19,37,213,195,24,203,60,255,39,7,11],
+                "id": uint8:[249,25,30,78,250,233,45,235,6,250,53,220,201,165,183,49],
+                "ownerId": uint8:[213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184],
                 "table": "todo",
-                "timestamp": uint8:[0,0,0,0,0,0,0,1,2,0,125,85,114,123,39,28],
+                "timestamp": uint8:[0,0,0,0,0,0,0,1,76,30,181,71,191,84,133,34],
                 "value": "Integration todo",
               },
               {
                 "column": "createdAt",
-                "id": uint8:[192,25,220,129,232,160,52,142,147,60,132,127,87,13,194,106],
-                "ownerId": uint8:[251,208,27,154,71,19,37,213,195,24,203,60,255,39,7,11],
+                "id": uint8:[249,25,30,78,250,233,45,235,6,250,53,220,201,165,183,49],
+                "ownerId": uint8:[213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184],
                 "table": "todo",
-                "timestamp": uint8:[0,0,0,0,0,0,0,1,2,0,125,85,114,123,39,28],
+                "timestamp": uint8:[0,0,0,0,0,0,0,1,76,30,181,71,191,84,133,34],
                 "value": "1970-01-01T00:00:00.000Z",
               },
             ],
@@ -1821,11 +1821,11 @@ describe("integration tests", () => {
             "rows": [
               {
                 "c": 1,
-                "h1": 226788241197268,
-                "h2": 198651634711178,
-                "l": 2,
-                "ownerId": uint8:[251,208,27,154,71,19,37,213,195,24,203,60,255,39,7,11],
-                "t": uint8:[0,0,0,0,0,0,0,1,2,0,125,85,114,123,39,28],
+                "h1": 160625592932811,
+                "h2": 63811512510140,
+                "l": 1,
+                "ownerId": uint8:[213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184],
+                "t": uint8:[0,0,0,0,0,0,0,1,76,30,181,71,191,84,133,34],
               },
             ],
           },
@@ -1833,9 +1833,9 @@ describe("integration tests", () => {
             "name": "evolu_usage",
             "rows": [
               {
-                "firstTimestamp": uint8:[0,0,0,0,0,0,0,1,2,0,125,85,114,123,39,28],
-                "lastTimestamp": uint8:[0,0,0,0,0,0,0,1,2,0,125,85,114,123,39,28],
-                "ownerId": uint8:[251,208,27,154,71,19,37,213,195,24,203,60,255,39,7,11],
+                "firstTimestamp": uint8:[0,0,0,0,0,0,0,1,76,30,181,71,191,84,133,34],
+                "lastTimestamp": uint8:[0,0,0,0,0,0,0,1,76,30,181,71,191,84,133,34],
+                "ownerId": uint8:[213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184],
                 "storedBytes": 1,
               },
             ],
@@ -1845,10 +1845,10 @@ describe("integration tests", () => {
             "rows": [
               {
                 "createdAt": "1970-01-01T00:00:00.000Z",
-                "id": "wBncgeigNI6TPIR_Vw3Cag",
+                "id": "-RkeTvrpLesG-jXcyaW3MQ",
                 "isCompleted": null,
                 "isDeleted": null,
-                "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+                "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
                 "title": "Integration todo",
                 "updatedAt": null,
               },

@@ -1594,12 +1594,24 @@ export const formatBase64UrlError =
   );
 
 const base64UrlOptions = { alphabet: "base64url", omitPadding: true };
+interface BufferLike {
+  from(
+    value: Uint8Array<ArrayBufferLike> | string,
+    encoding?: string,
+  ): Uint8Array<ArrayBufferLike> & { toString: (encoding: string) => string };
+}
+
+const globalBuffer = (
+  globalThis as typeof globalThis & {
+    readonly Buffer?: BufferLike;
+  }
+).Buffer;
 
 /** Encodes a Uint8Array to a {@link Base64Url} string. */
 export const uint8ArrayToBase64Url: (bytes: Uint8Array) => Base64Url =
   hasNodeBuffer
     ? (bytes: Uint8Array) =>
-        globalThis.Buffer.from(bytes).toString("base64url") as Base64Url
+        globalBuffer!.from(bytes).toString("base64url") as Base64Url
     : // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       typeof (globalThis.Uint8Array.prototype as any)?.toBase64 !== "undefined"
       ? (bytes: Uint8Array) =>
@@ -1620,7 +1632,7 @@ export const uint8ArrayToBase64Url: (bytes: Uint8Array) => Base64Url =
 export const base64UrlToUint8Array: (str: Base64Url) => Uint8Array =
   hasNodeBuffer
     ? (str: Base64Url) => {
-        const nodeBuffer = globalThis.Buffer.from(str, "base64url");
+        const nodeBuffer = globalBuffer!.from(str, "base64url");
         return new globalThis.Uint8Array(nodeBuffer);
       }
     : // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access

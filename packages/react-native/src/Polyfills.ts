@@ -2,27 +2,20 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 
 import { installPolyfills as installCommonPolyfills } from "@evolu/common/polyfills";
-// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
+// @ts-ignore Runtime polyfill package has no TypeScript declarations.
 import fromAsync from "array-from-async";
-// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
+// @ts-ignore Runtime polyfill package has no TypeScript declarations.
 import withResolvers from "promise.withresolvers";
-// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
+// @ts-ignore Runtime polyfill package has no TypeScript declarations.
 import promiseTry from "promise.try";
-// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
+// @ts-ignore Runtime polyfill package has no TypeScript declarations.
 import toSorted from "array.prototype.tosorted";
-// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
 import difference from "set.prototype.difference";
-// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
 import intersection from "set.prototype.intersection";
-// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
 import isDisjointFrom from "set.prototype.isdisjointfrom";
-// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
 import isSubsetOf from "set.prototype.issubsetof";
-// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
 import isSupersetOf from "set.prototype.issupersetof";
-// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
 import symmetricDifference from "set.prototype.symmetricdifference";
-// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
 import union from "set.prototype.union";
 
 difference.shim();
