@@ -1589,7 +1589,8 @@ export function concurrently<T, E, D = unknown>(
   taskOrFallback?: Task<T, E, D>,
 ): Task<T, E, D> {
   const isTask = isFunction(concurrencyOrTask);
-  const task = isTask ? concurrencyOrTask : taskOrFallback!;
+  const task = isTask ? (concurrencyOrTask as Task<T, E, D>) : taskOrFallback;
+  assert(task, "Task is required when concurrency is provided.");
   return Object.assign((run: Run<D>) => run(task), {
     [concurrencyBehaviorSymbol]: isTask ? maxPositiveInt : concurrencyOrTask,
   });
@@ -3301,6 +3302,7 @@ export function map<A, T, E, D>(
   items: MapInput<A>,
   fn: (a: A) => Task<T, E, D>,
   { abortReason = mapAbortError, ...options }: CollectOptions<boolean> = {},
+  // biome-ignore lint/suspicious/noConfusingVoidType: Overload set intentionally models collect:false as Task<void>.
 ): Task<ReadonlyArray<T> | Record<string, T> | void, E, D> {
   const mapped = mapInput(items, fn);
   return all(
@@ -3413,6 +3415,7 @@ export function mapSettled<A, T, E, D>(
 ): Task<
   | ReadonlyArray<Result<T, E | AbortError>>
   | Record<string, Result<T, E | AbortError>>
+  // biome-ignore lint/suspicious/noConfusingVoidType: Overload set intentionally models collect:false as Task<void>.
   | void,
   never,
   D
@@ -3652,6 +3655,7 @@ function pool<T, E>(
     abortReason: unknown;
     allFailed?: AnyAllFailed;
   },
+  // biome-ignore lint/suspicious/noConfusingVoidType: Shared internal helper for both collect:true and collect:false branches.
 ): Task<ReadonlyArray<unknown> | T | void, E> {
   const tasks = arrayFrom(tasksIterable);
   const { length } = tasks;
@@ -3739,7 +3743,12 @@ function pool<T, E>(
     // For all/allSettled/map/mapSettled with collect: false (no allFailed handler)
     if (!allFailed) return ok();
 
-    return allFailed === "completion" ? lastResult! : lastIndexResult!;
+    if (allFailed === "completion") {
+      assert(lastResult, "Expected a completion result.");
+      return lastResult;
+    }
+    assert(lastIndexResult, "Expected a result for the last input task.");
+    return lastIndexResult;
   };
 }
 

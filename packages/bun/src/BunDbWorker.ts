@@ -81,7 +81,7 @@ export type DbWorkerOutput =
   | {
       readonly type: "DbWorkerExportResponse";
       readonly requestId: number;
-      readonly data: Uint8Array<ArrayBuffer>;
+      readonly data: Uint8Array;
     }
   | {
       readonly type: "DbWorkerResetResponse";

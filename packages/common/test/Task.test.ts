@@ -720,12 +720,14 @@ describe("Run", () => {
       let stateAfterAwait: RunState | undefined;
 
       const task: Task<void> = async (run) => {
+        const { parent } = run;
+        if (!parent) throw new Error("Expected child run parent.");
         run.signal.addEventListener("abort", () => {
-          stateInAbortHandler = run.parent!.getState();
+          stateInAbortHandler = parent.getState();
         });
         taskStarted.resolve();
         await taskCanFinish.promise;
-        stateAfterAwait = run.parent!.getState();
+        stateAfterAwait = parent.getState();
         return ok();
       };
 
@@ -738,8 +740,13 @@ describe("Run", () => {
       taskCanFinish.resolve();
       await disposePromise;
 
-      expect(stateInAbortHandler!.type).toBe("Disposing");
-      expect(stateAfterAwait!.type).toBe("Disposing");
+      if (!stateInAbortHandler || !stateAfterAwait) {
+        throw new Error(
+          "Expected run states captured in task abort lifecycle.",
+        );
+      }
+      expect(stateInAbortHandler.type).toBe("Disposing");
+      expect(stateAfterAwait.type).toBe("Disposing");
       expect(run.getState().type).toBe("Settled");
     });
 
@@ -967,7 +974,10 @@ describe("Run", () => {
 
         // Cleanup signal should exist and be aborted after disposal
         expect(cleanupSignal).not.toBeNull();
-        expect(cleanupSignal!.aborted).toBe(true);
+        if (!cleanupSignal) {
+          throw new Error("Expected cleanup signal to be captured.");
+        }
+        expect(cleanupSignal.aborted).toBe(true);
       } finally {
         AbortSignal.prototype.addEventListener = originalAddEventListener;
       }
@@ -1022,7 +1032,10 @@ describe("Run", () => {
 
         // Cleanup signal should exist and be aborted after child disposal
         expect(cleanupSignal).not.toBeNull();
-        expect(cleanupSignal!.aborted).toBe(true);
+        if (!cleanupSignal) {
+          throw new Error("Expected cleanup signal to be captured.");
+        }
+        expect(cleanupSignal.aborted).toBe(true);
       } finally {
         AbortSignal.prototype.addEventListener = originalAddEventListener;
       }
@@ -1174,11 +1187,12 @@ describe("Run", () => {
         "child started",
         "parent completed",
       ]);
-      expect(childFiber!.run.getState().type).toBe("Running");
+      if (!childFiber) throw new Error("Expected child fiber to be created.");
+      expect(childFiber.run.getState().type).toBe("Running");
 
       time.advance("2s");
 
-      expect(await childFiber!).toEqual(ok());
+      expect(await childFiber).toEqual(ok());
       expect(events).toEqual([
         "parent started",
         "child started",
@@ -1225,8 +1239,9 @@ describe("Run", () => {
           return ok();
         }),
       ).toEqual(ok());
+      if (!createdRun) throw new Error("Expected created run.");
 
-      const childFiber = createdRun!(async (run) => {
+      const childFiber = createdRun(async (run) => {
         events.push("child started");
         const result = await run(sleep("10s"));
         if (!result.ok) {
@@ -1240,14 +1255,14 @@ describe("Run", () => {
 
       expect(events).toEqual(["child started"]);
 
-      await createdRun![Symbol.asyncDispose]();
+      await createdRun[Symbol.asyncDispose]();
 
       expect(await childFiber).toEqual(
         err({ type: "AbortError", reason: runStoppedError }),
       );
       expect(events).toEqual(["child started", "child aborted"]);
 
-      const lateResult = await createdRun!(() => ok("late"));
+      const lateResult = await createdRun(() => ok("late"));
       expect(lateResult).toEqual(
         err({ type: "AbortError", reason: runStoppedError }),
       );
@@ -1266,8 +1281,9 @@ describe("Run", () => {
           return ok();
         }),
       ).toEqual(ok());
+      if (!createdRun) throw new Error("Expected created run.");
 
-      const childFiber = createdRun!(async (run) => {
+      const childFiber = createdRun(async (run) => {
         events.push("child started");
         const result = await run(sleep("10s"));
         if (!result.ok) {
@@ -1602,7 +1618,8 @@ describe("Fiber", () => {
       await parentFiber;
 
       expect(parentFiberId).toBe(parentFiber.run.id);
-      expect(childFiberId).toBe(childFiber!.run.id);
+      if (!childFiber) throw new Error("Expected child fiber to be created.");
+      expect(childFiberId).toBe(childFiber.run.id);
       expect(parentFiberId).not.toBe(childFiberId);
     });
 
@@ -1679,7 +1696,7 @@ describe("Fiber", () => {
 
       // Let daemon complete and wait for it
       daemonCanComplete.resolve();
-      await daemonFiber!;
+      await daemonFiber;
 
       expect(events).toEqual([
         "parent started",
@@ -1770,7 +1787,7 @@ describe("Fiber", () => {
       ]);
 
       daemonCanComplete.resolve();
-      await daemonFiber!;
+      await daemonFiber;
 
       expect(events).toEqual([
         "parent started",
@@ -2209,7 +2226,8 @@ describe("unabortableMask", () => {
 
     // Using restore2 outside its intended scope would increase abort mask
     // (root mask=0, override=1). This must crash.
-    expect(() => run(restoreFromInner!(() => ok()))).toThrow(
+    if (!restoreFromInner) throw new Error("Expected inner restore function.");
+    expect(() => run(restoreFromInner(() => ok()))).toThrow(
       "restore used outside its unabortableMask",
     );
   });
@@ -3514,7 +3532,9 @@ describe("DI", () => {
         () => {
           attempts++;
           if (attempts < 3) return err<NetworkError>({ type: "NetworkError" });
-          return ok(url.split("/").pop()!);
+          const userId = url.split("/").pop();
+          if (!userId) throw new Error("Expected user id in request URL.");
+          return ok(userId);
         },
     };
 
@@ -4427,9 +4447,11 @@ describe("concurrency", () => {
 
       expect(await run(setup)).toEqual(ok());
       expect(restoreFromInner).toBeDefined();
+      if (!restoreFromInner)
+        throw new Error("Expected inner restore function.");
 
       await expect(
-        run(semaphore.withPermit(restoreFromInner!(() => ok()))),
+        run(semaphore.withPermit(restoreFromInner(() => ok()))),
       ).rejects.toThrow("restore used outside its unabortableMask");
 
       expect(await run(semaphore.withPermit(() => ok("after-throw")))).toEqual(

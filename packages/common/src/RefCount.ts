@@ -139,7 +139,8 @@ export function createRefCountByKey<TKey, L = TKey>({
 
     decrement: (key) => {
       assertNotDisposed(moved);
-      const refCount = getRefCount(key);
+      const refCount = refCountByKey.get(key);
+      assert(refCount, "RefCount must not be decremented below zero.");
       const nextCount = refCount.decrement();
       if (nextCount === 0) {
         refCount[Symbol.dispose]();

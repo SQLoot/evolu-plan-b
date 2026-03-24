@@ -7,22 +7,14 @@ import type {
 import { use, useEffect } from "react";
 import { EvoluContext } from "./EvoluContext.js";
 
-const registerOwnerForSync = (
-  evolu: {
-    readonly useOwner: (
-      owner: ReadonlyOwner | Owner,
-      transports?: NonEmptyReadonlyArray<OwnerTransport>,
-    ) => void | (() => void);
-  },
-  owner: ReadonlyOwner | Owner,
-  transports?: NonEmptyReadonlyArray<OwnerTransport>,
-) => evolu["useOwner"](owner, transports);
-
 /**
  * React Hook for Evolu `useOwner` method.
  *
  * Using an Owner means syncing it with the provided transports, or the
  * transports defined in Evolu config when transports are omitted.
+ *
+ * To avoid unnecessary register/unregister cycles, callers should pass a
+ * memoized transports array when possible.
  */
 export const useOwner = (
   owner: ReadonlyOwner | Owner | null,
@@ -32,6 +24,7 @@ export const useOwner = (
 
   useEffect(() => {
     if (owner == null) return;
-    return registerOwnerForSync(evolu, owner, transports);
+    // biome-ignore lint/complexity/useLiteralKeys: Bracket access avoids false React hook detection for evolu.useOwner inside Effect callback.
+    return evolu["useOwner"](owner, transports);
   }, [evolu, owner, transports]);
 };

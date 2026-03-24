@@ -4,6 +4,7 @@ import type {
   OwnerTransport,
   ReadonlyOwner,
 } from "@evolu/common";
+import { onScopeDispose } from "vue";
 import { useEvolu } from "./useEvolu.js";
 
 const registerOwnerForSync = (
@@ -11,11 +12,14 @@ const registerOwnerForSync = (
     readonly useOwner: (
       owner: ReadonlyOwner | Owner,
       transports?: NonEmptyReadonlyArray<OwnerTransport>,
-    ) => void | (() => void);
+    ) => (() => void) | undefined;
   },
   owner: ReadonlyOwner | Owner,
   transports?: NonEmptyReadonlyArray<OwnerTransport>,
-) => evolu["useOwner"](owner, transports);
+) => {
+  // biome-ignore lint/complexity/useLiteralKeys: Bracket access avoids false hook detection for non-React useOwner call.
+  return evolu["useOwner"](owner, transports);
+};
 
 /**
  * Vue composable for Evolu `useOwner` method.
@@ -30,5 +34,6 @@ export const useOwner = (
   const evolu = useEvolu();
   if (owner == null) return;
 
-  registerOwnerForSync(evolu, owner, transports);
+  const cleanup = registerOwnerForSync(evolu, owner, transports);
+  if (cleanup) onScopeDispose(cleanup);
 };

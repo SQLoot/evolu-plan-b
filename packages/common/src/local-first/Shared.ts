@@ -11,7 +11,7 @@ import {
   type NonEmptyReadonlyArray,
   shiftFromArray,
 } from "../Array.js";
-import { assert, assertNotDisposed } from "../Assert.js";
+import { assertNotDisposed } from "../Assert.js";
 import { createCallbacks } from "../Callbacks.js";
 import type { ConsoleEntry, ConsoleLevel } from "../Console.js";
 import { exhaustiveCheck } from "../Function.js";
@@ -175,15 +175,32 @@ export const initSharedWorker =
                   sharedEvolusByName.acquire(message.name),
                 );
                 if (!sharedEvoluResult.ok) return sharedEvoluResult;
-                sharedEvoluResult.value.addPorts(
-                  message.evoluPort,
-                  message.dbWorkerPort,
-                  () =>
-                    void sharedWorkerRunWithSharedEvoluDeps(
-                      sharedEvolusByName.release(message.name),
-                    ),
-                );
+
+                try {
+                  sharedEvoluResult.value.addPorts(
+                    message.evoluPort,
+                    message.dbWorkerPort,
+                    () =>
+                      void sharedWorkerRunWithSharedEvoluDeps(
+                        sharedEvolusByName.release(message.name),
+                      ).then((result) => {
+                        if (!result.ok) {
+                          console.error(
+                            "Failed to release SharedEvolu",
+                            result.error,
+                          );
+                        }
+                      }),
+                  );
+                } catch (error) {
+                  console.error("Failed to add SharedEvolu ports", error);
+                  await run(sharedEvolusByName.release(message.name));
+                }
                 return ok();
+              }).then((result) => {
+                if (!result.ok) {
+                  console.error("CreateEvolu handling failed", result.error);
+                }
               });
               break;
             }
@@ -321,6 +338,7 @@ const createSharedEvolu =
       readonly releaseSharedEvolu: () => void;
       rowsByQuery: RowsByQueryMap;
       readonly usedSyncOwners: RefCountByKey<SyncOwner>;
+      ownerActionsChain: Promise<void>;
     }
 
     const evoluInstancesByPortId = new Map<Id, EvoluInstanceState>();
@@ -463,8 +481,9 @@ const createSharedEvolu =
        */
       queueProcessingFiber = sharedEvoluRun.daemon(
         repeat(() => {
-          assert(leaderDbWorkerPort, "Expected a leader DbWorker");
-          leaderDbWorkerPort.postMessage({ callbackId, ...first });
+          const currentLeaderDbWorkerPort = leaderDbWorkerPort;
+          if (!currentLeaderDbWorkerPort) return ok();
+          currentLeaderDbWorkerPort.postMessage({ callbackId, ...first });
           return ok();
         }, spaced("5s")),
       );
@@ -494,7 +513,8 @@ const createSharedEvolu =
       evoluInstance: EvoluInstanceState,
     ): Task<void, never, SharedEvoluDeps> =>
       unabortable(async (run) => {
-        for (const syncOwner of evoluInstance.usedSyncOwners.keys()) {
+        const syncOwners = Array.from(evoluInstance.usedSyncOwners.keys());
+        for (const syncOwner of syncOwners) {
           while (evoluInstance.usedSyncOwners.has(syncOwner)) {
             await run(toggleUsedSyncOwner(evoluInstance, syncOwner, "remove"));
           }
@@ -527,6 +547,7 @@ const createSharedEvolu =
           usedSyncOwners: createRefCountByKey<SyncOwner, OwnerId>({
             lookup: ({ owner: { id } }) => id,
           }),
+          ownerActionsChain: Promise.resolve(),
         };
 
         evoluInstancesByPortId.set(evoluPortId, evoluInstance);
@@ -566,7 +587,7 @@ const createSharedEvolu =
             }
 
             case "Mutate": {
-              // TODO: Delegate do vsech evolu instances, co to pouzivaji
+              // TODO: Delegate to all Evolu instances that use this owner.
               queue.push({ evoluPortId, request: evoluMessage });
               ensureQueueProcessing();
               break;
@@ -576,11 +597,17 @@ const createSharedEvolu =
               const evoluInstance = evoluInstancesByPortId.get(evoluPortId);
               if (!evoluInstance) break;
 
-              for (const { owner, action } of evoluMessage.actions) {
-                void sharedEvoluRun(
-                  toggleUsedSyncOwner(evoluInstance, owner, action),
-                );
-              }
+              evoluInstance.ownerActionsChain = evoluInstance.ownerActionsChain
+                .then(async () => {
+                  for (const { owner, action } of evoluMessage.actions) {
+                    await sharedEvoluRun(
+                      toggleUsedSyncOwner(evoluInstance, owner, action),
+                    );
+                  }
+                })
+                .catch((error) => {
+                  console.error("Failed to process UseOwner actions", error);
+                });
               break;
             }
 

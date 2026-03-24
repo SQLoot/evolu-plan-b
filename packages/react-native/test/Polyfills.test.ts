@@ -158,8 +158,10 @@ describe("installPolyfills", () => {
 
     const PromiseStatic = Promise as PromiseStatics;
     expect(typeof PromiseStatic.withResolvers).toBe("function");
-
-    const { promise, resolve } = PromiseStatic.withResolvers!();
+    if (!PromiseStatic.withResolvers) {
+      throw new Error("Expected Promise.withResolvers.");
+    }
+    const { promise, resolve } = PromiseStatic.withResolvers();
     resolve("ok");
 
     await expect(promise).resolves.toBe("ok");
@@ -172,8 +174,8 @@ describe("installPolyfills", () => {
 
     const PromiseStatic = Promise as PromiseStatics;
     expect(typeof PromiseStatic.try).toBe("function");
-
-    const result = await PromiseStatic.try!(
+    if (!PromiseStatic.try) throw new Error("Expected Promise.try.");
+    const result = await PromiseStatic.try(
       (a, b) => `${String(a)}-${String(b)}`,
       "a",
       1,
@@ -188,9 +190,10 @@ describe("installPolyfills", () => {
 
     const PromiseStatic = Promise as PromiseStatics;
     const error = new Error("boom");
+    if (!PromiseStatic.try) throw new Error("Expected Promise.try.");
 
     await expect(
-      PromiseStatic.try!(() => {
+      PromiseStatic.try(() => {
         throw error;
       }),
     ).rejects.toBe(error);

@@ -20,7 +20,7 @@ import type {
 } from "../Crypto.js";
 import { lazyFalse, lazyVoid } from "../Function.js";
 import { createRecord, getProperty, objectToEntries } from "../Object.js";
-import { ok, type Result } from "../Result.js";
+import { err, ok, type Result } from "../Result.js";
 import type {
   CreateSqliteDriverDep,
   SqliteDep,
@@ -84,6 +84,7 @@ import {
   getOwnerUsage,
   getTimestampInsertStrategy,
   type Storage,
+  type StorageQuotaError,
   updateOwnerUsage,
 } from "./Storage.js";
 import type {
@@ -579,7 +580,10 @@ const _createClientStorage =
           const change = decryptAndDecodeDbChange(message, deps.encryptionKey);
           if (!change.ok) {
             onError(change.error);
-            return ok();
+            return err<StorageQuotaError>({
+              type: "StorageQuotaError",
+              ownerId: ownerIdBytesToOwnerId(ownerIdBytes),
+            });
           }
           messages.push({ timestamp: message.timestamp, change: change.value });
         }
@@ -593,7 +597,10 @@ const _createClientStorage =
           );
           if (!nextTimestamp.ok) {
             onError(nextTimestamp.error);
-            return ok();
+            return err<StorageQuotaError>({
+              type: "StorageQuotaError",
+              ownerId: ownerIdBytesToOwnerId(ownerIdBytes),
+            });
           }
           clockTimestamp = nextTimestamp.value;
         }

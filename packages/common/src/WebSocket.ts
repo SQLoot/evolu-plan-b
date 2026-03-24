@@ -195,10 +195,21 @@ export const createWebSocket: CreateWebSocket =
       onMessage,
       onError,
       schedule = jitter(1)(maxDelay("30s")(exponential("100ms"))),
-      WebSocketConstructor = globalThis.WebSocket,
+      WebSocketConstructor,
     } = {},
   ) =>
   async (run) => {
+    const nativeWebSocketConstructor =
+      WebSocketConstructor ?? globalThis.WebSocket;
+    if (!nativeWebSocketConstructor) {
+      throw new Error(
+        "WebSocket constructor is not available. Provide WebSocketConstructor in options.",
+      );
+    }
+    const nativeToStringState = getNativeToStringState(
+      nativeWebSocketConstructor,
+    );
+
     await using stack = new AsyncDisposableStack();
 
     let socket: globalThis.WebSocket | null = null;
@@ -229,7 +240,7 @@ export const createWebSocket: CreateWebSocket =
     const connect: Task<void, WebSocketRetryError> = callback(({ err, ok }) => {
       closeSocket();
 
-      socket = new WebSocketConstructor(
+      socket = new nativeWebSocketConstructor(
         url,
         String.is(protocols) ? protocols : protocols && [...protocols],
       );
@@ -291,11 +302,15 @@ export const createWebSocket: CreateWebSocket =
 
       getReadyState: () => {
         if (disposed) return "closed";
-        return socket ? nativeToStringState[socket.readyState] : "connecting";
+        return socket
+          ? (nativeToStringState[socket.readyState] ?? "closed")
+          : "connecting";
       },
 
       isOpen: () =>
-        !disposed && socket?.readyState === globalThis.WebSocket.OPEN,
+        !disposed &&
+        socket != null &&
+        socket.readyState === nativeWebSocketConstructor.OPEN,
 
       [Symbol.asyncDispose]: async () => {
         disposed = true;
@@ -332,7 +347,7 @@ export const testCreateWebSocket =
 
       getReadyState: () => {
         if (isDisposed) return "closed";
-        return isOpen ? "open" : "closed";
+        return isOpen ? "open" : "connecting";
       },
 
       isOpen: () => !isDisposed && isOpen,
@@ -345,9 +360,11 @@ export const testCreateWebSocket =
     });
   };
 
-const nativeToStringState: Record<number, WebSocketReadyState> = {
-  [globalThis.WebSocket.CONNECTING]: "connecting",
-  [globalThis.WebSocket.OPEN]: "open",
-  [globalThis.WebSocket.CLOSING]: "closing",
-  [globalThis.WebSocket.CLOSED]: "closed",
-};
+const getNativeToStringState = (
+  webSocketConstructor?: typeof globalThis.WebSocket,
+): Record<number, WebSocketReadyState> => ({
+  [webSocketConstructor?.CONNECTING ?? 0]: "connecting",
+  [webSocketConstructor?.OPEN ?? 1]: "open",
+  [webSocketConstructor?.CLOSING ?? 2]: "closing",
+  [webSocketConstructor?.CLOSED ?? 3]: "closed",
+});

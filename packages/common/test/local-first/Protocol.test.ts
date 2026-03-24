@@ -90,7 +90,7 @@ test("encodeNumber/decodeNumber", () => {
     0,
     42,
     -123,
-    3.14159,
+    Number.parseFloat("3.14159"),
     Number.MAX_SAFE_INTEGER,
     Number.MIN_SAFE_INTEGER,
     Infinity,
@@ -356,11 +356,11 @@ test("encodeSqliteValue/decodeSqliteValue property tests", () => {
         // Date ISO strings - both valid and invalid
         fc
           .date({ min: new Date("1970-01-01"), max: new Date("2100-01-01") })
-          .filter((d) => !isNaN(d.getTime()))
+          .filter((d) => !Number.isNaN(d.getTime()))
           .map((d) => d.toISOString()),
         fc
           .date({ min: new Date("0000-01-01"), max: new Date("9999-12-31") })
-          .filter((d) => !isNaN(d.getTime()))
+          .filter((d) => !Number.isNaN(d.getTime()))
           .map((d) => d.toISOString()),
         fc.constantFrom(
           "0000-01-01T00:00:00.000Z",

@@ -157,15 +157,21 @@ export const startRelay =
         }
 
         void (async () => {
-          const result = isOwnerAllowed(ownerId);
-          const isAllowed = isPromiseLike(result) ? await result : result;
-          if (!isAllowed) {
-            console.debug("unauthorized owner", ownerId);
-            socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+          try {
+            const result = isOwnerAllowed(ownerId);
+            const isAllowed = isPromiseLike(result) ? await result : result;
+            if (!isAllowed) {
+              console.debug("unauthorized owner", ownerId);
+              socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+              socket.destroy();
+              return;
+            }
+            completeUpgrade();
+          } catch (error) {
+            console.error("isOwnerAllowed failed", error);
+            socket.write("HTTP/1.1 500 Internal Server Error\r\n\r\n");
             socket.destroy();
-            return;
           }
-          completeUpgrade();
         })();
       });
 
@@ -272,10 +278,18 @@ export const startRelay =
               });
             });
 
-            await relayRun[Symbol.asyncDispose]();
+            try {
+              await relayRun[Symbol.asyncDispose]();
+            } catch (error) {
+              console.error("Failed to dispose relay run", error);
+            }
 
             if (sqlite) {
-              await sqlite[Symbol.asyncDispose]();
+              try {
+                await sqlite[Symbol.asyncDispose]();
+              } catch (error) {
+                console.error("Failed to dispose sqlite", error);
+              }
             }
 
             console.info("Shutdown complete");
@@ -286,10 +300,21 @@ export const startRelay =
       });
     } catch (error) {
       if (relayRunToDispose) {
-        await relayRunToDispose[Symbol.asyncDispose]();
+        try {
+          await relayRunToDispose[Symbol.asyncDispose]();
+        } catch (disposeError) {
+          console.error(
+            "Failed to dispose relay run after error",
+            disposeError,
+          );
+        }
       }
       if (sqlite) {
-        await sqlite[Symbol.asyncDispose]();
+        try {
+          await sqlite[Symbol.asyncDispose]();
+        } catch (disposeError) {
+          console.error("Failed to dispose sqlite after error", disposeError);
+        }
       }
       throw error;
     }
