@@ -1,22 +1,20 @@
-import { existsSync } from "node:fs";
-import { createServer } from "node:http";
 import {
-  type CreateSqliteDriverDep,
   createRandom,
   createRelation,
   createSqlite,
+  type CreateSqliteDriverDep,
   isPromiseLike,
   Name,
-  type OwnerId,
   ok,
+  OwnerId,
   type RandomDep,
   type Task,
   type TimingSafeEqualDep,
   Uint8Array,
 } from "@evolu/common";
 import {
-  type ApplyProtocolMessageAsRelayOptions,
   applyProtocolMessageAsRelay,
+  type ApplyProtocolMessageAsRelayOptions,
   createBaseSqliteStorageTables,
   createRelaySqliteStorage,
   createRelayStorageTables,
@@ -25,6 +23,8 @@ import {
   type Relay,
   type RelayConfig,
 } from "@evolu/common/local-first";
+import { existsSync } from "fs";
+import { createServer } from "http";
 import { WebSocket, WebSocketServer } from "ws";
 import { createTimingSafeEqual } from "../Crypto.js";
 import { createBetterSqliteDriver } from "../Sqlite.js";
@@ -111,12 +111,11 @@ export const startRelay =
       createRelayStorageTables(deps);
     }
 
-    const storage = createRelaySqliteStorage(deps)({
-      isOwnerWithinQuota,
+    const relayRun = run.create().addDeps({
+      storage: createRelaySqliteStorage(deps)({
+        isOwnerWithinQuota,
+      }),
     });
-
-    // WebSocket callbacks outlive the startRelay task scope.
-    const daemonRun = run.daemon.addDeps({ storage });
 
     const server = createServer();
     const wss = new WebSocketServer({
@@ -127,18 +126,6 @@ export const startRelay =
 
     server.on("upgrade", (request, socket, head) => {
       socket.on("error", console.debug);
-
-      const rejectUpgrade = (
-        statusCode: 400 | 401 | 500,
-        statusText: "Bad Request" | "Unauthorized" | "Internal Server Error",
-      ) => {
-        socket.end(
-          `HTTP/1.1 ${statusCode} ${statusText}\r\n` +
-            "Connection: close\r\n" +
-            "Content-Length: 0\r\n" +
-            "\r\n",
-        );
-      };
 
       const completeUpgrade = () => {
         socket.removeListener("error", console.debug);
@@ -159,25 +146,21 @@ export const startRelay =
 
       if (!ownerId) {
         console.debug("invalid or missing ownerId in URL", request.url);
-        rejectUpgrade(400, "Bad Request");
+        socket.write("HTTP/1.1 400 Bad Request\r\n\r\n");
+        socket.destroy();
         return;
       }
 
       void (async () => {
-        try {
-          const result = isOwnerAllowed(ownerId);
-          const isAllowed = isPromiseLike(result) ? await result : result;
-          if (!isAllowed) {
-            console.debug("unauthorized owner", ownerId);
-            rejectUpgrade(401, "Unauthorized");
-            return;
-          }
-
-          completeUpgrade();
-        } catch (error) {
-          console.error("owner authorization failed", error);
-          rejectUpgrade(500, "Internal Server Error");
+        const result = isOwnerAllowed(ownerId);
+        const isAllowed = isPromiseLike(result) ? await result : result;
+        if (!isAllowed) {
+          console.debug("unauthorized owner", ownerId);
+          socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+          socket.destroy();
+          return;
         }
+        completeUpgrade();
       })();
     });
 
@@ -190,7 +173,7 @@ export const startRelay =
           console.debug(
             "subscribe",
             ownerId,
-            ownerSocketRelation.getB(ownerId)?.size ?? 0,
+            ownerSocketRelation.bCountForA(ownerId),
           );
         },
 
@@ -199,21 +182,22 @@ export const startRelay =
           console.debug(
             "unsubscribe",
             ownerId,
-            ownerSocketRelation.getB(ownerId)?.size ?? 0,
+            ownerSocketRelation.bCountForA(ownerId),
           );
         },
 
         broadcast: (ownerId, message) => {
-          const sockets = ownerSocketRelation.getB(ownerId);
-          if (!sockets) return;
-
-          for (const socket of sockets) {
+          for (const socket of ownerSocketRelation.iterateB(ownerId)) {
             if (socket !== ws && socket.readyState === WebSocket.OPEN) {
               socket.send(message, { binary: true });
             }
           }
 
-          console.debug("broadcast", ownerId, sockets.size);
+          console.debug(
+            "broadcast",
+            ownerId,
+            ownerSocketRelation.bCountForA(ownerId),
+          );
         },
       };
 
@@ -221,7 +205,7 @@ export const startRelay =
         if (!Uint8Array.is(message)) return;
 
         void (async () => {
-          const response = await daemonRun(
+          const response = await relayRun(
             applyProtocolMessageAsRelay(message, options),
           );
           if (!response.ok) {
@@ -233,7 +217,7 @@ export const startRelay =
       });
 
       ws.on("close", () => {
-        ownerSocketRelation.deleteB(ws);
+        ownerSocketRelation.removeByB(ws);
         console.debug("ws close", wss.clients.size);
       });
     });
@@ -243,84 +227,33 @@ export const startRelay =
       console.info("Shutdown complete");
     });
 
-    stack.defer(async () => {
-      const serverWithCloseAll = server as typeof server & {
-        closeAllConnections?: () => void;
-      };
-
-      await new Promise<void>((resolve) => {
-        let settled = false;
-        const timeout = setTimeout(() => {
-          if (settled) return;
-          settled = true;
-          serverWithCloseAll.closeAllConnections?.();
-          console.warn("HTTP server close timed out");
-          resolve();
-        }, 1_000);
-        timeout.unref?.();
-
-        server.close(() => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timeout);
-          console.info("HTTP server closed");
-          resolve();
-        });
+    stack.defer(() => {
+      server.close(() => {
+        console.info("HTTP server closed");
       });
     });
 
-    stack.defer(async () => {
-      // wss.close() emits 'close' when all clients have disconnected.
-      await new Promise<void>((resolve) => {
-        let settled = false;
-        const timeout = setTimeout(() => {
-          if (settled) return;
-          settled = true;
-          for (const client of wss.clients) {
-            client.terminate();
-          }
-          console.warn("WebSocketServer close timed out");
-          resolve();
-        }, 1_000);
-        timeout.unref?.();
-
-        wss.close(() => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timeout);
-          console.info("WebSocketServer closed");
-          resolve();
-        });
+    stack.defer(() => {
+      // wss.close() emits 'close' when all clients have disconnected
+      // https://github.com/websockets/ws/blob/master/doc/ws.md#serverclosecallback
+      wss.close(() => {
+        console.info("WebSocketServer closed");
+        ok();
       });
     });
 
     stack.defer(() => {
       console.info("Shutting down...");
       for (const client of wss.clients) {
-        if (
-          client.readyState === WebSocket.OPEN ||
-          client.readyState === WebSocket.CONNECTING ||
-          client.readyState === WebSocket.CLOSING
-        ) {
+        if (client.readyState === WebSocket.OPEN) {
           client.close(1000, "Evolu Relay shutting down");
         }
       }
     });
 
-    await new Promise<void>((resolve, reject) => {
-      const onError = (error: Error) => {
-        server.removeListener("listening", onListening);
-        reject(error);
-      };
-      const onListening = () => {
-        server.removeListener("error", onError);
-        resolve();
-      };
+    stack.use(relayRun);
 
-      server.once("error", onError);
-      server.once("listening", onListening);
-      server.listen(port);
-    });
+    server.listen(port);
     console.info(`Started on port ${port}`);
 
     return ok(stack.move());

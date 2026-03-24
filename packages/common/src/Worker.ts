@@ -7,7 +7,6 @@
 import { assert } from "./Assert.js";
 import type { Brand } from "./Brand.js";
 import type { ConsoleDep, ConsoleStoreOutputEntryDep } from "./Console.js";
-import type { GlobalErrorScope } from "./Error.js";
 import { testWaitForMacrotask } from "./Test.js";
 
 /**
@@ -15,8 +14,10 @@ import { testWaitForMacrotask } from "./Test.js";
  *
  * @see https://developer.mozilla.org/en-US/docs/Web/API/Worker
  */
-export interface Worker<Input, Output = never>
-  extends MessagePort<Input, Output> {}
+export interface Worker<Input, Output = never> extends MessagePort<
+  Input,
+  Output
+> {}
 
 /**
  * Platform-agnostic SharedWorker.
@@ -183,15 +184,10 @@ export interface CreateMessageChannelDep {
  * This is the worker-side counterpart to {@link Worker} — a typed
  * {@link MessagePort} that wraps `self` inside the worker.
  */
-export interface WorkerSelf<Input, Output = never>
-  extends MessagePort<Output, Input> {}
-
-/**
- * @deprecated Use {@link WorkerSelf}. Retained for backwards compatibility.
- */
-export interface WorkerScope<Input, Output = never>
-  extends WorkerSelf<Input, Output>,
-    GlobalErrorScope {}
+export interface WorkerSelf<Input, Output = never> extends MessagePort<
+  Output,
+  Input
+> {}
 
 /**
  * Typed `self` for code running inside a shared worker.
@@ -202,13 +198,6 @@ export interface WorkerScope<Input, Output = never>
 export interface SharedWorkerSelf<Input, Output = never> extends Disposable {
   onConnect: ((port: MessagePort<Output, Input>) => void) | null;
 }
-
-/**
- * @deprecated Use {@link SharedWorkerSelf}. Retained for backwards compatibility.
- */
-export interface SharedWorkerScope<Input, Output = never>
-  extends SharedWorkerSelf<Input, Output>,
-    GlobalErrorScope {}
 
 /**
  * Creates an in-memory {@link Worker}.
@@ -297,7 +286,7 @@ export const createMessagePort: CreateMessagePort = <Input, Output = never>(
   nativePort: NativeMessagePort<Input, Output>,
 ): MessagePort<Input, Output> => {
   const pair = nativePortRegistry.get(nativePort);
-  assert(pair, "Unknown native port");
+  assert(pair, "Unknown native port — did you transfer it?");
   return pair as MessagePort<Input, Output>;
 };
 
@@ -306,8 +295,10 @@ export const createMessagePort: CreateMessagePort = <Input, Output = never>(
  *
  * Use `self` to simulate messages and behavior from inside the worker.
  */
-export interface TestWorker<Input, Output = never>
-  extends Worker<Input, Output> {
+export interface TestWorker<Input, Output = never> extends Worker<
+  Input,
+  Output
+> {
   /** Typed `self` counterpart for worker-side testing assertions. */
   readonly self: WorkerSelf<Input, Output>;
 }
@@ -318,15 +309,19 @@ export interface TestWorker<Input, Output = never>
  * Call `connect()` to simulate a client connection and trigger
  * `self.onConnect`.
  */
-export interface TestSharedWorker<Input, Output = never>
-  extends SharedWorker<Input, Output> {
+export interface TestSharedWorker<Input, Output = never> extends SharedWorker<
+  Input,
+  Output
+> {
   readonly self: SharedWorkerSelf<Input, Output>;
   readonly connect: () => void;
 }
 
 /** {@link MessageChannel} with disposal tracking for testing. */
-export interface TestMessageChannel<Input, Output = never>
-  extends MessageChannel<Input, Output> {
+export interface TestMessageChannel<
+  Input,
+  Output = never,
+> extends MessageChannel<Input, Output> {
   readonly isDisposed: () => boolean;
 }
 

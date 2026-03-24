@@ -1,16 +1,21 @@
-import { initialSyncState, type SyncState } from "@evolu/common/local-first";
+import type { SyncState } from "@evolu/common/local-first";
 import type { Ref } from "vue";
-import { ref } from "vue";
-import { useEvolu } from "./useEvolu.js";
+// import { useEvolu } from "./useEvolu.js";
 
-/**
- * Temporary stub returning a static fallback {@link SyncState}.
- *
- * TODO: Wire real SyncState subscription from the owner API.
- */
+/** Subscribe to {@link SyncState} changes. */
 export const useSyncState = (): Ref<SyncState> => {
-  const _unused = useEvolu();
-  void _unused;
-  // SyncState API is not wired in the current owner API yet.
-  return ref(initialSyncState);
+  /*
+  const evolu = useEvolu();
+
+  const syncState = ref(evolu.getSyncState());
+  const unsubscribe = evolu.subscribeSyncState(() => {
+    syncState.value = evolu.getSyncState();
+  });
+  onScopeDispose(unsubscribe);
+
+  return syncState;
+   */
+
+  // not updated in the Evolu core yet
+  throw new Error("TODO");
 };

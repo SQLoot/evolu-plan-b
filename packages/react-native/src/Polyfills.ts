@@ -1,72 +1,62 @@
-import { installPolyfills as installCommonPolyfills } from "@evolu/common";
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+
+import { installPolyfills as installCommonPolyfills } from "@evolu/common/polyfills";
+// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
+import fromAsync from "array-from-async";
+// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
+import withResolvers from "promise.withresolvers";
+// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
+import promiseTry from "promise.try";
+// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
+import toSorted from "array.prototype.tosorted";
+// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
 import difference from "set.prototype.difference";
+// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
 import intersection from "set.prototype.intersection";
+// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
 import isDisjointFrom from "set.prototype.isdisjointfrom";
+// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
 import isSubsetOf from "set.prototype.issubsetof";
+// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
 import isSupersetOf from "set.prototype.issupersetof";
+// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
 import symmetricDifference from "set.prototype.symmetricdifference";
+// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
 import union from "set.prototype.union";
 
-let areSetPolyfillsInstalled = false;
-
-const installSetPolyfills = (): void => {
-  if (areSetPolyfillsInstalled) return;
-
-  difference.shim();
-  intersection.shim();
-  isDisjointFrom.shim();
-  isSubsetOf.shim();
-  isSupersetOf.shim();
-  symmetricDifference.shim();
-  union.shim();
-
-  areSetPolyfillsInstalled = true;
-};
+difference.shim();
+intersection.shim();
+isDisjointFrom.shim();
+isSubsetOf.shim();
+isSupersetOf.shim();
+symmetricDifference.shim();
+union.shim();
 
 /** Installs polyfills required by Evolu in React Native runtimes. */
 export const installPolyfills = (): void => {
   installCommonPolyfills();
-  installSetPolyfills();
+  installArrayPolyfills();
   installPromisePolyfills();
   installAbortControllerPolyfills();
 };
 
+const installArrayPolyfills = (): void => {
+  if (typeof Array.fromAsync !== "function") {
+    Object.defineProperty(Array, "fromAsync", {
+      configurable: true,
+      enumerable: false,
+      writable: true,
+      value: fromAsync as typeof Array.fromAsync,
+    });
+  }
+
+  toSorted.shim();
+};
+
 const installPromisePolyfills = () => {
-  const PromiseStatic = Promise as PromiseConstructor & {
-    withResolvers?: <T>() => PromiseWithResolvers<T>;
-    try?: <T, U extends Array<unknown>>(
-      func: (...args: U) => T | PromiseLike<T>,
-      ...args: U
-    ) => Promise<Awaited<T>>;
-  };
-
-  // @see https://github.com/facebook/hermes/pull/1452
-  if (typeof PromiseStatic.withResolvers !== "function") {
-    PromiseStatic.withResolvers = <T>() => {
-      let resolve: (value: T | PromiseLike<T>) => void = () => {};
-      let reject: (reason?: unknown) => void = () => {};
-      const promise = new Promise<T>((res, rej) => {
-        resolve = res;
-        reject = rej;
-      });
-      return { promise, resolve, reject };
-    };
-  }
-
-  // @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/try
-  if (typeof PromiseStatic.try !== "function") {
-    PromiseStatic.try = <T, U extends Array<unknown>>(
-      func: (...args: U) => T | PromiseLike<T>,
-      ...args: U
-    ): Promise<Awaited<T>> =>
-      new Promise<Awaited<T>>((resolve, reject) => {
-        try {
-          resolve(func(...args) as Awaited<T>);
-        } catch (error) {
-          reject(error);
-        }
-      });
-  }
+  withResolvers.shim();
+  promiseTry.shim();
 };
 
 interface AbortControllerConstructor {
@@ -122,31 +112,23 @@ const installAbortReasonPolyfill = (
   abortController: AbortControllerConstructor,
   abortSignal: AbortSignalConstructor,
 ): void => {
-  const hasNativeReason = "reason" in abortSignal.prototype;
-  if (hasNativeReason) return;
-
-  Object.defineProperty(abortSignal.prototype, "reason", {
-    configurable: true,
-    enumerable: false,
-    get(this: AbortSignal): unknown {
-      return abortReasonBySignal.get(this);
-    },
-  });
+  if (!("reason" in abortSignal.prototype)) {
+    Object.defineProperty(abortSignal.prototype, "reason", {
+      configurable: true,
+      enumerable: false,
+      get(this: AbortSignal): unknown {
+        return abortReasonBySignal.get(this);
+      },
+    });
+  }
 
   const prototype = abortController.prototype as AbortControllerPrototype;
   if (prototype.__evoluAbortReasonPatched) return;
 
   const nativeAbort = prototype.abort;
   prototype.abort = function (this: AbortController, reason?: unknown): void {
-    const signal = this.signal;
-    const normalizedReason =
-      abortReasonBySignal.get(signal) ??
-      (reason === undefined ? createAbortError() : reason);
-
-    if (!abortReasonBySignal.has(signal)) {
-      abortReasonBySignal.set(signal, normalizedReason);
-    }
-
+    const normalizedReason = reason === undefined ? createAbortError() : reason;
+    abortReasonBySignal.set(this.signal, normalizedReason);
     nativeAbort.call(this, normalizedReason);
   };
 

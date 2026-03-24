@@ -4,22 +4,20 @@
  * @module
  */
 
-import { type TestConsoleDep, testCreateConsole } from "./Console.js";
+import { testCreateConsole, type TestConsoleDep } from "./Console.js";
 import { Entropy32, testCreateRandomBytes } from "./Crypto.js";
-import { createAppOwner, OwnerSecret } from "./local-first/Owner.js";
 import {
-  type RandomLibDep,
   testCreateRandom,
   testCreateRandomLib,
+  type RandomLibDep,
 } from "./Random.js";
-import { createRun, type Run, type RunDeps, type Runner } from "./Task.js";
+import { createRun, type Run, type RunDeps } from "./Task.js";
 import {
-  type Duration,
   minMillis,
   setTimeout,
   testCreateTime,
+  type Duration,
 } from "./Time.js";
-import { SimpleName } from "./Type.js";
 
 export type TestDeps = RunDeps & TestConsoleDep & RandomLibDep;
 
@@ -89,20 +87,6 @@ export function testCreateRun<D>(deps?: D): Run<TestDeps & D> {
   return createRun<TestDeps & D>({ ...defaults, ...deps } as TestDeps & D);
 }
 
-/**
- * Backward-compatible alias for fork naming.
- *
- * Prefer {@link testCreateRun} in new code.
- */
-export function testCreateRunner(): Runner<TestDeps>;
-
-/** With custom dependencies merged into {@link TestDeps}. */
-export function testCreateRunner<D>(deps: D): Runner<TestDeps & D>;
-
-export function testCreateRunner<D>(deps?: D): Runner<TestDeps & D> {
-  return testCreateRun(deps);
-}
-
 // Deterministic test values for reproducible fixtures. Keep eager test values
 // here to avoid affecting tree-shaking baselines.
 // Functions are ok.
@@ -113,12 +97,6 @@ export const testEntropy32 = /*#__PURE__*/ Entropy32.orThrow(
     21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
   ]),
 );
-
-export const testOwnerSecret = /*#__PURE__*/ OwnerSecret.orThrow(testEntropy32);
-
-export const testAppOwner = /*#__PURE__*/ createAppOwner(testOwnerSecret);
-
-export const testName = /*#__PURE__*/ SimpleName.orThrow("Name");
 
 /**
  * Returns a Promise that resolves after a macrotask delay.
