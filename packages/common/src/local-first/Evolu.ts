@@ -4,8 +4,17 @@
  * @module
  */
 
-import { emptyArray, mapArray } from "../Array.js";
-import { assert, assertNotDisposed } from "../Assert.js";
+import {
+  emptyArray,
+  isNonEmptyArray,
+  mapArray,
+  type NonEmptyReadonlyArray,
+} from "../Array.js";
+import {
+  assert,
+  assertNonEmptyReadonlyArray,
+  assertNotDisposed,
+} from "../Assert.js";
 import { createCallbacks } from "../Callbacks.js";
 import type { ConsoleDep } from "../Console.js";
 import { createConsole } from "../Console.js";
@@ -13,13 +22,13 @@ import { createUnknownError } from "../Error.js";
 import { exhaustiveCheck } from "../Function.js";
 import { createMicrotaskBatch } from "../Microtask.js";
 import type { FlushSyncDep, ReloadAppDep } from "../Platform.js";
-import { createRefCountByKey } from "../Resource.js";
+import { createRefCountByKey } from "../RefCount.js";
 import { err, ok } from "../Result.js";
 import { isNonEmptySet } from "../Set.js";
 import { SqliteBoolean, sqliteBooleanToBoolean } from "../Sqlite.js";
 import type { Listener, ReadonlyStore, Unsubscribe } from "../Store.js";
 import { createStore } from "../Store.js";
-import type { createRun, Task } from "../Task.js";
+import { type createRun, type Task } from "../Task.js";
 import type { Id, TypeError } from "../Type.js";
 import {
   brand,
@@ -32,7 +41,14 @@ import type { ExtractType } from "../Types.js";
 import type { CreateMessageChannelDep } from "../Worker.js";
 import type { CreateDbWorkerDep } from "./Db.js";
 import type { EvoluError } from "./Error.js";
-import type { AppOwner, OwnerTransport } from "./Owner.js";
+import type {
+  AppOwner,
+  Owner,
+  OwnerId,
+  OwnerTransport,
+  ReadonlyOwner,
+  SyncOwner,
+} from "./Owner.js";
 import {
   createAppOwner,
   createOwnerSecret,
@@ -64,7 +80,6 @@ import type {
   SharedWorkerDep,
 } from "./Shared.js";
 import { DbChange } from "./Storage.js";
-import type { SyncOwner } from "./Sync.js";
 import type { Timestamp } from "./Timestamp.js";
 
 export interface EvoluConfig {
@@ -75,7 +90,7 @@ export interface EvoluConfig {
    *
    * Evolu derives the final instance name from `appName` and `appOwner`. The
    * derived instance name is used as the SQLite database filename and as the
-   * log prefix. This ensures that each owner gets a separate local database
+   * log prefix. This ensures that each Owner gets a separate local database
    * while preserving a readable app prefix.
    *
    * ### Example
@@ -93,7 +108,7 @@ export interface EvoluConfig {
    * creates one.
    *
    * AppOwner controls access to the encrypted local SQLite database. If its
-   * secret material (owner secret / mnemonic) is not stored safely, data
+   * secret material (Owner secret / Mnemonic) is not stored safely, data
    * written by that instance is permanently inaccessible.
    *
    * Best onboarding UX is accountless first use: let users try a ready-to-use
@@ -110,23 +125,27 @@ export interface EvoluConfig {
   readonly appOwner?: AppOwner;
 
   /**
-   * Transport configuration for data sync and backup. Supports single transport
-   * or multiple transports simultaneously for redundancy.
+   * Transport configuration for sync and backup.
+   *
+   * If not specified, Evolu uses the default Evolu relay. Pass one or more
+   * transports to override it with your own relays. Pass an empty array to
+   * disable sync, which is useful when sync should be configured later.
+   *
+   * Empty transports start the instance without sync. In that case,
+   * {@link Evolu.useOwner} must be called with explicit non-empty transports to
+   * enable sync for any Owner, including the AppOwner.
    *
    * **Redundancy:** The ideal setup uses at least two completely independent
    * relays - for example, a home relay and a geographically separate relay.
    * Data is sent to both relays simultaneously, providing true redundancy
    * similar to using two independent clouds. This eliminates vendor lock-in and
    * ensures your app continues working regardless of circumstances - whether
-   * home relay hardware is stolen or a remote relay provider shuts down.
+   * home relay hardware fails or disappears, or a remote relay provider shuts
+   * down.
    *
    * Currently supports:
    *
    * - WebSocket: Real-time bidirectional communication with relay servers
-   *
-   * Empty transports create local-only instances. Transports can be dynamically
-   * added and removed for any owner (including {@link AppOwner}) via
-   * {@link Evolu.useOwner}.
    *
    * Use {@link createOwnerWebSocketTransport} to create WebSocket transport
    * configurations with proper URL formatting and {@link OwnerId} inclusion. The
@@ -232,25 +251,17 @@ export const testAppName = /*#__PURE__*/ AppName.orThrow("AppName");
  *
  * TODO: Better docs.
  */
-export interface Evolu<S extends EvoluSchema = EvoluSchema>
-  extends AsyncDisposable {
+export interface Evolu<
+  S extends EvoluSchema = EvoluSchema,
+> extends AsyncDisposable {
   /**
-   * Resolved instance name derived from {@link EvoluConfig.appName} and app
-   * owner hash.
+   * Evolu instance name is derived from {@link EvoluConfig.appName} and
+   * {@link AppOwner}'s hash.
    */
   readonly name: Name;
 
   /** {@link AppOwner}. */
   readonly appOwner: AppOwner;
-
-  /**
-   * Shared error store for this Evolu instance.
-   *
-   * When {@link createEvolu} runs with deps created by {@link createEvoluDeps},
-   * this references the shared platform-level store. Otherwise a local store is
-   * exposed to preserve the framework hook API.
-   */
-  readonly evoluError: ReadonlyStore<EvoluError | null>;
 
   /**
    * Inserts a row and returns the generated {@link Id}.
@@ -412,21 +423,30 @@ export interface Evolu<S extends EvoluSchema = EvoluSchema>
   // TODO: Add exportHistory.
 
   /**
-   * Use a {@link SyncOwner}. Returns a {@link UnuseOwner}.
+   * Use an Owner for sync. Returns a {@link UnuseOwner}.
    *
-   * Using an owner means syncing it with its transports, or the transports
-   * defined in Evolu config if the owner has no transports defined.
+   * Using an Owner means syncing it with the provided transports, or with the
+   * default transports defined in {@link EvoluConfig} when transports are
+   * omitted.
    *
-   * Transport are automatically deduplicated and reference-counted, so multiple
-   * owners using the same transport will share a single connection.
+   * If {@link EvoluConfig.transports} is an empty array, this method must be
+   * called with explicit non-empty transports.
+   *
+   * Transports are automatically deduplicated and reference-counted, so
+   * multiple Owners using the same transport will share a single connection.
    *
    * ### Example
    *
    * ```ts
-   * // Use an owner (starts syncing).
-   * const unuseOwner = evolu.useOwner(shardOwner);
+   * // Use an Owner (starts syncing).
+   * const unuseOwner = evolu.useOwner(shardOwner, [
+   *   createOwnerWebSocketTransport({
+   *     url: "ws://localhost:4000",
+   *     ownerId: shardOwner.id,
+   *   }),
+   * ]);
    *
-   * // Later, stop using the owner.
+   * // Later, stop using the Owner.
    * unuseOwner();
    *
    * // Bulk operations.
@@ -434,10 +454,13 @@ export interface Evolu<S extends EvoluSchema = EvoluSchema>
    * // Later: for (const unuse of unuseOwners) unuse();
    * ```
    */
-  readonly useOwner: (owner: SyncOwner) => UnuseOwner;
+  readonly useOwner: (
+    owner: ReadonlyOwner | Owner,
+    transports?: NonEmptyReadonlyArray<OwnerTransport>,
+  ) => UnuseOwner;
 }
 
-/** Function returned by {@link Evolu.useOwner} to stop using an {@link SyncOwner}. */
+/** Function returned by {@link Evolu.useOwner} to stop using an Owner for sync. */
 export type UnuseOwner = () => void;
 
 export interface EvoluErrorDep {
@@ -558,17 +581,24 @@ export const createEvolu =
   <S extends EvoluSchema>(
     schema: ValidateSchema<S> extends never ? S : ValidateSchema<S>,
     config: EvoluConfig,
-  ): Task<Evolu<S>, never, EvoluPlatformDeps & Partial<EvoluErrorDep>> =>
+  ): Task<Evolu<S>, never, EvoluPlatformDeps> =>
   async (run) => {
     const {
       appName,
       appOwner = createAppOwner(createOwnerSecret(run.deps)),
-      transports,
+      transports = [{ type: "WebSocket", url: "wss://free.evoluhq.com" }],
     } = config;
-    const name = Name.orThrow(`${appName}-${createIdFromString(appOwner.id)}`);
 
+    const name = Name.orThrow(`${appName}-${createIdFromString(appOwner.id)}`);
     const console = run.deps.console.child(name).child("Evolu");
     console.info("createEvolu");
+
+    await using stack = new AsyncDisposableStack();
+
+    const rowsByQueryMapStore = stack.use(
+      createStore<RowsByQueryMap>(new Map()),
+    );
+    const subscribedQueriesRefCount = stack.use(createRefCountByKey<Query>());
 
     interface LoadingPromise {
       /**
@@ -587,13 +617,6 @@ export const createEvolu =
       resolve: (rows: QueryRows) => void;
       releaseOnResolve: boolean;
     }
-
-    await using stack = new AsyncDisposableStack();
-
-    const rowsByQueryMapStore = stack.use(
-      createStore<RowsByQueryMap>(new Map()),
-    );
-    const subscribedQueriesRefCount = stack.use(createRefCountByKey<Query>());
 
     /**
      * Settle pending query loads during disposal so awaiting callers and React
@@ -653,9 +676,6 @@ export const createEvolu =
     };
 
     const onMutateCompleteCallbacks = stack.use(createCallbacks(run.deps));
-    const evoluError =
-      (run.deps as Partial<EvoluErrorDep>).evoluError ??
-      stack.use(createStore<EvoluError | null>(null));
 
     let exportDatabasePending = null as PromiseWithResolvers<
       Uint8Array<ArrayBuffer>
@@ -699,6 +719,12 @@ export const createEvolu =
       }),
     );
 
+    const useOwnerBatch = stack.use(
+      createMicrotaskBatch<
+        ExtractType<EvoluInput, "UseOwner">["actions"][number]
+      >((actions) => postMessage({ type: "UseOwner", actions })),
+    );
+
     let postMessage: (input: EvoluInput) => void;
 
     // Scope worker/channel wiring and keep only postMessage outside.
@@ -709,34 +735,6 @@ export const createEvolu =
       );
       const evoluChannel = stack.use(
         createMessageChannel<EvoluInput, EvoluOutput>(),
-      );
-
-      sharedWorker.port.postMessage(
-        {
-          type: "CreateEvolu",
-          name,
-          appOwner: { ...appOwner, transports: transports ?? emptyArray },
-          evoluPort: evoluChannel.port2.native,
-          dbWorkerPort: dbWorkerChannel.port2.native,
-        },
-        [evoluChannel.port2.native, dbWorkerChannel.port2.native],
-      );
-
-      /**
-       * No stack.use because Evolu instances don't dispose DbWorker because
-       * it's SharedWorder responsibility. DbWorker can be used by another tab.
-       * That's required because SQLite WASM needs a single web worker.
-       */
-      createDbWorker().postMessage(
-        {
-          type: "Init",
-          name,
-          consoleLevel: console.getLevel(),
-          sqliteSchema: evoluSchemaToSqliteSchema(schema, config.indexes),
-          encryptionKey: appOwner.encryptionKey,
-          port: dbWorkerChannel.port1.native,
-        },
-        [dbWorkerChannel.port1.native],
       );
 
       evoluChannel.port1.onMessage = (message) => {
@@ -788,6 +786,7 @@ export const createEvolu =
             }
             break;
           }
+
           case "RefreshQueries": {
             releaseUnsubscribedLoadingPromises();
 
@@ -799,6 +798,7 @@ export const createEvolu =
             if (isNonEmptySet(queries)) postMessage({ type: "Query", queries });
             break;
           }
+
           case "OnExport": {
             assert(
               exportDatabasePending,
@@ -808,10 +808,38 @@ export const createEvolu =
             exportDatabasePending = null;
             break;
           }
+
           default:
             exhaustiveCheck(message);
         }
       };
+
+      sharedWorker.port.postMessage(
+        {
+          type: "CreateEvolu",
+          name,
+          evoluPort: evoluChannel.port2.native,
+          dbWorkerPort: dbWorkerChannel.port2.native,
+        },
+        [evoluChannel.port2.native, dbWorkerChannel.port2.native],
+      );
+
+      /**
+       * No stack.use because Evolu instances don't dispose DbWorker because
+       * it's SharedWorder responsibility. DbWorker can be used by another tab.
+       * That's required because SQLite WASM needs a single web worker.
+       */
+      createDbWorker().postMessage(
+        {
+          type: "Init",
+          name,
+          consoleLevel: console.getLevel(),
+          sqliteSchema: evoluSchemaToSqliteSchema(schema, config.indexes),
+          encryptionKey: appOwner.encryptionKey,
+          port: dbWorkerChannel.port1.native,
+        },
+        [dbWorkerChannel.port1.native],
+      );
 
       postMessage = evoluChannel.port1.postMessage;
 
@@ -819,12 +847,6 @@ export const createEvolu =
         postMessage({ type: "Dispose" });
       });
     }
-
-    const useOwnerBatch = stack.use(
-      createMicrotaskBatch<
-        ExtractType<EvoluInput, "UseOwner">["actions"][number]
-      >((actions) => postMessage({ type: "UseOwner", actions })),
-    );
 
     const createMutation =
       <Kind extends "insert" | "update" | "upsert">(
@@ -894,12 +916,47 @@ export const createEvolu =
         emptyArray) as QueryRows<R>;
     };
 
+    const useOwner = (
+      owner: ReadonlyOwner | Owner,
+      ownerTransports?: NonEmptyReadonlyArray<OwnerTransport>,
+    ): UnuseOwner => {
+      assertNotDisposed(moved);
+
+      const effectiveTransports = ownerTransports ?? transports;
+      assertNonEmptyReadonlyArray(
+        effectiveTransports,
+        "useOwner requires explicit non-empty transports when config.transports is empty.",
+      );
+
+      const syncOwner: SyncOwner = {
+        owner,
+        transports: effectiveTransports,
+      };
+
+      useOwnerBatch.push({
+        owner: syncOwner,
+        action: "add",
+      });
+
+      let isUsed = true;
+
+      return () => {
+        assert(isUsed, "UnuseOwner can be called only once.");
+        isUsed = false;
+        useOwnerBatch.push({
+          owner: syncOwner,
+          action: "remove",
+        });
+      };
+    };
+
     const moved = stack.move();
+
+    if (isNonEmptyArray(transports)) useOwner(appOwner);
 
     return ok({
       name,
       appOwner,
-      evoluError,
 
       insert: createMutation("insert"),
       update: createMutation("update"),
@@ -946,30 +1003,7 @@ export const createEvolu =
         return exportDatabasePending.promise;
       },
 
-      useOwner: (owner) => {
-        assertNotDisposed(moved);
-
-        const syncOwner: SyncOwner = {
-          ...owner,
-          transports: owner.transports ?? transports ?? emptyArray,
-        };
-
-        useOwnerBatch.push({
-          owner: syncOwner,
-          action: "add",
-        });
-
-        let isUsed = true;
-
-        return () => {
-          assert(isUsed, "UnuseOwner can be called only once.");
-          isUsed = false;
-          useOwnerBatch.push({
-            owner: syncOwner,
-            action: "remove",
-          });
-        };
-      },
+      useOwner,
 
       [Symbol.asyncDispose]: () => {
         console.info("dispose");
@@ -1021,96 +1055,6 @@ export const createEvolu =
 //   dbWorker.postMessage({ type: "ensureSqliteSchema", sqliteSchema });
 // },
 
-// interface LoadingPromises {
-//   get: <R extends Row>(
-//     query: Query<R>,
-//   ) => {
-//     readonly promise: Promise<QueryRows<R>>;
-//     readonly isNew: boolean;
-//   };
-
-//   resolve: (query: Query, rows: ReadonlyArray<Row>) => void;
-
-//   releaseUnsubscribedOnMutation: () => void;
-
-//   getQueries: () => ReadonlyArray<Query>;
-// }
-
-// interface LoadingPromise {
-//   /** Promise with props for the React use hook. */
-//   promise: Promise<QueryRows> & {
-//     status?: "pending" | "fulfilled" | "rejected";
-//     value?: QueryRows;
-//     reason?: unknown;
-//   };
-//   resolve: (rows: QueryRows) => void;
-//   releaseOnResolve: boolean;
-// }
-
-// const createLoadingPromises = (
-//   subscribedQueries: SubscribedQueries,
-// ): LoadingPromises => {
-//   const loadingPromiseMap = new Map<Query, LoadingPromise>();
-
-//   return {
-//     get: <R extends Row>(
-//       query: Query<R>,
-//     ): {
-//       readonly promise: Promise<QueryRows<R>>;
-//       readonly isNew: boolean;
-//     } => {
-//       let loadingPromise = loadingPromiseMap.get(query);
-//       const isNew = !loadingPromise;
-//       if (!loadingPromise) {
-//         const { promise, resolve } = Promise.withResolvers<QueryRows>();
-//         loadingPromise = { resolve, promise, releaseOnResolve: false };
-//         loadingPromiseMap.set(query, loadingPromise);
-//       }
-//       return {
-//         promise: loadingPromise.promise as Promise<QueryRows<R>>,
-//         isNew,
-//       };
-//     },
-
-//     resolve: (query, rows) => {
-//       const loadingPromise = loadingPromiseMap.get(query);
-//       if (!loadingPromise) return;
-
-//       if (loadingPromise.promise.status !== "fulfilled") {
-//         loadingPromise.resolve(rows);
-//       } else {
-//         loadingPromise.promise = Promise.resolve(rows);
-//       }
-
-//       // Set status and value fields for React's `use` Hook to unwrap synchronously.
-//       // While undocumented in React docs, React still uses these properties internally,
-//       // and Evolu's own promise caching logic depends on checking `promise.status`.
-//       // https://github.com/acdlite/rfcs/blob/first-class-promises/text/0000-first-class-support-for-promises.md
-//       void Object.assign(loadingPromise.promise, {
-//         status: "fulfilled",
-//         value: rows,
-//       });
-
-//       if (loadingPromise.releaseOnResolve) {
-//         loadingPromiseMap.delete(query);
-//       }
-//     },
-
-//     releaseUnsubscribedOnMutation: () => {
-//       [...loadingPromiseMap.entries()]
-//         .filter(([query]) => !subscribedQueries.has(query))
-//         .forEach(([query, loadingPromise]) => {
-//           if (loadingPromise.promise.status === "fulfilled") {
-//             loadingPromiseMap.delete(query);
-//           } else {
-//             loadingPromise.releaseOnResolve = true;
-//           }
-//         });
-//     },
-
-//     getQueries: () => Array.from(loadingPromiseMap.keys()),
-//   };
-// };
 // /**
 //  * Delete {@link AppOwner} and all their data from the current device. After
 //  * the deletion, Evolu will purge the application state. For browsers, this

@@ -1,23 +1,22 @@
 /**
- * Local-first database implementation.
+ * Local-first Db worker.
  *
  * @module
  */
 
 import {
   appendToArray,
-  emptyArray,
   firstInArray,
   type NonEmptyArray,
   type NonEmptyReadonlyArray,
 } from "../Array.js";
 import { assertNonEmptyReadonlyArray } from "../Assert.js";
 import type { ConsoleLevel } from "../Console.js";
-import type {
-  DecryptWithXChaCha20Poly1305Error,
+import {
   EncryptionKey,
-  EncryptionKeyDep,
-  RandomBytesDep,
+  type DecryptWithXChaCha20Poly1305Error,
+  type EncryptionKeyDep,
+  type RandomBytesDep,
 } from "../Crypto.js";
 import { lazyFalse, lazyVoid } from "../Function.js";
 import { createRecord, getProperty, objectToEntries } from "../Object.js";
@@ -31,20 +30,20 @@ import type {
 import {
   booleanToSqliteBoolean,
   createSqlite,
-  SqliteBoolean,
-  type SqliteValue,
   sql,
+  SqliteBoolean,
   sqliteBooleanToBoolean,
+  SqliteValue,
 } from "../Sqlite.js";
-import type { LeaderLockDep, Task } from "../Task.js";
+import { type LeaderLockDep, type Task } from "../Task.js";
 import { Millis, millisToDateIso, type TimeDep } from "../Time.js";
 import type { Name } from "../Type.js";
 import {
-  type Id,
-  type IdBytes,
+  Id,
+  IdBytes,
   idBytesToId,
   idToIdBytes,
-  PositiveInt,
+  onePositiveInt,
 } from "../Type.js";
 import type { ExtractType } from "../Types.js";
 import type {
@@ -57,13 +56,11 @@ import type {
 import type { OwnerId, OwnerIdBytes } from "./Owner.js";
 import { ownerIdBytesToOwnerId, ownerIdToOwnerIdBytes } from "./Owner.js";
 import {
-  createProtocolMessageFromCrdtMessages,
   decryptAndDecodeDbChange,
   encodeAndEncryptDbChange,
-  type ProtocolInvalidDataError,
-  type ProtocolMessage,
-  type ProtocolTimestampMismatchError,
   protocolVersion,
+  type ProtocolInvalidDataError,
+  type ProtocolTimestampMismatchError,
 } from "./Protocol.js";
 import { deserializeQuery, type Query } from "./Query.js";
 import type { MutationChange, SqliteSchemaDep } from "./Schema.js";
@@ -75,20 +72,19 @@ import {
 import type {
   DbWorkerInput,
   DbWorkerOutput,
-  QueuedResponse,
+  DbWorkerQueuedResponse,
 } from "./Shared.js";
 import {
-  type BaseSqliteStorage,
-  type BaseSqliteStorageDep,
-  type CrdtMessage,
   createBaseSqliteStorage,
   createBaseSqliteStorageTables,
   DbChange,
-  getNextStoredBytes,
   getOwnerUsage,
   getTimestampInsertStrategy,
-  type Storage,
   updateOwnerUsage,
+  type BaseSqliteStorage,
+  type BaseSqliteStorageDep,
+  type CrdtMessage,
+  type Storage,
 } from "./Storage.js";
 import type {
   Timestamp,
@@ -101,10 +97,10 @@ import {
   defaultTimestampMaxDrift,
   receiveTimestamp,
   sendTimestamp,
-  type TimestampBytes,
-  type TimestampConfigDep,
+  TimestampBytes,
   timestampBytesToTimestamp,
   timestampToTimestampBytes,
+  type TimestampConfigDep,
 } from "./Timestamp.js";
 
 export type DbWorker = Worker<DbWorkerInit>;
@@ -119,8 +115,6 @@ export interface DbWorkerInit {
 }
 
 export type CreateDbWorker = () => DbWorker;
-
-const processedRequestIdsLimit = 10_000;
 
 export interface CreateDbWorkerDep {
   readonly createDbWorker: CreateDbWorker;
@@ -174,11 +168,7 @@ export const initDbWorker =
 
       void run.daemon(async (run) => {
         const lockResult = await run(leaderLock.lock(name));
-        if (!lockResult.ok) {
-          console.info("leaderLock not acquired");
-          return lockResult;
-        }
-        stack.use(lockResult.value);
+        if (lockResult.ok) stack.use(lockResult.value);
         console.info("leaderLock acquired");
         port.postMessage({ type: "LeaderAcquired", name });
         return run.addDeps({
@@ -216,13 +206,7 @@ const startDbWorker =
 
     const baseSqliteStorage = createBaseSqliteStorage({ sqlite, ...run.deps });
 
-    const deps = {
-      ...run.deps,
-      sqlite,
-      sqliteSchema,
-      baseSqliteStorage,
-      encryptionKey,
-    };
+    const deps = { ...run.deps, sqlite, sqliteSchema, baseSqliteStorage };
 
     const currentSchema = getEvoluSqliteSchema(deps)();
     const dbIsInitialized = "evolu_version" in currentSchema.tables;
@@ -238,43 +222,18 @@ const startDbWorker =
      * SharedWorker repeats sends until it gets a response, so handling here
      * must be idempotent and ignore already processed IDs.
      *
-     * processedRequestIds combines a size-based bound with time-based
-     * expiration to limit memory growth and reduce replay windows.
+     * TODO: Bound memory growth by evicting old IDs.
      */
     const processedRequestIds = new Set<Id>();
-    const processedRequestIdsOrder: Array<{
-      readonly id: Id;
-      readonly processedAt: Millis;
-    }> = [];
-    const processedRequestIdTtl = Millis.orThrow(5 * 60 * 1000);
 
     const { port } = run.deps;
 
     port.onMessage = ({ callbackId, request, evoluPortId }) => {
-      const now = run.deps.time.now();
-
-      while (processedRequestIdsOrder.length > 0) {
-        const oldest = processedRequestIdsOrder[0];
-        if (now - oldest.processedAt <= processedRequestIdTtl) break;
-        processedRequestIdsOrder.shift();
-        processedRequestIds.delete(oldest.id);
-      }
-
       if (processedRequestIds.has(callbackId)) return;
       processedRequestIds.add(callbackId);
-      processedRequestIdsOrder.push({
-        id: callbackId,
-        processedAt: now,
-      });
-      if (processedRequestIdsOrder.length > processedRequestIdsLimit) {
-        const oldest = processedRequestIdsOrder.shift();
-        if (oldest) processedRequestIds.delete(oldest.id);
-      }
-
-      // console.debug("onQueuedEvoluInput", callbackId);
 
       let result: Result<
-        QueuedResponse,
+        DbWorkerQueuedResponse,
         | TimestampDriftError
         | TimestampCounterOverflowError
         | TimestampTimeOutOfRangeError
@@ -613,53 +572,37 @@ const _createClientStorage =
         // check if this owner is within quota before accepting the data.
         // This prevents an owner from exceeding storage limits when receiving
         // data shared by other collaborators.
-        if (encryptedMessages.length === 0) return ok();
 
         const messages: Array<CrdtMessage> = [];
-        let incomingBytesSum = 0;
 
         for (const message of encryptedMessages) {
           const change = decryptAndDecodeDbChange(message, deps.encryptionKey);
           if (!change.ok) {
             onError(change.error);
-            continue;
+            return ok();
           }
-          incomingBytesSum += message.change.length;
           messages.push({ timestamp: message.timestamp, change: change.value });
         }
-        if (messages.length === 0) return ok();
 
-        const incomingBytes = PositiveInt.orThrow(incomingBytesSum);
-
-        const clockTimestamp = deps.clock.get();
-        let validatedClockTimestamp = clockTimestamp;
-        const timestampErrors = [];
+        let clockTimestamp = deps.clock.get();
 
         for (const message of messages) {
           const nextTimestamp = receiveTimestamp(deps)(
-            validatedClockTimestamp,
+            clockTimestamp,
             message.timestamp,
           );
           if (!nextTimestamp.ok) {
-            timestampErrors.push(nextTimestamp.error);
-            continue;
+            onError(nextTimestamp.error);
+            return ok();
           }
-          validatedClockTimestamp = nextTimestamp.value;
-        }
-        if (timestampErrors.length > 0) {
-          timestampErrors.forEach(onError);
-          return ok();
+          clockTimestamp = nextTimestamp.value;
         }
 
         assertNonEmptyReadonlyArray(messages);
 
         return deps.sqlite.transaction(() => {
-          applyMessages(deps)(
-            ownerIdBytesToOwnerId(ownerIdBytes),
-            messages,
-            incomingBytes,
-          );
-          deps.clock.save(validatedClockTimestamp);
+          applyMessages(deps)(ownerIdBytesToOwnerId(ownerIdBytes), messages);
+          deps.clock.save(clockTimestamp);
           return ok();
         });
       },
@@ -728,8 +671,6 @@ const handleMutation =
   (
     deps: BaseSqliteStorageDep &
       ClockDep &
-      EncryptionKeyDep &
-      RandomBytesDep &
       SqliteSchemaDep &
       RandomBytesDep &
       SqliteDep &
@@ -739,7 +680,7 @@ const handleMutation =
   (
     message: ExtractType<DbWorkerInput["request"], "Mutate">,
   ): Result<
-    ExtractType<QueuedResponse, "Mutate">,
+    ExtractType<DbWorkerQueuedResponse, "Mutate">,
     | TimestampDriftError
     | TimestampCounterOverflowError
     | TimestampTimeOutOfRangeError
@@ -778,26 +719,10 @@ const handleMutation =
 
       if (clockChanged) deps.clock.save(clockTimestamp);
 
-      const rowsByQuery = loadQueries(deps)(message.subscribedQueries);
-      const protocolMessagesByOwnerId = new Map<OwnerId, ProtocolMessage>();
-
-      for (const owner of message.syncOwners ?? emptyArray) {
-        const ownerMessages = messagesByOwnerId.get(owner.id);
-        if (!ownerMessages) continue;
-
-        protocolMessagesByOwnerId.set(
-          owner.id,
-          createProtocolMessageFromCrdtMessages(deps)(owner, ownerMessages),
-        );
-      }
-
       return ok({
         type: "Mutate",
         messagesByOwnerId,
-        // TODO: Split sync packaging into a separate queued step so local UI
-        // updates do not wait for protocol message generation.
-        protocolMessagesByOwnerId,
-        rowsByQuery,
+        rowsByQuery: loadQueries(deps)(message.subscribedQueries),
       });
     });
 
@@ -826,19 +751,8 @@ const applyLocalOnlyChange =
   };
 
 const applyMessages =
-  (
-    deps: BaseSqliteStorageDep &
-      ClockDep &
-      EncryptionKeyDep &
-      RandomBytesDep &
-      SqliteSchemaDep &
-      SqliteDep,
-  ) =>
-  (
-    ownerId: OwnerId,
-    messages: NonEmptyReadonlyArray<CrdtMessage>,
-    incomingBytes?: PositiveInt,
-  ): void => {
+  (deps: BaseSqliteStorageDep & ClockDep & SqliteSchemaDep & SqliteDep) =>
+  (ownerId: OwnerId, messages: NonEmptyReadonlyArray<CrdtMessage>): void => {
     const ownerIdBytes = ownerIdToOwnerIdBytes(ownerId);
 
     const usage = getOwnerUsage(deps)(
@@ -898,23 +812,13 @@ const applyMessages =
       );
     }
 
-    const resolvedIncomingBytes =
-      incomingBytes ??
-      PositiveInt.orThrow(
-        messages.reduce(
-          (sum, message) =>
-            sum +
-            encodeAndEncryptDbChange(deps)(message, deps.encryptionKey).length,
-          0,
-        ),
-      );
-    const nextStoredBytes = getNextStoredBytes(
-      usage.value.storedBytes,
-      resolvedIncomingBytes,
-    );
+    /**
+     * TODO: Implement proper storedBytes tracking for client using received and
+     * sent encrypted message sizes.
+     */
     updateOwnerUsage(deps)(
       ownerIdBytes,
-      nextStoredBytes,
+      onePositiveInt, // Placeholder until proper tracking implemented
       firstTimestamp,
       lastTimestamp,
     );
@@ -950,16 +854,6 @@ const loadQueries =
 
     return rowsByQuery;
   };
-
-export const testStartDbWorker = startDbWorker;
-
-export const testCreateClock = createClock;
-
-export const testInitializeDb = initializeDb;
-
-export const testHandleMutation = handleMutation;
-
-export const testTryApplyQuarantinedMessages = tryApplyQuarantinedMessages;
 
 //   reset: (deps) => (message) => {
 //     const result = deps.sqlite.transaction(() => {

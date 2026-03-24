@@ -13,7 +13,9 @@ import {
   EncryptionKey,
   Entropy16,
   Entropy32,
+  testCreateRandomBytes,
 } from "../Crypto.js";
+import { testCreateRandomLib } from "../Random.js";
 import { getOrNull } from "../Result.js";
 import {
   brand,
@@ -21,12 +23,12 @@ import {
   IdBytes,
   idBytesToId,
   idToIdBytes,
-  type Mnemonic,
+  Mnemonic,
   NonNegativeInt,
   type Typed,
 } from "../Type.js";
 import type { EncryptedDbChange, Storage } from "./Storage.js";
-import type { TimestampBytes } from "./Timestamp.js";
+import { TimestampBytes } from "./Timestamp.js";
 
 /**
  * {@link Owner} without a {@link OwnerWriteKey}.
@@ -73,6 +75,15 @@ export interface ReadonlyOwner {
 export interface Owner extends ReadonlyOwner {
   /** TODO: Wrap with `Redacted` in the next major version. */
   readonly writeKey: OwnerWriteKey;
+}
+
+/**
+ * An {@link ReadonlyOwner} or {@link Owner} with non-empty {@link OwnerTransport}s
+ * so it can be synced.
+ */
+export interface SyncOwner {
+  readonly owner: ReadonlyOwner | Owner;
+  readonly transports: NonEmptyReadonlyArray<OwnerTransport>;
 }
 
 /** OwnerId is a branded {@link Id} that uniquely identifies an {@link Owner}. */
@@ -129,6 +140,13 @@ export type OwnerSecret = typeof OwnerSecret.Type;
 /** Creates a {@link OwnerSecret}. */
 export const createOwnerSecret = (deps: RandomBytesDep): OwnerSecret =>
   deps.randomBytes.create(32) as OwnerSecret;
+
+/** Deterministic {@link OwnerSecret} for tests. */
+export const testOwnerSecret = /*#__PURE__*/ createOwnerSecret({
+  randomBytes: /*#__PURE__*/ testCreateRandomBytes({
+    randomLib: /*#__PURE__*/ testCreateRandomLib(),
+  }),
+});
 
 /** Converts an {@link OwnerSecret} to a {@link Mnemonic}. */
 export const ownerSecretToMnemonic = (secret: OwnerSecret): Mnemonic =>
@@ -192,7 +210,9 @@ const createOwner = (secret: OwnerSecret): Owner => ({
  */
 export interface AppOwner extends Owner, Typed<"AppOwner"> {
   /**
-   * The mnemonic that was used to derive the AppOwner keys.
+   * The mnemonic that was used to derive the AppOwner keys. Optional when the
+   * AppOwner is created from external keys to avoid sharing the mnemonic with
+   * the Evolu app.
    *
    * TODO: Wrap with `Redacted` in the next major version.
    */
@@ -209,6 +229,9 @@ export const createAppOwner = (secret: OwnerSecret): AppOwner => ({
   type: "AppOwner",
   mnemonic: ownerSecretToMnemonic(secret),
 });
+
+/** Deterministic {@link AppOwner} for tests. */
+export const testAppOwner = /*#__PURE__*/ createAppOwner(testOwnerSecret);
 
 /**
  * An {@link Owner} for sharding data.
@@ -280,8 +303,7 @@ export const createSharedOwner = (secret: OwnerSecret): SharedOwner => ({
  * data without write access.
  */
 export interface SharedReadonlyOwner
-  extends ReadonlyOwner,
-    Typed<"SharedReadonlyOwner"> {}
+  extends ReadonlyOwner, Typed<"SharedReadonlyOwner"> {}
 
 /** Creates a {@link SharedReadonlyOwner} from a {@link SharedOwner}. */
 export const createSharedReadonlyOwner = (
