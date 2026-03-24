@@ -65,7 +65,7 @@
     "@noble/ciphers": "^2.1.1",
     "@noble/hashes": "^2.0.1",
     "@scure/bip39": "^2.0.1",
-    "kysely": "^0.28.13",
+    "kysely": "^0.28.14",
     "msgpackr": "^1.11.9",
     "zod": "^4.3.6"
   },
@@ -84,6 +84,6 @@
     "fast-check": "^4.6.0",
     "playwright": "^1.58.2",
     "typescript": "^5.9.3",
-    "ws": "^8.19.0"
+    "ws": "^8.20.0"
   }
 }
