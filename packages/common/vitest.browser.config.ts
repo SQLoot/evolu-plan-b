@@ -13,6 +13,7 @@ const isSingleBrowserRun =
   process.argv.includes("--coverage") ||
   process.env.VITEST_VSCODE === "true" ||
   "Bun" in globalThis;
+const browserApiPort = Number(process.env.VITEST_BROWSER_API_PORT ?? "63315");
 
 export default defineProject({
   // Transpile `using`/`await using` for WebKit which doesn't support it yet
@@ -32,7 +33,9 @@ export default defineProject({
     setupFiles: ["./test/_browserSetup.ts"],
     browser: {
       enabled: true,
-      api: { port: 63315 },
+      // Defaults to deterministic port for worker coordination; can be
+      // overridden in parallel CI runs via VITEST_BROWSER_API_PORT.
+      api: { port: Number.isFinite(browserApiPort) ? browserApiPort : 63315 },
       provider: playwright(),
       headless: true,
       // Sequential execution is faster than parallel for some reason.

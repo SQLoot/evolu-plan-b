@@ -1158,9 +1158,13 @@ export const applyProtocolMessageAsRelay =
           );
 
           if (!result.ok) {
+            const errorCode =
+              result.error.type === "StorageQuotaError"
+                ? ProtocolErrorCode.QuotaError
+                : ProtocolErrorCode.WriteError;
             const message = createProtocolMessageBuffer(ownerId, {
               messageType: MessageType.Response,
-              errorCode: ProtocolErrorCode.QuotaError,
+              errorCode,
             }).unwrap();
             return ok({ type: "Response", message });
           }

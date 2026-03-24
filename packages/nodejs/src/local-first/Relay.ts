@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { createServer } from "node:http";
+import type { Socket } from "node:net";
 import {
   type CreateSqliteDriverDep,
   createRandom,
@@ -128,6 +129,15 @@ export const startRelay =
         noServer: true,
       });
       const ownerSocketRelation = createRelation<OwnerId, WebSocket>();
+      const serverSockets = new Set<Socket>();
+      const shutdownTimeoutMs = 10_000;
+
+      server.on("connection", (socket) => {
+        serverSockets.add(socket);
+        socket.on("close", () => {
+          serverSockets.delete(socket);
+        });
+      });
 
       server.on("upgrade", (request, socket, head) => {
         socket.on("error", console.debug);
@@ -233,6 +243,46 @@ export const startRelay =
         });
       });
 
+      const closeWebSocketServer = (): Promise<void> =>
+        new Promise((resolve) => {
+          let settled = false;
+          const timeoutId = globalThis.setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            for (const client of wss.clients) client.terminate();
+            console.warn("WebSocketServer close timed out; terminated clients");
+            resolve();
+          }, shutdownTimeoutMs);
+
+          wss.close(() => {
+            if (settled) return;
+            settled = true;
+            globalThis.clearTimeout(timeoutId);
+            console.info("WebSocketServer closed");
+            resolve();
+          });
+        });
+
+      const closeHttpServer = (): Promise<void> =>
+        new Promise((resolve) => {
+          let settled = false;
+          const timeoutId = globalThis.setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            for (const socket of serverSockets) socket.destroy();
+            console.warn("HTTP server close timed out; destroyed open sockets");
+            resolve();
+          }, shutdownTimeoutMs);
+
+          server.close(() => {
+            if (settled) return;
+            settled = true;
+            globalThis.clearTimeout(timeoutId);
+            console.info("HTTP server closed");
+            resolve();
+          });
+        });
+
       // Cleanup runs in LIFO order: clients → WebSocketServer → HTTP server
       await new Promise<void>((resolve, reject) => {
         const onError = (error: Error) => {
@@ -263,20 +313,8 @@ export const startRelay =
               }
             }
 
-            await new Promise<void>((resolve) => {
-              // wss.close() emits 'close' when all clients have disconnected.
-              wss.close(() => {
-                console.info("WebSocketServer closed");
-                resolve();
-              });
-            });
-
-            await new Promise<void>((resolve) => {
-              server.close(() => {
-                console.info("HTTP server closed");
-                resolve();
-              });
-            });
+            await closeWebSocketServer();
+            await closeHttpServer();
 
             try {
               await relayRun[Symbol.asyncDispose]();

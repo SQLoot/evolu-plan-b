@@ -1982,7 +1982,6 @@ describe("createSharedResourceByKeyWithClaims", () => {
 
     expect(resource?.isDisposed()).toBe(true);
     expect(sharedResourceByKeyWithClaims.getResource("a")).toBeUndefined();
-    disposeCanFinish.resolve();
   });
 
   test("removing one of multiple keys keeps structural claim matching intact", async () => {

@@ -10,6 +10,7 @@ import { firstInArray, isNonEmptyArray } from "../Array.js";
 import { assert } from "../Assert.js";
 import type { Brand } from "../Brand.js";
 import { concatBytes } from "../Buffer.js";
+import type { DecryptWithXChaCha20Poly1305Error } from "../Crypto.js";
 import { decrement } from "../Number.js";
 import type { RandomDep } from "../Random.js";
 import type { Result } from "../Result.js";
@@ -38,12 +39,19 @@ import type {
   OwnerIdBytes,
   OwnerWriteKey,
 } from "./Owner.js";
+import type {
+  ProtocolInvalidDataError,
+  ProtocolTimestampMismatchError,
+} from "./Protocol.js";
 import { systemColumnsWithId } from "./Schema.js";
 import {
   createTimestamp,
   orderTimestampBytes,
   type Timestamp,
   type TimestampBytes,
+  type TimestampCounterOverflowError,
+  type TimestampDriftError,
+  type TimestampTimeOutOfRangeError,
 } from "./Timestamp.js";
 
 export interface StorageConfig {
@@ -160,7 +168,7 @@ export interface Storage {
   readonly writeMessages: (
     ownerIdBytes: OwnerIdBytes,
     messages: NonEmptyReadonlyArray<EncryptedCrdtMessage>,
-  ) => Task<void, StorageQuotaError>;
+  ) => Task<void, StorageWriteMessagesError>;
 
   /** Read encrypted {@link DbChange}s from storage. */
   readonly readDbChange: (
@@ -180,6 +188,15 @@ export interface StorageDep {
 export interface StorageQuotaError
   extends OwnerError,
     Typed<"StorageQuotaError"> {}
+
+export type StorageWriteMessagesError =
+  | StorageQuotaError
+  | DecryptWithXChaCha20Poly1305Error
+  | ProtocolInvalidDataError
+  | ProtocolTimestampMismatchError
+  | TimestampCounterOverflowError
+  | TimestampDriftError
+  | TimestampTimeOutOfRangeError;
 
 /**
  * A cryptographic hash used for efficiently comparing collections of

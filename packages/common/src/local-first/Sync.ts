@@ -7,7 +7,6 @@
 import type { NonEmptyReadonlyArray } from "../Array.js";
 import type { Result } from "../Result.js";
 import type { Task } from "../Task.js";
-import type { Typed } from "../Type.js";
 import type { OwnerIdBytes, OwnerWriteKey, SyncOwner } from "./Owner.js";
 import type { MutationChange } from "./Schema.js";
 import type {
@@ -15,7 +14,7 @@ import type {
   EncryptedCrdtMessage,
   EncryptedDbChange,
   Storage,
-  StorageQuotaError,
+  StorageWriteMessagesError,
 } from "./Storage.js";
 import type {
   Timestamp,
@@ -123,22 +122,21 @@ export const applyLocalOnlyChange =
  *
  * @deprecated Use owner-level sync APIs and transport claims in Shared runtime.
  */
-export type { SyncState } from "./Shared.js";
+export type {
+  NetworkError,
+  PaymentRequiredError,
+  ServerError,
+  SyncState,
+  SyncStateInitial,
+  SyncStateIsNotSynced,
+  SyncStateIsSynced,
+  SyncStateIsSyncing,
+} from "./Shared.js";
 
 /** @deprecated Compatibility constant until sync-state API is reintroduced. */
-export const initialSyncState = 123 as import("./Shared.js").SyncState;
-
-export interface SyncStateInitial extends Typed<"SyncStateInitial"> {}
-
-export interface SyncStateIsSyncing extends Typed<"SyncStateIsSyncing"> {}
-
-export interface SyncStateIsSynced extends Typed<"SyncStateIsSynced"> {
-  readonly time: Date;
-}
-
-export interface SyncStateIsNotSynced extends Typed<"SyncStateIsNotSynced"> {
-  readonly error: Error;
-}
+export const initialSyncState: import("./Shared.js").SyncState = {
+  type: "SyncStateInitial",
+};
 
 /**
  * Helper to retain legacy function signatures used in older adapters.
@@ -148,7 +146,7 @@ export interface SyncStateIsNotSynced extends Typed<"SyncStateIsNotSynced"> {
 export type LegacyWriteMessages = (
   ownerIdBytes: OwnerIdBytes,
   messages: NonEmptyReadonlyArray<EncryptedCrdtMessage>,
-) => Task<void, StorageQuotaError>;
+) => Task<void, StorageWriteMessagesError>;
 
 /**
  * Helper to retain legacy function signatures used in older adapters.

@@ -26,7 +26,8 @@ import { ok } from "../Result.js";
 import { spaced } from "../Schedule.js";
 import type { NonEmptyReadonlySet } from "../Set.js";
 import { type Fiber, repeat, type Task, unabortable } from "../Task.js";
-import { createId, type Id, type Name } from "../Type.js";
+import type { Millis } from "../Time.js";
+import { createId, type Id, type Name, type Typed } from "../Type.js";
 import type { Callback, ExtractType } from "../Types.js";
 import type { CreateWebSocketDep, WebSocket } from "../WebSocket.js";
 import type {
@@ -321,7 +322,36 @@ export type DbWorkerQueuedResponse =
       readonly type: "CreateSyncMessages";
     };
 
-export type SyncState = 123;
+export interface NetworkError extends Typed<"NetworkError"> {
+  readonly error: unknown;
+}
+
+export interface ServerError extends Typed<"ServerError"> {
+  readonly status: number;
+  readonly error: unknown;
+}
+
+export interface PaymentRequiredError extends Typed<"PaymentRequiredError"> {
+  readonly error: unknown;
+}
+
+export interface SyncStateInitial extends Typed<"SyncStateInitial"> {}
+
+export interface SyncStateIsSyncing extends Typed<"SyncStateIsSyncing"> {}
+
+export interface SyncStateIsSynced extends Typed<"SyncStateIsSynced"> {
+  readonly time: Millis;
+}
+
+export interface SyncStateIsNotSynced extends Typed<"SyncStateIsNotSynced"> {
+  readonly error: NetworkError | PaymentRequiredError | ServerError;
+}
+
+export type SyncState =
+  | SyncStateInitial
+  | SyncStateIsSyncing
+  | SyncStateIsSynced
+  | SyncStateIsNotSynced;
 
 const createSharedEvolu =
   (name: Name): Task<SharedEvolu, never, SharedEvoluDeps> =>
@@ -354,6 +384,22 @@ const createSharedEvolu =
       DbWorkerOutput
     > | null;
     let queueProcessingFiber: Fiber<void, never, WorkerDeps> | null = null;
+    const pendingSharedEvoluOps = new Set<Promise<unknown>>();
+
+    const trackSharedEvoluOp = <T>(operation: PromiseLike<T>): Promise<T> => {
+      const tracked = Promise.resolve(operation);
+      pendingSharedEvoluOps.add(tracked);
+      void tracked.finally(() => {
+        pendingSharedEvoluOps.delete(tracked);
+      });
+      return tracked;
+    };
+
+    const waitForPendingSharedEvoluOps = async (): Promise<void> => {
+      while (pendingSharedEvoluOps.size > 0) {
+        await Promise.allSettled(Array.from(pendingSharedEvoluOps));
+      }
+    };
 
     stack.use(sharedEvoluRun);
     const moved = stack.move();
@@ -414,42 +460,47 @@ const createSharedEvolu =
                   });
                 }
 
-                void sharedEvoluRun((run) => {
-                  const createProtocolMessage =
-                    createProtocolMessageFromCrdtMessages(run.deps);
-                  const protocolMessagesByOwnerId = new Map<
-                    OwnerId,
-                    ReturnType<typeof createProtocolMessage>
-                  >();
+                void trackSharedEvoluOp(
+                  sharedEvoluRun((run) => {
+                    const createProtocolMessage =
+                      createProtocolMessageFromCrdtMessages(run.deps);
+                    const protocolMessagesByOwnerId = new Map<
+                      OwnerId,
+                      ReturnType<typeof createProtocolMessage>
+                    >();
 
-                  for (const syncOwner of instance.usedSyncOwners.keys()) {
-                    const { owner } = syncOwner;
-                    const messages = response.messagesByOwnerId.get(owner.id);
+                    for (const syncOwner of instance.usedSyncOwners.keys()) {
+                      const { owner } = syncOwner;
+                      const messages = response.messagesByOwnerId.get(owner.id);
 
-                    // Skip owners this instance does not currently sync for
-                    // writing. Read-only owners cannot produce protocol
-                    // messages because they do not have a write key.
-                    if (!messages || !("writeKey" in owner)) continue;
+                      // Skip owners this instance does not currently sync for
+                      // writing. Read-only owners cannot produce protocol
+                      // messages because they do not have a write key.
+                      if (!messages || !("writeKey" in owner)) continue;
 
-                    protocolMessagesByOwnerId.set(
-                      owner.id,
-                      createProtocolMessage(owner, messages),
-                    );
-                  }
-
-                  for (const [
-                    ownerId,
-                    protocolMessage,
-                  ] of protocolMessagesByOwnerId) {
-                    for (const transport of transports.getResourceKeysForClaim(
-                      ownerId,
-                    )) {
-                      const webSocket = transports.getResource(transport);
-                      if (webSocket?.isOpen()) webSocket.send(protocolMessage);
+                      protocolMessagesByOwnerId.set(
+                        owner.id,
+                        createProtocolMessage(owner, messages),
+                      );
                     }
-                  }
 
-                  return ok();
+                    for (const [
+                      ownerId,
+                      protocolMessage,
+                    ] of protocolMessagesByOwnerId) {
+                      for (const transport of transports.getResourceKeysForClaim(
+                        ownerId,
+                      )) {
+                        const webSocket = transports.getResource(transport);
+                        if (webSocket?.isOpen())
+                          webSocket.send(protocolMessage);
+                      }
+                    }
+
+                    return ok();
+                  }),
+                ).catch((error) => {
+                  console.error("Failed to broadcast protocol messages", error);
                 });
               }
               break;
@@ -496,15 +547,15 @@ const createSharedEvolu =
     ): Task<void, never, SharedEvoluDeps> =>
       unabortable(async (run) => {
         if (action === "add") {
-          evoluInstance.usedSyncOwners.increment(syncOwner);
           await run(
             transports.addClaim(syncOwner.owner.id, syncOwner.transports),
           );
+          evoluInstance.usedSyncOwners.increment(syncOwner);
         } else {
-          evoluInstance.usedSyncOwners.decrement(syncOwner);
           await run(
             transports.removeClaim(syncOwner.owner.id, syncOwner.transports),
           );
+          evoluInstance.usedSyncOwners.decrement(syncOwner);
         }
         return ok();
       });
@@ -628,11 +679,17 @@ const createSharedEvolu =
               // When the last Evolu instance is disposed, broadcast shutdown to
               // all DbWorkers so the current leader can dispose itself and the
               // followers can clean up consistently.
-              void sharedEvoluRun(async (run) => {
-                await run(removeAllUsedSyncOwners(evoluInstance));
-                evoluInstance.usedSyncOwners[Symbol.dispose]();
-                evoluInstance.releaseSharedEvolu();
-                return ok();
+              void Promise.resolve(
+                sharedEvoluRun(async (run) => {
+                  await waitForPendingSharedEvoluOps();
+                  await evoluInstance.ownerActionsChain;
+                  await run(removeAllUsedSyncOwners(evoluInstance));
+                  evoluInstance.usedSyncOwners[Symbol.dispose]();
+                  evoluInstance.releaseSharedEvolu();
+                  return ok();
+                }),
+              ).catch((error: unknown) => {
+                console.error("Failed to dispose Evolu instance", error);
               });
 
               // TODO: Dispose SharedEvolu on the last port.

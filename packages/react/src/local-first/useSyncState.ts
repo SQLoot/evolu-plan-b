@@ -5,11 +5,12 @@ import { EvoluContext } from "./EvoluContext.js";
 /**
  * Subscribe to {@link SyncState} changes.
  *
- * @deprecated TODO(#owner-api-sync-state): wire real sync state subscription in
- * the owner API.
+ * @deprecated Not implemented in owner API yet; calling this hook throws.
  */
 export const useSyncState = (): SyncState => {
   // Keep context subscription semantics until sync-state API is reintroduced.
   void use(EvoluContext);
-  return 123 as SyncState;
+  throw new Error(
+    "useSyncState is deprecated and not implemented yet; SyncState subscription is unavailable in the owner API.",
+  );
 };

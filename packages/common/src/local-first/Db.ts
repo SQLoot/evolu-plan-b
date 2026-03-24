@@ -84,7 +84,7 @@ import {
   getOwnerUsage,
   getTimestampInsertStrategy,
   type Storage,
-  type StorageQuotaError,
+  type StorageWriteMessagesError,
   updateOwnerUsage,
 } from "./Storage.js";
 import type {
@@ -580,10 +580,7 @@ const _createClientStorage =
           const change = decryptAndDecodeDbChange(message, deps.encryptionKey);
           if (!change.ok) {
             onError(change.error);
-            return err<StorageQuotaError>({
-              type: "StorageQuotaError",
-              ownerId: ownerIdBytesToOwnerId(ownerIdBytes),
-            });
+            return err<StorageWriteMessagesError>(change.error);
           }
           messages.push({ timestamp: message.timestamp, change: change.value });
         }
@@ -597,10 +594,7 @@ const _createClientStorage =
           );
           if (!nextTimestamp.ok) {
             onError(nextTimestamp.error);
-            return err<StorageQuotaError>({
-              type: "StorageQuotaError",
-              ownerId: ownerIdBytesToOwnerId(ownerIdBytes),
-            });
+            return err<StorageWriteMessagesError>(nextTimestamp.error);
           }
           clockTimestamp = nextTimestamp.value;
         }

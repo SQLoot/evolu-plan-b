@@ -60,9 +60,9 @@ export type {
 } from "./local-first/Schema.js";
 export { createQueryBuilder } from "./local-first/Schema.js";
 export type {
-  // NetworkError,
-  // PaymentRequiredError,
-  // ServerError,
+  NetworkError,
+  PaymentRequiredError,
+  ServerError,
   SyncState,
 } from "./local-first/Shared.js";
 export type {

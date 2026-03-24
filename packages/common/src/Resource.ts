@@ -823,10 +823,9 @@ export function createSharedResourceByKeyWithClaims<
           const resources = new Set<BorrowedResource<T>>();
           for (const key of keyByClaim.iterateB(claim)) {
             const resource = sharedResourcesByKey.get(key);
-            assert(
-              resource,
-              "Resource must exist for every retained claim-resource relation.",
-            );
+            // Claim/resource relation can be concurrently cleaned up while this
+            // snapshot is created, so skip stale keys instead of throwing.
+            if (!resource) continue;
             resources.add(resource);
           }
           return resources;

@@ -18,19 +18,12 @@ import isSupersetOf from "set.prototype.issupersetof";
 import symmetricDifference from "set.prototype.symmetricdifference";
 import union from "set.prototype.union";
 
-difference.shim();
-intersection.shim();
-isDisjointFrom.shim();
-isSubsetOf.shim();
-isSupersetOf.shim();
-symmetricDifference.shim();
-union.shim();
-
 /** Installs polyfills required by Evolu in React Native runtimes. */
 export const installPolyfills = (): void => {
   installCommonPolyfills();
   installArrayPolyfills();
   installPromisePolyfills();
+  installSetPolyfills();
   installAbortControllerPolyfills();
 };
 
@@ -50,6 +43,16 @@ const installArrayPolyfills = (): void => {
 const installPromisePolyfills = () => {
   withResolvers.shim();
   promiseTry.shim();
+};
+
+const installSetPolyfills = (): void => {
+  difference.shim();
+  intersection.shim();
+  isDisjointFrom.shim();
+  isSubsetOf.shim();
+  isSupersetOf.shim();
+  symmetricDifference.shim();
+  union.shim();
 };
 
 interface AbortControllerConstructor {
@@ -121,7 +124,9 @@ const installAbortReasonPolyfill = (
   const nativeAbort = prototype.abort;
   prototype.abort = function (this: AbortController, reason?: unknown): void {
     const normalizedReason = reason === undefined ? createAbortError() : reason;
-    abortReasonBySignal.set(this.signal, normalizedReason);
+    if (!abortReasonBySignal.has(this.signal)) {
+      abortReasonBySignal.set(this.signal, normalizedReason);
+    }
     nativeAbort.call(this, normalizedReason);
   };
 

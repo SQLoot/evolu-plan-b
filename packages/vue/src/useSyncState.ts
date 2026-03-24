@@ -1,12 +1,13 @@
 import type { SyncState } from "@evolu/common/local-first";
-import { type Ref, ref } from "vue";
+import type { Ref } from "vue";
 
 /**
  * Subscribe to {@link SyncState} changes.
  *
- * @deprecated TODO(#owner-api-sync-state): wire real sync-state subscription in
- * the owner API.
+ * @deprecated Not implemented in owner API yet; calling this composable throws.
  */
 export const useSyncState = (): Ref<SyncState> => {
-  return ref(123 as SyncState);
+  throw new Error(
+    "useSyncState is deprecated and not implemented yet; SyncState subscription is unavailable in the owner API.",
+  );
 };
