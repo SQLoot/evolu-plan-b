@@ -3,10 +3,10 @@ import { existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  runBunDbWorkerScope,
   type BunDbWorkerScope,
   type DbWorkerInput,
   type DbWorkerOutput,
+  runBunDbWorkerScope,
 } from "../src/BunDbWorker.js";
 
 const expectMessage = <T extends DbWorkerOutput["type"]>(

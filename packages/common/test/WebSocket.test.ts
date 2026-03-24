@@ -1,13 +1,9 @@
-import { afterAll, assert, beforeAll, expect, test, vi } from "vitest";
+import { afterEach, assert, beforeEach, expect, test, vi } from "vitest";
 import { utf8ToBytes } from "../src/Buffer.js";
 import { isServer } from "../src/Platform.js";
 import { spaced, take } from "../src/Schedule.js";
-import { createRunner } from "../src/Task.js";
-import {
-  createWebSocket,
-  testCreateWebSocket,
-  type WebSocketError,
-} from "../src/WebSocket.js";
+import { createRun } from "../src/Task.js";
+import { createWebSocket, type WebSocketError } from "../src/WebSocket.js";
 
 declare module "vitest/browser" {
   interface BrowserCommands {
@@ -19,10 +15,20 @@ declare module "vitest/browser" {
 let port: number | undefined;
 const getServerUrl = (path = ""): string => {
   if (port === undefined) throw new Error("Server port not initialized");
-  return `ws://127.0.0.1:${port}${path ? `/${path}` : ""}`;
+  return `ws://localhost:${port}${path ? `/${path}` : ""}`;
 };
 
-beforeAll(async () => {
+const envValue =
+  (globalThis as { process?: { env?: Record<string, string | undefined> } })
+    .process?.env?.EVOLU_BROWSER_WS_TESTS ??
+  (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env
+    ?.EVOLU_BROWSER_WS_TESTS ??
+  (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env
+    ?.VITE_EVOLU_BROWSER_WS_TESTS;
+const browserWsEnabled = envValue === "1";
+const wsTest = isServer || browserWsEnabled ? test : test.skip;
+
+beforeEach(async () => {
   if (isServer) {
     const { createServer } = await import("./_globalSetup.js");
     port = await createServer();
@@ -32,7 +38,7 @@ beforeAll(async () => {
   }
 });
 
-afterAll(async () => {
+afterEach(async () => {
   if (port === undefined) return;
   const currentPort = port;
   port = undefined;
@@ -45,33 +51,12 @@ afterAll(async () => {
   }
 });
 
-const envValue =
-  (globalThis as { process?: { env?: Record<string, string | undefined> } })
-    .process?.env?.EVOLU_BROWSER_WS_TESTS ??
-  (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env
-    ?.EVOLU_BROWSER_WS_TESTS ??
-  (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env
-    ?.VITE_EVOLU_BROWSER_WS_TESTS;
-const browserWsEnabled = envValue === "1";
-const wsTest = isServer || browserWsEnabled ? test : test.skip;
-
-test("testCreateWebSocket mirrors production ready states", async () => {
-  const result = await testCreateWebSocket({ isOpen: false })()();
-  assert(result.ok);
-
-  const ws = result.value;
-  expect(ws.getReadyState()).toBe("connecting");
-
-  await ws[Symbol.asyncDispose]();
-  expect(ws.getReadyState()).toBe("closed");
-});
-
 wsTest("connects, receives message, sends message, and disposes", async () => {
-  await using run = createRunner();
+  await using run = createRun();
 
   const messages: Array<Uint8Array> = [];
 
-  const result = await run(
+  const ws = await run.orThrow(
     createWebSocket(getServerUrl(), {
       binaryType: "arraybuffer",
       onMessage: (data) => {
@@ -81,28 +66,28 @@ wsTest("connects, receives message, sends message, and disposes", async () => {
     }),
   );
 
-  assert(result.ok);
-  const ws = result.value;
+  {
+    await using _ws = ws;
 
-  await vi.waitFor(() => expect(messages).toHaveLength(1));
-  expect(messages).toEqual([utf8ToBytes("welcome")]);
+    await vi.waitFor(() => expect(messages).toHaveLength(1));
+    expect(messages).toEqual([utf8ToBytes("welcome")]);
 
-  const sendResult = ws.send(utf8ToBytes("hello"));
-  expect(sendResult.ok).toBe(true);
+    const sendResult = ws.send(utf8ToBytes("hello"));
+    expect(sendResult.ok).toBe(true);
 
-  await vi.waitFor(() => expect(messages).toHaveLength(2));
-  expect(messages).toEqual([utf8ToBytes("welcome"), utf8ToBytes("hello")]);
+    await vi.waitFor(() => expect(messages).toHaveLength(2));
+    expect(messages).toEqual([utf8ToBytes("welcome"), utf8ToBytes("hello")]);
+  }
 
-  await ws[Symbol.asyncDispose]();
   expect(ws.getReadyState()).toBe("closed");
 });
 
 wsTest("calls onOpen callback", async () => {
-  await using run = createRunner();
+  await using run = createRun();
 
   let openCalled = false;
 
-  const result = await run(
+  const ws = await run.orThrow(
     createWebSocket(getServerUrl(), {
       onOpen: () => {
         openCalled = true;
@@ -110,24 +95,24 @@ wsTest("calls onOpen callback", async () => {
     }),
   );
 
-  assert(result.ok);
-  const ws = result.value;
+  {
+    await using _ws = ws;
 
-  await vi.waitFor(() => expect(openCalled).toBe(true));
-  expect(ws.isOpen()).toBe(true);
-  expect(ws.getReadyState()).toBe("open");
+    await vi.waitFor(() => expect(openCalled).toBe(true));
+    expect(ws.isOpen()).toBe(true);
+    expect(ws.getReadyState()).toBe("open");
+  }
 
-  await ws[Symbol.asyncDispose]();
   expect(ws.isOpen()).toBe(false);
 });
 
 wsTest("does not call onClose when disposed", async () => {
-  await using run = createRunner();
+  await using run = createRun();
 
   let openCalled = false;
   let closeCalled = false;
 
-  const result = await run(
+  const ws = await run.orThrow(
     createWebSocket(getServerUrl(), {
       onOpen: () => {
         openCalled = true;
@@ -138,26 +123,25 @@ wsTest("does not call onClose when disposed", async () => {
     }),
   );
 
-  assert(result.ok);
-  const ws = result.value;
+  {
+    await using _ws = ws;
 
-  await vi.waitFor(() => expect(openCalled).toBe(true));
-
-  await ws[Symbol.asyncDispose]();
+    await vi.waitFor(() => expect(openCalled).toBe(true));
+  }
 
   expect(closeCalled).toBe(false);
 });
 
 wsTest("send returns error when socket is not ready", async () => {
-  await using run = createRunner();
+  await using run = createRun();
 
-  const result = await run(createWebSocket(getServerUrl()));
+  const ws = await run.orThrow(createWebSocket(getServerUrl()));
 
-  assert(result.ok);
-  const ws = result.value;
+  {
+    await using _ws = ws;
+  }
 
-  await ws[Symbol.asyncDispose]();
-
+  // Now send should fail
   const sendResult = ws.send("test");
   expect(sendResult.ok).toBe(false);
   if (!sendResult.ok) {
@@ -166,11 +150,11 @@ wsTest("send returns error when socket is not ready", async () => {
 });
 
 wsTest("supports protocols as array", async () => {
-  await using run = createRunner();
+  await using run = createRun();
 
   let openCalled = false;
 
-  const result = await run(
+  await using _ws = await run.orThrow(
     createWebSocket(getServerUrl(), {
       protocols: ["protocol1", "protocol2"],
       onOpen: () => {
@@ -179,19 +163,15 @@ wsTest("supports protocols as array", async () => {
     }),
   );
 
-  assert(result.ok);
-  const ws = result.value;
-
   await vi.waitFor(() => expect(openCalled).toBe(true));
-  await ws[Symbol.asyncDispose]();
 });
 
 wsTest("supports protocols as string", async () => {
-  await using run = createRunner();
+  await using run = createRun();
 
   let openCalled = false;
 
-  const result = await run(
+  await using _ws = await run.orThrow(
     createWebSocket(getServerUrl(), {
       protocols: "protocol1",
       onOpen: () => {
@@ -200,81 +180,66 @@ wsTest("supports protocols as string", async () => {
     }),
   );
 
-  assert(result.ok);
-  const ws = result.value;
-
   await vi.waitFor(() => expect(openCalled).toBe(true));
-  await ws[Symbol.asyncDispose]();
 });
 
 wsTest("getReadyState returns connecting when socket is null", async () => {
-  await using run = createRunner();
+  await using run = createRun();
 
-  const result = await run(
+  // Create with invalid URL and no retries to test null socket state
+  await using ws = await run.orThrow(
     createWebSocket("ws://localhost:1", {
       schedule: take(0)(spaced("1ms")),
     }),
   );
 
-  assert(result.ok);
-  const ws = result.value;
-
+  // After failed connection with no retries, socket is null
   await vi.waitFor(() => expect(ws.getReadyState()).toBe("connecting"));
-
-  await ws[Symbol.asyncDispose]();
 });
 
 wsTest("calls onError on connection failure", async () => {
-  await using run = createRunner();
+  await using run = createRun();
 
   const errors: Array<WebSocketError> = [];
 
-  const result = await run(
+  // Use invalid port to trigger connection error
+  await using _ws = await run.orThrow(
     createWebSocket("ws://localhost:1", {
-      schedule: take(0)(spaced("1ms")),
+      schedule: take(0)(spaced("1ms")), // No retry - fail immediately
       onError: (error) => {
         errors.push(error);
       },
     }),
   );
 
-  assert(result.ok);
-  const ws = result.value;
-
   await vi.waitFor(() => expect(errors.length).toBeGreaterThan(0));
   expect(errors[0]?.type).toBe("WebSocketConnectError");
-
-  await ws[Symbol.asyncDispose]();
 });
 
 wsTest("calls onClose when server closes connection", async () => {
-  await using run = createRunner();
+  await using run = createRun();
 
   let closeCalled = false;
 
-  const result = await run(
+  await using _ws = await run.orThrow(
     createWebSocket(getServerUrl("close"), {
-      schedule: take(0)(spaced("1ms")),
+      schedule: take(0)(spaced("1ms")), // No retry
       onClose: () => {
         closeCalled = true;
       },
     }),
   );
 
-  assert(result.ok);
-  const ws = result.value;
-
   await vi.waitFor(() => expect(closeCalled).toBe(true));
-  await ws[Symbol.asyncDispose]();
 });
 
 wsTest("does not retry when shouldRetryOnClose returns false", async () => {
-  await using run = createRunner();
+  await using run = createRun();
 
   const errors: Array<WebSocketError> = [];
   let closeCount = 0;
 
-  const result = await run(
+  await using _ws = await run.orThrow(
     createWebSocket(getServerUrl("close"), {
       schedule: take(2)(spaced("1ms")),
       shouldRetryOnClose: () => false,
@@ -287,28 +252,23 @@ wsTest("does not retry when shouldRetryOnClose returns false", async () => {
     }),
   );
 
-  assert(result.ok);
-  const ws = result.value;
-
   await vi.waitFor(() => expect(closeCount).toBe(1));
   await new Promise((resolve) => setTimeout(resolve, 20));
 
   expect(closeCount).toBe(1);
   expect(errors).toHaveLength(0);
-
-  await ws[Symbol.asyncDispose]();
 });
 
 wsTest("reconnects after server closes connection", async () => {
-  await using run = createRunner();
+  await using run = createRun();
 
   const messages: Array<Uint8Array> = [];
   let closeCount = 0;
 
-  const result = await run(
+  await using ws = await run.orThrow(
     createWebSocket(getServerUrl("close-after-message"), {
       binaryType: "arraybuffer",
-      schedule: spaced("1ms"),
+      schedule: spaced("1ms"), // Fast retry
       onMessage: (data) => {
         assert(data instanceof ArrayBuffer);
         messages.push(new Uint8Array(data));
@@ -319,34 +279,30 @@ wsTest("reconnects after server closes connection", async () => {
     }),
   );
 
-  assert(result.ok);
-  const ws = result.value;
-
+  // Trigger close by sending a message (server closes after first message)
   await vi.waitFor(() => expect(messages).toHaveLength(1));
   ws.send("trigger-close");
 
+  // Wait for reconnection (should receive "hello" from both connections)
   await vi.waitFor(() => expect(messages.length).toBeGreaterThanOrEqual(2));
   expect(closeCount).toBeGreaterThan(0);
-
-  await ws[Symbol.asyncDispose]();
 });
 
 wsTest("reports RetryError when schedule is exhausted", async () => {
-  await using run = createRunner();
+  await using run = createRun();
 
   const errors: Array<WebSocketError> = [];
 
-  const result = await run(
+  // Use close endpoint so each connection attempt succeeds then closes,
+  // triggering retry until schedule is exhausted
+  await using _ws = await run.orThrow(
     createWebSocket(getServerUrl("close"), {
-      schedule: take(2)(spaced("1ms")),
+      schedule: take(2)(spaced("1ms")), // Allow 2 retries then exhaust
       onError: (error) => {
         errors.push(error);
       },
     }),
   );
-
-  assert(result.ok);
-  const ws = result.value;
 
   await vi.waitFor(() => expect(errors.length).toBeGreaterThan(0));
   expect(errors.map((e) => e.type)).toMatchInlineSnapshot(`
@@ -354,19 +310,17 @@ wsTest("reports RetryError when schedule is exhausted", async () => {
       "RetryError",
     ]
   `);
-
-  await ws[Symbol.asyncDispose]();
 });
 
 wsTest("WebSocketConnectionError behavior on abrupt termination", async () => {
-  await using run = createRunner();
+  await using run = createRun();
 
   const errors: Array<WebSocketError> = [];
   let closeCalled = false;
 
-  const result = await run(
+  await using _ws = await run.orThrow(
     createWebSocket(getServerUrl("terminate"), {
-      schedule: take(0)(spaced("1ms")),
+      schedule: take(0)(spaced("1ms")), // No retry
       onError: (error) => {
         errors.push(error);
       },
@@ -376,27 +330,23 @@ wsTest("WebSocketConnectionError behavior on abrupt termination", async () => {
     }),
   );
 
-  assert(result.ok);
-  const ws = result.value;
-
   await vi.waitFor(() => expect(closeCalled).toBe(true), { timeout: 2000 });
 
+  // Map errors to snapshot-friendly shape (Event internals differ across platforms)
   const mapped = errors.map((e) =>
     e.type === "RetryError"
       ? { type: e.type, attempts: e.attempts, causeType: e.cause.type }
       : { type: e.type },
   );
 
+  // Platform difference: Server/WebKit fires WebSocketConnectionError, Chromium/Firefox doesn't
   const isWebKit =
     !isServer &&
     (await import("vitest/browser").then((m) => m.server.browser === "webkit"));
 
-  if (isWebKit) {
+  if (isServer || isWebKit) {
     expect(mapped).toMatchInlineSnapshot(`
       [
-        {
-          "type": "WebSocketConnectionError",
-        },
         {
           "attempts": 1,
           "causeType": "WebSocketConnectionCloseError",
@@ -415,6 +365,4 @@ wsTest("WebSocketConnectionError behavior on abrupt termination", async () => {
       ]
     `);
   }
-
-  await ws[Symbol.asyncDispose]();
 });

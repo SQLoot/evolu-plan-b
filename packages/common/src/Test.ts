@@ -4,19 +4,19 @@
  * @module
  */
 
-import { testCreateConsole, type TestConsoleDep } from "./Console.js";
+import { type TestConsoleDep, testCreateConsole } from "./Console.js";
 import { Entropy32, testCreateRandomBytes } from "./Crypto.js";
 import {
+  type RandomLibDep,
   testCreateRandom,
   testCreateRandomLib,
-  type RandomLibDep,
 } from "./Random.js";
 import { createRun, type Run, type RunDeps } from "./Task.js";
 import {
+  type Duration,
   minMillis,
   setTimeout,
   testCreateTime,
-  type Duration,
 } from "./Time.js";
 
 export type TestDeps = RunDeps & TestConsoleDep & RandomLibDep;

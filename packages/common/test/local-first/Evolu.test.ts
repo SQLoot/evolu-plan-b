@@ -23,10 +23,10 @@ import { createOwnerWebSocketTransport } from "../../src/local-first/Owner.js";
 import { testQuery, testQuery2 } from "../../src/local-first/Query.js";
 import { createQueryBuilder } from "../../src/local-first/Schema.js";
 import {
-  initSharedWorker,
   type EvoluInput,
   type EvoluOutput,
   type EvoluTabOutput,
+  initSharedWorker,
   type SharedWorker,
   type SharedWorkerInput,
 } from "../../src/local-first/Shared.js";
@@ -62,7 +62,6 @@ import { testCreateSqliteDeps } from "../_deps.js";
 import { testAppOwner } from "./_fixtures.js";
 
 const TodoId = id("Todo");
-type TodoId = typeof TodoId.Type;
 
 const Schema = {
   todo: {
@@ -1264,7 +1263,7 @@ describe("unit tests", () => {
               "id": Any<String>,
               "isDelete": null,
               "isInsert": true,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
               "table": "todo",
               "values": {
                 "title": "Todo 1",
@@ -1323,7 +1322,7 @@ describe("unit tests", () => {
               "id": "VPIPiOGb2m2OlsM-pg18CA",
               "isDelete": true,
               "isInsert": false,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
               "table": "todo",
               "values": {
                 "title": "Updated",
@@ -1333,7 +1332,7 @@ describe("unit tests", () => {
               "id": "j4rh6UkYDIqXKLCOX4ru2A",
               "isDelete": null,
               "isInsert": true,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
               "table": "todo",
               "values": {
                 "title": "Upserted",
@@ -1394,7 +1393,7 @@ describe("unit tests", () => {
               "id": Any<String>,
               "isDelete": null,
               "isInsert": true,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
               "table": "todo",
               "values": {
                 "title": "A",
@@ -1404,7 +1403,7 @@ describe("unit tests", () => {
               "id": "fOTG65tQ_ZYHpSBp3GbogA",
               "isDelete": null,
               "isInsert": false,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
               "table": "todo",
               "values": {
                 "title": "B",
@@ -1414,7 +1413,7 @@ describe("unit tests", () => {
               "id": "3I1Sfwp5IxdacWcpAna5qg",
               "isDelete": null,
               "isInsert": true,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
               "table": "todo",
               "values": {
                 "title": "C",
@@ -1463,7 +1462,7 @@ describe("unit tests", () => {
               "id": Any<String>,
               "isDelete": null,
               "isInsert": true,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
               "table": "todo",
               "values": {
                 "title": "With callback",

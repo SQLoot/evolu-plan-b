@@ -14,10 +14,8 @@ import { testWaitForMacrotask } from "./Test.js";
  *
  * @see https://developer.mozilla.org/en-US/docs/Web/API/Worker
  */
-export interface Worker<Input, Output = never> extends MessagePort<
-  Input,
-  Output
-> {}
+export interface Worker<Input, Output = never>
+  extends MessagePort<Input, Output> {}
 
 /**
  * Platform-agnostic SharedWorker.
@@ -184,10 +182,8 @@ export interface CreateMessageChannelDep {
  * This is the worker-side counterpart to {@link Worker} — a typed
  * {@link MessagePort} that wraps `self` inside the worker.
  */
-export interface WorkerSelf<Input, Output = never> extends MessagePort<
-  Output,
-  Input
-> {}
+export interface WorkerSelf<Input, Output = never>
+  extends MessagePort<Output, Input> {}
 
 /**
  * Typed `self` for code running inside a shared worker.
@@ -295,10 +291,8 @@ export const createMessagePort: CreateMessagePort = <Input, Output = never>(
  *
  * Use `self` to simulate messages and behavior from inside the worker.
  */
-export interface TestWorker<Input, Output = never> extends Worker<
-  Input,
-  Output
-> {
+export interface TestWorker<Input, Output = never>
+  extends Worker<Input, Output> {
   /** Typed `self` counterpart for worker-side testing assertions. */
   readonly self: WorkerSelf<Input, Output>;
 }
@@ -309,19 +303,15 @@ export interface TestWorker<Input, Output = never> extends Worker<
  * Call `connect()` to simulate a client connection and trigger
  * `self.onConnect`.
  */
-export interface TestSharedWorker<Input, Output = never> extends SharedWorker<
-  Input,
-  Output
-> {
+export interface TestSharedWorker<Input, Output = never>
+  extends SharedWorker<Input, Output> {
   readonly self: SharedWorkerSelf<Input, Output>;
   readonly connect: () => void;
 }
 
 /** {@link MessageChannel} with disposal tracking for testing. */
-export interface TestMessageChannel<
-  Input,
-  Output = never,
-> extends MessageChannel<Input, Output> {
+export interface TestMessageChannel<Input, Output = never>
+  extends MessageChannel<Input, Output> {
   readonly isDisposed: () => boolean;
 }
 

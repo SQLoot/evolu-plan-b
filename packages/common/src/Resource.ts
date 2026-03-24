@@ -20,23 +20,23 @@ import {
 import { createRelation } from "./Relation.js";
 import { ok } from "./Result.js";
 import {
+  type AbortError,
   createMutex,
   createMutexByKey,
-  sleep,
-  unabortable,
-  type AbortError,
   type Fiber,
   type MutexRef,
   type SemaphoreSnapshot,
+  sleep,
   type Task,
+  unabortable,
 } from "./Task.js";
-import { type Duration } from "./Time.js";
-import { NonNegativeInt, zeroNonNegativeInt } from "./Type.js";
+import type { Duration } from "./Time.js";
+import { type NonNegativeInt, zeroNonNegativeInt } from "./Type.js";
 
 export {
+  type CreateRefCountByKeyOptions,
   createRefCount,
   createRefCountByKey,
-  type CreateRefCountByKeyOptions,
   type RefCount,
   type RefCountByKey,
 } from "./RefCount.js";
@@ -90,10 +90,8 @@ export type BorrowedResource<T extends Resource> = Omit<
  * has started. The create Task must not fail. If it could fail, the current
  * resource would be disposed without the next resource installed.
  */
-export interface ResourceRef<
-  T extends Resource,
-  D = unknown,
-> extends AsyncDisposable {
+export interface ResourceRef<T extends Resource, D = unknown>
+  extends AsyncDisposable {
   /** Returns the current resource. */
   readonly get: Task<BorrowedResource<T>, never, D>;
 
@@ -161,10 +159,8 @@ export const createResourceRef = <T extends Resource, D>(
  * successful calls to {@link SharedResource.acquire | acquire}. Releasing more
  * times than acquired is a programmer error checked with {@link assert}.
  */
-export interface SharedResource<
-  T extends Resource,
-  D = unknown,
-> extends AsyncDisposable {
+export interface SharedResource<T extends Resource, D = unknown>
+  extends AsyncDisposable {
   /** Returns the current shared-resource state for monitoring/debugging. */
   readonly snapshot: () => SharedResourceSnapshot;
 
@@ -351,11 +347,8 @@ export const createSharedResource = <T extends Resource, D>(
  * {@link Lookup
  * lookup} so logical equality is based on a derived stable key.
  */
-export interface SharedResourceByKey<
-  K,
-  T extends Resource,
-  D = unknown,
-> extends AsyncDisposable {
+export interface SharedResourceByKey<K, T extends Resource, D = unknown>
+  extends AsyncDisposable {
   /** Returns the current resource for `key`, or `undefined` if absent. */
   readonly get: (key: K) => BorrowedResource<T> | undefined;
 
@@ -401,7 +394,8 @@ export interface SharedResourceByKeySnapshot<K, T extends Resource> {
 
 /** Options for {@link createSharedResourceByKey}. */
 export interface SharedResourceByKeyOptions<K, L = K>
-  extends Pick<SharedResourceOptions, "idleDisposeAfter">, LookupOption<K, L> {
+  extends Pick<SharedResourceOptions, "idleDisposeAfter">,
+    LookupOption<K, L> {
   /** Called after `key`'s current resource is disposed and cleared. */
   readonly onDisposed?: (key: K) => void;
 }

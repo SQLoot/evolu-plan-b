@@ -2,6 +2,7 @@
 declare const self: DedicatedWorkerGlobalScope;
 
 import { installPolyfills } from "@evolu/common/polyfills";
+
 installPolyfills();
 
 import { createRandomBytes } from "@evolu/common";

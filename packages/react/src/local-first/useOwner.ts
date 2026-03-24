@@ -7,6 +7,17 @@ import type {
 import { use, useEffect } from "react";
 import { EvoluContext } from "./EvoluContext.js";
 
+const registerOwnerForSync = (
+  evolu: {
+    readonly useOwner: (
+      owner: ReadonlyOwner | Owner,
+      transports?: NonEmptyReadonlyArray<OwnerTransport>,
+    ) => void | (() => void);
+  },
+  owner: ReadonlyOwner | Owner,
+  transports?: NonEmptyReadonlyArray<OwnerTransport>,
+) => evolu["useOwner"](owner, transports);
+
 /**
  * React Hook for Evolu `useOwner` method.
  *
@@ -21,6 +32,6 @@ export const useOwner = (
 
   useEffect(() => {
     if (owner == null) return;
-    return evolu.useOwner(owner, transports);
+    return registerOwnerForSync(evolu, owner, transports);
   }, [evolu, owner, transports]);
 };

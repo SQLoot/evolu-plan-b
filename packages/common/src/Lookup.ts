@@ -60,9 +60,8 @@ export interface LookupMap<K, V> extends Iterable<readonly [K, V]> {
 }
 
 /** Options for {@link createLookupMap}. */
-export interface CreateLookupMapOptions<K, V, L> extends Required<
-  LookupOption<K, L>
-> {
+export interface CreateLookupMapOptions<K, V, L>
+  extends Required<LookupOption<K, L>> {
   /** Initial entries for the map. */
   readonly entries?: Iterable<readonly [K, V]>;
 }
@@ -130,9 +129,7 @@ export const createLookupMap = <K, V, L>({
       }
     },
 
-    [Symbol.iterator]: function () {
-      return map.entries();
-    },
+    [Symbol.iterator]: () => map.entries(),
   };
 
   if (entries) {
@@ -169,9 +166,8 @@ export interface LookupSet<K> extends Iterable<K> {
 }
 
 /** Options for {@link createLookupSet}. */
-export interface CreateLookupSetOptions<K, L> extends Required<
-  LookupOption<K, L>
-> {
+export interface CreateLookupSetOptions<K, L>
+  extends Required<LookupOption<K, L>> {
   /** Initial values for the set. */
   readonly values?: Iterable<K>;
 }
@@ -219,9 +215,7 @@ export const createLookupSet = <K, L>({
       }
     },
 
-    [Symbol.iterator]: function () {
-      return set.keys();
-    },
+    [Symbol.iterator]: () => set.keys(),
   };
 
   if (values) {

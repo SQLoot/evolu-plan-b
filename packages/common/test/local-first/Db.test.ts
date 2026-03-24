@@ -4,7 +4,7 @@ import { type DbWorkerInit, initDbWorker } from "../../src/local-first/Db.js";
 import { ok } from "../../src/Result.js";
 import type { CreateSqliteDriver } from "../../src/Sqlite.js";
 import { testCreateRun } from "../../src/Test.js";
-import { SimpleName } from "../../src/Type.js";
+import { Name } from "../../src/Type.js";
 import { testCreateWorker } from "../../src/Worker.js";
 import { testCreateRunWithSqlite } from "../_deps.js";
 import { testAppOwner } from "./_fixtures.js";
@@ -67,7 +67,7 @@ test("initDbWorker handles console store entries once and ignores repeated init"
 
     const initInput: DbWorkerInit = {
       type: "Init",
-      name: SimpleName.orThrow("DbWorkerInitOnce"),
+      name: Name.orThrow("DbWorkerInitOnce"),
       consoleLevel: "debug",
       sqliteSchema: { tables: {}, indexes: [] },
       encryptionKey: testAppOwner.encryptionKey,
@@ -94,7 +94,7 @@ test("initDbWorker handles console store entries once and ignores repeated init"
 
     worker.self.onMessage?.({
       ...initInput,
-      name: SimpleName.orThrow("DbWorkerInitTwice"),
+      name: Name.orThrow("DbWorkerInitTwice"),
     });
     expect(createMessagePortCalls).toBe(1);
 

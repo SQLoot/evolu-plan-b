@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, test } from "vitest";
-import { structuralLookup, type StructuralLookupKey } from "../src/Lookup.js";
+import { type StructuralLookupKey, structuralLookup } from "../src/Lookup.js";
 import {
   createResourceRef,
   createSharedResource,
@@ -12,11 +12,11 @@ import {
   type SharedResourceByKeySnapshot,
   type SharedResourceByKeyWithClaims,
 } from "../src/Resource.js";
-import { err, ok, type AnyResult, type Result } from "../src/Result.js";
-import { runStoppedError, type AbortError, type Task } from "../src/Task.js";
+import { type AnyResult, err, ok, type Result } from "../src/Result.js";
+import { type AbortError, runStoppedError, type Task } from "../src/Task.js";
 import { testCreateRun, testWaitForMacrotask } from "../src/Test.js";
-import { testCreateTime, type Duration } from "../src/Time.js";
-import { NonNegativeInt } from "../src/Type.js";
+import { type Duration, testCreateTime } from "../src/Time.js";
+import type { NonNegativeInt } from "../src/Type.js";
 
 type TestResource = {
   readonly id: string;

@@ -1,20 +1,23 @@
+import { existsSync } from "node:fs";
+import { createServer } from "node:http";
 import {
+  type CreateSqliteDriverDep,
   createRandom,
   createRelation,
   createSqlite,
-  type CreateSqliteDriverDep,
   isPromiseLike,
   Name,
+  type OwnerId,
   ok,
-  OwnerId,
   type RandomDep,
+  type Sqlite,
   type Task,
   type TimingSafeEqualDep,
   Uint8Array,
 } from "@evolu/common";
 import {
-  applyProtocolMessageAsRelay,
   type ApplyProtocolMessageAsRelayOptions,
+  applyProtocolMessageAsRelay,
   createBaseSqliteStorageTables,
   createRelaySqliteStorage,
   createRelayStorageTables,
@@ -23,8 +26,6 @@ import {
   type Relay,
   type RelayConfig,
 } from "@evolu/common/local-first";
-import { existsSync } from "fs";
-import { createServer } from "http";
 import { WebSocket, WebSocketServer } from "ws";
 import { createTimingSafeEqual } from "../Crypto.js";
 import { createBetterSqliteDriver } from "../Sqlite.js";
@@ -95,166 +96,201 @@ export const startRelay =
     isOwnerWithinQuota,
   }: NodeJsRelayConfig): Task<Relay, never, RelayDeps> =>
   async (run) => {
-    await using stack = new AsyncDisposableStack();
     const console = run.deps.console.child("relay");
+    let sqlite: Sqlite | undefined;
+    let relayRunToDispose: ReturnType<typeof run.create> | undefined;
+    let disposingPromise: Promise<void> | undefined;
 
-    const dbFileExists = existsSync(`${name}.db`);
+    try {
+      const dbFileExists = existsSync(`${name}.db`);
 
-    const sqliteResult = await run(createSqlite(name));
-    if (!sqliteResult.ok) return sqliteResult;
-    const sqlite = stack.use(sqliteResult.value);
+      const sqliteResult = await run(createSqlite(name));
+      if (!sqliteResult.ok) return sqliteResult;
+      sqlite = sqliteResult.value;
 
-    const deps = { ...run.deps, sqlite };
+      const deps = { ...run.deps, sqlite };
 
-    if (!dbFileExists) {
-      createBaseSqliteStorageTables(deps);
-      createRelayStorageTables(deps);
-    }
-
-    const relayRun = run.create().addDeps({
-      storage: createRelaySqliteStorage(deps)({
-        isOwnerWithinQuota,
-      }),
-    });
-
-    const server = createServer();
-    const wss = new WebSocketServer({
-      maxPayload: defaultProtocolMessageMaxSize,
-      noServer: true,
-    });
-    const ownerSocketRelation = createRelation<OwnerId, WebSocket>();
-
-    server.on("upgrade", (request, socket, head) => {
-      socket.on("error", console.debug);
-
-      const completeUpgrade = () => {
-        socket.removeListener("error", console.debug);
-
-        wss.handleUpgrade(request, socket, head, (ws) => {
-          wss.emit("connection", ws, request);
-        });
-      };
-
-      if (!isOwnerAllowed) {
-        completeUpgrade();
-        return;
+      if (!dbFileExists) {
+        createBaseSqliteStorageTables(deps);
+        createRelayStorageTables(deps);
       }
 
-      const ownerId = parseOwnerIdFromOwnerWebSocketTransportUrl(
-        request.url ?? "",
-      );
+      const relayRun = run.create().addDeps({
+        storage: createRelaySqliteStorage(deps)({
+          isOwnerWithinQuota,
+        }),
+      });
+      relayRunToDispose = relayRun;
 
-      if (!ownerId) {
-        console.debug("invalid or missing ownerId in URL", request.url);
-        socket.write("HTTP/1.1 400 Bad Request\r\n\r\n");
-        socket.destroy();
-        return;
-      }
+      const server = createServer();
+      const wss = new WebSocketServer({
+        maxPayload: defaultProtocolMessageMaxSize,
+        noServer: true,
+      });
+      const ownerSocketRelation = createRelation<OwnerId, WebSocket>();
 
-      void (async () => {
-        const result = isOwnerAllowed(ownerId);
-        const isAllowed = isPromiseLike(result) ? await result : result;
-        if (!isAllowed) {
-          console.debug("unauthorized owner", ownerId);
-          socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+      server.on("upgrade", (request, socket, head) => {
+        socket.on("error", console.debug);
+
+        const completeUpgrade = () => {
+          socket.removeListener("error", console.debug);
+
+          wss.handleUpgrade(request, socket, head, (ws) => {
+            wss.emit("connection", ws, request);
+          });
+        };
+
+        if (!isOwnerAllowed) {
+          completeUpgrade();
+          return;
+        }
+
+        const ownerId = parseOwnerIdFromOwnerWebSocketTransportUrl(
+          request.url ?? "",
+        );
+
+        if (!ownerId) {
+          console.debug("invalid or missing ownerId in URL", request.url);
+          socket.write("HTTP/1.1 400 Bad Request\r\n\r\n");
           socket.destroy();
           return;
         }
-        completeUpgrade();
-      })();
-    });
-
-    wss.on("connection", (ws) => {
-      console.debug("on connection", wss.clients.size);
-
-      const options: ApplyProtocolMessageAsRelayOptions = {
-        subscribe: (ownerId) => {
-          ownerSocketRelation.add(ownerId, ws);
-          console.debug(
-            "subscribe",
-            ownerId,
-            ownerSocketRelation.bCountForA(ownerId),
-          );
-        },
-
-        unsubscribe: (ownerId) => {
-          ownerSocketRelation.remove(ownerId, ws);
-          console.debug(
-            "unsubscribe",
-            ownerId,
-            ownerSocketRelation.bCountForA(ownerId),
-          );
-        },
-
-        broadcast: (ownerId, message) => {
-          for (const socket of ownerSocketRelation.iterateB(ownerId)) {
-            if (socket !== ws && socket.readyState === WebSocket.OPEN) {
-              socket.send(message, { binary: true });
-            }
-          }
-
-          console.debug(
-            "broadcast",
-            ownerId,
-            ownerSocketRelation.bCountForA(ownerId),
-          );
-        },
-      };
-
-      ws.on("message", (message) => {
-        if (!Uint8Array.is(message)) return;
 
         void (async () => {
-          const response = await relayRun(
-            applyProtocolMessageAsRelay(message, options),
-          );
-          if (!response.ok) {
-            console.error(response);
+          const result = isOwnerAllowed(ownerId);
+          const isAllowed = isPromiseLike(result) ? await result : result;
+          if (!isAllowed) {
+            console.debug("unauthorized owner", ownerId);
+            socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+            socket.destroy();
             return;
           }
-          ws.send(response.value.message, { binary: true });
+          completeUpgrade();
         })();
       });
 
-      ws.on("close", () => {
-        ownerSocketRelation.removeByB(ws);
-        console.debug("ws close", wss.clients.size);
+      wss.on("connection", (ws) => {
+        console.debug("on connection", wss.clients.size);
+
+        const options: ApplyProtocolMessageAsRelayOptions = {
+          subscribe: (ownerId) => {
+            ownerSocketRelation.add(ownerId, ws);
+            console.debug(
+              "subscribe",
+              ownerId,
+              ownerSocketRelation.bCountForA(ownerId),
+            );
+          },
+
+          unsubscribe: (ownerId) => {
+            ownerSocketRelation.remove(ownerId, ws);
+            console.debug(
+              "unsubscribe",
+              ownerId,
+              ownerSocketRelation.bCountForA(ownerId),
+            );
+          },
+
+          broadcast: (ownerId, message) => {
+            for (const socket of ownerSocketRelation.iterateB(ownerId)) {
+              if (socket !== ws && socket.readyState === WebSocket.OPEN) {
+                socket.send(message, { binary: true });
+              }
+            }
+
+            console.debug(
+              "broadcast",
+              ownerId,
+              ownerSocketRelation.bCountForA(ownerId),
+            );
+          },
+        };
+
+        ws.on("message", (message) => {
+          if (!Uint8Array.is(message)) return;
+
+          void (async () => {
+            const response = await relayRun(
+              applyProtocolMessageAsRelay(message, options),
+            );
+            if (!response.ok) {
+              console.error(response);
+              return;
+            }
+            ws.send(response.value.message, { binary: true });
+          })();
+        });
+
+        ws.on("close", () => {
+          ownerSocketRelation.removeByB(ws);
+          console.debug("ws close", wss.clients.size);
+        });
       });
-    });
 
-    // Cleanup runs in LIFO order: clients → WebSocketServer → HTTP server
-    stack.defer(() => {
-      console.info("Shutdown complete");
-    });
+      // Cleanup runs in LIFO order: clients → WebSocketServer → HTTP server
+      await new Promise<void>((resolve, reject) => {
+        const onError = (error: Error) => {
+          server.off("listening", onListening);
+          reject(error);
+        };
+        const onListening = () => {
+          server.off("error", onError);
+          resolve();
+        };
 
-    stack.defer(() => {
-      server.close(() => {
-        console.info("HTTP server closed");
+        server.once("error", onError);
+        server.once("listening", onListening);
+        server.listen(port);
       });
-    });
+      console.info(`Started on port ${port}`);
 
-    stack.defer(() => {
-      // wss.close() emits 'close' when all clients have disconnected
-      // https://github.com/websockets/ws/blob/master/doc/ws.md#serverclosecallback
-      wss.close(() => {
-        console.info("WebSocketServer closed");
-        ok();
+      return ok({
+        [Symbol.asyncDispose]: () => {
+          if (disposingPromise) return disposingPromise;
+
+          disposingPromise = (async () => {
+            console.info("Shutting down...");
+
+            for (const client of wss.clients) {
+              if (client.readyState === WebSocket.OPEN) {
+                client.close(1000, "Evolu Relay shutting down");
+              }
+            }
+
+            await new Promise<void>((resolve) => {
+              // wss.close() emits 'close' when all clients have disconnected.
+              wss.close(() => {
+                console.info("WebSocketServer closed");
+                resolve();
+              });
+            });
+
+            await new Promise<void>((resolve) => {
+              server.close(() => {
+                console.info("HTTP server closed");
+                resolve();
+              });
+            });
+
+            await relayRun[Symbol.asyncDispose]();
+
+            if (sqlite) {
+              await sqlite[Symbol.asyncDispose]();
+            }
+
+            console.info("Shutdown complete");
+          })();
+
+          return disposingPromise;
+        },
       });
-    });
-
-    stack.defer(() => {
-      console.info("Shutting down...");
-      for (const client of wss.clients) {
-        if (client.readyState === WebSocket.OPEN) {
-          client.close(1000, "Evolu Relay shutting down");
-        }
+    } catch (error) {
+      if (relayRunToDispose) {
+        await relayRunToDispose[Symbol.asyncDispose]();
       }
-    });
-
-    stack.use(relayRun);
-
-    server.listen(port);
-    console.info(`Started on port ${port}`);
-
-    return ok(stack.move());
+      if (sqlite) {
+        await sqlite[Symbol.asyncDispose]();
+      }
+      throw error;
+    }
   };

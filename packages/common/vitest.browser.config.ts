@@ -7,9 +7,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Coverage with v8 only works with a single browser instance. The VS Code
 // Vitest extension enables coverage internally instead of passing --coverage,
-// so extension runs need the same browser setup.
+// so extension runs need the same browser setup. Bun-driven workspace runs are
+// also more stable with a single browser instance under Vitest 4.1.x.
 const isSingleBrowserRun =
-  process.argv.includes("--coverage") || process.env.VITEST_VSCODE === "true";
+  process.argv.includes("--coverage") ||
+  process.env.VITEST_VSCODE === "true" ||
+  "Bun" in globalThis;
 
 export default defineProject({
   // Transpile `using`/`await using` for WebKit which doesn't support it yet
@@ -29,6 +32,7 @@ export default defineProject({
     setupFiles: ["./test/_browserSetup.ts"],
     browser: {
       enabled: true,
+      api: { port: 63315 },
       provider: playwright(),
       headless: true,
       // Sequential execution is faster than parallel for some reason.

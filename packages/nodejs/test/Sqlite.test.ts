@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import {
   type CreateSqliteDriverDep,
   createSqlite,
-  SimpleName,
+  Name,
   type SqliteRow,
   type SqliteValue,
   sql,
@@ -12,7 +12,7 @@ import {
 import { afterEach, assert, describe, expect, test, vi } from "vitest";
 import { createBetterSqliteDriver } from "../src/Sqlite.js";
 
-const testName = SimpleName.orThrow("Test");
+const testName = Name.orThrow("Test");
 const require = createRequire(import.meta.url);
 const sqliteRuntimeEnvKey = "EVOLU_NODEJS_SQLITE_RUNTIME";
 

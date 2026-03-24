@@ -1,8 +1,11 @@
 import { playwright } from "@vitest/browser-playwright";
 import { defineProject } from "vitest/config";
 
-// Coverage with v8 only works with a single browser instance
-const isCoverage = process.argv.includes("--coverage");
+// Coverage with v8 only works with a single browser instance. Bun-driven
+// workspace runs are also more stable with a single browser instance under
+// Vitest 4.1.x.
+const isSingleBrowserRun =
+  process.argv.includes("--coverage") || "Bun" in globalThis;
 
 export default defineProject({
   // Transpile `using`/`await using` for WebKit which doesn't support it yet
@@ -14,13 +17,13 @@ export default defineProject({
   test: {
     exclude: ["**/node_modules/**", "**/dist/**"],
     include: ["test/**/*.test.ts"],
-    setupFiles: ["./test/_browserSetup.ts"],
     browser: {
       enabled: true,
+      api: { port: 63316 },
       provider: playwright(),
       headless: true,
-      fileParallelism: false,
-      instances: isCoverage
+      fileParallelism: false, // false is faster for some reason.
+      instances: isSingleBrowserRun
         ? [{ browser: "chromium" }]
         : [
             { browser: "chromium" },

@@ -99,10 +99,8 @@ export interface RefCountByKey<TKey> extends Disposable {
 }
 
 /** Options for {@link createRefCountByKey}. */
-export interface CreateRefCountByKeyOptions<
-  TKey,
-  L = TKey,
-> extends LookupOption<TKey, L> {}
+export interface CreateRefCountByKeyOptions<TKey, L = TKey>
+  extends LookupOption<TKey, L> {}
 
 /** Creates {@link RefCountByKey}. */
 export function createRefCountByKey<TKey = unknown>(): RefCountByKey<TKey>;

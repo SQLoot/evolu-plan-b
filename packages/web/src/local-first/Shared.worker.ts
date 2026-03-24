@@ -2,6 +2,7 @@
 declare const self: SharedWorkerGlobalScope;
 
 import { installPolyfills } from "@evolu/common/polyfills";
+
 installPolyfills();
 
 import { createWebSocket } from "@evolu/common";

@@ -17,8 +17,7 @@ import { type Console, type ConsoleDep, createConsole } from "./Console.js";
 import type { RandomBytes, RandomBytesDep } from "./Crypto.js";
 import { createRandomBytes } from "./Crypto.js";
 import { eqArrayStrict } from "./Eq.js";
-import { identity } from "./Function.js";
-import { lazyTrue, lazyVoid } from "./Function.js";
+import { identity, lazyTrue, lazyVoid } from "./Function.js";
 import { createLookupMap, type Lookup, type LookupOption } from "./Lookup.js";
 import { decrement, increment } from "./Number.js";
 import {
@@ -45,27 +44,27 @@ import {
   Id,
   type InferType,
   maxPositiveInt,
-  onePositiveInt,
   type Name,
   NonNegativeInt,
   object,
+  onePositiveInt,
   PositiveInt,
   type Typed,
   typed,
-  union,
   Unknown,
   UnknownResult,
+  union,
   zeroNonNegativeInt,
 } from "./Type.js";
-import type { isPromiseLike } from "./Types.js";
-import {
-  type Awaitable,
-  type Callback,
-  type CallbackWithTeardown,
-  type Int1To100,
-  type Mutable,
-  type NewKeys,
-  type Predicate,
+import type {
+  Awaitable,
+  Callback,
+  CallbackWithTeardown,
+  Int1To100,
+  isPromiseLike,
+  Mutable,
+  NewKeys,
+  Predicate,
 } from "./Types.js";
 
 /**
@@ -989,10 +988,8 @@ export interface RunStateRunning extends Typed<"Running"> {}
 
 export interface RunStateDisposing extends Typed<"Disposing"> {}
 
-export interface RunStateSettled<
-  T = unknown,
-  E = unknown,
-> extends Typed<"Settled"> {
+export interface RunStateSettled<T = unknown, E = unknown>
+  extends Typed<"Settled"> {
   /**
    * The Run's completion value.
    *
@@ -1667,18 +1664,22 @@ const scheduler = (
   }
 ).scheduler;
 
-const setImmediateImpl = (
-  globalThis as typeof globalThis & {
-    readonly setImmediate?: (callback: () => void) => unknown;
-  }
-).setImmediate;
+const getSetImmediate = () =>
+  (
+    globalThis as typeof globalThis & {
+      readonly setImmediate?: (callback: () => void) => unknown;
+    }
+  ).setImmediate;
 
 const yieldImpl: () => Promise<void> =
   typeof scheduler?.yield === "function"
     ? () => (scheduler.yield as () => Promise<void>)()
-    : typeof setImmediateImpl !== "undefined"
-      ? () => new Promise<void>((resolve) => setImmediateImpl(resolve))
-      : () => new Promise<void>((r) => setTimeout(r, 0)); // Safari
+    : () => {
+        const setImmediate = getSetImmediate();
+        return typeof setImmediate !== "undefined"
+          ? new Promise<void>((resolve) => setImmediate(resolve))
+          : new Promise<void>((r) => setTimeout(r, 0)); // Safari
+      };
 
 /**
  * Creates a {@link Task} from a callback-based API.
@@ -2245,9 +2246,8 @@ export const createDeferred = <T, E = never>(): Deferred<T, E> => {
 export const DeferredDisposedError = /*#__PURE__*/ typed(
   "DeferredDisposedError",
 );
-export interface DeferredDisposedError extends InferType<
-  typeof DeferredDisposedError
-> {}
+export interface DeferredDisposedError
+  extends InferType<typeof DeferredDisposedError> {}
 
 /**
  * {@link DeferredDisposedError} used as abort reason in {@link createDeferred}.
@@ -2552,9 +2552,8 @@ export const createSemaphore = (permits: Concurrency): Semaphore => {
 export const SemaphoreDisposedError = /*#__PURE__*/ typed(
   "SemaphoreDisposedError",
 );
-export interface SemaphoreDisposedError extends InferType<
-  typeof SemaphoreDisposedError
-> {}
+export interface SemaphoreDisposedError
+  extends InferType<typeof SemaphoreDisposedError> {}
 
 /**
  * {@link SemaphoreDisposedError} used as abort reason in {@link createSemaphore}.
@@ -2604,10 +2603,8 @@ export interface SemaphoreByKey<K = unknown> extends Disposable {
 }
 
 /** Options for {@link createSemaphoreByKey}. */
-export interface CreateSemaphoreByKeyOptions<K, L = K> extends LookupOption<
-  K,
-  L
-> {}
+export interface CreateSemaphoreByKeyOptions<K, L = K>
+  extends LookupOption<K, L> {}
 
 /**
  * Creates a {@link SemaphoreByKey}.
@@ -3221,9 +3218,8 @@ export function allSettled(
  * @group Composition
  */
 export const AllSettledAbortError = /*#__PURE__*/ typed("AllSettledAbortError");
-export interface AllSettledAbortError extends InferType<
-  typeof AllSettledAbortError
-> {}
+export interface AllSettledAbortError
+  extends InferType<typeof AllSettledAbortError> {}
 
 /**
  * {@link AllSettledAbortError} used as abort reason in {@link allSettled}.

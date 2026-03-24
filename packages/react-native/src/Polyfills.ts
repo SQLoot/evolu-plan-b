@@ -2,14 +2,14 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 
 import { installPolyfills as installCommonPolyfills } from "@evolu/common/polyfills";
-// @ts-ignore Runtime polyfill package has no TypeScript declarations.
-import fromAsync from "array-from-async";
-// @ts-ignore Runtime polyfill package has no TypeScript declarations.
-import withResolvers from "promise.withresolvers";
-// @ts-ignore Runtime polyfill package has no TypeScript declarations.
-import promiseTry from "promise.try";
-// @ts-ignore Runtime polyfill package has no TypeScript declarations.
+// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
 import toSorted from "array.prototype.tosorted";
+// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
+import fromAsync from "array-from-async";
+// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
+import promiseTry from "promise.try";
+// @ts-expect-error Runtime polyfill package has no TypeScript declarations.
+import withResolvers from "promise.withresolvers";
 import difference from "set.prototype.difference";
 import intersection from "set.prototype.intersection";
 import isDisjointFrom from "set.prototype.isdisjointfrom";

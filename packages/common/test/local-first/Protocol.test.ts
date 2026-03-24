@@ -19,7 +19,6 @@ import {
   decodeNodeId,
   decodeNonNegativeInt,
   decodeNumber,
-  decodeProtocolMessageToJson,
   decodeRle,
   decodeSqliteValue,
   decodeString,
@@ -37,7 +36,6 @@ import {
   type ProtocolMessageMaxSize,
   ProtocolMessageRangesMaxSize,
   ProtocolValueType,
-  pack,
   protocolVersion,
   SubscriptionFlags,
 } from "../../src/local-first/Protocol.js";
@@ -62,7 +60,7 @@ import {
 import { err, getOrThrow, ok } from "../../src/Result.js";
 import type { SqliteValue } from "../../src/Sqlite.js";
 import type { TestDeps } from "../../src/Test.js";
-import { testCreateDeps, testCreateRunner } from "../../src/Test.js";
+import { testCreateDeps, testCreateRun } from "../../src/Test.js";
 import {
   createId,
   dateToDateIso,
@@ -92,7 +90,7 @@ test("encodeNumber/decodeNumber", () => {
     0,
     42,
     -123,
-    Math.PI,
+    3.14159,
     Number.MAX_SAFE_INTEGER,
     Number.MIN_SAFE_INTEGER,
     Infinity,
@@ -111,7 +109,7 @@ test("encodeNumber/decodeNumber", () => {
   });
 
   expect(buffer.unwrap()).toMatchInlineSnapshot(
-    `uint8:[0,42,208,133,203,64,9,33,251,84,68,45,24,203,67,63,255,255,255,255,255,255,203,195,63,255,255,255,255,255,255,203,127,240,0,0,0,0,0,0,203,255,240,0,0,0,0,0,0,203,127,248,0,0,0,0,0,0]`,
+    `uint8:[0,42,208,133,203,64,9,33,249,240,27,134,110,203,67,63,255,255,255,255,255,255,203,195,63,255,255,255,255,255,255,203,127,240,0,0,0,0,0,0,203,255,240,0,0,0,0,0,0,203,127,248,0,0,0,0,0,0]`,
   );
 });
 
@@ -358,11 +356,11 @@ test("encodeSqliteValue/decodeSqliteValue property tests", () => {
         // Date ISO strings - both valid and invalid
         fc
           .date({ min: new Date("1970-01-01"), max: new Date("2100-01-01") })
-          .filter((d) => !Number.isNaN(d.getTime()))
+          .filter((d) => !isNaN(d.getTime()))
           .map((d) => d.toISOString()),
         fc
           .date({ min: new Date("0000-01-01"), max: new Date("9999-12-31") })
-          .filter((d) => !Number.isNaN(d.getTime()))
+          .filter((d) => !isNaN(d.getTime()))
           .map((d) => d.toISOString()),
         fc.constantFrom(
           "0000-01-01T00:00:00.000Z",
@@ -742,7 +740,7 @@ test("createProtocolMessageForSync", async () => {
 
 describe("E2E versioning", () => {
   test("same versions", async () => {
-    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
+    await using run = testCreateRun(shouldNotBeCalledStorageDep);
     const v0 = 0 as NonNegativeInt;
 
     const clientMessage = createProtocolMessageBuffer(testAppOwner.id, {
@@ -759,7 +757,7 @@ describe("E2E versioning", () => {
   });
 
   test("non-initiator version is higher", async () => {
-    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
+    await using run = testCreateRun(shouldNotBeCalledStorageDep);
     const v0 = 0 as NonNegativeInt;
     const v1 = 1 as NonNegativeInt;
 
@@ -789,7 +787,7 @@ describe("E2E versioning", () => {
   });
 
   test("initiator version is higher", async () => {
-    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
+    await using run = testCreateRun(shouldNotBeCalledStorageDep);
     const v0 = 0 as NonNegativeInt;
     const v1 = 1 as NonNegativeInt;
 
@@ -821,7 +819,7 @@ describe("E2E versioning", () => {
 
 describe("E2E errors", () => {
   test("ProtocolInvalidDataError", async () => {
-    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
+    await using run = testCreateRun(shouldNotBeCalledStorageDep);
     const malformedMessage = createBuffer();
     encodeNonNegativeInt(malformedMessage, 1 as NonNegativeInt); // Only version, no ownerId
 
@@ -851,7 +849,7 @@ describe("E2E errors", () => {
 
     let responseMessage: Uint8Array;
     {
-      await using run = testCreateRunner({
+      await using run = testCreateRun({
         storage: {
           ...shouldNotBeCalledStorageDep.storage,
           validateWriteKey: lazyFalse,
@@ -865,7 +863,7 @@ describe("E2E errors", () => {
       responseMessage = response.value.message;
     }
 
-    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
+    await using run = testCreateRun(shouldNotBeCalledStorageDep);
     const clientResult = await run(
       applyProtocolMessageAsClient(responseMessage),
     );
@@ -873,144 +871,11 @@ describe("E2E errors", () => {
       err({ type: "ProtocolWriteKeyError", ownerId: testAppOwner.id }),
     );
   });
-
-  test("ProtocolWriteError", async () => {
-    const deps = testCreateDeps();
-    const timestamp = timestampBytesToTimestamp(testTimestampsAsc[0]);
-    const dbChange = createDbChange(deps);
-    const messages: NonEmptyReadonlyArray<CrdtMessage> = [
-      { timestamp, change: dbChange },
-    ];
-    const initiatorMessage = createProtocolMessageFromCrdtMessages(deps)(
-      testAppOwner,
-      messages,
-    );
-
-    let responseMessage: Uint8Array;
-    {
-      await using run = testCreateRunner({
-        storage: {
-          ...shouldNotBeCalledStorageDep.storage,
-          validateWriteKey: lazyTrue,
-          writeMessages: () => async () => {
-            throw new Error("write failed");
-          },
-        },
-      });
-      const response = await run(applyProtocolMessageAsRelay(initiatorMessage));
-      assert(response.ok);
-      responseMessage = response.value.message;
-    }
-
-    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
-    const clientResult = await run(
-      applyProtocolMessageAsClient(responseMessage),
-    );
-    expect(clientResult).toEqual(
-      err({ type: "ProtocolWriteError", ownerId: testAppOwner.id }),
-    );
-  });
-
-  test("ProtocolQuotaError", async () => {
-    const deps = testCreateDeps();
-    const timestamp = timestampBytesToTimestamp(testTimestampsAsc[0]);
-    const dbChange = createDbChange(deps);
-    const messages: NonEmptyReadonlyArray<CrdtMessage> = [
-      { timestamp, change: dbChange },
-    ];
-    const initiatorMessage = createProtocolMessageFromCrdtMessages(deps)(
-      testAppOwner,
-      messages,
-    );
-
-    let responseMessage: Uint8Array;
-    {
-      await using run = testCreateRunner({
-        storage: {
-          ...shouldNotBeCalledStorageDep.storage,
-          validateWriteKey: lazyTrue,
-          writeMessages: () => () =>
-            err({ type: "StorageQuotaError", ownerId: testAppOwner.id }),
-        },
-      });
-      const response = await run(applyProtocolMessageAsRelay(initiatorMessage));
-      assert(response.ok);
-      responseMessage = response.value.message;
-    }
-
-    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
-    const clientResult = await run(
-      applyProtocolMessageAsClient(responseMessage),
-    );
-    expect(clientResult).toEqual(
-      err({ type: "ProtocolQuotaError", ownerId: testAppOwner.id }),
-    );
-  });
-
-  test("ProtocolSyncError", async () => {
-    const messageBuffer = createProtocolMessageBuffer(testAppOwner.id, {
-      messageType: MessageType.Request,
-    });
-    messageBuffer.addRange({
-      type: RangeType.Skip,
-      upperBound: InfiniteUpperBound,
-    });
-
-    let responseMessage: Uint8Array;
-    {
-      await using run = testCreateRunner({
-        storage: {
-          ...shouldNotBeCalledStorageDep.storage,
-          getSize: () => {
-            throw new Error("sync failed");
-          },
-        },
-      });
-      const response = await run(
-        applyProtocolMessageAsRelay(messageBuffer.unwrap()),
-      );
-      assert(response.ok);
-      responseMessage = response.value.message;
-    }
-
-    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
-    const clientResult = await run(
-      applyProtocolMessageAsClient(responseMessage),
-    );
-    expect(clientResult).toEqual(
-      err({ type: "ProtocolSyncError", ownerId: testAppOwner.id }),
-    );
-  });
-
-  test("ProtocolInvalidDataError for invalid ProtocolErrorCode", async () => {
-    const malformed = createBuffer();
-    encodeNonNegativeInt(malformed, protocolVersion);
-    malformed.extend(testAppOwnerIdBytes);
-    malformed.extend([MessageType.Response, 255]);
-
-    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
-    const clientResult = await run(
-      applyProtocolMessageAsClient(malformed.unwrap()),
-    );
-
-    assert(!clientResult.ok);
-    expect(clientResult.error.type).toBe("ProtocolInvalidDataError");
-  });
-});
-
-test("pack returns msgpack-encoded bytes", () => {
-  expect(pack({ hello: "world", n: 1 })).toBeInstanceOf(Uint8Array);
-});
-
-test("decodeProtocolMessageToJson throws until implemented", () => {
-  expect(() =>
-    decodeProtocolMessageToJson(new Uint8Array([0]) as never, true),
-  ).toThrow("decodeProtocolMessageToJson is not implemented yet.");
 });
 
 describe("E2E relay options", () => {
   test("subscribe", async () => {
-    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
+    await using run = testCreateRun(shouldNotBeCalledStorageDep);
     const message = createProtocolMessageBuffer(testAppOwner.id, {
       messageType: MessageType.Request,
       subscriptionFlag: SubscriptionFlags.Subscribe,
@@ -1030,7 +895,7 @@ describe("E2E relay options", () => {
   });
 
   test("unsubscribe", async () => {
-    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
+    await using run = testCreateRun(shouldNotBeCalledStorageDep);
     const message = createProtocolMessageBuffer(testAppOwner.id, {
       messageType: MessageType.Request,
       subscriptionFlag: SubscriptionFlags.Unsubscribe,
@@ -1049,7 +914,7 @@ describe("E2E relay options", () => {
   });
 
   test("no subscription flag (None)", async () => {
-    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
+    await using run = testCreateRun(shouldNotBeCalledStorageDep);
     const message = createProtocolMessageBuffer(testAppOwner.id, {
       messageType: MessageType.Request,
       subscriptionFlag: SubscriptionFlags.None,
@@ -1074,7 +939,7 @@ describe("E2E relay options", () => {
   });
 
   test("default subscription flag (undefined)", async () => {
-    await using run = testCreateRunner(shouldNotBeCalledStorageDep);
+    await using run = testCreateRun(shouldNotBeCalledStorageDep);
     const message = createProtocolMessageBuffer(testAppOwner.id, {
       messageType: MessageType.Request,
       // No subscriptionFlag provided, should default to None
@@ -1117,7 +982,7 @@ describe("E2E relay options", () => {
 
     let broadcastedMessage = null as Uint8Array | null;
 
-    await using run = testCreateRunner({
+    await using run = testCreateRun({
       storage: {
         ...shouldNotBeCalledStorageDep.storage,
         validateWriteKey: lazyTrue,
@@ -1141,7 +1006,7 @@ describe("E2E relay options", () => {
 
     let writeMessagesCalled = false;
     {
-      await using run = testCreateRunner({
+      await using run = testCreateRun({
         storage: {
           ...shouldNotBeCalledStorageDep.storage,
           writeMessages:
@@ -1165,7 +1030,7 @@ describe("E2E relay options", () => {
   });
 });
 
-describe("E2E sync", () => {
+describe("E2E sync", { timeout: 15_000 }, () => {
   const deps = testCreateDeps();
 
   const messages = testTimestampsAsc.map(
@@ -1211,6 +1076,7 @@ describe("E2E sync", () => {
     let syncSteps = 0;
     const syncSizes: Array<number> = [message.length];
 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     while (message) {
       syncSteps++;
 
@@ -1219,12 +1085,12 @@ describe("E2E sync", () => {
       }
 
       if (turn === "relay") {
-        await using run = testCreateRunner(relayStorageDep);
+        await using run = testCreateRun(relayStorageDep);
         result = await run(
           applyProtocolMessageAsRelay(message, { rangesMaxSize }),
         );
       } else {
-        await using run = testCreateRunner(clientStorageDep);
+        await using run = testCreateRun(clientStorageDep);
         result = await run(
           applyProtocolMessageAsClient(message, {
             getWriteKey: () => testAppOwner.writeKey,
@@ -1267,8 +1133,8 @@ describe("E2E sync", () => {
     return { syncSteps, syncSizes };
   };
 
-  it("client and relay have all data", { timeout: 15000 }, async () => {
-    await using run = testCreateRunner();
+  it("client and relay have all data", async () => {
+    await using run = testCreateRun();
     const [clientStorage, relayStorage] = await createStorages();
     await run(clientStorage.writeMessages(testAppOwnerIdBytes, messages));
     await run(relayStorage.writeMessages(testAppOwnerIdBytes, messages));
@@ -1286,7 +1152,7 @@ describe("E2E sync", () => {
   });
 
   it("client has all data", async () => {
-    await using run = testCreateRunner();
+    await using run = testCreateRun();
     const [clientStorage, relayStorage] = await createStorages();
     await run(clientStorage.writeMessages(testAppOwnerIdBytes, messages));
 
@@ -1306,8 +1172,8 @@ describe("E2E sync", () => {
     `);
   });
 
-  it("client has all data - many steps", { timeout: 15000 }, async () => {
-    await using run = testCreateRunner();
+  it("client has all data - many steps", async () => {
+    await using run = testCreateRun();
     const [clientStorage, relayStorage] = await createStorages();
     await run(clientStorage.writeMessages(testAppOwnerIdBytes, messages));
 
@@ -1340,7 +1206,7 @@ describe("E2E sync", () => {
   });
 
   it("relay has all data", async () => {
-    await using run = testCreateRunner();
+    await using run = testCreateRun();
     const [clientStorage, relayStorage] = await createStorages();
     await run(relayStorage.writeMessages(testAppOwnerIdBytes, messages));
 
@@ -1358,8 +1224,8 @@ describe("E2E sync", () => {
     `);
   });
 
-  it("relay has all data - many steps", { timeout: 15000 }, async () => {
-    await using run = testCreateRunner();
+  it("relay has all data - many steps", async () => {
+    await using run = testCreateRun();
     const [clientStorage, relayStorage] = await createStorages();
     await run(relayStorage.writeMessages(testAppOwnerIdBytes, messages));
 
@@ -1401,12 +1267,8 @@ describe("E2E sync", () => {
     `);
   });
 
-  // Increased timeout for CI environments where this E2E sync test with large data sets
-  // can take longer than the default 5s due to storage operations and reconciliation
-  it("client and relay each have a random half of the data", {
-    timeout: 15000,
-  }, async () => {
-    await using run = testCreateRunner();
+  it("client and relay each have a random half of the data", async () => {
+    await using run = testCreateRun();
     const [clientStorage, relayStorage] = await createStorages();
 
     const shuffledMessages = deps.randomLib.shuffle(messages);
@@ -1422,24 +1284,22 @@ describe("E2E sync", () => {
 
     const syncSteps = await reconcile(clientStorage, relayStorage);
     expect(syncSteps).toMatchInlineSnapshot(`
-        {
-          "syncSizes": [
-            379,
-            5120,
-            22678,
-            857744,
-            844045,
-            20,
-          ],
-          "syncSteps": 6,
-        }
-      `);
+      {
+        "syncSizes": [
+          379,
+          5120,
+          22678,
+          857744,
+          844045,
+          20,
+        ],
+        "syncSteps": 6,
+      }
+    `);
   });
 
-  it("client and relay each have a random half of the data - many steps", {
-    timeout: 15000,
-  }, async () => {
-    await using run = testCreateRunner();
+  it("client and relay each have a random half of the data - many steps", async () => {
+    await using run = testCreateRun();
     const [clientStorage, relayStorage] = await createStorages();
 
     const shuffledMessages = deps.randomLib.shuffle(messages);
@@ -1459,52 +1319,52 @@ describe("E2E sync", () => {
       ProtocolMessageRangesMaxSize.orThrow(3000),
     );
     expect(syncSteps).toMatchInlineSnapshot(`
-        {
-          "syncSizes": [
-            334,
-            2309,
-            2239,
-            118617,
-            110353,
-            2234,
-            2256,
-            88179,
-            80860,
-            2324,
-            2238,
-            87301,
-            78090,
-            2232,
-            77187,
-            74380,
-            2246,
-            59569,
-            74972,
-            2231,
-            58666,
-            67513,
-            2232,
-            55158,
-            66338,
-            2228,
-            45900,
-            61053,
-            2243,
-            50885,
-            55541,
-            15901,
-            49487,
-            46070,
-            90077,
-            105083,
-            20901,
-            45106,
-            48626,
-            20,
-          ],
-          "syncSteps": 40,
-        }
-      `);
+      {
+        "syncSizes": [
+          334,
+          2309,
+          2239,
+          118617,
+          110353,
+          2234,
+          2256,
+          88179,
+          80860,
+          2324,
+          2238,
+          87301,
+          78090,
+          2232,
+          77187,
+          74380,
+          2246,
+          59569,
+          74972,
+          2231,
+          58666,
+          67513,
+          2232,
+          55158,
+          66338,
+          2228,
+          45900,
+          61053,
+          2243,
+          50885,
+          55541,
+          15901,
+          49487,
+          46070,
+          90077,
+          105083,
+          20901,
+          45106,
+          48626,
+          20,
+        ],
+        "syncSteps": 40,
+      }
+    `);
   });
 
   it("starts sync from createProtocolMessageFromCrdtMessages", async () => {

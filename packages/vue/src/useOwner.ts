@@ -6,6 +6,17 @@ import type {
 } from "@evolu/common";
 import { useEvolu } from "./useEvolu.js";
 
+const registerOwnerForSync = (
+  evolu: {
+    readonly useOwner: (
+      owner: ReadonlyOwner | Owner,
+      transports?: NonEmptyReadonlyArray<OwnerTransport>,
+    ) => void | (() => void);
+  },
+  owner: ReadonlyOwner | Owner,
+  transports?: NonEmptyReadonlyArray<OwnerTransport>,
+) => evolu["useOwner"](owner, transports);
+
 /**
  * Vue composable for Evolu `useOwner` method.
  *
@@ -16,9 +27,8 @@ export const useOwner = (
   owner: ReadonlyOwner | Owner | null,
   transports?: NonEmptyReadonlyArray<OwnerTransport>,
 ): void => {
+  const evolu = useEvolu();
   if (owner == null) return;
 
-  const evolu = useEvolu();
-
-  evolu.useOwner(owner, transports);
+  registerOwnerForSync(evolu, owner, transports);
 };

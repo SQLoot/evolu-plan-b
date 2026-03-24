@@ -18,6 +18,65 @@ export * from "./Error.js";
 export * from "./Function.js";
 export * from "./Identicon.js";
 export * from "./Lookup.js";
+// Local-first essentials.
+export type { EvoluError } from "./local-first/Error.js";
+export type {
+  AppNameError,
+  Evolu,
+  EvoluConfig,
+  EvoluDeps,
+  UnuseOwner,
+} from "./local-first/Evolu.js";
+export { AppName, createEvolu } from "./local-first/Evolu.js";
+export * from "./local-first/LocalAuth.js";
+export type { SyncOwner } from "./local-first/Owner.js";
+export * from "./local-first/Owner.js";
+export {
+  evoluJsonArrayFrom,
+  evoluJsonBuildObject,
+  evoluJsonObjectFrom,
+  getJsonObjectArgs,
+  type InferRow,
+  type KyselyNotNull,
+  kyselySql,
+  type Query,
+  type QueryRows,
+  type Row,
+} from "./local-first/Query.js";
+export type {
+  AnyStandardSchemaV1,
+  EvoluSchema,
+  InsertValues,
+  Mutation,
+  MutationKind,
+  MutationOptions,
+  MutationValues,
+  NullableColumnsToOptional,
+  OptionalColumnKeys,
+  RequiredColumnKeys,
+  TableSchema,
+  UpdateValues,
+  UpsertValues,
+} from "./local-first/Schema.js";
+export { createQueryBuilder } from "./local-first/Schema.js";
+export type {
+  // NetworkError,
+  // PaymentRequiredError,
+  // ServerError,
+  SyncState,
+} from "./local-first/Shared.js";
+export type {
+  TimestampBytes,
+  TimestampCounterOverflowError,
+  TimestampDriftError,
+  TimestampError,
+  TimestampTimeOutOfRangeError,
+} from "./local-first/Timestamp.js";
+export {
+  Timestamp,
+  timestampBytesToTimestamp,
+  timestampToTimestampBytes,
+} from "./local-first/Timestamp.js";
 export * from "./Microtask.js";
 export * from "./Number.js";
 export * from "./Object.js";
@@ -43,63 +102,3 @@ export * from "./Type.js";
 export * from "./Types.js";
 export * from "./WebSocket.js";
 export * from "./Worker.js";
-
-// Local-first essentials.
-export type { EvoluError } from "./local-first/Error.js";
-export { AppName, createEvolu } from "./local-first/Evolu.js";
-export type {
-  AppNameError,
-  Evolu,
-  EvoluConfig,
-  EvoluDeps,
-  UnuseOwner,
-} from "./local-first/Evolu.js";
-export * from "./local-first/LocalAuth.js";
-export * from "./local-first/Owner.js";
-export type { SyncOwner } from "./local-first/Owner.js";
-export {
-  evoluJsonArrayFrom,
-  evoluJsonBuildObject,
-  evoluJsonObjectFrom,
-  getJsonObjectArgs,
-  kyselySql,
-  type InferRow,
-  type KyselyNotNull,
-  type Query,
-  type QueryRows,
-  type Row,
-} from "./local-first/Query.js";
-export { createQueryBuilder } from "./local-first/Schema.js";
-export type {
-  AnyStandardSchemaV1,
-  EvoluSchema,
-  InsertValues,
-  Mutation,
-  MutationKind,
-  MutationOptions,
-  MutationValues,
-  NullableColumnsToOptional,
-  OptionalColumnKeys,
-  RequiredColumnKeys,
-  TableSchema,
-  UpdateValues,
-  UpsertValues,
-} from "./local-first/Schema.js";
-export type {
-  // NetworkError,
-  // PaymentRequiredError,
-  // ServerError,
-  SyncState,
-} from "./local-first/Shared.js";
-export {
-  Timestamp,
-  timestampBytesToTimestamp,
-  timestampToTimestampBytes,
-} from "./local-first/Timestamp.js";
-export type {
-  TimestampBytes,
-  TimestampCounterOverflowError,
-  TimestampDriftError,
-  TimestampError,
-  TimestampTimeOutOfRangeError,
-} from "./local-first/Timestamp.js";

@@ -13,7 +13,7 @@ import { createRecord } from "./Object.js";
 import type { Result } from "./Result.js";
 import { err, ok } from "./Result.js";
 import type { Run, Task } from "./Task.js";
-import { testCreateRun, type TestDeps } from "./Test.js";
+import { type TestDeps, testCreateRun } from "./Test.js";
 import type { InferType, Name, Typed } from "./Type.js";
 import {
   array,
@@ -192,7 +192,8 @@ export const createSqlite =
 
     const driverResult = await run(createSqliteDriver(name, options));
     if (!driverResult.ok) return driverResult;
-    const driver = stack.use(driverResult.value);
+    const driver = driverResult.value;
+    stack.adopt(driver, (value) => value[Symbol.dispose]());
     console.debug("SQLite driver created");
 
     const moved = stack.move();

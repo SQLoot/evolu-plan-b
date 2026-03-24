@@ -2,9 +2,9 @@ import {
   type CreateSqliteDriverDep,
   createSqlite,
   isPromiseLike,
+  Name,
   type OwnerId,
   ok,
-  SimpleName,
   type Task,
   type TimingSafeEqualDep,
 } from "@evolu/common";
@@ -96,7 +96,7 @@ export const startBunRelay =
     await using stack = new AsyncDisposableStack();
     const console = _run.deps.console.child("relay");
 
-    const relayName = name ?? SimpleName.orThrow("evolu-relay");
+    const relayName = name ?? Name.orThrow("evolu-relay");
     const sqlite = stack.use(await _run.orThrow(createSqlite(relayName)));
     const deps = { ..._run.deps, sqlite };
 

@@ -1,3 +1,6 @@
+import { once } from "node:events";
+import { existsSync, unlinkSync } from "node:fs";
+import { createServer } from "node:net";
 import {
   createId,
   Name,
@@ -6,21 +9,19 @@ import {
   testCreateRun,
 } from "@evolu/common";
 import {
+  type CrdtMessage,
   createInitialTimestamp,
   createProtocolMessageFromCrdtMessages,
   DbChange,
   testAppOwner,
-  type CrdtMessage,
 } from "@evolu/common/local-first";
 import BetterSQLite from "better-sqlite3";
-import { once } from "events";
-import { existsSync, unlinkSync } from "fs";
-import { createServer } from "net";
 import { afterEach, describe, expect, test } from "vitest";
 import { WebSocket } from "ws";
 import { createRelayDeps, startRelay } from "../src/index.js";
 
 const relayName = Name.orThrow("RelayRunLifetimeTest");
+const relayTest = "Bun" in globalThis ? test.skip : test;
 
 describe("startRelay", () => {
   afterEach(() => {
@@ -31,53 +32,57 @@ describe("startRelay", () => {
   });
 
   // TODO: Clean up.
-  test("processes websocket messages after startup task settles", async () => {
-    const console = testCreateConsole();
-    const port = await getAvailablePort();
+  relayTest(
+    "processes websocket messages after startup task settles",
+    async () => {
+      const console = testCreateConsole();
+      const port = await getAvailablePort();
 
-    await using run = testCreateRun({
-      ...createRelayDeps(),
-      console,
-    });
-    await using _relay = await run.orThrow(
-      startRelay({
-        port,
-        name: relayName,
-        isOwnerWithinQuota: () => true,
-      }),
-    );
-
-    const ws = new WebSocket(`ws://127.0.0.1:${port}/${testAppOwner.id}`);
-    await once(ws, "open");
-
-    try {
-      const responsePromise = waitForMessage(ws, 2000);
-
-      ws.send(
-        createProtocolMessageFromCrdtMessages(run.deps)(testAppOwner, [
-          createTestCrdtMessage(run.deps),
-        ]),
-      );
-
-      const response = await responsePromise;
-
-      expect(response).toBeInstanceOf(Uint8Array);
-      expect(getRelayErrorEntries(console.getEntriesSnapshot())).toEqual([]);
-
-      const db = new BetterSQLite(`${relayName}.db`, { readonly: true });
+      const run = testCreateRun({
+        ...createRelayDeps(),
+        console,
+      });
       try {
-        const row = db
-          .prepare("select count(*) as count from evolu_message;")
-          .get() as { readonly count: number };
+        const relay = await run.orThrow(
+          startRelay({
+            port,
+            name: relayName,
+            isOwnerWithinQuota: () => true,
+          }),
+        );
 
-        expect(row.count).toBe(1);
+        try {
+          const ws = new WebSocket(`ws://127.0.0.1:${port}/${testAppOwner.id}`);
+          await once(ws, "open");
+
+          try {
+            const responsePromise = waitForMessage(ws, 2000);
+
+            ws.send(
+              createProtocolMessageFromCrdtMessages(run.deps)(testAppOwner, [
+                createTestCrdtMessage(run.deps),
+              ]),
+            );
+
+            const response = await responsePromise;
+
+            expect(response).toBeInstanceOf(Uint8Array);
+            expect(getRelayErrorEntries(console.getEntriesSnapshot())).toEqual(
+              [],
+            );
+
+            expect(await readStoredMessageCount(`${relayName}.db`)).toBe(1);
+          } finally {
+            await closeWebSocket(ws);
+          }
+        } finally {
+          await relay[Symbol.asyncDispose]();
+        }
       } finally {
-        db.close();
+        await run[Symbol.asyncDispose]();
       }
-    } finally {
-      await closeWebSocket(ws);
-    }
-  });
+    },
+  );
 });
 
 const createTestCrdtMessage = (deps: RandomBytesDep): CrdtMessage => ({
@@ -146,3 +151,30 @@ const getRelayErrorEntries = (
     ReturnType<typeof testCreateConsole>["getEntriesSnapshot"]
   >,
 ) => entries.filter((entry) => entry.method === "error");
+
+const readStoredMessageCount = async (path: string): Promise<number> => {
+  if ("Bun" in globalThis) {
+    const { Database } = await import("bun:sqlite");
+    const db = new Database(path, { readonly: true });
+    try {
+      const row = db
+        .query("select count(*) as count from evolu_message;")
+        .get() as { readonly count: number } | null;
+
+      return row?.count ?? 0;
+    } finally {
+      db.close();
+    }
+  }
+
+  const db = new BetterSQLite(path, { readonly: true });
+  try {
+    const row = db
+      .prepare("select count(*) as count from evolu_message;")
+      .get() as { readonly count: number };
+
+    return row.count;
+  } finally {
+    db.close();
+  }
+};

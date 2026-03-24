@@ -8,14 +8,14 @@ import {
   emptyArray,
   firstInArray,
   isNonEmptyArray,
-  shiftFromArray,
   type NonEmptyReadonlyArray,
+  shiftFromArray,
 } from "../Array.js";
 import { assert, assertNotDisposed } from "../Assert.js";
 import { createCallbacks } from "../Callbacks.js";
 import type { ConsoleEntry, ConsoleLevel } from "../Console.js";
 import { exhaustiveCheck } from "../Function.js";
-import { structuralLookup, type StructuralLookupKey } from "../Lookup.js";
+import { type StructuralLookupKey, structuralLookup } from "../Lookup.js";
 import { createRefCountByKey, type RefCountByKey } from "../RefCount.js";
 import {
   createSharedResourceByKey,
@@ -25,7 +25,7 @@ import {
 import { ok } from "../Result.js";
 import { spaced } from "../Schedule.js";
 import type { NonEmptyReadonlySet } from "../Set.js";
-import { repeat, unabortable, type Fiber, type Task } from "../Task.js";
+import { type Fiber, repeat, type Task, unabortable } from "../Task.js";
 import { createId, type Id, type Name } from "../Type.js";
 import type { Callback, ExtractType } from "../Types.js";
 import type { CreateWebSocketDep, WebSocket } from "../WebSocket.js";
@@ -265,10 +265,8 @@ export interface DbWorkerQueueMeta {
   readonly evoluPortId: Id;
 }
 
-export interface DbWorkerQueueItem extends Pick<
-  DbWorkerQueueMeta,
-  "evoluPortId"
-> {
+export interface DbWorkerQueueItem
+  extends Pick<DbWorkerQueueMeta, "evoluPortId"> {
   readonly request: ExtractType<EvoluInput, "Mutate" | "Query" | "Export">;
 }
 

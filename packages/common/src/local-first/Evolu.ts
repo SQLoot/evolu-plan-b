@@ -28,7 +28,7 @@ import { isNonEmptySet } from "../Set.js";
 import { SqliteBoolean, sqliteBooleanToBoolean } from "../Sqlite.js";
 import type { Listener, ReadonlyStore, Unsubscribe } from "../Store.js";
 import { createStore } from "../Store.js";
-import { type createRun, type Task } from "../Task.js";
+import type { createRun, Task } from "../Task.js";
 import type { Id, TypeError } from "../Type.js";
 import {
   brand,
@@ -251,9 +251,8 @@ export const testAppName = /*#__PURE__*/ AppName.orThrow("AppName");
  *
  * TODO: Better docs.
  */
-export interface Evolu<
-  S extends EvoluSchema = EvoluSchema,
-> extends AsyncDisposable {
+export interface Evolu<S extends EvoluSchema = EvoluSchema>
+  extends AsyncDisposable {
   /**
    * Evolu instance name is derived from {@link EvoluConfig.appName} and
    * {@link AppOwner}'s hash.
@@ -916,7 +915,7 @@ export const createEvolu =
         emptyArray) as QueryRows<R>;
     };
 
-    const useOwner = (
+    const registerOwner = (
       owner: ReadonlyOwner | Owner,
       ownerTransports?: NonEmptyReadonlyArray<OwnerTransport>,
     ): UnuseOwner => {
@@ -952,7 +951,7 @@ export const createEvolu =
 
     const moved = stack.move();
 
-    if (isNonEmptyArray(transports)) useOwner(appOwner);
+    if (isNonEmptyArray(transports)) registerOwner(appOwner);
 
     return ok({
       name,
@@ -1003,7 +1002,7 @@ export const createEvolu =
         return exportDatabasePending.promise;
       },
 
-      useOwner,
+      useOwner: registerOwner,
 
       [Symbol.asyncDispose]: () => {
         console.info("dispose");

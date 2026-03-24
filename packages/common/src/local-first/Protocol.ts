@@ -274,8 +274,6 @@ import {
  */
 const packr = new Packr({ variableMapSize: true, useRecords: false });
 
-export const pack = (value: unknown): Uint8Array => packr.pack(value);
-
 const minProtocolMessageMaxSize = 1_000_000;
 const maxProtocolMessageMaxSize = 100_000_000;
 
@@ -541,14 +539,13 @@ export const createProtocolMessageForSync =
 
     const size = deps.storage.getSize(ownerIdBytes);
 
-    const didSplitRange = splitRange(deps)(
+    splitRange(deps)(
       ownerIdBytes,
       zeroNonNegativeInt,
       size,
       InfiniteUpperBound,
       buffer,
     );
-    if (!didSplitRange) return null;
 
     return buffer.unwrap();
   };
@@ -1260,17 +1257,20 @@ class ProtocolDecodeError extends Error {
   constructor(message: string) {
     super(message);
     this.name = this.constructor.name;
-    (
-      Error as ErrorConstructor & {
+
+    const captureStackTrace = (
+      Error as typeof Error & {
         captureStackTrace?: (
-          targetObject: object,
-          constructorOpt?: abstract new (...args: Array<unknown>) => unknown,
+          target: object,
+          constructor?: abstract new (...args: never[]) => unknown,
         ) => void;
       }
-    ).captureStackTrace?.(
+    ).captureStackTrace;
+
+    captureStackTrace?.(
       this,
       this.constructor as abstract new (
-        ...args: Array<unknown>
+        ...args: never[]
       ) => unknown,
     );
   }
@@ -1407,17 +1407,13 @@ const sync =
           } else {
             if (output.canSplitRange()) {
               coalesceSkipsBeforeAdd();
-              if (
-                !splitRange(deps)(
-                  ownerIdBytes,
-                  lower,
-                  upper,
-                  currentUpperBound,
-                  output,
-                )
-              ) {
-                return err(ProtocolErrorCode.SyncError);
-              }
+              splitRange(deps)(
+                ownerIdBytes,
+                lower,
+                upper,
+                currentUpperBound,
+                output,
+              );
             } else {
               return addFingerprintForRemainingRange(upper)
                 ? ok(true)
@@ -1539,7 +1535,7 @@ const splitRange =
     upper: NonNegativeInt,
     upperBound: RangeUpperBound,
     buffer: ProtocolMessageBuffer,
-  ): boolean => {
+  ): void => {
     const itemCount = NonNegativeInt.orThrow(upper - lower);
     const buckets = computeBalancedBuckets(itemCount);
 
@@ -1561,7 +1557,7 @@ const splitRange =
       );
 
       buffer.addRange(range);
-      return true;
+      return;
     }
 
     // Check Storage.ts `fingerprint` and `fingerprintRanges` docs.
@@ -1582,7 +1578,7 @@ const splitRange =
       );
     } catch (error) {
       deps.console.error(error);
-      return false;
+      return;
     }
 
     const rangesToUse =
@@ -1591,7 +1587,6 @@ const splitRange =
     for (const range of rangesToUse) {
       buffer.addRange(range);
     }
-    return true;
   };
 
 const decodeRanges = (buffer: Buffer): ReadonlyArray<Range> => {

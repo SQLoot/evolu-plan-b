@@ -1,8 +1,8 @@
 import {
   createRun,
   EncryptionKey,
+  Name,
   type SafeSql,
-  SimpleName,
   type SqliteDriver,
   type SqliteValue,
 } from "@evolu/common";
@@ -31,7 +31,7 @@ workerScope.onmessage = (e: MessageEvent) => {
       switch (cmd.type) {
         case "create": {
           if (!cmd.name) throw new Error("Name required");
-          const name = SimpleName.orThrow(cmd.name);
+          const name = Name.orThrow(cmd.name);
           const encryptionKey = cmd.encryptionKey
             ? EncryptionKey.orThrow(cmd.encryptionKey)
             : undefined;
