@@ -1,80 +1,90 @@
-import { describe, expect, expectTypeOf, test } from "vitest";
-import { isNone, isSome, type Option } from "../src/Option.js";
-import { createRefCount } from "../src/RefCount.js";
-import type { NonNegativeInt } from "../src/Type.js";
+import { describe, expect, test } from "vitest";
+import { createRefCount, createRefCountByKey } from "../src/RefCount.js";
 
 describe("createRefCount", () => {
-  test("increment adds a new key with count 1", () => {
-    const refCount = createRefCount<string>();
+  test("increments and decrements the count", () => {
+    const refCount = createRefCount();
 
-    const count = refCount.increment("a");
-
-    expect(count).toBe(1);
-    expect(refCount.getCount("a")).toBe(1);
-    expect(refCount.has("a")).toBe(true);
+    expect(refCount.getCount()).toBe(0);
+    expect(refCount.increment()).toBe(1);
+    expect(refCount.increment()).toBe(2);
+    expect(refCount.getCount()).toBe(2);
+    expect(refCount.decrement()).toBe(1);
+    expect(refCount.decrement()).toBe(0);
+    expect(refCount.getCount()).toBe(0);
   });
 
-  test("increment increases count for existing key", () => {
-    const refCount = createRefCount<string>();
+  test("decrement throws on underflow", () => {
+    const refCount = createRefCount();
 
-    refCount.increment("a");
-    const count = refCount.increment("a");
+    expect(() => refCount.decrement()).toThrow(
+      "RefCount must not be decremented below zero.",
+    );
+  });
 
-    expect(count).toBe(2);
+  test("dispose invalidates the helper", () => {
+    const refCount = createRefCount();
+
+    refCount.increment();
+    refCount.increment();
+    refCount[Symbol.dispose]();
+
+    expect(() => refCount.increment()).toThrow(
+      "Expected value to not be disposed.",
+    );
+    expect(() => refCount.decrement()).toThrow(
+      "Expected value to not be disposed.",
+    );
+    expect(() => refCount.getCount()).toThrow(
+      "Expected value to not be disposed.",
+    );
+  });
+});
+
+describe("createRefCountByKey", () => {
+  test("tracks counts per key", () => {
+    const refCount = createRefCountByKey<string>();
+
+    expect(refCount.increment("a")).toBe(1);
+    expect(refCount.increment("a")).toBe(2);
+    expect(refCount.increment("b")).toBe(1);
     expect(refCount.getCount("a")).toBe(2);
-  });
-
-  test("decrement returns none for missing key", () => {
-    const refCount = createRefCount<string>();
-
-    const result = refCount.decrement("missing");
-
-    expect(isNone(result)).toBe(true);
-    expect(refCount.getCount("missing")).toBe(0);
-    expect(refCount.has("missing")).toBe(false);
-  });
-
-  test("decrement removes key when count reaches zero", () => {
-    const refCount = createRefCount<string>();
-    refCount.increment("a");
-
-    const result = refCount.decrement("a");
-
-    expect(isSome(result)).toBe(true);
-    if (isSome(result)) {
-      expect(result.value).toBe(0);
-    }
-    expect(refCount.getCount("a")).toBe(0);
-    expect(refCount.has("a")).toBe(false);
-  });
-
-  test("decrement decreases count and keeps key when count stays positive", () => {
-    const refCount = createRefCount<string>();
-    refCount.increment("a");
-    refCount.increment("a");
-
-    const result = refCount.decrement("a");
-
-    expect(isSome(result)).toBe(true);
-    if (isSome(result)) {
-      expect(result.value).toBe(1);
-    }
-    expect(refCount.getCount("a")).toBe(1);
-    expect(refCount.has("a")).toBe(true);
-  });
-
-  test("keys returns tracked keys", () => {
-    const refCount = createRefCount<string>();
-
-    refCount.increment("a");
-    refCount.increment("a");
-    refCount.increment("b");
-
+    expect(refCount.getCount("b")).toBe(1);
     expect(refCount.keys()).toEqual(new Set(["a", "b"]));
   });
 
-  test("keys returns snapshot set", () => {
-    const refCount = createRefCount<string>();
+  test("decrement removes key at zero", () => {
+    const refCount = createRefCountByKey<string>();
+
+    refCount.increment("a");
+
+    expect(refCount.decrement("a")).toBe(0);
+    expect(refCount.getCount("a")).toBe(0);
+    expect(refCount.has("a")).toBe(false);
+    expect(refCount.keys()).toEqual(new Set());
+  });
+
+  test("decrement throws on missing key", () => {
+    const refCount = createRefCountByKey<string>();
+
+    expect(() => refCount.decrement("missing")).toThrow(
+      "RefCount must not be decremented below zero.",
+    );
+  });
+
+  test("decrement keeps key while count stays positive", () => {
+    const refCount = createRefCountByKey<string>();
+
+    refCount.increment("a");
+    refCount.increment("a");
+
+    expect(refCount.decrement("a")).toBe(1);
+    expect(refCount.getCount("a")).toBe(1);
+    expect(refCount.has("a")).toBe(true);
+  });
+
+  test("keys returns a snapshot set", () => {
+    const refCount = createRefCountByKey<string>();
     refCount.increment("a");
 
     const keys = refCount.keys() as Set<string>;
@@ -84,23 +94,30 @@ describe("createRefCount", () => {
     expect(refCount.has("b")).toBe(false);
   });
 
-  test("clear removes all keys and counts", () => {
-    const refCount = createRefCount<string>();
+  test("dispose invalidates the helper", () => {
+    const refCount = createRefCountByKey<string>();
 
     refCount.increment("a");
     refCount.increment("b");
-    refCount.clear();
+    refCount[Symbol.dispose]();
 
-    expect(refCount.keys()).toEqual(new Set());
-    expect(refCount.getCount("a")).toBe(0);
-    expect(refCount.getCount("b")).toBe(0);
-    expect(refCount.has("a")).toBe(false);
-    expect(refCount.has("b")).toBe(false);
+    expect(() => refCount.increment("c")).toThrow(
+      "Expected value to not be disposed.",
+    );
+    expect(() => refCount.decrement("a")).toThrow(
+      "Expected value to not be disposed.",
+    );
+    expect(() => refCount.getCount("a")).toThrow(
+      "Expected value to not be disposed.",
+    );
+    expect(() => refCount.has("a")).toThrow(
+      "Expected value to not be disposed.",
+    );
+    expect(() => refCount.keys()).toThrow("Expected value to not be disposed.");
   });
 
   test("uses reference identity for object keys", () => {
-    const refCount = createRefCount<{ readonly id: string }>();
-
+    const refCount = createRefCountByKey<{ readonly id: string }>();
     const keyA = { id: "same" };
     const keyB = { id: "same" };
 
@@ -110,12 +127,5 @@ describe("createRefCount", () => {
     expect(refCount.getCount(keyA)).toBe(1);
     expect(refCount.getCount(keyB)).toBe(1);
     expect(refCount.keys().size).toBe(2);
-  });
-
-  test("decrement has Option NonNegativeInt return type", () => {
-    const refCount = createRefCount<string>();
-    const result = refCount.decrement("a");
-
-    expectTypeOf(result).toEqualTypeOf<Option<NonNegativeInt>>();
   });
 });

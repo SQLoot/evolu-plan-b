@@ -17,7 +17,9 @@ import { type Console, type ConsoleDep, createConsole } from "./Console.js";
 import type { RandomBytes, RandomBytesDep } from "./Crypto.js";
 import { createRandomBytes } from "./Crypto.js";
 import { eqArrayStrict } from "./Eq.js";
+import { identity } from "./Function.js";
 import { lazyTrue, lazyVoid } from "./Function.js";
+import { createLookupMap, type Lookup, type LookupOption } from "./Lookup.js";
 import { decrement, increment } from "./Number.js";
 import {
   createRecord,
@@ -33,11 +35,6 @@ import type { Done, NextResult, Ok, Result } from "./Result.js";
 import { err, getOrThrow, ok, tryAsync } from "./Result.js";
 import type { Schedule, ScheduleStep } from "./Schedule.js";
 import { addToSet, deleteFromSet, emptySet } from "./Set.js";
-import {
-  createStructuralMap,
-  type Structural,
-  type StructuralKey,
-} from "./Structural.js";
 import type { testCreateRun } from "./Test.js";
 import type { Duration, Time, TimeDep } from "./Time.js";
 import { createTime, durationToMillis, Millis } from "./Time.js";
@@ -48,27 +45,27 @@ import {
   Id,
   type InferType,
   maxPositiveInt,
+  onePositiveInt,
   type Name,
   NonNegativeInt,
   object,
-  onePositiveInt,
   PositiveInt,
   type Typed,
   typed,
+  union,
   Unknown,
   UnknownResult,
-  union,
   zeroNonNegativeInt,
 } from "./Type.js";
-import type {
-  Awaitable,
-  Callback,
-  CallbackWithTeardown,
-  Int1To100,
-  isPromiseLike,
-  Mutable,
-  NewKeys,
-  Predicate,
+import type { isPromiseLike } from "./Types.js";
+import {
+  type Awaitable,
+  type Callback,
+  type CallbackWithTeardown,
+  type Int1To100,
+  type Mutable,
+  type NewKeys,
+  type Predicate,
 } from "./Types.js";
 
 /**
@@ -803,11 +800,6 @@ export interface Run<D = unknown> extends AsyncDisposable {
 }
 
 /**
- * @deprecated Use {@link Run}. Kept for fork compatibility.
- */
-export type Runner<D = unknown> = Run<D>;
-
-/**
  * `Fiber` is a handle to a running {@link Task} that can be awaited, aborted, or
  * disposed.
  *
@@ -997,8 +989,10 @@ export interface RunStateRunning extends Typed<"Running"> {}
 
 export interface RunStateDisposing extends Typed<"Disposing"> {}
 
-export interface RunStateSettled<T = unknown, E = unknown>
-  extends Typed<"Settled"> {
+export interface RunStateSettled<
+  T = unknown,
+  E = unknown,
+> extends Typed<"Settled"> {
   /**
    * The Run's completion value.
    *
@@ -1129,11 +1123,6 @@ export interface CreateRun<BaseDeps> {
 }
 
 /**
- * @deprecated Use {@link CreateRun}. Kept for fork compatibility.
- */
-export type CreateRunner<BaseDeps> = CreateRun<BaseDeps>;
-
-/**
  * Creates root {@link Run}.
  *
  * The root Run is also the daemon Run: it stays running until disposed. Child
@@ -1211,11 +1200,6 @@ export const createRun: CreateRun<RunDeps> = <D>(
   const mergedDeps = { ...defaultDeps, ...deps } as RunDeps & D;
   return createRunInternal(createRef(mergedDeps))();
 };
-
-/**
- * @deprecated Use {@link createRun}. Kept for fork compatibility.
- */
-export const createRunner: typeof createRun = createRun;
 
 /** Internal Run properties, hidden from public API via TypeScript types. */
 interface RunInternal<D extends RunDeps = RunDeps> extends Run<D> {
@@ -1608,13 +1592,7 @@ export function concurrently<T, E, D = unknown>(
   taskOrFallback?: Task<T, E, D>,
 ): Task<T, E, D> {
   const isTask = isFunction(concurrencyOrTask);
-  let task: Task<T, E, D>;
-  if (isTask) {
-    task = concurrencyOrTask;
-  } else {
-    assert(taskOrFallback != null, "task is required");
-    task = taskOrFallback;
-  }
+  const task = isTask ? concurrencyOrTask : taskOrFallback!;
   return Object.assign((run: Run<D>) => run(task), {
     [concurrencyBehaviorSymbol]: isTask ? maxPositiveInt : concurrencyOrTask,
   });
@@ -1683,28 +1661,18 @@ export const yieldNow: Task<void> = () =>
     (reason): AbortError => createAbortError(reason),
   );
 
-const scheduler = globalThis as unknown as {
-  readonly scheduler?: { readonly yield?: unknown };
-  readonly setImmediate?: (callback: () => void) => unknown;
-};
-
-const yieldImpl = (): Promise<void> => {
-  const schedulerApi = scheduler.scheduler;
-  if (typeof schedulerApi?.yield === "function") {
-    return Reflect.apply(
-      schedulerApi.yield as () => Promise<void>,
-      schedulerApi,
-      [],
-    );
+const scheduler = (
+  globalThis as unknown as {
+    readonly scheduler?: { readonly yield?: unknown };
   }
+).scheduler;
 
-  const setImmediateFn = scheduler.setImmediate;
-  if (typeof setImmediateFn === "function") {
-    return new Promise<void>((resolve) => void setImmediateFn(resolve));
-  }
-
-  return new Promise<void>((resolve) => setTimeout(resolve, 0)); // Safari
-};
+const yieldImpl: () => Promise<void> =
+  typeof scheduler?.yield === "function"
+    ? () => (scheduler.yield as () => Promise<void>)()
+    : typeof setImmediate !== "undefined"
+      ? () => new Promise<void>((resolve) => setImmediate(resolve))
+      : () => new Promise<void>((r) => setTimeout(r, 0)); // Safari
 
 /**
  * Creates a {@link Task} from a callback-based API.
@@ -2271,8 +2239,9 @@ export const createDeferred = <T, E = never>(): Deferred<T, E> => {
 export const DeferredDisposedError = /*#__PURE__*/ typed(
   "DeferredDisposedError",
 );
-export interface DeferredDisposedError
-  extends InferType<typeof DeferredDisposedError> {}
+export interface DeferredDisposedError extends InferType<
+  typeof DeferredDisposedError
+> {}
 
 /**
  * {@link DeferredDisposedError} used as abort reason in {@link createDeferred}.
@@ -2577,8 +2546,9 @@ export const createSemaphore = (permits: Concurrency): Semaphore => {
 export const SemaphoreDisposedError = /*#__PURE__*/ typed(
   "SemaphoreDisposedError",
 );
-export interface SemaphoreDisposedError
-  extends InferType<typeof SemaphoreDisposedError> {}
+export interface SemaphoreDisposedError extends InferType<
+  typeof SemaphoreDisposedError
+> {}
 
 /**
  * {@link SemaphoreDisposedError} used as abort reason in {@link createSemaphore}.
@@ -2599,18 +2569,19 @@ const semaphoreDisposedAbortError: AbortError = createAbortError(
  * Provides semaphore operations per key while preserving the same API shape as
  * {@link Semaphore}.
  *
+ * By default, {@link createSemaphoreByKey} uses reference identity for keys,
+ * matching native `Map`. Callers may instead provide a {@link Lookup lookup} so
+ * logical equality is based on a derived stable key.
+ *
  * @group Concurrency primitives
  */
-export interface SemaphoreByKey<K = StructuralKey> extends Disposable {
+export interface SemaphoreByKey<K = unknown> extends Disposable {
   /**
    * Executes a {@link Task} while holding one permit for a specific key.
    *
    * Behaves like {@link Semaphore.withPermit}, scoped to `key`.
    */
-  readonly withPermit: <T, E, D>(
-    key: Structural<K>,
-    task: Task<T, E, D>,
-  ) => Task<T, E, D>;
+  readonly withPermit: <T, E, D>(key: K, task: Task<T, E, D>) => Task<T, E, D>;
 
   /**
    * Executes a {@link Task} while holding permits for a specific key.
@@ -2618,13 +2589,19 @@ export interface SemaphoreByKey<K = StructuralKey> extends Disposable {
    * Behaves like {@link Semaphore.withPermits}, scoped to `key`.
    */
   readonly withPermits: <T, E, D>(
-    key: Structural<K>,
+    key: K,
     permits: Concurrency,
   ) => (task: Task<T, E, D>) => Task<T, E, D>;
 
   /** Returns current semaphore state for a key, or `null` if absent. */
-  readonly snapshot: (key: Structural<K>) => SemaphoreSnapshot | null;
+  readonly snapshot: (key: K) => SemaphoreSnapshot | null;
 }
+
+/** Options for {@link createSemaphoreByKey}. */
+export interface CreateSemaphoreByKeyOptions<K, L = K> extends LookupOption<
+  K,
+  L
+> {}
 
 /**
  * Creates a {@link SemaphoreByKey}.
@@ -2633,61 +2610,41 @@ export interface SemaphoreByKey<K = StructuralKey> extends Disposable {
  *
  * @group Concurrency primitives
  */
-export const createSemaphoreByKey = <K = StructuralKey>(
+export function createSemaphoreByKey<K = unknown>(
   permits: Concurrency,
-): SemaphoreByKey<K> => {
-  type KeyedSemaphore = Semaphore & {
-    __disposing?: boolean;
-  };
-
-  const semaphoresByKey = createStructuralMap<K, KeyedSemaphore>();
+): SemaphoreByKey<K>;
+export function createSemaphoreByKey<K, L>(
+  permits: Concurrency,
+  options: CreateSemaphoreByKeyOptions<K, L>,
+): SemaphoreByKey<K>;
+export function createSemaphoreByKey<K, L = K>(
+  permits: Concurrency,
+  { lookup = identity as Lookup<K, L> }: CreateSemaphoreByKeyOptions<K, L> = {},
+): SemaphoreByKey<K> {
+  const semaphoresByKey = createLookupMap<K, Semaphore, L>({
+    lookup,
+  });
   let disposed = false;
-  const toStructuralKey = (key: Structural<K>): Structural<K> => key;
-
-  const getActiveSemaphore = (
-    key: Structural<K>,
-  ): KeyedSemaphore | undefined => {
-    const semaphore = semaphoresByKey.get(toStructuralKey(key));
-    if (!semaphore) return undefined;
-    if (!semaphore.__disposing) return semaphore;
-    return undefined;
-  };
 
   const withPermits =
-    <T, E, D>(key: Structural<K>, requestedPermits: Concurrency) =>
+    <T, E, D>(key: K, requestedPermits: Concurrency) =>
     (task: Task<T, E, D>): Task<T, E, D> =>
     async (run: Run<D>) => {
       if (disposed) return err(semaphoreDisposedAbortError);
 
-      let semaphore = getActiveSemaphore(key);
+      let semaphore = semaphoresByKey.get(key);
       if (!semaphore) {
-        semaphore = createSemaphore(permits) as KeyedSemaphore;
-        semaphoresByKey.set(toStructuralKey(key), semaphore);
+        semaphore = createSemaphore(permits);
+        semaphoresByKey.set(key, semaphore);
       }
 
       using _ = {
         [Symbol.dispose]: () => {
-          const structuralKey = toStructuralKey(key);
-
-          if (semaphoresByKey.get(structuralKey) !== semaphore) return;
           const snapshot = semaphore.snapshot();
-          if (!snapshot.isIdle) return;
-
-          semaphore.__disposing = true;
-
-          if (semaphoresByKey.get(structuralKey) !== semaphore) {
-            semaphore.__disposing = false;
-            return;
+          if (snapshot.isIdle) {
+            semaphoresByKey.delete(key);
+            semaphore[Symbol.dispose]();
           }
-
-          const snapshotAfterMark = semaphore.snapshot();
-          if (!snapshotAfterMark.isIdle) {
-            semaphore.__disposing = false;
-            return;
-          }
-
-          semaphoresByKey.delete(structuralKey);
-          semaphore[Symbol.dispose]();
         },
       };
 
@@ -2695,14 +2652,12 @@ export const createSemaphoreByKey = <K = StructuralKey>(
     };
 
   return {
-    withPermit: <T, E, D>(
-      key: Structural<K>,
-      task: Task<T, E, D>,
-    ): Task<T, E, D> => withPermits<T, E, D>(key, 1)(task),
+    withPermit: <T, E, D>(key: K, task: Task<T, E, D>): Task<T, E, D> =>
+      withPermits<T, E, D>(key, 1)(task),
 
     withPermits,
 
-    snapshot: (key) => getActiveSemaphore(key)?.snapshot() ?? null,
+    snapshot: (key) => semaphoresByKey.get(key)?.snapshot() ?? null,
 
     [Symbol.dispose]: () => {
       if (disposed) return;
@@ -2715,7 +2670,7 @@ export const createSemaphoreByKey = <K = StructuralKey>(
       semaphoresByKey.clear();
     },
   };
-};
+}
 
 /**
  * A mutex (mutual exclusion) that ensures only one {@link Task} runs at a time.
@@ -2785,40 +2740,50 @@ export const createMutex = (): Mutex => {
  *
  * Provides mutex operations per key.
  *
+ * By default, {@link createMutexByKey} uses reference identity for keys,
+ * matching native `Map`. Callers may instead provide a {@link Lookup lookup} so
+ * logical equality is based on a derived stable key.
+ *
  * @group Concurrency primitives
  */
-export interface MutexByKey<K = StructuralKey> extends Disposable {
+export interface MutexByKey<K = unknown> extends Disposable {
   /**
    * Executes a {@link Task} while holding the mutex lock for a specific key.
    *
    * Behaves like {@link Mutex.withLock}, scoped to `key`.
    */
-  readonly withLock: <T, E, D>(
-    key: Structural<K>,
-    task: Task<T, E, D>,
-  ) => Task<T, E, D>;
+  readonly withLock: <T, E, D>(key: K, task: Task<T, E, D>) => Task<T, E, D>;
 
   /** Returns the current mutex state for `key`, or `null` if absent. */
-  readonly snapshot: (key: Structural<K>) => SemaphoreSnapshot | null;
+  readonly snapshot: (key: K) => SemaphoreSnapshot | null;
 }
+
+/** Options for {@link createMutexByKey}. */
+export interface CreateMutexByKeyOptions<K, L = K> extends LookupOption<K, L> {}
 
 /**
  * Creates a {@link MutexByKey}.
  *
  * @group Concurrency primitives
  */
-export const createMutexByKey = <K = StructuralKey>(): MutexByKey<K> => {
-  const semaphoreByKey = createSemaphoreByKey<K>(onePositiveInt);
+export function createMutexByKey<K = unknown>(): MutexByKey<K>;
+export function createMutexByKey<K, L>(
+  options: CreateMutexByKeyOptions<K, L>,
+): MutexByKey<K>;
+export function createMutexByKey<K, L = K>({
+  lookup = identity as Lookup<K, L>,
+}: CreateMutexByKeyOptions<K, L> = {}): MutexByKey<K> {
+  const semaphoreByKey = createSemaphoreByKey<K, L>(onePositiveInt, {
+    lookup,
+  });
 
   return {
-    withLock: <T, E, D>(
-      key: Structural<K>,
-      task: Task<T, E, D>,
-    ): Task<T, E, D> => semaphoreByKey.withPermit(key, task),
+    withLock: <T, E, D>(key: K, task: Task<T, E, D>): Task<T, E, D> =>
+      semaphoreByKey.withPermit(key, task),
     snapshot: semaphoreByKey.snapshot,
     [Symbol.dispose]: semaphoreByKey[Symbol.dispose],
   };
-};
+}
 
 /**
  * {@link Ref} protected by a {@link Mutex}.
@@ -2971,16 +2936,6 @@ export const createInMemoryLeaderLock = (): LeaderLock => {
           await run(released.task);
           return ok();
         }),
-      ).then(
-        (result) => {
-          if (result.ok) return;
-          acquired.resolve(err(result.error));
-          void leaseRun[Symbol.asyncDispose]();
-        },
-        (error: unknown) => {
-          acquired.resolve(err(createAbortError(error)));
-          void leaseRun[Symbol.asyncDispose]();
-        },
       );
 
       const acquiredResult = await run(acquired.task);
@@ -3020,8 +2975,6 @@ export interface CollectOptions<Collect extends boolean = true> {
    */
   readonly abortReason?: unknown;
 }
-
-type NoValue = undefined;
 
 /**
  * Fails fast on first error across multiple {@link Task}s.
@@ -3112,7 +3065,7 @@ export function all<T, E, D>(
 export function all<T, E, D>(
   tasks: Iterable<Task<T, E, D>> | Readonly<Record<string, Task<T, E, D>>>,
   options: CollectOptions<false>,
-): Task<undefined, E, D>;
+): Task<void, E, D>;
 
 export function all(
   input: CollectInput,
@@ -3247,7 +3200,7 @@ export function allSettled<T, E, D>(
 export function allSettled<T, E, D>(
   tasks: Iterable<Task<T, E, D>> | Readonly<Record<string, Task<T, E, D>>>,
   options: CollectOptions<false>,
-): Task<undefined, never, D>;
+): Task<void, never, D>;
 
 export function allSettled(
   input: Iterable<AnyTask> | Readonly<Record<string, AnyTask>>,
@@ -3262,8 +3215,9 @@ export function allSettled(
  * @group Composition
  */
 export const AllSettledAbortError = /*#__PURE__*/ typed("AllSettledAbortError");
-export interface AllSettledAbortError
-  extends InferType<typeof AllSettledAbortError> {}
+export interface AllSettledAbortError extends InferType<
+  typeof AllSettledAbortError
+> {}
 
 /**
  * {@link AllSettledAbortError} used as abort reason in {@link allSettled}.
@@ -3339,13 +3293,13 @@ export function map<A, T, E, D>(
   items: Iterable<A> | Readonly<Record<string, A>>,
   task: (a: A) => Task<T, E, D>,
   options: CollectOptions<false>,
-): Task<undefined, E, D>;
+): Task<void, E, D>;
 
 export function map<A, T, E, D>(
   items: MapInput<A>,
   fn: (a: A) => Task<T, E, D>,
   { abortReason = mapAbortError, ...options }: CollectOptions<boolean> = {},
-): Task<ReadonlyArray<T> | Record<string, T> | NoValue, E, D> {
+): Task<ReadonlyArray<T> | Record<string, T> | void, E, D> {
   const mapped = mapInput(items, fn);
   return all(
     mapped as Iterable<Task<T, E, D>>,
@@ -3448,7 +3402,7 @@ export function mapSettled<A, T, E, D>(
   items: Iterable<A> | Readonly<Record<string, A>>,
   task: (a: A) => Task<T, E, D>,
   options: CollectOptions<false>,
-): Task<undefined, never, D>;
+): Task<void, never, D>;
 
 export function mapSettled<A, T, E, D>(
   items: MapInput<A>,
@@ -3457,7 +3411,7 @@ export function mapSettled<A, T, E, D>(
 ): Task<
   | ReadonlyArray<Result<T, E | AbortError>>
   | Record<string, Result<T, E | AbortError>>
-  | NoValue,
+  | void,
   never,
   D
 > {
@@ -3592,7 +3546,7 @@ const collect = (
   return async (run) => {
     const result = await run(pool(taskArray, { stopOn, collect, abortReason }));
     if (!result.ok) return result;
-    if (!collect) return ok(undefined);
+    if (!collect) return ok();
     const record = createRecord();
     for (let i = 0; i < keys.length; i++) {
       record[keys[i]] = (result.value as Array<unknown>)[i];
@@ -3671,7 +3625,7 @@ function pool<D>(
     collect: false;
     abortReason: unknown;
   },
-): Task<undefined, never, D>;
+): Task<void, never, D>;
 
 /** Internal overload for {@link collect} with dynamic stopOn/collect. */
 function pool(
@@ -3696,7 +3650,7 @@ function pool<T, E>(
     abortReason: unknown;
     allFailed?: AnyAllFailed;
   },
-): Task<ReadonlyArray<unknown> | T | NoValue, E> {
+): Task<ReadonlyArray<unknown> | T | void, E> {
   const tasks = arrayFrom(tasksIterable);
   const { length } = tasks;
   if (length === 0) return () => ok(emptyArray);
@@ -3777,19 +3731,13 @@ function pool<T, E>(
       return err(run.signal.reason as AbortError);
     }
 
-    if (!stopOn) return results ? ok(results) : ok(undefined);
+    if (!stopOn) return results ? ok(results) : ok();
     if (stopped) return stopped;
     if (results) return ok(results);
     // For all/allSettled/map/mapSettled with collect: false (no allFailed handler)
-    if (!allFailed) return ok(undefined);
+    if (!allFailed) return ok();
 
-    if (allFailed === "completion") {
-      assert(lastResult != null, "expected at least one result");
-      return lastResult;
-    }
-
-    assert(lastIndexResult != null, "expected last index result");
-    return lastIndexResult;
+    return allFailed === "completion" ? lastResult! : lastIndexResult!;
   };
 }
 
