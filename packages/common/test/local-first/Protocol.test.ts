@@ -5,7 +5,10 @@ import { createBuffer } from "../../src/Buffer.js";
 import { lazyFalse, lazyTrue } from "../../src/Function.js";
 import type { NonEmptyReadonlyArray, RunDeps } from "../../src/index.js";
 import { assertNonEmptyArray, EncryptionKey } from "../../src/index.js";
-import type { OwnerIdBytes } from "../../src/local-first/Owner.js";
+import {
+  type OwnerIdBytes,
+  ownerIdToOwnerIdBytes,
+} from "../../src/local-first/Owner.js";
 import type { TimestampsRangeWithTimestampsBuffer } from "../../src/local-first/Protocol.js";
 import {
   applyProtocolMessageAsClient,
@@ -36,6 +39,7 @@ import {
   type ProtocolMessageMaxSize,
   ProtocolMessageRangesMaxSize,
   ProtocolValueType,
+  parseProtocolHeader,
   protocolVersion,
   SubscriptionFlags,
 } from "../../src/local-first/Protocol.js";
@@ -736,6 +740,75 @@ test("createProtocolMessageForSync", async () => {
   ).toMatchInlineSnapshot(
     `uint8:[1,213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184,0,0,0,0,16,162,178,193,2,241,144,137,1,148,144,234,1,219,239,147,10,170,197,139,5,184,246,250,2,151,254,203,5,173,230,168,7,219,166,164,2,238,134,144,6,248,241,232,5,131,214,52,225,249,130,2,255,217,200,5,131,207,248,5,0,15,153,201,144,40,214,99,106,145,1,104,162,167,191,63,133,160,150,14,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,60,106,74,42,243,6,138,90,152,175,169,243,198,137,32,142,62,136,182,76,215,87,6,29,65,11,3,85,126,25,160,146,235,32,205,134,143,79,91,185,175,62,1,162,208,7,116,171,199,85,83,43,126,39,69,165,170,12,19,180,187,199,84,93,30,79,57,195,122,179,50,19,29,19,139,243,231,210,235,131,37,146,165,19,167,174,209,62,68,194,21,205,135,80,178,40,89,225,171,174,199,109,83,198,243,42,203,80,204,17,102,182,8,183,197,20,233,154,227,181,12,169,211,212,39,118,68,169,60,197,16,9,208,73,252,173,54,118,13,116,78,124,68,80,108,124,188,251,29,98,215,49,229,232,196,245,195,68,106,82,90,177,24,91,11,233,28,194,104,48,118,82,240,64,197,180,63,100,32,173,112,238,15,70,223,191,197,114,34,162,106,76]`,
   );
+});
+
+test("parseProtocolHeader parses supported headers and rejects malformed ones", () => {
+  const requestHeader = parseProtocolHeader(
+    createProtocolMessageBuffer(testAppOwner.id, {
+      messageType: MessageType.Request,
+      subscriptionFlag: SubscriptionFlags.Subscribe,
+    }).unwrap(),
+  );
+  expect(requestHeader).toEqual(
+    ok({
+      type: "ProtocolHeader",
+      version: 1,
+      ownerId: testAppOwner.id,
+      messageType: MessageType.Request,
+    }),
+  );
+
+  const responseHeader = parseProtocolHeader(
+    createProtocolMessageBuffer(testAppOwner.id, {
+      messageType: MessageType.Response,
+      errorCode: 0,
+    }).unwrap(),
+  );
+  expect(responseHeader).toEqual(
+    ok({
+      type: "ProtocolHeader",
+      version: 1,
+      ownerId: testAppOwner.id,
+      messageType: MessageType.Response,
+    }),
+  );
+
+  const broadcastHeader = parseProtocolHeader(
+    createProtocolMessageBuffer(testAppOwner.id, {
+      messageType: MessageType.Broadcast,
+    }).unwrap(),
+  );
+  expect(broadcastHeader).toEqual(
+    ok({
+      type: "ProtocolHeader",
+      version: 1,
+      ownerId: testAppOwner.id,
+      messageType: MessageType.Broadcast,
+    }),
+  );
+
+  const invalidVersionMessage = createProtocolMessageBuffer(testAppOwner.id, {
+    version: PositiveInt.orThrow(2),
+    messageType: MessageType.Request,
+  }).unwrap();
+  const invalidVersion = parseProtocolHeader(invalidVersionMessage);
+  expect(invalidVersion.ok).toBe(false);
+  if (!invalidVersion.ok) {
+    expect(invalidVersion.error.type).toBe("ProtocolInvalidDataError");
+    expect(invalidVersion.error.error).toBeInstanceOf(Error);
+  }
+
+  const invalidTypeMessage = createBuffer();
+  encodeNonNegativeInt(invalidTypeMessage, protocolVersion);
+  invalidTypeMessage.extend(ownerIdToOwnerIdBytes(testAppOwner.id));
+  invalidTypeMessage.extend([255]);
+
+  const invalidType = parseProtocolHeader(invalidTypeMessage.unwrap());
+  expect(invalidType.ok).toBe(false);
+  if (!invalidType.ok) {
+    expect(invalidType.error.type).toBe("ProtocolInvalidDataError");
+    expect(invalidType.error.error).toBeInstanceOf(Error);
+  }
 });
 
 describe("E2E versioning", () => {
