@@ -226,14 +226,24 @@ export const startRelay =
           if (!Uint8Array.is(message)) return;
 
           void (async () => {
-            const response = await relayRun(
-              applyProtocolMessageAsRelay(message, options),
-            );
-            if (!response.ok) {
-              console.error(response);
-              return;
+            try {
+              const response = await relayRun(
+                applyProtocolMessageAsRelay(message, options),
+              );
+              if (!response.ok) {
+                console.error(response);
+                return;
+              }
+              ws.send(response.value.message, { binary: true });
+            } catch (error) {
+              console.error("relay message handler failed", {
+                error,
+                messageByteLength: message.byteLength,
+              });
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.close(1011, "Internal relay error");
+              }
             }
-            ws.send(response.value.message, { binary: true });
           })();
         });
 

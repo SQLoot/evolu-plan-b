@@ -1835,7 +1835,7 @@ describe("integration tests", () => {
                 "firstTimestamp": uint8:[0,0,0,0,0,0,0,1,76,30,181,71,191,84,133,34],
                 "lastTimestamp": uint8:[0,0,0,0,0,0,0,1,76,30,181,71,191,84,133,34],
                 "ownerId": uint8:[213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184],
-                "storedBytes": 1,
+                "storedBytes": 105,
               },
             ],
           },

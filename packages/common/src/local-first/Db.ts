@@ -43,7 +43,7 @@ import {
   type IdBytes,
   idBytesToId,
   idToIdBytes,
-  onePositiveInt,
+  PositiveInt,
 } from "../Type.js";
 import type { ExtractType } from "../Types.js";
 import type {
@@ -206,7 +206,13 @@ const startDbWorker =
 
     const baseSqliteStorage = createBaseSqliteStorage({ sqlite, ...run.deps });
 
-    const deps = { ...run.deps, sqlite, sqliteSchema, baseSqliteStorage };
+    const deps = {
+      ...run.deps,
+      sqlite,
+      sqliteSchema,
+      baseSqliteStorage,
+      encryptionKey,
+    };
 
     const currentSchema = getEvoluSqliteSchema(deps)();
     const dbIsInitialized = "evolu_version" in currentSchema.tables;
@@ -648,9 +654,19 @@ export const createClientStorage =
         }
 
         assertNonEmptyReadonlyArray(messages);
+        const incomingBytes = PositiveInt.orThrow(
+          encryptedMessages.reduce(
+            (sum, message) => sum + message.change.length,
+            0,
+          ),
+        );
 
         return deps.sqlite.transaction(() => {
-          applyMessages(deps)(ownerIdBytesToOwnerId(ownerIdBytes), messages);
+          applyMessages(deps)(
+            ownerIdBytesToOwnerId(ownerIdBytes),
+            messages,
+            incomingBytes,
+          );
           deps.clock.save(clockTimestamp);
           return ok();
         });
@@ -720,6 +736,7 @@ const handleMutation =
   (
     deps: BaseSqliteStorageDep &
       ClockDep &
+      EncryptionKeyDep &
       SqliteSchemaDep &
       RandomBytesDep &
       SqliteDep &
@@ -810,8 +827,19 @@ const applyLocalOnlyChange =
   };
 
 const applyMessages =
-  (deps: BaseSqliteStorageDep & ClockDep & SqliteSchemaDep & SqliteDep) =>
-  (ownerId: OwnerId, messages: NonEmptyReadonlyArray<CrdtMessage>): void => {
+  (
+    deps: BaseSqliteStorageDep &
+      ClockDep &
+      EncryptionKeyDep &
+      SqliteSchemaDep &
+      RandomBytesDep &
+      SqliteDep,
+  ) =>
+  (
+    ownerId: OwnerId,
+    messages: NonEmptyReadonlyArray<CrdtMessage>,
+    incomingBytes?: PositiveInt,
+  ): void => {
     const ownerIdBytes = ownerIdToOwnerIdBytes(ownerId);
 
     const usage = getOwnerUsage(deps)(
@@ -871,13 +899,21 @@ const applyMessages =
       );
     }
 
-    /**
-     * TODO: Implement proper storedBytes tracking for client using received and
-     * sent encrypted message sizes.
-     */
+    const newStoredBytes =
+      incomingBytes ??
+      PositiveInt.orThrow(
+        messages.reduce(
+          (sum, message) =>
+            sum +
+            encodeAndEncryptDbChange(deps)(message, deps.encryptionKey)
+              .byteLength,
+          0,
+        ),
+      );
+
     updateOwnerUsage(deps)(
       ownerIdBytes,
-      onePositiveInt, // Placeholder until proper tracking implemented
+      newStoredBytes,
       firstTimestamp,
       lastTimestamp,
     );

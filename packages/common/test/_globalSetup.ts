@@ -92,7 +92,7 @@ export const createServer = (): Promise<number> => {
       }
     });
     httpServer.on("error", reject);
-    httpServer.listen(0);
+    httpServer.listen(0, "127.0.0.1");
   });
 };
 
