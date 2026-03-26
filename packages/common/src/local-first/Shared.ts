@@ -46,10 +46,10 @@ import type {
 import type { EvoluError } from "./Error.js";
 import type { Owner, OwnerId, OwnerTransport, SyncOwner } from "./Owner.js";
 import {
-  type ApplyProtocolMessageAsClientResult,
-  type ProtocolError,
   createProtocolMessageFromCrdtMessages,
   parseProtocolHeader,
+  type ApplyProtocolMessageAsClientResult,
+  type ProtocolError,
   type ProtocolMessage,
 } from "./Protocol.js";
 import {
@@ -160,8 +160,6 @@ export const initSharedWorker =
 
     // Register ASAP so the worker does not miss connections.
     self.onConnect = (port) => {
-      console.debug("onConnect");
-
       void sharedWorkerReady.promise.then(() => {
         // The underlying port buffers messages until onMessage is assigned.
         port.onMessage = (message) => {
@@ -240,6 +238,11 @@ export const initSharedWorker =
               binaryType: "arraybuffer",
               onOpen: () => {
                 const ownerIds = transports.getClaimsForResource(transport);
+                console.debug("transportOpen", {
+                  url: transport.url,
+                  ownerIds: [...ownerIds],
+                });
+
                 for (const sharedEvolu of sharedEvolusByName
                   .snapshot()
                   .resourcesByKey.values()) {
@@ -253,9 +256,20 @@ export const initSharedWorker =
                 const headerResult = parseProtocolHeader(inputMessage);
 
                 if (!headerResult.ok) {
+                  console.debug("transportInvalidProtocolMessage", {
+                    url: transport.url,
+                    byteLength: inputMessage.byteLength,
+                  });
+
                   // TODO: Propagate invalid protocol messages to sync state.
                   return;
                 }
+
+                console.debug("transportProtocolMessage", {
+                  url: transport.url,
+                  ownerId: headerResult.value.ownerId,
+                  byteLength: inputMessage.byteLength,
+                });
 
                 for (const sharedEvolu of sharedEvolusByName
                   .snapshot()
@@ -491,7 +505,15 @@ const createSharedEvolu =
       for (const [ownerId, protocolMessage] of protocolMessagesByOwnerId) {
         for (const transport of transports.getResourceKeysForClaim(ownerId)) {
           const webSocket = transports.getResource(transport);
-          if (webSocket?.isOpen()) webSocket.send(protocolMessage);
+          if (!webSocket?.isOpen()) continue;
+
+          console.debug("sendProtocolMessage", {
+            ownerId,
+            url: transport.url,
+            byteLength: protocolMessage.byteLength,
+          });
+
+          webSocket.send(protocolMessage);
         }
       }
     };
@@ -751,6 +773,10 @@ const createSharedEvolu =
 
         if (!isNonEmptyArray(ownersToSync)) return;
 
+        console.debug("requestCreateSyncMessages", {
+          ownerIds: ownersToSync.map(({ id }) => id),
+        });
+
         queue.push({
           type: "ForSharedWorker",
           message: {
@@ -766,6 +792,11 @@ const createSharedEvolu =
         const owner = getUsedOwnersById(new Set([ownerId])).get(ownerId);
 
         if (!owner) return;
+
+        console.debug("requestApplySyncMessage", {
+          ownerId,
+          byteLength: inputMessage.byteLength,
+        });
 
         queue.push({
           type: "ForSharedWorker",
@@ -864,6 +895,13 @@ const createSharedEvolu =
               evoluInstance.ownerActionsChain = evoluInstance.ownerActionsChain
                 .then(async () => {
                   for (const { owner, action } of evoluMessage.actions) {
+                    console.debug("useOwner", {
+                      evoluPortId,
+                      action,
+                      ownerId: owner.owner.id,
+                      transportUrls: owner.transports.map(({ url }) => url),
+                    });
+
                     await sharedEvoluRun(
                       toggleUsedSyncOwner(evoluInstance, owner, action),
                     );
