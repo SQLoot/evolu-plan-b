@@ -1,6 +1,7 @@
 import { Component, inject, signal } from "@angular/core";
 import { AppService } from "./app.service";
 import { PwaBadgeComponent } from "./pwa-badge.component";
+import type { TodoId } from "./schema";
 
 @Component({
   selector: "app-root",
@@ -174,14 +175,14 @@ export class App {
     this.newTodoTitle.set("");
   }
 
-  protected handleRenameTodo(id: string, currentTitle: string) {
+  protected handleRenameTodo(id: TodoId, currentTitle: string) {
     const title = window.prompt("Todo Name", currentTitle);
     if (title == null) return;
 
     this.appService.renameTodo(id, title);
   }
 
-  protected handleDeleteTodo(id: string) {
+  protected handleDeleteTodo(id: TodoId) {
     this.appService.deleteTodo(id);
   }
 

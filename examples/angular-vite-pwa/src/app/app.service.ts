@@ -1,12 +1,25 @@
 import { Injectable, inject, type OnDestroy, signal } from "@angular/core";
-import { type InferRow, Mnemonic, type Query, type Row } from "@evolu/common";
-import { EVOLU } from "./app.config";
+import {
+  booleanToSqliteBoolean,
+  type InferRow,
+  Mnemonic,
+  NonEmptyString100,
+  type Query,
+  type Row,
+} from "@evolu/common";
+import {
+  clearStoredMnemonic,
+  EVOLU,
+  EVOLU_DEPS,
+  persistStoredMnemonic,
+} from "./app.config";
 import { formatTypeError } from "./error-formatter";
 import { createQuery, type TodoId } from "./schema";
 
 @Injectable({ providedIn: "root" })
 export class AppService implements OnDestroy {
   private readonly evolu = inject(EVOLU);
+  private readonly evoluDeps = inject(EVOLU_DEPS);
   private readonly unsubscribes: Array<() => void> = [];
 
   private readonly todosQuery = createQuery((db) =>
@@ -42,42 +55,44 @@ export class AppService implements OnDestroy {
       return;
     }
 
-    const result = this.evolu.insert("todo", {
-      title: trimmedTitle,
-    });
-
-    if (!result.ok) {
-      alert(formatTypeError(result.error));
+    const todoTitle = NonEmptyString100.from(trimmedTitle);
+    if (!todoTitle.ok) {
+      alert(formatTypeError(todoTitle.error));
+      return;
     }
+
+    this.evolu.insert("todo", { title: todoTitle.value });
   }
 
-  renameTodo(id: string, title: string) {
+  renameTodo(id: TodoId, title: string) {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
       return;
     }
 
-    const result = this.evolu.update("todo", {
-      id: id as TodoId,
-      title: trimmedTitle,
-    });
-
-    if (!result.ok) {
-      alert(formatTypeError(result.error));
+    const todoTitle = NonEmptyString100.from(trimmedTitle);
+    if (!todoTitle.ok) {
+      alert(formatTypeError(todoTitle.error));
+      return;
     }
-  }
 
-  toggleTodo(id: string, isCompleted: boolean) {
     this.evolu.update("todo", {
-      id: id as TodoId,
-      isCompleted: Number(isCompleted),
+      id,
+      title: todoTitle.value,
     });
   }
 
-  deleteTodo(id: string) {
+  toggleTodo(id: TodoId, isCompleted: boolean) {
     this.evolu.update("todo", {
-      id: id as TodoId,
-      isDeleted: Number(true),
+      id,
+      isCompleted: booleanToSqliteBoolean(isCompleted),
+    });
+  }
+
+  deleteTodo(id: TodoId) {
+    this.evolu.update("todo", {
+      id,
+      isDeleted: booleanToSqliteBoolean(true),
     });
   }
 
@@ -95,11 +110,13 @@ export class AppService implements OnDestroy {
       return;
     }
 
-    await this.evolu.restoreAppOwner(mnemonicResult.value);
+    persistStoredMnemonic(mnemonicResult.value);
+    globalThis.location.reload();
   }
 
   async resetAppOwner(): Promise<void> {
-    await this.evolu.resetAppOwner();
+    clearStoredMnemonic();
+    globalThis.location.reload();
   }
 
   /** Database */
@@ -139,15 +156,12 @@ export class AppService implements OnDestroy {
   }
 
   private initializeAppOwner(): void {
-    void this.evolu.appOwner.then((owner) => {
-      this.mnemonic.set(owner.mnemonic ?? null);
-    });
+    this.mnemonic.set(this.evolu.appOwner.mnemonic);
   }
 
   private initializeGlobalErrorHandling(): void {
-    // Subscribe to global Evolu errors
-    const unsubscribeError = this.evolu.subscribeError(() => {
-      const error = this.evolu.getError();
+    const unsubscribeError = this.evoluDeps.evoluError.subscribe(() => {
+      const error = this.evoluDeps.evoluError.get();
       if (!error) return;
 
       console.error("Evolu error:", error);

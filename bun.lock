@@ -35,21 +35,23 @@
       "name": "@example/angular-vite-pwa",
       "version": "0.0.0",
       "dependencies": {
-        "@angular/core": "^21.2.6",
-        "@angular/platform-browser": "^21.2.6",
+        "@angular/core": "21.2.3",
+        "@angular/platform-browser": "21.2.3",
         "@evolu/common": "workspace:*",
         "@evolu/web": "workspace:*",
       },
       "devDependencies": {
         "@analogjs/vite-plugin-angular": "^2.3.1",
-        "@angular/build": "^21.2.3",
-        "@angular/compiler-cli": "^21.2.6",
+        "@angular/build": "21.2.3",
+        "@angular/compiler-cli": "21.2.3",
+        "@tailwindcss/forms": "^0.5.11",
         "@tailwindcss/vite": "^4.2.2",
         "@vite-pwa/assets-generator": "^1.0.2",
         "tailwindcss": "^4.2.2",
         "typescript": "^5.9.3",
         "vite": "^7.3.1",
         "vite-plugin-pwa": "^1.2.0",
+        "workbox-window": "^7.4.0",
       },
     },
     "examples/astro": {
@@ -536,11 +538,11 @@
 
     "@angular/compiler": ["@angular/compiler@21.2.1", "", { "dependencies": { "tslib": "^2.3.0" } }, "sha512-FxWaSaii1vfHIFA+JksqQ8NGB2frfqCrs7Ju50a44kbwR4fmanfn/VsiS/CbwBp9vcyT/Br9X/jAG4RuK/U2nw=="],
 
-    "@angular/compiler-cli": ["@angular/compiler-cli@21.2.6", "", { "dependencies": { "@babel/core": "7.29.0", "@jridgewell/sourcemap-codec": "^1.4.14", "chokidar": "^5.0.0", "convert-source-map": "^1.5.1", "reflect-metadata": "^0.2.0", "semver": "^7.0.0", "tslib": "^2.3.0", "yargs": "^18.0.0" }, "peerDependencies": { "@angular/compiler": "21.2.6", "typescript": ">=5.9 <6.1" }, "optionalPeers": ["typescript"], "bin": { "ngc": "bundles/src/bin/ngc.js", "ng-xi18n": "bundles/src/bin/ng_xi18n.js" } }, "sha512-CiPmat4+D+hWXMTAY++09WeII/5D0r6iTjdLdaTq8tlo0uJcrOlazib4CpA94kJ2CRdzfhmC1H+ttwBI1xIlTg=="],
+    "@angular/compiler-cli": ["@angular/compiler-cli@21.2.3", "", { "dependencies": { "@babel/core": "7.29.0", "@jridgewell/sourcemap-codec": "^1.4.14", "chokidar": "^5.0.0", "convert-source-map": "^1.5.1", "reflect-metadata": "^0.2.0", "semver": "^7.0.0", "tslib": "^2.3.0", "yargs": "^18.0.0" }, "peerDependencies": { "@angular/compiler": "21.2.3", "typescript": ">=5.9 <6.1" }, "optionalPeers": ["typescript"], "bin": { "ngc": "bundles/src/bin/ngc.js", "ng-xi18n": "bundles/src/bin/ng_xi18n.js" } }, "sha512-NIdwUNdglSPE9vZEb+vBJ+LY2C0tNW+zr4+UQg6gi/uiziauX9iq069UNPARpbM08kjyldtFBCdjvby5C6sl/Q=="],
 
-    "@angular/core": ["@angular/core@21.2.6", "", { "dependencies": { "tslib": "^2.3.0" }, "peerDependencies": { "@angular/compiler": "21.2.6", "rxjs": "^6.5.3 || ^7.4.0", "zone.js": "~0.15.0 || ~0.16.0" }, "optionalPeers": ["@angular/compiler", "zone.js"] }, "sha512-svgK5DhFlQlS+sMybXftn08rHHRiDGY/uIKT5LZUaKgyffnkPb8uClpMIW0NzANtU8qs8pwgDZFoJw85Ia3oqQ=="],
+    "@angular/core": ["@angular/core@21.2.3", "", { "dependencies": { "tslib": "^2.3.0" }, "peerDependencies": { "@angular/compiler": "21.2.3", "rxjs": "^6.5.3 || ^7.4.0", "zone.js": "~0.15.0 || ~0.16.0" }, "optionalPeers": ["@angular/compiler", "zone.js"] }, "sha512-jc+FDbtKVPtWJaW4sk9/iAIqcAxgOhVx5IwgOS9DqD/T3cSscgf4u9zHfLHYPnh/TOYGUjdgl++dp8cSqTrvLw=="],
 
-    "@angular/platform-browser": ["@angular/platform-browser@21.2.6", "", { "dependencies": { "tslib": "^2.3.0" }, "peerDependencies": { "@angular/animations": "21.2.6", "@angular/common": "21.2.6", "@angular/core": "21.2.6" }, "optionalPeers": ["@angular/animations"] }, "sha512-LW1vPXVHvy71LBahn+fSzPlWQl25kJIdcXq+ptG7HsMVgbPQ3/vvkKXAHYaRdppLGCFL+v+3dQGHYLNLiYL9qg=="],
+    "@angular/platform-browser": ["@angular/platform-browser@21.2.3", "", { "dependencies": { "tslib": "^2.3.0" }, "peerDependencies": { "@angular/animations": "21.2.3", "@angular/common": "21.2.3", "@angular/core": "21.2.3" }, "optionalPeers": ["@angular/animations"] }, "sha512-qjlEiswQcufrV5dbvo5o47L4FiYFf5d7Y7hNcj4/BK6o531FUUpagt47mGuwFe3D/9+ygZrz2/uxWZK+4E1gQg=="],
 
     "@apideck/better-ajv-errors": ["@apideck/better-ajv-errors@0.3.6", "", { "dependencies": { "json-schema": "^0.4.0", "jsonpointer": "^5.0.0", "leven": "^3.1.0" }, "peerDependencies": { "ajv": ">=8" } }, "sha512-P+ZygBLZtkp0qqOAJJVX4oX/sFo5JR3eBWwwuqHHhK0GIgQOKWrAfiAaWX0aArHkRWHMuggFEgAZNxVPwPZYaA=="],
 
