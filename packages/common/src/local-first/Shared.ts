@@ -22,10 +22,16 @@ import {
   createSharedResourceByKeyWithClaims,
   type SharedResourceByKeyWithClaims,
 } from "../Resource.js";
-import { ok } from "../Result.js";
+import { ok, type Result } from "../Result.js";
 import { spaced } from "../Schedule.js";
 import type { NonEmptyReadonlySet } from "../Set.js";
-import { type Fiber, repeat, type Task, unabortable } from "../Task.js";
+import {
+  repeat,
+  unabortable,
+  type AbortError,
+  type Fiber,
+  type Task,
+} from "../Task.js";
 import type { Millis } from "../Time.js";
 import { createId, type Id, type Name, type Typed } from "../Type.js";
 import type { Callback, ExtractType } from "../Types.js";
@@ -38,9 +44,12 @@ import type {
   WorkerDeps,
 } from "../Worker.js";
 import type { EvoluError } from "./Error.js";
-import type { OwnerId, OwnerTransport, SyncOwner } from "./Owner.js";
+import type { Owner, OwnerId, OwnerTransport, SyncOwner } from "./Owner.js";
 import {
+  type ApplyProtocolMessageAsClientResult,
+  type ProtocolError,
   createProtocolMessageFromCrdtMessages,
+  parseProtocolHeader,
   type ProtocolMessage,
 } from "./Protocol.js";
 import {
@@ -153,8 +162,8 @@ export const initSharedWorker =
     self.onConnect = (port) => {
       console.debug("onConnect");
 
-      // The underlying port buffers messages until onMessage is assigned.
       void sharedWorkerReady.promise.then(() => {
+        // The underlying port buffers messages until onMessage is assigned.
         port.onMessage = (message) => {
           switch (message.type) {
             case "InitTab": {
@@ -237,9 +246,26 @@ export const initSharedWorker =
                   sharedEvolu.requestCreateSyncMessages(ownerIds);
                 }
               },
-              // onMessage(_data) {
-              //   //
-              // },
+              onMessage(data) {
+                if (!(data instanceof ArrayBuffer)) return;
+
+                const inputMessage = new globalThis.Uint8Array(data);
+                const headerResult = parseProtocolHeader(inputMessage);
+
+                if (!headerResult.ok) {
+                  // TODO: Propagate invalid protocol messages to sync state.
+                  return;
+                }
+
+                for (const sharedEvolu of sharedEvolusByName
+                  .snapshot()
+                  .resourcesByKey.values()) {
+                  sharedEvolu.requestApplySyncMessage(
+                    headerResult.value.ownerId,
+                    inputMessage,
+                  );
+                }
+              },
             }),
           {
             // "onFirstClaimAdded": todo()
@@ -276,6 +302,11 @@ interface SharedEvolu extends AsyncDisposable {
   ) => void;
 
   readonly requestCreateSyncMessages: (ownerIds: ReadonlySet<OwnerId>) => void;
+
+  readonly requestApplySyncMessage: (
+    ownerId: OwnerId,
+    inputMessage: Uint8Array<ArrayBuffer>,
+  ) => void;
 }
 
 type SharedEvoluDeps = SharedWorkerDeps & PostTabOutputDep & TransportsDep;
@@ -306,10 +337,16 @@ export interface DbWorkerInput {
       }
     | {
         readonly type: "ForSharedWorker";
-        readonly message: {
-          readonly type: "CreateSyncMessages";
-          readonly ownerIds: NonEmptyReadonlyArray<OwnerId>;
-        };
+        readonly message:
+          | {
+              readonly type: "CreateSyncMessages";
+              readonly owners: NonEmptyReadonlyArray<Owner>;
+            }
+          | {
+              readonly type: "ApplySyncMessage";
+              readonly owner: Owner;
+              readonly inputMessage: Uint8Array<ArrayBuffer>;
+            };
       };
 }
 
@@ -326,7 +363,7 @@ export type DbWorkerOutput =
         | {
             readonly type: "ForEvolu";
             readonly evoluPortId: Id;
-            readonly response:
+            readonly message:
               | {
                   readonly type: "Mutate";
                   readonly messagesByOwnerId: ReadonlyMap<
@@ -346,13 +383,23 @@ export type DbWorkerOutput =
           }
         | {
             readonly type: "ForSharedWorker";
-            readonly response: {
-              readonly type: "CreateSyncMessages";
-              readonly protocolMessagesByOwnerId: ReadonlyMap<
-                OwnerId,
-                ProtocolMessage
-              >;
-            };
+            readonly message:
+              | {
+                  readonly type: "CreateSyncMessages";
+                  readonly protocolMessagesByOwnerId: ReadonlyMap<
+                    OwnerId,
+                    ProtocolMessage
+                  >;
+                }
+              | {
+                  readonly type: "ApplySyncMessage";
+                  readonly ownerId: OwnerId;
+                  readonly didWriteMessages: boolean;
+                  readonly result: Result<
+                    ApplyProtocolMessageAsClientResult,
+                    ProtocolError | AbortError
+                  >;
+                };
           };
     };
 
@@ -449,6 +496,35 @@ const createSharedEvolu =
       }
     };
 
+    const getUsedOwnersById = (
+      ownerIds: ReadonlySet<OwnerId>,
+    ): ReadonlyMap<OwnerId, Owner> => {
+      const ownersById = new Map<OwnerId, Owner>();
+
+      for (const evoluInstance of evoluInstancesByPortId.values()) {
+        for (const { owner } of evoluInstance.usedSyncOwners.keys()) {
+          if (!ownerIds.has(owner.id) || !("writeKey" in owner)) continue;
+
+          ownersById.set(owner.id, owner);
+        }
+      }
+
+      return ownersById;
+    };
+
+    const refreshQueriesForOwner = (ownerId: OwnerId): void => {
+      for (const evoluInstance of evoluInstancesByPortId.values()) {
+        const usesOwner = evoluInstance.usedSyncOwners
+          .keys()
+          .values()
+          .some(({ owner }) => owner.id === ownerId);
+
+        if (usesOwner) {
+          evoluInstance.evoluPort.postMessage({ type: "RefreshQueries" });
+        }
+      }
+    };
+
     const ensureQueueProcessing = (): void => {
       if (
         queueProcessingFiber ||
@@ -471,14 +547,14 @@ const createSharedEvolu =
 
             if (!port) break;
 
-            switch (response.response.type) {
+            switch (response.message.type) {
               case "Mutate":
               case "Query": {
                 const previousRowsByQuery = instance.rowsByQuery;
                 const nextRowsByQuery = new Map(previousRowsByQuery);
                 const patchesByQuery = new Map<Query, ReadonlyArray<Patch>>();
 
-                for (const [query, rows] of response.response.rowsByQuery) {
+                for (const [query, rows] of response.message.rowsByQuery) {
                   nextRowsByQuery.set(query, rows);
                   patchesByQuery.set(
                     query,
@@ -497,8 +573,8 @@ const createSharedEvolu =
                       : emptyArray,
                 });
 
-                if (response.response.type === "Mutate") {
-                  const mutateResponse = response.response;
+                if (response.message.type === "Mutate") {
+                  const mutateResponse = response.message;
 
                   for (const [
                     otherEvoluPortId,
@@ -512,8 +588,6 @@ const createSharedEvolu =
 
                   void trackSharedEvoluOp(
                     sharedEvoluRun((run) => {
-                      const createProtocolMessage =
-                        createProtocolMessageFromCrdtMessages(run.deps);
                       const protocolMessagesByOwnerId = new Map<
                         OwnerId,
                         ProtocolMessage
@@ -532,7 +606,10 @@ const createSharedEvolu =
 
                         protocolMessagesByOwnerId.set(
                           owner.id,
-                          createProtocolMessage(owner, messages),
+                          createProtocolMessageFromCrdtMessages(run.deps)(
+                            owner,
+                            messages,
+                          ),
                         );
                       }
 
@@ -552,21 +629,63 @@ const createSharedEvolu =
 
               case "Export":
                 port.postMessage(
-                  { type: "OnExport", file: response.response.file },
-                  [response.response.file.buffer],
+                  { type: "OnExport", file: response.message.file },
+                  [response.message.file.buffer],
                 );
                 break;
 
               default:
-                exhaustiveCheck(response.response);
+                exhaustiveCheck(response.message);
             }
             break;
           }
 
           case "ForSharedWorker":
-            sendProtocolMessagesByOwnerId(
-              response.response.protocolMessagesByOwnerId,
-            );
+            switch (response.message.type) {
+              case "CreateSyncMessages":
+                sendProtocolMessagesByOwnerId(
+                  response.message.protocolMessagesByOwnerId,
+                );
+                break;
+
+              case "ApplySyncMessage":
+                if (response.message.didWriteMessages) {
+                  refreshQueriesForOwner(response.message.ownerId);
+                }
+
+                if (!response.message.result.ok) {
+                  if (response.message.result.error.type !== "AbortError") {
+                    postTabOutput({
+                      type: "OnError",
+                      error: response.message.result.error,
+                    });
+                  }
+                } else {
+                  switch (response.message.result.value.type) {
+                    case "Response":
+                      sendProtocolMessagesByOwnerId(
+                        new Map([
+                          [
+                            response.message.ownerId,
+                            response.message.result.value.message,
+                          ],
+                        ]),
+                      );
+                      break;
+
+                    case "Broadcast":
+                    case "NoResponse":
+                      break;
+
+                    default:
+                      exhaustiveCheck(response.message.result.value);
+                  }
+                }
+                break;
+
+              default:
+                exhaustiveCheck(response.message);
+            }
             break;
 
           default:
@@ -628,24 +747,32 @@ const createSharedEvolu =
 
     return ok({
       requestCreateSyncMessages: (ownerIds): void => {
-        const usedOwnerIds = new Set<OwnerId>();
-        for (const evoluInstance of evoluInstancesByPortId.values()) {
-          for (const { owner } of evoluInstance.usedSyncOwners.keys()) {
-            usedOwnerIds.add(owner.id);
-          }
-        }
+        const ownersToSync = [...getUsedOwnersById(ownerIds).values()];
 
-        const ownerIdsToSync = [
-          ...new Set(ownerIds).intersection(usedOwnerIds),
-        ];
-
-        if (!isNonEmptyArray(ownerIdsToSync)) return;
+        if (!isNonEmptyArray(ownersToSync)) return;
 
         queue.push({
           type: "ForSharedWorker",
           message: {
             type: "CreateSyncMessages",
-            ownerIds: ownerIdsToSync,
+            owners: ownersToSync,
+          },
+        });
+
+        ensureQueueProcessing();
+      },
+
+      requestApplySyncMessage: (ownerId, inputMessage): void => {
+        const owner = getUsedOwnersById(new Set([ownerId])).get(ownerId);
+
+        if (!owner) return;
+
+        queue.push({
+          type: "ForSharedWorker",
+          message: {
+            type: "ApplySyncMessage",
+            owner,
+            inputMessage,
           },
         });
 

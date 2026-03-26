@@ -364,16 +364,10 @@ export interface DbChange extends InferType<typeof DbChange> {}
  * users, and when it goes down, nothing happens, because it will be
  * synchronized later.
  */
-export interface BaseSqliteStorage
-  extends Pick<
-    Storage,
-    | "getSize"
-    | "fingerprint"
-    | "fingerprintRanges"
-    | "findLowerBound"
-    | "iterate"
-    | "deleteOwner"
-  > {
+export interface BaseSqliteStorage extends Omit<
+  Storage,
+  "validateWriteKey" | "setWriteKey" | "writeMessages" | "readDbChange"
+> {
   /** Inserts a timestamp for an owner into the skiplist-based storage. */
   readonly insertTimestamp: (
     ownerId: OwnerIdBytes,

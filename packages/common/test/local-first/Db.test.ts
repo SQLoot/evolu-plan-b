@@ -35,7 +35,7 @@ test("initDbWorker registers onMessage handler", async () => {
   expect(typeof worker.self.onMessage).toBe("function");
 });
 
-test("initDbWorker handles console store entries once and ignores repeated init", async () => {
+test("initDbWorker handles console store entries once and rejects repeated init", async () => {
   const worker = testCreateWorker<DbWorkerInit>();
   const storeOutput = createConsoleStoreOutput();
   const forwardedMessages: Array<unknown> = [];
@@ -92,10 +92,12 @@ test("initDbWorker handles console store entries once and ignores repeated init"
       },
     });
 
-    worker.self.onMessage?.({
-      ...initInput,
-      name: Name.orThrow("DbWorkerInitTwice"),
-    });
+    expect(() =>
+      worker.self.onMessage?.({
+        ...initInput,
+        name: Name.orThrow("DbWorkerInitTwice"),
+      }),
+    ).toThrow("DbWorker must be initialized only once");
     expect(createMessagePortCalls).toBe(1);
 
     await workerStack[Symbol.asyncDispose]();
