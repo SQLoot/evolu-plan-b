@@ -60,6 +60,7 @@ import {
   decryptAndDecodeDbChange,
   encodeAndEncryptDbChange,
   protocolVersion,
+  SubscriptionFlags,
   type ProtocolInvalidDataError,
   type ProtocolMessage,
   type ProtocolTimestampMismatchError,
@@ -315,7 +316,7 @@ const startDbWorker =
                 const protocolMessage = createProtocolMessageForSync({
                   storage,
                   console,
-                })(owner.id);
+                })(owner.id, SubscriptionFlags.Subscribe);
 
                 if (protocolMessage) {
                   protocolMessagesByOwnerId.set(owner.id, protocolMessage);
