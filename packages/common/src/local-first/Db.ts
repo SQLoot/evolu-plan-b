@@ -12,10 +12,10 @@ import {
 } from "../Array.js";
 import { assert, assertNonEmptyReadonlyArray } from "../Assert.js";
 import type { ConsoleLevel } from "../Console.js";
-import {
-  type DecryptWithXChaCha20Poly1305Error,
+import type {
+  DecryptWithXChaCha20Poly1305Error,
   EncryptionKey,
-  type RandomBytesDep,
+  RandomBytesDep,
 } from "../Crypto.js";
 import { exhaustiveCheck, lazyFalse, lazyVoid } from "../Function.js";
 import { createRecord, getProperty, objectToEntries } from "../Object.js";
@@ -59,11 +59,11 @@ import {
   createProtocolMessageForSync,
   decryptAndDecodeDbChange,
   encodeAndEncryptDbChange,
-  protocolVersion,
-  SubscriptionFlags,
   type ProtocolInvalidDataError,
   type ProtocolMessage,
   type ProtocolTimestampMismatchError,
+  protocolVersion,
+  SubscriptionFlags,
 } from "./Protocol.js";
 import { deserializeQuery, type Query, type RowsByQueryMap } from "./Query.js";
 import type { MutationChange, SqliteSchemaDep } from "./Schema.js";
@@ -981,13 +981,13 @@ const applyMessages =
           deps.encryptionKey != null,
           "encryptionKey is required for local storedBytes computation",
         );
+        const encryptionKey = deps.encryptionKey;
 
         return PositiveInt.orThrow(
           messages.reduce(
             (sum, message) =>
               sum +
-              encodeAndEncryptDbChange(deps)(message, deps.encryptionKey)
-                .byteLength,
+              encodeAndEncryptDbChange(deps)(message, encryptionKey).byteLength,
             0,
           ),
         );

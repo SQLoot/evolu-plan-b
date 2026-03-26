@@ -26,11 +26,11 @@ import { ok, type Result } from "../Result.js";
 import { spaced } from "../Schedule.js";
 import type { NonEmptyReadonlySet } from "../Set.js";
 import {
-  repeat,
-  unabortable,
   type AbortError,
   type Fiber,
+  repeat,
   type Task,
+  unabortable,
 } from "../Task.js";
 import type { Millis } from "../Time.js";
 import { createId, type Id, type Name, type Typed } from "../Type.js";
@@ -46,11 +46,11 @@ import type {
 import type { EvoluError } from "./Error.js";
 import type { Owner, OwnerId, OwnerTransport, SyncOwner } from "./Owner.js";
 import {
-  createProtocolMessageFromCrdtMessages,
-  parseProtocolHeader,
   type ApplyProtocolMessageAsClientResult,
+  createProtocolMessageFromCrdtMessages,
   type ProtocolError,
   type ProtocolMessage,
+  parseProtocolHeader,
 } from "./Protocol.js";
 import {
   makePatches,
