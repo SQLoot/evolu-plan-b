@@ -256,7 +256,7 @@ const result = await run(fetchUser("123"));
 
 ### Test structure
 
-- Use `describe` blocks to group related tests by feature or function
+- Default to `describe` blocks for every test file and group related tests by feature or function.
 - Use `test` or `it` for individual test cases (both are equivalent)
 - Test names should be descriptive phrases: `"returns true for non-empty array"`
 - Use nested `describe` for sub-categories
