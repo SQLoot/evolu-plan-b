@@ -16,8 +16,8 @@ import {
   type Duration,
   minMillis,
   setTimeout,
-  testCreateTime,
   type TestTimeDep,
+  testCreateTime,
 } from "./Time.js";
 
 export type TestDeps = Omit<RunDeps, "time"> &

@@ -4,6 +4,7 @@
  * @module
  */
 
+import { assert } from "./Assert.js";
 import { lazyTrue } from "./Function.js";
 import type { Result } from "./Result.js";
 import { err, ok } from "./Result.js";
@@ -13,7 +14,6 @@ import type { RetryError, Task } from "./Task.js";
 import { callback, retry } from "./Task.js";
 import type { Millis } from "./Time.js";
 import { String, type Typed } from "./Type.js";
-import { assert } from "./Assert.js";
 
 /**
  * WebSocket with auto-reconnect.
@@ -168,7 +168,8 @@ export interface WebSocketConnectError extends Typed<"WebSocketConnectError"> {
  *
  * https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/error_event
  */
-export interface WebSocketConnectionError extends Typed<"WebSocketConnectionError"> {
+export interface WebSocketConnectionError
+  extends Typed<"WebSocketConnectionError"> {
   readonly event: Event;
 }
 
@@ -177,7 +178,8 @@ export type WebSocketRetryError =
   | WebSocketConnectionCloseError;
 
 /** An error that occurs when the connection is closed by the server. */
-export interface WebSocketConnectionCloseError extends Typed<"WebSocketConnectionCloseError"> {
+export interface WebSocketConnectionCloseError
+  extends Typed<"WebSocketConnectionCloseError"> {
   readonly event: CloseEvent;
 }
 

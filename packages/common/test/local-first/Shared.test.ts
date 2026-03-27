@@ -25,7 +25,7 @@ import { createSet } from "../../src/Set.js";
 import type { ReadonlyStore } from "../../src/Store.js";
 import { createStore } from "../../src/Store.js";
 import type { Run } from "../../src/Task.js";
-import { testCreateRun, type TestDeps } from "../../src/Test.js";
+import { type TestDeps, testCreateRun } from "../../src/Test.js";
 import { createId, type Id, testName } from "../../src/Type.js";
 import {
   type CreateWebSocket,
@@ -37,6 +37,7 @@ import {
   testCreateSharedWorker,
   testWaitForWorkerMessage,
 } from "../../src/Worker.js";
+
 interface SharedWorkerDep {
   readonly worker: ReturnType<typeof testCreateSharedWorker<SharedWorkerInput>>;
 }

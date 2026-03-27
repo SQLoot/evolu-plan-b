@@ -1,4 +1,12 @@
-import { afterEach, assert, beforeEach, describe, expect, test, vi } from "vitest";
+import {
+  afterEach,
+  assert,
+  beforeEach,
+  describe,
+  expect,
+  test,
+  vi,
+} from "vitest";
 import { utf8ToBytes } from "../src/Buffer.js";
 import { isServer } from "../src/Platform.js";
 import { spaced, take } from "../src/Schedule.js";

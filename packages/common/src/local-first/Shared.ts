@@ -47,12 +47,12 @@ import type {
 import type { EvoluError } from "./Error.js";
 import type { Owner, OwnerId, OwnerTransport, SyncOwner } from "./Owner.js";
 import {
+  type ApplyProtocolMessageAsClientResult,
   createProtocolMessageForUnsubscribe,
   createProtocolMessageFromCrdtMessages,
-  parseProtocolHeader,
-  type ApplyProtocolMessageAsClientResult,
   type ProtocolError,
   type ProtocolMessage,
+  parseProtocolHeader,
 } from "./Protocol.js";
 import {
   makePatches,
@@ -624,7 +624,9 @@ const createSharedEvolu =
 
                 for (const syncOwner of instance.usedSyncOwners.keys()) {
                   const { owner } = syncOwner;
-                  const messages = mutateResponse.messagesByOwnerId.get(owner.id);
+                  const messages = mutateResponse.messagesByOwnerId.get(
+                    owner.id,
+                  );
 
                   // Skip owners this instance does not currently sync for
                   // writing. Read-only owners cannot produce protocol
