@@ -13,6 +13,7 @@ import type { RetryError, Task } from "./Task.js";
 import { callback, retry } from "./Task.js";
 import type { Millis } from "./Time.js";
 import { String, type Typed } from "./Type.js";
+import { assert } from "./Assert.js";
 
 /**
  * WebSocket with auto-reconnect.
@@ -167,8 +168,7 @@ export interface WebSocketConnectError extends Typed<"WebSocketConnectError"> {
  *
  * https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/error_event
  */
-export interface WebSocketConnectionError
-  extends Typed<"WebSocketConnectionError"> {
+export interface WebSocketConnectionError extends Typed<"WebSocketConnectionError"> {
   readonly event: Event;
 }
 
@@ -177,8 +177,7 @@ export type WebSocketRetryError =
   | WebSocketConnectionCloseError;
 
 /** An error that occurs when the connection is closed by the server. */
-export interface WebSocketConnectionCloseError
-  extends Typed<"WebSocketConnectionCloseError"> {
+export interface WebSocketConnectionCloseError extends Typed<"WebSocketConnectionCloseError"> {
   readonly event: CloseEvent;
 }
 
@@ -195,21 +194,10 @@ export const createWebSocket: CreateWebSocket =
       onMessage,
       onError,
       schedule = jitter(1)(maxDelay("30s")(exponential("100ms"))),
-      WebSocketConstructor,
+      WebSocketConstructor = globalThis.WebSocket,
     } = {},
   ) =>
   async (run) => {
-    const nativeWebSocketConstructor =
-      WebSocketConstructor ?? globalThis.WebSocket;
-    if (!nativeWebSocketConstructor) {
-      throw new Error(
-        "WebSocket constructor is not available. Provide WebSocketConstructor in options.",
-      );
-    }
-    const nativeToStringState = getNativeToStringState(
-      nativeWebSocketConstructor,
-    );
-
     await using stack = new AsyncDisposableStack();
 
     let socket: globalThis.WebSocket | null = null;
@@ -240,7 +228,7 @@ export const createWebSocket: CreateWebSocket =
     const connect: Task<void, WebSocketRetryError> = callback(({ err, ok }) => {
       closeSocket();
 
-      socket = new nativeWebSocketConstructor(
+      socket = new WebSocketConstructor(
         url,
         String.is(protocols) ? protocols : protocols && [...protocols],
       );
@@ -303,14 +291,13 @@ export const createWebSocket: CreateWebSocket =
       getReadyState: () => {
         if (disposed) return "closed";
         return socket
-          ? (nativeToStringState[socket.readyState] ?? "closed")
+          ? (getNativeToStringState(WebSocketConstructor)[socket.readyState] ??
+              "closed")
           : "connecting";
       },
 
       isOpen: () =>
-        !disposed &&
-        socket != null &&
-        socket.readyState === nativeWebSocketConstructor.OPEN,
+        !disposed && socket?.readyState === WebSocketConstructor.OPEN,
 
       [Symbol.asyncDispose]: async () => {
         disposed = true;
@@ -320,45 +307,100 @@ export const createWebSocket: CreateWebSocket =
   };
 
 /** Creates a deterministic in-memory {@link CreateWebSocket} for testing. */
-export const testCreateWebSocket =
-  (
-    options: {
-      /** Throw immediately when a socket is created. */
-      readonly throwOnCreate?: boolean;
+export interface TestCreateWebSocket extends CreateWebSocket {
+  readonly createdUrls: Array<string>;
+  readonly sentMessages: Array<{
+    readonly url: string;
+    readonly data: string | ArrayBufferLike | Blob | ArrayBufferView;
+  }>;
+  readonly message: (url: string, data: string | ArrayBuffer | Blob) => void;
+  readonly open: (url: string) => void;
+}
 
-      /** Initial open state of created sockets. Defaults to true. */
-      readonly isOpen?: boolean;
-    } = {},
-  ): CreateWebSocket =>
-  () =>
-  () => {
+export const testCreateWebSocket = (
+  options: {
+    /** Throw immediately when a socket is created. */
+    readonly throwOnCreate?: boolean;
+
+    /** Initial open state of created sockets. Defaults to true. */
+    readonly isOpen?: boolean;
+  } = {},
+): TestCreateWebSocket => {
+  const createdUrls: Array<string> = [];
+  const sentMessages: Array<{
+    readonly url: string;
+    readonly data: string | ArrayBufferLike | Blob | ArrayBufferView;
+  }> = [];
+  const stateByUrl = new Map<
+    string,
+    {
+      options: WebSocketOptions | undefined;
+      isOpen: boolean;
+      isDisposed: boolean;
+    }
+  >();
+
+  const getState = (url: string) => {
+    const state = stateByUrl.get(url);
+    assert(state, `Test WebSocket for ${url} does not exist.`);
+    return state;
+  };
+
+  const createWebSocket: CreateWebSocket = (url, socketOptions) => () => {
     if (options.throwOnCreate) {
       throw new Error("testCreateWebSocket is configured to throw on create");
     }
 
-    let isDisposed = false;
-    let isOpen = options.isOpen ?? true;
+    createdUrls.push(url);
+    stateByUrl.set(url, {
+      options: socketOptions,
+      isOpen: options.isOpen ?? true,
+      isDisposed: false,
+    });
 
     return ok({
-      send: () => {
-        if (isDisposed || !isOpen) return err({ type: "WebSocketSendError" });
+      send: (data) => {
+        const state = getState(url);
+        if (state.isDisposed || !state.isOpen) {
+          return err({ type: "WebSocketSendError" });
+        }
+        sentMessages.push({ url, data });
         return ok();
       },
 
       getReadyState: () => {
-        if (isDisposed) return "closed";
-        return isOpen ? "open" : "connecting";
+        const state = getState(url);
+        if (state.isDisposed) return "closed";
+        return state.isOpen ? "open" : "connecting";
       },
 
-      isOpen: () => !isDisposed && isOpen,
+      isOpen: () => {
+        const state = getState(url);
+        return !state.isDisposed && state.isOpen;
+      },
 
       [Symbol.asyncDispose]: () => {
-        isDisposed = true;
-        isOpen = false;
+        const state = getState(url);
+        state.isDisposed = true;
+        state.isOpen = false;
         return Promise.resolve();
       },
     });
   };
+
+  return Object.assign(createWebSocket, {
+    createdUrls,
+    sentMessages,
+    message: (url: string, data: string | ArrayBuffer | Blob) => {
+      getState(url).options?.onMessage?.(data);
+    },
+    open: (url: string) => {
+      const state = getState(url);
+      state.isOpen = true;
+      state.options?.onOpen?.();
+    },
+  });
+};
 
 const getNativeToStringState = (
   webSocketConstructor?: typeof globalThis.WebSocket,

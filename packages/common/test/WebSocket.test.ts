@@ -1,9 +1,13 @@
-import { afterEach, assert, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, assert, beforeEach, describe, expect, test, vi } from "vitest";
 import { utf8ToBytes } from "../src/Buffer.js";
 import { isServer } from "../src/Platform.js";
 import { spaced, take } from "../src/Schedule.js";
 import { createRun } from "../src/Task.js";
-import { createWebSocket, type WebSocketError } from "../src/WebSocket.js";
+import {
+  createWebSocket,
+  testCreateWebSocket,
+  type WebSocketError,
+} from "../src/WebSocket.js";
 
 declare module "vitest/browser" {
   interface BrowserCommands {
@@ -365,4 +369,104 @@ wsTest("WebSocketConnectionError behavior on abrupt termination", async () => {
       ]
     `);
   }
+});
+
+describe("testCreateWebSocket", () => {
+  test("tracks socket state, callbacks, and sent messages", async () => {
+    await using run = createRun();
+
+    const createTestWebSocket = testCreateWebSocket({ isOpen: false });
+    const receivedMessages: Array<string | ArrayBuffer | Blob> = [];
+    let openCount = 0;
+
+    const ws = await run.orThrow(
+      createTestWebSocket("ws://example.com", {
+        onOpen: () => {
+          openCount++;
+        },
+        onMessage: (data) => {
+          receivedMessages.push(data);
+        },
+      }),
+    );
+
+    expect(createTestWebSocket.createdUrls).toEqual(["ws://example.com"]);
+    expect(ws.isOpen()).toBe(false);
+    expect(ws.getReadyState()).toBe("connecting");
+
+    const sendBeforeOpen = ws.send("before-open");
+    expect(sendBeforeOpen).toEqual({
+      ok: false,
+      error: { type: "WebSocketSendError" },
+    });
+
+    createTestWebSocket.open("ws://example.com");
+
+    expect(openCount).toBe(1);
+    expect(ws.isOpen()).toBe(true);
+    expect(ws.getReadyState()).toBe("open");
+
+    const sendAfterOpen = ws.send("after-open");
+    expect(sendAfterOpen).toEqual({ ok: true, value: undefined });
+    expect(createTestWebSocket.sentMessages).toEqual([
+      { url: "ws://example.com", data: "after-open" },
+    ]);
+
+    const helloBytes = utf8ToBytes("hello");
+    const binaryMessage = new ArrayBuffer(helloBytes.byteLength);
+    new Uint8Array(binaryMessage).set(helloBytes);
+    createTestWebSocket.message("ws://example.com", binaryMessage);
+    expect(receivedMessages).toEqual([binaryMessage]);
+
+    await ws[Symbol.asyncDispose]();
+
+    expect(ws.isOpen()).toBe(false);
+    expect(ws.getReadyState()).toBe("closed");
+    expect(ws.send("after-dispose")).toEqual({
+      ok: false,
+      error: { type: "WebSocketSendError" },
+    });
+  });
+
+  test("throws when configured to throw on create", async () => {
+    await using run = createRun();
+
+    const createTestWebSocket = testCreateWebSocket({ throwOnCreate: true });
+
+    await expect(
+      run.orThrow(createTestWebSocket("ws://example.com")),
+    ).rejects.toThrowErrorMatchingInlineSnapshot(
+      `[Error: testCreateWebSocket is configured to throw on create]`,
+    );
+  });
+
+  test("defaults created sockets to open", async () => {
+    await using run = createRun();
+
+    const createTestWebSocket = testCreateWebSocket();
+    const ws = await run.orThrow(
+      createTestWebSocket("ws://default-open.example.com"),
+    );
+
+    await using _ws = ws;
+
+    expect(ws.isOpen()).toBe(true);
+    expect(ws.getReadyState()).toBe("open");
+    expect(ws.send("payload")).toEqual({ ok: true, value: undefined });
+    expect(createTestWebSocket.sentMessages).toEqual([
+      { url: "ws://default-open.example.com", data: "payload" },
+    ]);
+  });
+
+  test("asserts when opening or messaging an unknown socket", () => {
+    const createTestWebSocket = testCreateWebSocket();
+
+    expect(() => {
+      createTestWebSocket.open("ws://missing.example.com");
+    }).toThrow("Test WebSocket for ws://missing.example.com does not exist.");
+
+    expect(() => {
+      createTestWebSocket.message("ws://missing.example.com", "payload");
+    }).toThrow("Test WebSocket for ws://missing.example.com does not exist.");
+  });
 });
