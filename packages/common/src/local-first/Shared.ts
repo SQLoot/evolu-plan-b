@@ -284,13 +284,6 @@ export const initSharedWorker =
               },
             }),
           {
-            onFirstClaimAdded: (ownerId, webSocket) => {
-              if (!webSocket.isOpen()) return;
-              forEachSharedEvolu((sharedEvolu) => {
-                sharedEvolu.requestCreateSyncMessages(new Set([ownerId]));
-              });
-            },
-
             onLastClaimRemoved: (ownerId, webSocket) => {
               webSocket.send(createProtocolMessageForUnsubscribe(ownerId));
             },
@@ -776,6 +769,28 @@ const createSharedEvolu =
         return ok();
       });
 
+    const requestCreateSyncMessages = (
+      ownerIds: ReadonlySet<OwnerId>,
+    ): void => {
+      const ownersToSync = [...getUsedOwnersById(ownerIds).values()];
+
+      if (!isNonEmptyArray(ownersToSync)) return;
+
+      console.debug("requestCreateSyncMessages", {
+        ownerIds: ownersToSync.map(({ id }) => id),
+      });
+
+      queue.push({
+        type: "ForSharedWorker",
+        message: {
+          type: "CreateSyncMessages",
+          owners: ownersToSync,
+        },
+      });
+
+      ensureQueueProcessing();
+    };
+
     const toggleUsedSyncOwner = (
       evoluInstance: EvoluInstanceState,
       syncOwner: SyncOwner,
@@ -786,7 +801,16 @@ const createSharedEvolu =
           await run(
             transports.addClaim(syncOwner.owner.id, syncOwner.transports),
           );
-          evoluInstance.usedSyncOwners.increment(syncOwner);
+          const nextCount = evoluInstance.usedSyncOwners.increment(syncOwner);
+
+          if (
+            nextCount === 1 &&
+            syncOwner.transports.some((transport) =>
+              transports.getResource(transport)?.isOpen(),
+            )
+          ) {
+            requestCreateSyncMessages(new Set([syncOwner.owner.id]));
+          }
         } else {
           await run(
             transports.removeClaim(syncOwner.owner.id, syncOwner.transports),
@@ -943,25 +967,7 @@ const createSharedEvolu =
         };
       },
 
-      requestCreateSyncMessages: (ownerIds): void => {
-        const ownersToSync = [...getUsedOwnersById(ownerIds).values()];
-
-        if (!isNonEmptyArray(ownersToSync)) return;
-
-        console.debug("requestCreateSyncMessages", {
-          ownerIds: ownersToSync.map(({ id }) => id),
-        });
-
-        queue.push({
-          type: "ForSharedWorker",
-          message: {
-            type: "CreateSyncMessages",
-            owners: ownersToSync,
-          },
-        });
-
-        ensureQueueProcessing();
-      },
+      requestCreateSyncMessages,
 
       requestApplySyncMessage: (ownerId, inputMessage): void => {
         const owner = getUsedOwnersById(new Set([ownerId])).get(ownerId);
