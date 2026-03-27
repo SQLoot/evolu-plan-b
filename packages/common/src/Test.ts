@@ -17,9 +17,13 @@ import {
   minMillis,
   setTimeout,
   testCreateTime,
+  type TestTimeDep,
 } from "./Time.js";
 
-export type TestDeps = RunDeps & TestConsoleDep & RandomLibDep;
+export type TestDeps = Omit<RunDeps, "time"> &
+  TestConsoleDep &
+  RandomLibDep &
+  TestTimeDep;
 
 /**
  * Creates test dependencies for proper isolation.
