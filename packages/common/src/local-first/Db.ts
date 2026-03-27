@@ -251,7 +251,7 @@ const startDbWorker =
         port.postMessage(
           { type: "OnQueuedResponse", callbackId, response },
           response.type === "ForEvolu" && response.message.type === "Export"
-            ? [response.message.file.buffer]
+            ? [response.message.file.buffer as ArrayBuffer]
             : undefined,
         );
       };

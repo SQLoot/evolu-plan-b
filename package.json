@@ -79,15 +79,15 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",
     "@changesets/cli": "^2.29.8",
-    "@vitest/browser": "^4.1.1",
-    "@vitest/browser-playwright": "^4.1.1",
-    "@vitest/coverage-istanbul": "^4.1.1",
-    "@vitest/coverage-v8": "^4.1.1",
+    "@vitest/browser": "^4.1.2",
+    "@vitest/browser-playwright": "^4.1.2",
+    "@vitest/coverage-istanbul": "^4.1.2",
+    "@vitest/coverage-v8": "^4.1.2",
     "turbo": "^2.8.20",
     "typedoc": "^0.28.18",
     "typedoc-plugin-markdown": "^4.11.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.1"
+    "vitest": "^4.1.2"
   },
   "overrides": {
     "serialize-javascript": "^7.0.3",

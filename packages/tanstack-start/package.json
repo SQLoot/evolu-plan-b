@@ -27,7 +27,7 @@
     "@evolu/react-web": "workspace:*",
     "@evolu/tsconfig": "workspace:*",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.1"
+    "vitest": "^4.1.2"
   },
   "engines": {
     "node": ">=24.0.0"

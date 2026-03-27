@@ -9,15 +9,15 @@
     "generate-pwa-assets": "pwa-assets-generator"
   },
   "dependencies": {
-    "@angular/core": "21.2.3",
-    "@angular/platform-browser": "21.2.3",
+    "@angular/core": "21.2.6",
+    "@angular/platform-browser": "21.2.6",
     "@evolu/common": "workspace:*",
     "@evolu/web": "workspace:*"
   },
   "devDependencies": {
     "@analogjs/vite-plugin-angular": "^2.3.1",
-    "@angular/build": "21.2.3",
-    "@angular/compiler-cli": "21.2.3",
+    "@angular/build": "21.2.4",
+    "@angular/compiler-cli": "21.2.6",
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/vite": "^4.2.2",
     "@vite-pwa/assets-generator": "^1.0.2",

@@ -44,7 +44,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "typescript": "^5.9.3",
-    "user-agent-data-types": "^0.4.2"
+    "user-agent-data-types": "^0.4.3"
   },
   "peerDependencies": {
     "@evolu/common": "^7.4.1",

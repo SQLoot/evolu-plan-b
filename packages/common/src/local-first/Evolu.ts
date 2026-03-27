@@ -417,7 +417,7 @@ export interface Evolu<S extends EvoluSchema = EvoluSchema>
    * The pending promise rejects if this {@link Evolu} instance is disposed
    * before export completion.
    */
-  readonly exportDatabase: () => Promise<Uint8Array<ArrayBuffer>>;
+  readonly exportDatabase: () => Promise<Uint8Array>;
 
   // TODO: Add exportHistory.
 
@@ -676,9 +676,11 @@ export const createEvolu =
 
     const onMutateCompleteCallbacks = stack.use(createCallbacks(run.deps));
 
-    let exportDatabasePending = null as PromiseWithResolvers<
-      Uint8Array<ArrayBuffer>
-    > | null;
+    let exportDatabasePending = null as {
+      promise: Promise<Uint8Array>;
+      resolve: (value: Uint8Array | PromiseLike<Uint8Array>) => void;
+      reject: (reason?: any) => void;
+    } | null;
 
     stack.defer(() => {
       exportDatabasePending?.reject({ type: "EvoluDisposedError" });
@@ -893,7 +895,10 @@ export const createEvolu =
         return loadingPromise.promise as Promise<QueryRows<R>>;
       }
 
-      const { promise, resolve } = Promise.withResolvers<QueryRows>();
+      let resolve!: (value: QueryRows | PromiseLike<QueryRows>) => void;
+      const promise = new Promise<QueryRows>((res) => {
+        resolve = res;
+      });
       const typedPromise = promise as LoadingPromise["promise"];
       typedPromise.status = "pending";
 
@@ -995,8 +1000,16 @@ export const createEvolu =
         assertNotDisposed(moved);
 
         if (!exportDatabasePending) {
-          exportDatabasePending =
-            Promise.withResolvers<Uint8Array<ArrayBuffer>>();
+          let resolve!: (value: Uint8Array | PromiseLike<Uint8Array>) => void;
+          let reject!: (reason?: any) => void;
+          exportDatabasePending = {
+            promise: new Promise<Uint8Array>((res, rej) => {
+              resolve = res;
+              reject = rej;
+            }),
+            resolve,
+            reject,
+          };
           postMessage({ type: "Export" });
         }
         return exportDatabasePending.promise;

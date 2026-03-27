@@ -130,7 +130,7 @@ export type EvoluOutput =
     }
   | {
       readonly type: "OnExport";
-      readonly file: Uint8Array<ArrayBuffer>;
+      readonly file: Uint8Array;
     };
 
 export const initSharedWorker =
@@ -142,7 +142,16 @@ export const initSharedWorker =
       run.deps;
     const console = run.deps.console.child("SharedWorker");
     await using stack = new AsyncDisposableStack();
-    const sharedWorkerReady = Promise.withResolvers<void>();
+    let resolveSharedWorkerReady!: () => void;
+    let rejectSharedWorkerReady!: (reason?: any) => void;
+    const sharedWorkerReady = {
+      promise: new Promise<void>((resolve, reject) => {
+        resolveSharedWorkerReady = resolve;
+        rejectSharedWorkerReady = reject;
+      }),
+      resolve: (value: void | PromiseLike<void>) => resolveSharedWorkerReady(),
+      reject: (reason?: any) => rejectSharedWorkerReady(reason),
+    };
 
     // TODO: Use heartbeat to detect and prune dead ports.
     const tabPorts = new Set<MessagePort<EvoluTabOutput>>();
@@ -335,7 +344,7 @@ interface SharedEvolu extends AsyncDisposable {
 
   readonly requestApplySyncMessage: (
     ownerId: OwnerId,
-    inputMessage: Uint8Array<ArrayBuffer>,
+    inputMessage: Uint8Array,
   ) => void;
 }
 
@@ -375,7 +384,7 @@ export interface DbWorkerInput {
           | {
               readonly type: "ApplySyncMessage";
               readonly owner: Owner;
-              readonly inputMessage: Uint8Array<ArrayBuffer>;
+              readonly inputMessage: Uint8Array;
             };
       };
 }
@@ -408,7 +417,7 @@ export type DbWorkerOutput =
                 }
               | {
                   readonly type: "Export";
-                  readonly file: Uint8Array<ArrayBuffer>;
+                  readonly file: Uint8Array;
                 };
           }
         | {
@@ -655,7 +664,7 @@ const createSharedEvolu =
 
         case "Export":
           port.postMessage({ type: "OnExport", file: response.message.file }, [
-            response.message.file.buffer,
+            response.message.file.buffer as ArrayBuffer,
           ]);
           break;
 
