@@ -294,6 +294,7 @@ export const initSharedWorker =
             }),
           {
             onLastClaimRemoved: (ownerId, webSocket) => {
+              if (!webSocket.isOpen()) return;
               webSocket.send(createProtocolMessageForUnsubscribe(ownerId));
             },
             // Keep sockets alive briefly across short owner churn.
