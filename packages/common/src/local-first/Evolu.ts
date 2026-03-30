@@ -634,10 +634,10 @@ export const createEvolu =
 
     await using stack = new AsyncDisposableStack();
 
-    const rowsByQueryMapStore = stack.use(
-      createStore<RowsByQueryMap>(new Map()),
-    );
-    const subscribedQueriesRefCount = stack.use(createRefCountByKey<Query>());
+    const rowsByQueryMapStore = createStore<RowsByQueryMap>(new Map());
+    stack.defer(() => rowsByQueryMapStore[Symbol.dispose]());
+    const subscribedQueriesRefCount = createRefCountByKey<Query>();
+    stack.defer(() => subscribedQueriesRefCount[Symbol.dispose]());
 
     interface LoadingPromise {
       /**
