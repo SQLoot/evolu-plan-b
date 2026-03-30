@@ -155,6 +155,16 @@ bun install
 Build scripts
 
 - `bun run build` - Build packages
+- `bun run build:docs` - Generate Typedoc API reference
+- `bun run build:web` - Build docs and web
+- `bun run build:web:fast` - Skip regenerating API reference and build web only
+- `bun run build:expo` - Build Expo example
+
+Web build notes
+
+- `build:web:fast` is intended for local iteration when `.generated/evolu-docs/api-reference` is already present.
+- On macOS Tahoe, you may need to raise Launch Services limits too (shell `ulimit -n` is not enough):
+  - `sudo launchctl limit maxfiles 262144 262144`
 Start dev
 
 - `bun run dev` - Start development mode for relay
