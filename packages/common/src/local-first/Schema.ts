@@ -10,14 +10,15 @@ import {
   eqSqliteIndex,
   getSqliteSchema,
   type SafeSql,
+  sql,
+  sqliteQueryToSqliteQueryString,
   SqliteBoolean,
   type SqliteDep,
   type SqliteIndex,
   type SqliteQuery,
   type SqliteQueryOptions,
   type SqliteSchema,
-  type SqliteValue,
-  sql,
+  SqliteValue,
 } from "../Sqlite.js";
 import type { InferType } from "../Type.js";
 import {
@@ -37,7 +38,6 @@ import type {
   Query,
   Row,
 } from "./Query.js";
-import { serializeQuery } from "./Query.js";
 import type { CrdtMessage, DbChange } from "./Storage.js";
 import type { TimestampBytes } from "./Timestamp.js";
 
@@ -150,7 +150,7 @@ export type CreateQuery<S extends EvoluSchema> = <R extends Row>(
     >,
   ) => Kysely.SelectQueryBuilder<any, any, R>,
   options?: SqliteQueryOptions,
-) => Query<Simplify<R>>;
+) => Query<S, Simplify<R>>;
 
 /**
  * System columns that are implicitly defined by Evolu.
@@ -422,19 +422,24 @@ export const evoluSchemaToSqliteSchema = <S extends EvoluSchema>(
  * );
  * ```
  */
-export const createQueryBuilder =
-  <S extends EvoluSchema>(_schema: S): CreateQuery<S> =>
-  (queryCallback, options) => {
+export const createQueryBuilder = <S extends EvoluSchema>(
+  _schema: S,
+): CreateQuery<S> => {
+  const createQuery: CreateQuery<S> = (queryCallback, options) => {
     const compiledQuery = queryCallback(kysely as never).compile();
-
-    return serializeQuery({
+    const sqliteQuery: SqliteQuery = {
       sql: compiledQuery.sql as SafeSql,
       parameters: compiledQuery.parameters as NonNullable<
         SqliteQuery["parameters"]
       >,
       ...(options && { options }),
-    });
+    };
+
+    return sqliteQueryToSqliteQueryString(sqliteQuery) as never;
   };
+
+  return createQuery;
+};
 
 export const ensureSqliteSchema =
   (deps: SqliteDep) =>
