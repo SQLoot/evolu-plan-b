@@ -1,4 +1,5 @@
 import { describe, expect, expectTypeOf, test } from "vitest";
+import type { NonEmptyReadonlyArray } from "../../src/Array.js";
 import { assert } from "../../src/Assert.js";
 import type { Brand } from "../../src/Brand.js";
 import type { ConsoleEntry, TestConsole } from "../../src/Console.js";
@@ -17,10 +18,16 @@ import {
   AppName,
   createEvolu,
   createEvoluDeps,
+  type Evolu,
+  type EvoluPlatformDeps,
   testAppName,
 } from "../../src/local-first/Evolu.js";
-import { createOwnerWebSocketTransport } from "../../src/local-first/Owner.js";
-import { testQuery, testQuery2 } from "../../src/local-first/Query.js";
+import {
+  createOwnerWebSocketTransport,
+  type Owner,
+  type OwnerTransport,
+  type ReadonlyOwner,
+} from "../../src/local-first/Owner.js";
 import { createQueryBuilder } from "../../src/local-first/Schema.js";
 import {
   type EvoluInput,
@@ -32,11 +39,13 @@ import {
 } from "../../src/local-first/Shared.js";
 import { err, ok } from "../../src/Result.js";
 import {
+  type CreateSqliteDriver,
   createSqlite,
   getSqliteSnapshot,
   SqliteBoolean,
+  type SqliteDriverOptions,
 } from "../../src/Sqlite.js";
-import { createInMemoryLeaderLock } from "../../src/Task.js";
+import { createInMemoryLeaderLock, type Task } from "../../src/Task.js";
 import { testCreateRun } from "../../src/Test.js";
 import {
   createIdFromString,
@@ -83,6 +92,14 @@ const testOwnerTransport = createOwnerWebSocketTransport({
 });
 
 const createQuery = createQueryBuilder(Schema);
+
+const todoTitleQuery = createQuery((db) =>
+  db.selectFrom("todo").select(["title"]).orderBy("createdAt"),
+);
+
+const todoTitleDescQuery = createQuery((db) =>
+  db.selectFrom("todo").select(["title"]).orderBy("createdAt", "desc"),
+);
 
 const todoByCreatedAtQuery = createQuery((db) =>
   db.selectFrom("todo").select(["id", "title"]).orderBy("createdAt"),
@@ -420,6 +437,45 @@ describe("unit tests", () => {
         expect.objectContaining({
           type: "Init",
           name: evolu.name,
+          memoryOnly: false,
+        }),
+      );
+    });
+
+    test("forwards memoryOnly to db worker init", async () => {
+      const dbWorkerMessages: Array<DbWorkerInit> = [];
+
+      const createDbWorker: CreateDbWorker = () => {
+        const worker = testCreateWorker<DbWorkerInit>();
+        worker.self.onMessage = (message) => {
+          dbWorkerMessages.push(message);
+        };
+        return worker as DbWorker;
+      };
+
+      await using run = testCreateRun({
+        createDbWorker,
+        createMessageChannel: testCreateMessageChannel,
+        reloadApp: lazyVoid,
+        sharedWorker: testCreateSharedWorker<SharedWorkerInput>(),
+      });
+
+      await run.orThrow(
+        createEvolu(Schema, {
+          appName: testAppName,
+          appOwner: testAppOwner,
+          transports: [],
+          memoryOnly: true,
+        }),
+      );
+
+      await testWaitForWorkerMessage();
+
+      expect(dbWorkerMessages).toHaveLength(1);
+      expect(dbWorkerMessages[0]).toEqual(
+        expect.objectContaining({
+          type: "Init",
+          memoryOnly: true,
         }),
       );
     });
@@ -440,22 +496,24 @@ describe("unit tests", () => {
       expect(evolu.appOwner).toBe(testAppOwner);
     });
 
-    test("appOwner is created when omitted from config", async () => {
-      await using run = testCreateRun(testCreateEvoluDeps());
+    test("infers default useOwner transports from config", () => {
+      const task = createEvolu(Schema, {
+        appName: testAppName,
+        appOwner: testAppOwner,
+      });
 
-      const evolu = await run.orThrow(
-        createEvolu(Schema, { appName: testAppName }),
-      );
+      expectTypeOf(task).toEqualTypeOf<
+        Task<Evolu<typeof Schema>, never, EvoluPlatformDeps>
+      >();
 
-      expect(evolu.appOwner).toMatchInlineSnapshot(`
-        {
-          "encryptionKey": uint8:[51,231,177,91,230,145,176,109,130,148,152,121,45,182,111,94,53,215,154,110,96,244,72,84,84,159,250,76,118,95,103,5],
-          "id": "SUVItd3dEQ8CLSsCqwJahA",
-          "mnemonic": "duck still purse lock purpose orchard silver differ clean night measure jewel accident visual knee spring extra winner inner fade estate cushion flock live",
-          "type": "AppOwner",
-          "writeKey": uint8:[107,116,39,189,145,48,68,79,11,181,104,47,132,89,107,220],
-        }
-      `);
+      expectTypeOf<
+        Parameters<Evolu<typeof Schema>["useOwner"]>
+      >().toEqualTypeOf<
+        [
+          owner: ReadonlyOwner | Owner,
+          transports?: NonEmptyReadonlyArray<OwnerTransport>,
+        ]
+      >();
     });
 
     describe("useOwner", () => {
@@ -686,19 +744,19 @@ describe("unit tests", () => {
       }).toThrow(disposedMessage);
 
       expect(() => {
-        void evolu.loadQuery(testQuery);
+        void evolu.loadQuery(todoTitleQuery);
       }).toThrow(disposedMessage);
 
       expect(() => {
-        void evolu.loadQueries([testQuery, testQuery2]);
+        void evolu.loadQueries([todoTitleQuery, todoTitleDescQuery]);
       }).toThrow(disposedMessage);
 
       expect(() => {
-        evolu.subscribeQuery(testQuery)(lazyVoid);
+        evolu.subscribeQuery(todoTitleQuery)(lazyVoid);
       }).toThrow(disposedMessage);
 
       expect(() => {
-        evolu.getQueryRows(testQuery);
+        evolu.getQueryRows(todoTitleQuery);
       }).toThrow(disposedMessage);
 
       expect(() => {
@@ -706,7 +764,7 @@ describe("unit tests", () => {
       }).toThrow(disposedMessage);
 
       expect(() => {
-        evolu.useOwner(testAppOwner);
+        evolu.useOwner(testAppOwner, [testOwnerTransport]);
       }).toThrow(disposedMessage);
     });
 
@@ -731,12 +789,12 @@ describe("unit tests", () => {
       await using run = testCreateRun(testCreateEvoluDeps());
       const evolu = await run.orThrow(testCreateEvolu);
 
-      const loadPromise = evolu.loadQuery(testQuery);
+      const loadPromise = evolu.loadQuery(todoTitleQuery);
 
       await testWaitForWorkerMessage();
 
       expect(run.deps.evoluInputs).toEqual([
-        { type: "Query", queries: new Set([testQuery]) },
+        { type: "Query", queries: new Set([todoTitleQuery]) },
       ]);
 
       await evolu[Symbol.asyncDispose]();
@@ -748,15 +806,15 @@ describe("unit tests", () => {
       await using run = testCreateRun(testCreateEvoluDeps());
       const evolu = await run.orThrow(testCreateEvolu);
 
-      evolu.subscribeQuery(testQuery)(lazyVoid);
-      const loadPromise = evolu.loadQuery(testQuery);
+      evolu.subscribeQuery(todoTitleQuery)(lazyVoid);
+      const loadPromise = evolu.loadQuery(todoTitleQuery);
 
       await testWaitForWorkerMessage();
 
       run.deps.postEvoluOutput({
         type: "OnPatchesByQuery",
         patchesByQuery: new Map([
-          [testQuery, [{ op: "replaceAll", value: [{ title: "A" }] }]],
+          [todoTitleQuery, [{ op: "replaceAll", value: [{ title: "A" }] }]],
         ]),
         onCompleteIds: [],
       });
@@ -986,8 +1044,8 @@ describe("unit tests", () => {
       await using run = testCreateRun(testCreateEvoluDeps());
       const evolu = await run.orThrow(testCreateEvolu);
 
-      const firstLoad = evolu.loadQuery(testQuery);
-      const secondLoad = evolu.loadQuery(testQuery);
+      const firstLoad = evolu.loadQuery(todoTitleQuery);
+      const secondLoad = evolu.loadQuery(todoTitleQuery);
 
       expect(firstLoad).toBe(secondLoad);
 
@@ -996,14 +1054,14 @@ describe("unit tests", () => {
       await testWaitForWorkerMessage();
 
       expect(run.deps.evoluInputs).toEqual([
-        { type: "Query", queries: new Set([testQuery]) },
+        { type: "Query", queries: new Set([todoTitleQuery]) },
       ]);
     });
 
     test("loadQueries delegates to loadQuery for each query", async () => {
       await using run = testCreateRun(testCreateEvoluDeps());
       const evolu = await run.orThrow(testCreateEvolu);
-      const loads = evolu.loadQueries([testQuery, testQuery2]);
+      const loads = evolu.loadQueries([todoTitleQuery, todoTitleDescQuery]);
 
       expect(loads).toHaveLength(2);
 
@@ -1012,7 +1070,10 @@ describe("unit tests", () => {
       await testWaitForWorkerMessage();
 
       expect(run.deps.evoluInputs).toEqual([
-        { type: "Query", queries: new Set([testQuery, testQuery2]) },
+        {
+          type: "Query",
+          queries: new Set([todoTitleQuery, todoTitleDescQuery]),
+        },
       ]);
     });
 
@@ -1020,14 +1081,14 @@ describe("unit tests", () => {
       await using run = testCreateRun(testCreateEvoluDeps());
       const evolu = await run.orThrow(testCreateEvolu);
 
-      expect(evolu.getQueryRows(testQuery)).toEqual([]);
+      expect(evolu.getQueryRows(todoTitleQuery)).toEqual([]);
     });
 
     test("subscribeQuery does not trigger Query by itself", async () => {
       await using run = testCreateRun(testCreateEvoluDeps());
       const evolu = await run.orThrow(testCreateEvolu);
 
-      const unsubscribe = evolu.subscribeQuery(testQuery)(lazyVoid);
+      const unsubscribe = evolu.subscribeQuery(todoTitleQuery)(lazyVoid);
 
       await testWaitForWorkerMessage();
 
@@ -1038,11 +1099,28 @@ describe("unit tests", () => {
       unsubscribe();
     });
 
+    test("allows subscribeQuery unsubscribe after dispose", async () => {
+      await using run = testCreateRun(testCreateEvoluDeps());
+      const evolu = await run.orThrow(testCreateEvolu);
+
+      const unsubscribe = evolu.subscribeQuery(todoTitleQuery)(lazyVoid);
+
+      await evolu[Symbol.asyncDispose]();
+
+      expect(() => {
+        unsubscribe();
+      }).not.toThrow();
+
+      expect(() => {
+        unsubscribe();
+      }).toThrow("subscribeQuery unsubscribe can be called only once.");
+    });
+
     test("RefreshQueries re-queries pending unsubscribed loadQuery", async () => {
       await using run = testCreateRun(testCreateEvoluDeps());
       const evolu = await run.orThrow(testCreateEvolu);
 
-      void evolu.loadQuery(testQuery);
+      void evolu.loadQuery(todoTitleQuery);
       await testWaitForWorkerMessage();
 
       run.deps.evoluInputs.length = 0;
@@ -1051,7 +1129,7 @@ describe("unit tests", () => {
       await testWaitForWorkerMessage();
 
       expect(run.deps.evoluInputs).toEqual([
-        { type: "Query", queries: new Set([testQuery]) },
+        { type: "Query", queries: new Set([todoTitleQuery]) },
       ]);
     });
 
@@ -1059,14 +1137,14 @@ describe("unit tests", () => {
       await using run = testCreateRun(testCreateEvoluDeps());
       const evolu = await run.orThrow(testCreateEvolu);
 
-      const unsubscribe = evolu.subscribeQuery(testQuery)(lazyVoid);
+      const unsubscribe = evolu.subscribeQuery(todoTitleQuery)(lazyVoid);
 
       run.deps.postEvoluOutput({ type: "RefreshQueries" });
 
       await testWaitForWorkerMessage();
 
       expect(run.deps.evoluInputs).toEqual([
-        { type: "Query", queries: new Set([testQuery]) },
+        { type: "Query", queries: new Set([todoTitleQuery]) },
       ]);
 
       unsubscribe();
@@ -1076,7 +1154,7 @@ describe("unit tests", () => {
       await using run = testCreateRun(testCreateEvoluDeps());
       const evolu = await run.orThrow(testCreateEvolu);
 
-      const loadFiber = evolu.loadQuery(testQuery);
+      const loadFiber = evolu.loadQuery(todoTitleQuery);
       await testWaitForWorkerMessage();
 
       run.deps.evoluInputs.length = 0;
@@ -1087,7 +1165,7 @@ describe("unit tests", () => {
       run.deps.postEvoluOutput({
         type: "OnPatchesByQuery",
         patchesByQuery: new Map([
-          [testQuery, [{ op: "replaceAll", value: [{ title: "R" }] }]],
+          [todoTitleQuery, [{ op: "replaceAll", value: [{ title: "R" }] }]],
         ]),
         onCompleteIds: [],
       });
@@ -1106,13 +1184,13 @@ describe("unit tests", () => {
       await using run = testCreateRun(testCreateEvoluDeps());
       const evolu = await run.orThrow(testCreateEvolu);
 
-      void evolu.loadQuery(testQuery);
+      void evolu.loadQuery(todoTitleQuery);
       await testWaitForWorkerMessage();
 
       run.deps.postEvoluOutput({
         type: "OnPatchesByQuery",
         patchesByQuery: new Map([
-          [testQuery, [{ op: "replaceAll", value: [{ title: "A" }] }]],
+          [todoTitleQuery, [{ op: "replaceAll", value: [{ title: "A" }] }]],
         ]),
         onCompleteIds: [],
       });
@@ -1129,8 +1207,8 @@ describe("unit tests", () => {
       await using run = testCreateRun(testCreateEvoluDeps());
       const evolu = await run.orThrow(testCreateEvolu);
 
-      const unsubscribe = evolu.subscribeQuery(testQuery)(lazyVoid);
-      void evolu.loadQuery(testQuery);
+      const unsubscribe = evolu.subscribeQuery(todoTitleQuery)(lazyVoid);
+      void evolu.loadQuery(todoTitleQuery);
       await testWaitForWorkerMessage();
 
       run.deps.evoluInputs.length = 0;
@@ -1139,7 +1217,7 @@ describe("unit tests", () => {
       await testWaitForWorkerMessage();
 
       expect(run.deps.evoluInputs).toEqual([
-        { type: "Query", queries: new Set([testQuery]) },
+        { type: "Query", queries: new Set([todoTitleQuery]) },
       ]);
 
       unsubscribe();
@@ -1149,34 +1227,34 @@ describe("unit tests", () => {
       await using run = testCreateRun(testCreateEvoluDeps());
       const evolu = await run.orThrow(testCreateEvolu);
 
-      const unsubscribe = evolu.subscribeQuery(testQuery)(lazyVoid);
+      const unsubscribe = evolu.subscribeQuery(todoTitleQuery)(lazyVoid);
 
-      const firstLoad = evolu.loadQuery(testQuery);
+      const firstLoad = evolu.loadQuery(todoTitleQuery);
       await testWaitForWorkerMessage();
 
       run.deps.postEvoluOutput({
         type: "OnPatchesByQuery",
         patchesByQuery: new Map([
-          [testQuery, [{ op: "replaceAll", value: [{ title: "A" }] }]],
+          [todoTitleQuery, [{ op: "replaceAll", value: [{ title: "A" }] }]],
         ]),
         onCompleteIds: [],
       });
 
       await expect(firstLoad).resolves.toEqual([{ title: "A" }]);
 
-      const fulfilledLoad = evolu.loadQuery(testQuery);
+      const fulfilledLoad = evolu.loadQuery(todoTitleQuery);
 
       run.deps.postEvoluOutput({
         type: "OnPatchesByQuery",
         patchesByQuery: new Map([
-          [testQuery, [{ op: "replaceAll", value: [{ title: "B" }] }]],
+          [todoTitleQuery, [{ op: "replaceAll", value: [{ title: "B" }] }]],
         ]),
         onCompleteIds: [],
       });
 
       await testWaitForWorkerMessage();
 
-      const replacedLoad = evolu.loadQuery(testQuery);
+      const replacedLoad = evolu.loadQuery(todoTitleQuery);
 
       expect(replacedLoad).not.toBe(fulfilledLoad);
       await expect(replacedLoad).resolves.toEqual([{ title: "B" }]);
@@ -1191,7 +1269,7 @@ describe("unit tests", () => {
       run.deps.postEvoluOutput({
         type: "OnPatchesByQuery",
         patchesByQuery: new Map([
-          [testQuery, [{ op: "replaceAll", value: [{ title: "X" }] }]],
+          [todoTitleQuery, [{ op: "replaceAll", value: [{ title: "X" }] }]],
         ]),
         onCompleteIds: [],
       });
@@ -1206,14 +1284,14 @@ describe("unit tests", () => {
       const evolu = await run.orThrow(testCreateEvolu);
 
       let calls = 0;
-      const unsubscribe = evolu.subscribeQuery(testQuery)(() => {
+      const unsubscribe = evolu.subscribeQuery(todoTitleQuery)(() => {
         calls += 1;
       });
 
       run.deps.postEvoluOutput({
         type: "OnPatchesByQuery",
         patchesByQuery: new Map([
-          [testQuery, [{ op: "replaceAll", value: [{ title: "A" }] }]],
+          [todoTitleQuery, [{ op: "replaceAll", value: [{ title: "A" }] }]],
         ]),
         onCompleteIds: [],
       });
@@ -1856,5 +1934,58 @@ describe("integration tests", () => {
         ],
       }
     `);
+  });
+
+  test("memoryOnly opens SQLite in memory mode", async () => {
+    const consoleStoreOutput = createConsoleStoreOutput();
+    const sqliteDriverOptions = new Array<SqliteDriverOptions | undefined>();
+    const sqliteDriverOptionsCalled = Promise.withResolvers<void>();
+    const createSqliteDriver: CreateSqliteDriver = (name, options) => {
+      sqliteDriverOptions.push(options);
+      sqliteDriverOptionsCalled.resolve();
+      return testCreateSqliteDeps.createSqliteDriver(name, options);
+    };
+
+    const run = testCreateRun({
+      consoleStoreOutputEntry: consoleStoreOutput.entry,
+      createMessageChannel,
+      createMessagePort,
+      createWebSocket: testCreateWebSocket({ throwOnCreate: true }),
+    });
+
+    const workerRun = testCreateRun({
+      consoleStoreOutputEntry: consoleStoreOutput.entry,
+      createMessagePort,
+      leaderLock: createInMemoryLeaderLock(),
+      createSqliteDriver,
+    });
+
+    const createDbWorker = () =>
+      createWorker<DbWorkerInit>((self) => {
+        workerRun(initDbWorker(self));
+      });
+
+    const sharedWorker = createSharedWorker<SharedWorkerInput>((self) => {
+      run(initSharedWorker(self));
+    });
+
+    await using runWithDeps = run.addDeps({
+      createDbWorker,
+      reloadApp: lazyVoid,
+      sharedWorker,
+    });
+
+    await runWithDeps.orThrow(
+      createEvolu(Schema, {
+        appName: testAppName,
+        appOwner: testAppOwner,
+        transports: [],
+        memoryOnly: true,
+      }),
+    );
+
+    await sqliteDriverOptionsCalled.promise;
+
+    expect(sqliteDriverOptions).toContainEqual({ mode: "memory" });
   });
 });
