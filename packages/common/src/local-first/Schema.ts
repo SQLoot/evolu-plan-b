@@ -10,15 +10,15 @@ import {
   eqSqliteIndex,
   getSqliteSchema,
   type SafeSql,
-  sql,
-  sqliteQueryToSqliteQueryString,
   SqliteBoolean,
   type SqliteDep,
   type SqliteIndex,
   type SqliteQuery,
   type SqliteQueryOptions,
   type SqliteSchema,
-  SqliteValue,
+  type SqliteValue,
+  sql,
+  sqliteQueryToSqliteQueryString,
 } from "../Sqlite.js";
 import type { InferType } from "../Type.js";
 import {

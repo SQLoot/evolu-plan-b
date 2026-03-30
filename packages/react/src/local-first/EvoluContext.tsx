@@ -4,7 +4,9 @@ import { assert, type Result } from "@evolu/common";
 import type { Evolu, EvoluSchema } from "@evolu/common/local-first";
 import { createContext, type ReactNode, use } from "react";
 
-export const EvoluContext = /*#__PURE__*/ createContext<Evolu>(null as never);
+export const EvoluContext = /*#__PURE__*/ createContext<Evolu<EvoluSchema>>(
+  null as never,
+);
 
 /**
  * Creates typed React Context and Provider for {@link Evolu}.
@@ -40,13 +42,15 @@ export const createEvoluContext = <S extends EvoluSchema>(
   React.Context<Evolu<S>>,
   React.FC<{ readonly children?: ReactNode }>,
 ] => [
-  EvoluContext as React.Context<Evolu<S>>,
+  EvoluContext as unknown as React.Context<Evolu<S>>,
   ({ children }) => {
     const result = use(fiber);
     assert(result.ok, "createEvolu failed");
 
     return (
-      <EvoluContext value={result.value as Evolu}>{children}</EvoluContext>
+      <EvoluContext value={result.value as Evolu<EvoluSchema>}>
+        {children}
+      </EvoluContext>
     );
   },
 ];

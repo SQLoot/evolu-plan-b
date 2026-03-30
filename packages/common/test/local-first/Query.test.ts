@@ -56,15 +56,15 @@ test("Query", () => {
 
   // @ts-expect-error - query2 should not be assignable to query1
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const shouldAlsoError: typeof query1 = query2;
+  const _shouldAlsoError: typeof query1 = query2;
 
   // Valid assignments
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const validQuery1: typeof query1 = query1;
+  const _validQuery1: typeof query1 = query1;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const validQuery2: typeof query2 = query2;
+  const _validQuery2: typeof query2 = query2;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const validSchemaQuery: Query<typeof QuerySchema> = query1;
+  const _validSchemaQuery: Query<typeof QuerySchema> = query1;
 });
 
 test("evoluJsonArrayFrom compiles a prefixed SQLite JSON array query", () => {

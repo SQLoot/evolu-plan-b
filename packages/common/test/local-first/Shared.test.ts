@@ -37,6 +37,7 @@ import {
   testWaitForWorkerMessage,
 } from "../../src/Worker.js";
 import { testQuery } from "./_fixtures.js";
+
 interface SharedWorkerDep {
   readonly worker: ReturnType<typeof testCreateSharedWorker<SharedWorkerInput>>;
 }

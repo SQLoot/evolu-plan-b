@@ -1,9 +1,9 @@
 import { emptyArray } from "@evolu/common";
-import {
-  type EvoluSchema,
-  type Query,
-  type QueryRows,
-  type Row,
+import type {
+  EvoluSchema,
+  Query,
+  QueryRows,
+  Row,
 } from "@evolu/common/local-first";
 import { onScopeDispose, type Ref, shallowReadonly, shallowRef } from "vue";
 import { useEvolu } from "./useEvolu.js";

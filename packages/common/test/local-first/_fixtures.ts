@@ -10,16 +10,16 @@ import {
   type EvoluSchema,
 } from "../../src/local-first/Schema.js";
 import {
-  Counter,
+  type Counter,
   createTimestamp,
   maxCounter,
   maxNodeId,
-  NodeId,
+  type NodeId,
   orderTimestampBytes,
   timestampToTimestampBytes,
 } from "../../src/local-first/Timestamp.js";
 import { testCreateDeps } from "../../src/Test.js";
-import { Millis, maxMillis } from "../../src/Time.js";
+import { type Millis, maxMillis } from "../../src/Time.js";
 import { id, String } from "../../src/Type.js";
 
 const deps = testCreateDeps();

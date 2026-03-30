@@ -1,8 +1,9 @@
 import type {
+  Evolu,
+  EvoluSchema,
   Queries,
   QueriesToQueryRows,
   QueriesToQueryRowsPromises,
-  Row,
 } from "@evolu/common/local-first";
 import { use, useRef } from "react";
 import { EvoluContext } from "./EvoluContext.js";
@@ -16,9 +17,9 @@ import { useQuerySubscription } from "./useQuerySubscription.js";
  * The number of queries must remain stable across renders.
  */
 export const useQueries = <
-  R extends Row,
-  Q extends Queries<R>,
-  OQ extends Queries<R>,
+  S extends EvoluSchema,
+  Q extends Queries<S>,
+  OQ extends Queries<S>,
 >(
   queries: [...Q],
   options: Partial<{
@@ -32,7 +33,7 @@ export const useQueries = <
     ];
   }> = {},
 ): [...QueriesToQueryRows<Q>, ...QueriesToQueryRows<OQ>] => {
-  const evolu = use(EvoluContext);
+  const evolu = use(EvoluContext) as Evolu<S>;
   const once = useRef(options).current.once;
   const allQueries = once ? queries.concat(once) : queries;
 

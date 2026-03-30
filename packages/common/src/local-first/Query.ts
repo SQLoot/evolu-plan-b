@@ -26,7 +26,7 @@ import { createRandomBytes } from "../Crypto.js";
 import type { ReadonlyRecord } from "../Object.js";
 import { createRecord, isPlainObject } from "../Object.js";
 import type { SqliteQueryString } from "../Sqlite.js";
-import { eqSqliteValue, SqliteValue } from "../Sqlite.js";
+import { eqSqliteValue, type SqliteValue } from "../Sqlite.js";
 import { createId, String } from "../Type.js";
 import type { Simplify } from "../Types.js";
 import type { EvoluSchema } from "./Schema.js";

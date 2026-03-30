@@ -1,6 +1,7 @@
 "use client";
 
 import { installPolyfills } from "@evolu/common/polyfills";
+
 installPolyfills();
 
 import dynamic from "next/dynamic";

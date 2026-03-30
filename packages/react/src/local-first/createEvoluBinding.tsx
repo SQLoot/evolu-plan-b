@@ -13,12 +13,12 @@ import type {
 } from "@evolu/common/local-first";
 import {
   createContext,
+  type ReactNode,
   use,
   useEffect,
   useMemo,
   useRef,
   useSyncExternalStore,
-  type ReactNode,
 } from "react";
 import { useIsSsr } from "./useIsSsr.js";
 
@@ -120,20 +120,24 @@ export const createEvoluBinding = <S extends EvoluSchema>(
       readonly once: boolean;
     }> = {},
   ): QueryRows<R> => {
+    // biome-ignore lint/correctness/useHookAtTopLevel: intentional nested compat hook
     const evolu = useEvolu();
+    // biome-ignore lint/correctness/useHookAtTopLevel: intentional nested compat hook
     const { once } = useRef(options).current;
 
     if (once) {
-      /* eslint-disable react-hooks/rules-of-hooks */
+      // biome-ignore lint/correctness/useHookAtTopLevel: intentional once branch
       useEffect(() => evolu.subscribeQuery(query)(lazyVoid), [evolu, query]);
       return evolu.getQueryRows(query);
     }
 
+    // biome-ignore lint/correctness/useHookAtTopLevel: intentional compat hook composition
     return useSyncExternalStore(
+      // biome-ignore lint/correctness/useHookAtTopLevel: intentional compat hook composition
       useMemo(() => evolu.subscribeQuery(query), [evolu, query]),
+      // biome-ignore lint/correctness/useHookAtTopLevel: intentional compat hook composition
       useMemo(() => () => evolu.getQueryRows(query), [evolu, query]),
       () => emptyArray as QueryRows<R>,
-      /* eslint-enable react-hooks/rules-of-hooks */
     );
   };
 
@@ -180,7 +184,7 @@ export const createEvoluBinding = <S extends EvoluSchema>(
 
     return allQueries.map((query, index) =>
       // Safe until the number of queries is stable.
-      // eslint-disable-next-line react-hooks/rules-of-hooks
+      // biome-ignore lint/correctness/useHookAtTopLevel: intentional stable-length query mapping
       useQuerySubscription(query, { once: index > queries.length - 1 }),
     ) as never;
   };

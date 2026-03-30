@@ -1938,7 +1938,7 @@ describe("integration tests", () => {
 
   test("memoryOnly opens SQLite in memory mode", async () => {
     const consoleStoreOutput = createConsoleStoreOutput();
-    const sqliteDriverOptions = new Array<SqliteDriverOptions | undefined>();
+    const sqliteDriverOptions: (SqliteDriverOptions | undefined)[] = [];
     const sqliteDriverOptionsCalled = Promise.withResolvers<void>();
     const createSqliteDriver: CreateSqliteDriver = (name, options) => {
       sqliteDriverOptions.push(options);

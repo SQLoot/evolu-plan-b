@@ -7,12 +7,12 @@ import { createRun } from "@evolu/web";
 import { IconEdit, IconTrash } from "@tabler/icons-react";
 import { clsx } from "clsx";
 import {
+  type FC,
+  type PropsWithChildren,
   Suspense,
   use,
   useEffect,
   useState,
-  type FC,
-  type PropsWithChildren,
 } from "react";
 
 const AppSchema = {

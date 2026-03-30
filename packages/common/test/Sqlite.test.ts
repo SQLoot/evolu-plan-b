@@ -12,6 +12,8 @@ import {
   getSqliteSnapshot,
   type SafeSql,
   type SqliteDriver,
+  type SqliteQuery,
+  type SqliteQueryString,
   type SqliteValue,
   sql,
   sqliteBooleanToBoolean,
@@ -20,8 +22,6 @@ import {
   sqliteQueryToSqliteQueryString,
   sqliteTrue,
   testCreateRunWithSqlite,
-  type SqliteQuery,
-  type SqliteQueryString,
 } from "../src/Sqlite.js";
 import { sleep } from "../src/Task.js";
 import { testCreateRun } from "../src/Test.js";
