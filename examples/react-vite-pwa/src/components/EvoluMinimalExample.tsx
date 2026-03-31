@@ -215,16 +215,25 @@ const OwnerActions: FC = () => {
   const evolu = useEvolu();
   const [showMnemonic, setShowMnemonic] = useState(false);
 
-  const handleDownloadDatabaseClick = () => {
-    void evolu.exportDatabase().then((array) => {
+  const handleDownloadDatabaseClick = async () => {
+    let url: string | undefined;
+
+    try {
+      const array = await evolu.exportDatabase();
       const blob = new Blob([array], { type: "application/x-sqlite3" });
-      const url = window.URL.createObjectURL(blob);
+      url = window.URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
       anchor.download = `${appName}.sqlite3`;
       anchor.click();
-      window.URL.revokeObjectURL(url);
-    });
+    } catch (error) {
+      console.error("Failed to export database", error);
+      window.alert(
+        error instanceof Error ? error.message : "Database export failed.",
+      );
+    } finally {
+      if (url) window.URL.revokeObjectURL(url);
+    }
   };
 
   return (

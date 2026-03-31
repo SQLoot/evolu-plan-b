@@ -239,14 +239,21 @@ const OwnerActions: FC = () => {
   const evolu = useEvolu();
   const [showMnemonic, setShowMnemonic] = useState(false);
 
-  const handleDownloadDatabasePress = () => {
-    void evolu.exportDatabase().then((array) => {
+  const handleDownloadDatabasePress = async () => {
+    try {
+      const array = await evolu.exportDatabase();
       console.info("dbExported", { appName, bytes: array.byteLength });
       Alert.alert(
         "Database exported",
         `Exported ${array.byteLength} bytes. Wire file saving into a share sheet or filesystem plugin for production use.`,
       );
-    });
+    } catch (error) {
+      console.error("Failed to export database", error);
+      Alert.alert(
+        "Export failed",
+        error instanceof Error ? error.message : "Unknown export error.",
+      );
+    }
   };
 
   return (
