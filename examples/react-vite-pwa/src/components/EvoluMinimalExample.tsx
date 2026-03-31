@@ -4,7 +4,15 @@ import { createEvoluDeps, EvoluIdenticon } from "@evolu/react-web";
 import { createRun } from "@evolu/web";
 import { IconEdit, IconTrash } from "@tabler/icons-react";
 import clsx from "clsx";
-import { type FC, Suspense, use, useState } from "react";
+import {
+  Component,
+  type ErrorInfo,
+  type FC,
+  type ReactNode,
+  Suspense,
+  use,
+  useState,
+} from "react";
 
 const TodoId = Evolu.id("Todo");
 
@@ -44,6 +52,41 @@ const todosQuery = createQuery((db) =>
 
 type TodosRow = typeof todosQuery.Row;
 
+class EvoluInitErrorBoundary extends Component<
+  { readonly children: ReactNode },
+  { readonly hasError: boolean }
+> {
+  override state = { hasError: false };
+
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true };
+  }
+
+  override componentDidCatch(error: unknown, errorInfo: ErrorInfo): void {
+    console.error("Failed to initialize Evolu", error, errorInfo);
+  }
+
+  override render(): ReactNode {
+    if (this.state.hasError) {
+      return (
+        <div className="rounded-lg bg-red-50 p-6 text-sm text-red-700 ring-1 ring-red-200">
+          Failed to initialize Evolu.
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+const showBrowserAlert = (message: string): void => {
+  if (typeof window !== "undefined") {
+    window.alert(message);
+  } else {
+    console.warn(message);
+  }
+};
+
 void evoluPromise.catch((error: unknown) => {
   console.error(error);
 });
@@ -52,9 +95,7 @@ evoluDeps.evoluError.subscribe(() => {
   const error = evoluDeps.evoluError.get();
   if (!error) return;
 
-  if (typeof window !== "undefined") {
-    window.alert("🚨 Evolu error occurred. Check the console.");
-  }
+  showBrowserAlert("🚨 Evolu error occurred. Check the console.");
   console.error(error);
 });
 
@@ -68,9 +109,17 @@ export const EvoluMinimalExample: FC = () => {
           </h1>
         </div>
 
-        <Suspense>
-          <App />
-        </Suspense>
+        <EvoluInitErrorBoundary>
+          <Suspense
+            fallback={
+              <div className="rounded-lg bg-white p-6 text-sm text-gray-600 shadow-sm ring-1 ring-gray-200">
+                Opening app...
+              </div>
+            }
+          >
+            <App />
+          </Suspense>
+        </EvoluInitErrorBoundary>
       </div>
     </div>
   );
@@ -98,7 +147,7 @@ const Todos: FC = () => {
   const addTodo = () => {
     const title = parseTodoTitle(newTodoTitle);
     if (!title.ok) {
-      window.alert(formatTypeError(title.error));
+      showBrowserAlert(formatTypeError(title.error));
       return;
     }
 
@@ -158,7 +207,7 @@ const TodoItem: FC<{
 
     const parsedTitle = parseTodoTitle(newTitle);
     if (!parsedTitle.ok) {
-      window.alert(formatTypeError(parsedTitle.error));
+      showBrowserAlert(formatTypeError(parsedTitle.error));
       return;
     }
 
@@ -227,7 +276,7 @@ const OwnerActions: FC = () => {
       anchor.click();
     } catch (error) {
       console.error("Failed to export database", error);
-      window.alert(
+      showBrowserAlert(
         error instanceof Error ? error.message : "Database export failed.",
       );
     } finally {

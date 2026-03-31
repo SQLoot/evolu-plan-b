@@ -1,7 +1,6 @@
 import { Injectable, inject, type OnDestroy, signal } from "@angular/core";
 import {
   booleanToSqliteBoolean,
-  type EvoluSchema,
   type InferRow,
   Mnemonic,
   NonEmptyString100,
@@ -15,7 +14,7 @@ import {
   persistStoredMnemonic,
 } from "./app.config";
 import { formatTypeError } from "./error-formatter";
-import { createQuery, type TodoId } from "./schema";
+import { createQuery, type Schema, type TodoId } from "./schema";
 
 @Injectable({ providedIn: "root" })
 export class AppService implements OnDestroy {
@@ -181,7 +180,7 @@ export class AppService implements OnDestroy {
    * @returns A promise that resolves after the initial data is retrieved.
    */
   private loadAndSubscribeEvoluQuery<R extends Row>(
-    query: Query<EvoluSchema, R>,
+    query: Query<typeof Schema, R>,
     cb: (rows: R[]) => void,
   ) {
     const unsubscribe = this.evolu.subscribeQuery(query)(() =>

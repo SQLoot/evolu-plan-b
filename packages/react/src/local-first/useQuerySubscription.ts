@@ -1,12 +1,14 @@
-import { emptyArray, lazyVoid } from "@evolu/common";
+import { emptyArray } from "@evolu/common";
 import type {
   EvoluSchema,
   Query,
   QueryRows,
   Row,
 } from "@evolu/common/local-first";
-import { use, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { use, useMemo, useRef, useSyncExternalStore } from "react";
 import { EvoluContext } from "./EvoluContext.js";
+
+const emptySubscribe = () => () => {};
 
 /** Subscribe to {@link Query} {@link QueryRows} changes. */
 export const useQuerySubscription = <S extends EvoluSchema, R extends Row>(
@@ -33,16 +35,10 @@ export const useQuerySubscription = <S extends EvoluSchema, R extends Row>(
     [evolu, query],
   );
 
-  useEffect(() => {
-    if (!once) return;
-    return subscribeQuery(lazyVoid);
-  }, [once, subscribeQuery]);
-
   const rows = useSyncExternalStore(
-    subscribeQuery,
+    once ? emptySubscribe : subscribeQuery,
     getQueryRows,
     () => emptyArray as QueryRows<R>,
-    /* eslint-enable react-hooks/rules-of-hooks */
   );
 
   return once ? evolu.getQueryRows(query) : rows;

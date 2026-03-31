@@ -1,6 +1,6 @@
 "use client";
 
-import { assert, lazyVoid } from "@evolu/common";
+import { assert } from "@evolu/common";
 import type {
   Evolu,
   EvoluSchema,
@@ -15,12 +15,13 @@ import {
   type Context,
   createContext,
   use,
-  useEffect,
   useMemo,
   useRef,
   useSyncExternalStore,
 } from "react";
 import { useIsSsr } from "./useIsSsr.js";
+
+const emptySubscribe = () => () => {};
 
 export interface ReactBinding<S extends EvoluSchema = EvoluSchema> {
   readonly EvoluContext: Context<Evolu<S> | null>;
@@ -86,13 +87,8 @@ export const createEvoluBinding = <S extends EvoluSchema>(
       [evolu, query],
     );
 
-    useEffect(() => {
-      if (!once) return;
-      return subscribeQuery(lazyVoid);
-    }, [once, subscribeQuery]);
-
     const rows = useSyncExternalStore(
-      subscribeQuery,
+      once ? emptySubscribe : subscribeQuery,
       getQueryRows,
       getQueryRows,
     );

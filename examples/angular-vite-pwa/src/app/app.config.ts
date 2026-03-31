@@ -8,6 +8,7 @@ import {
   AppName,
   createAppOwner,
   createEvolu,
+  createOwnerSecret,
   type Evolu,
   type EvoluDeps,
   Mnemonic,
@@ -47,7 +48,7 @@ const storedAppOwner = loadStoredAppOwner();
 const evolu = await run.orThrow(
   createEvolu(Schema, {
     appName,
-    ...(storedAppOwner && { appOwner: storedAppOwner }),
+    appOwner: storedAppOwner ?? createAppOwner(createOwnerSecret(evoluDeps)),
 
     // ...(typeof window !== "undefined" &&
     //   window.location.hostname === "localhost" && {

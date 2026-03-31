@@ -218,7 +218,9 @@ const TodoItem: FC<{
       >
         <View
           style={[styles.checkbox, isCompleted ? styles.checkboxChecked : null]}
-        />
+        >
+          {isCompleted ? <Text style={styles.checkboxIndicator}>✓</Text> : null}
+        </View>
         <Text
           style={[
             styles.todoTitle,
@@ -275,7 +277,12 @@ const OwnerActions: FC = () => {
             setShowMnemonic((value) => !value);
           }}
         />
-        <Button title="Export DB" onPress={handleDownloadDatabasePress} />
+        <Button
+          title="Export DB"
+          onPress={() => {
+            void handleDownloadDatabasePress();
+          }}
+        />
       </View>
 
       {showMnemonic ? (
@@ -385,10 +392,18 @@ const styles = StyleSheet.create({
     borderColor: "#9ca3af",
     borderRadius: 6,
     backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
   },
   checkboxChecked: {
     backgroundColor: "#2563eb",
     borderColor: "#2563eb",
+  },
+  checkboxIndicator: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 16,
   },
   todoTitle: {
     flex: 1,

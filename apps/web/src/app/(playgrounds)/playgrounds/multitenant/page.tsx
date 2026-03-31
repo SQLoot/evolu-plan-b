@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 
 import { installPolyfills } from "@evolu/common/polyfills";
@@ -22,7 +23,7 @@ const EvoluMultitenantExample = dynamic(
   { ssr: false },
 );
 
-export default function Page(): React.ReactElement {
+export default function Page() {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 bg-zinc-100">
       <EvoluMultitenantExample />

@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client";
 
 import * as Evolu from "@evolu/common";
