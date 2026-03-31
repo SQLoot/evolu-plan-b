@@ -130,7 +130,7 @@ export type EvoluOutput =
     }
   | {
       readonly type: "OnExport";
-      readonly file: Uint8Array;
+      readonly file: Uint8Array<ArrayBuffer>;
     };
 
 export const initSharedWorker =
@@ -418,7 +418,7 @@ export type DbWorkerOutput =
                 }
               | {
                   readonly type: "Export";
-                  readonly file: Uint8Array;
+                  readonly file: Uint8Array<ArrayBuffer>;
                 };
           }
         | {

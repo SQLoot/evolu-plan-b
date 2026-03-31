@@ -1,4 +1,5 @@
 import { describe, expect, expectTypeOf, test } from "vitest";
+import type { NonEmptyReadonlyArray } from "../../src/Array.js";
 import { assert } from "../../src/Assert.js";
 import type { Brand } from "../../src/Brand.js";
 import type { ConsoleEntry, TestConsole } from "../../src/Console.js";
@@ -17,9 +18,16 @@ import {
   AppName,
   createEvolu,
   createEvoluDeps,
+  type Evolu,
+  type EvoluPlatformDeps,
   testAppName,
 } from "../../src/local-first/Evolu.js";
-import { createOwnerWebSocketTransport } from "../../src/local-first/Owner.js";
+import {
+  createOwnerWebSocketTransport,
+  type Owner,
+  type OwnerTransport,
+  type ReadonlyOwner,
+} from "../../src/local-first/Owner.js";
 import { testQuery, testQuery2 } from "../../src/local-first/Query.js";
 import { createQueryBuilder } from "../../src/local-first/Schema.js";
 import {
@@ -36,7 +44,7 @@ import {
   getSqliteSnapshot,
   SqliteBoolean,
 } from "../../src/Sqlite.js";
-import { createInMemoryLeaderLock } from "../../src/Task.js";
+import { createInMemoryLeaderLock, type Task } from "../../src/Task.js";
 import { testCreateRun } from "../../src/Test.js";
 import {
   createIdFromString,
@@ -420,6 +428,45 @@ describe("unit tests", () => {
         expect.objectContaining({
           type: "Init",
           name: evolu.name,
+          memoryOnly: false,
+        }),
+      );
+    });
+
+    test("forwards memoryOnly to db worker init", async () => {
+      const dbWorkerMessages: Array<DbWorkerInit> = [];
+
+      const createDbWorker: CreateDbWorker = () => {
+        const worker = testCreateWorker<DbWorkerInit>();
+        worker.self.onMessage = (message) => {
+          dbWorkerMessages.push(message);
+        };
+        return worker as DbWorker;
+      };
+
+      await using run = testCreateRun({
+        createDbWorker,
+        createMessageChannel: testCreateMessageChannel,
+        reloadApp: lazyVoid,
+        sharedWorker: testCreateSharedWorker<SharedWorkerInput>(),
+      });
+
+      await run.orThrow(
+        createEvolu(Schema, {
+          appName: testAppName,
+          appOwner: testAppOwner,
+          transports: [],
+          memoryOnly: true,
+        }),
+      );
+
+      await testWaitForWorkerMessage();
+
+      expect(dbWorkerMessages).toHaveLength(1);
+      expect(dbWorkerMessages[0]).toEqual(
+        expect.objectContaining({
+          type: "Init",
+          memoryOnly: true,
         }),
       );
     });
@@ -440,22 +487,24 @@ describe("unit tests", () => {
       expect(evolu.appOwner).toBe(testAppOwner);
     });
 
-    test("appOwner is created when omitted from config", async () => {
-      await using run = testCreateRun(testCreateEvoluDeps());
+    test("infers default useOwner transports from config", () => {
+      const task = createEvolu(Schema, {
+        appName: testAppName,
+        appOwner: testAppOwner,
+      });
 
-      const evolu = await run.orThrow(
-        createEvolu(Schema, { appName: testAppName }),
-      );
+      expectTypeOf(task).toEqualTypeOf<
+        Task<Evolu<typeof Schema>, never, EvoluPlatformDeps>
+      >();
 
-      expect(evolu.appOwner).toMatchInlineSnapshot(`
-        {
-          "encryptionKey": uint8:[51,231,177,91,230,145,176,109,130,148,152,121,45,182,111,94,53,215,154,110,96,244,72,84,84,159,250,76,118,95,103,5],
-          "id": "SUVItd3dEQ8CLSsCqwJahA",
-          "mnemonic": "duck still purse lock purpose orchard silver differ clean night measure jewel accident visual knee spring extra winner inner fade estate cushion flock live",
-          "type": "AppOwner",
-          "writeKey": uint8:[107,116,39,189,145,48,68,79,11,181,104,47,132,89,107,220],
-        }
-      `);
+      expectTypeOf<
+        Parameters<Evolu<typeof Schema>["useOwner"]>
+      >().toEqualTypeOf<
+        [
+          owner: ReadonlyOwner | Owner,
+          transports?: NonEmptyReadonlyArray<OwnerTransport>,
+        ]
+      >();
     });
 
     describe("useOwner", () => {
@@ -725,6 +774,23 @@ describe("unit tests", () => {
       expect(() => {
         unuseOwner();
       }).toThrow("UnuseOwner can be called only once.");
+    });
+
+    test("allows subscribeQuery unsubscribe after dispose", async () => {
+      await using run = testCreateRun(testCreateEvoluDeps());
+      const evolu = await run.orThrow(testCreateEvolu);
+
+      const unsubscribe = evolu.subscribeQuery(testQuery)(lazyVoid);
+
+      await evolu[Symbol.asyncDispose]();
+
+      expect(() => {
+        unsubscribe();
+      }).not.toThrow();
+
+      expect(() => {
+        unsubscribe();
+      }).toThrow("subscribeQuery unsubscribe can be called only once.");
     });
 
     test("resolves pending loadQuery with empty rows on dispose", async () => {

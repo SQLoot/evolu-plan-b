@@ -111,6 +111,7 @@ export interface DbWorkerInit {
   readonly consoleLevel: ConsoleLevel;
   readonly sqliteSchema: SqliteSchema;
   readonly encryptionKey: EncryptionKey;
+  readonly memoryOnly: boolean;
   readonly port: NativeMessagePort<DbWorkerOutput, DbWorkerInput>;
 }
 
@@ -144,6 +145,7 @@ export const initDbWorker =
       consoleLevel,
       sqliteSchema,
       encryptionKey,
+      memoryOnly,
       port: nativeLeaderPort,
     }) => {
       assert(!initialized, "DbWorker must be initialized only once");
@@ -174,7 +176,7 @@ export const initDbWorker =
         return run.addDeps({
           port,
           timestampConfig: { maxDrift: defaultTimestampMaxDrift },
-        })(startDbWorker(name, sqliteSchema, encryptionKey));
+        })(startDbWorker(name, sqliteSchema, encryptionKey, memoryOnly));
       });
     };
 
@@ -186,6 +188,7 @@ const startDbWorker =
     name: Name,
     sqliteSchema: SqliteSchema,
     encryptionKey: EncryptionKey,
+    memoryOnly: boolean,
   ): Task<
     globalThis.AsyncDisposableStack,
     never,
@@ -198,7 +201,10 @@ const startDbWorker =
     console.info("startDbWorker");
 
     const sqliteResult = await run(
-      createSqlite(name, { mode: "encrypted", encryptionKey }),
+      createSqlite(
+        name,
+        memoryOnly ? { mode: "memory" } : { mode: "encrypted", encryptionKey },
+      ),
     );
     if (!sqliteResult.ok) return sqliteResult;
     const sqlite = stack.use(sqliteResult.value);

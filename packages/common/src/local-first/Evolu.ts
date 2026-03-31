@@ -49,11 +49,7 @@ import type {
   ReadonlyOwner,
   SyncOwner,
 } from "./Owner.js";
-import {
-  createAppOwner,
-  createOwnerSecret,
-  createOwnerWebSocketTransport,
-} from "./Owner.js";
+import { createOwnerWebSocketTransport } from "./Owner.js";
 import type {
   Queries,
   QueriesToQueryRowsPromises,
@@ -104,8 +100,7 @@ export interface EvoluConfig {
   /**
    * {@link AppOwner} used to create this {@link Evolu} instance.
    *
-   * Exposed as {@link Evolu.appOwner}. If `appOwner` is not passed, Evolu
-   * creates one.
+   * Exposed as {@link Evolu.appOwner}.
    *
    * AppOwner controls access to the encrypted local SQLite database. If its
    * secret material (Owner secret / Mnemonic) is not stored safely, data
@@ -116,13 +111,13 @@ export interface EvoluConfig {
    *
    * Recommended usage:
    *
-   * - Omit `appOwner` for first run, then persist `evolu.appOwner` after user
-   *   activity and guide the user to back it up.
+   * - Create an {@link AppOwner} on first run, persist `evolu.appOwner` after
+   *   user activity, and guide the user to back it up.
    * - Pass `appOwner` restored from secure storage (for example, Expo
    *   SecureStore, WebAuthn-backed storage, or app-managed account recovery
    *   flow).
    */
-  readonly appOwner?: AppOwner;
+  readonly appOwner: AppOwner;
 
   /**
    * Transport configuration for sync and backup.
@@ -186,15 +181,16 @@ export interface EvoluConfig {
   readonly transports?: ReadonlyArray<OwnerTransport>;
 
   /**
-   * Use in-memory SQLite database instead of persistent storage. Useful for
-   * testing or temporary data that doesn't need persistence.
+   * Keep local data only in memory instead of persisting it on this device.
+   * Useful for testing, temporary data, or sensitive data that should not be
+   * recoverable from local storage after the process ends.
    *
-   * In-memory databases exist only in RAM and are completely destroyed when the
-   * process ends, making them forensically safe for sensitive data.
+   * Local data stored in memory is completely destroyed when the process ends.
+   * Sync can still persist data remotely when transports are enabled.
    *
    * The default value is: `false`.
    */
-  readonly inMemory?: boolean;
+  readonly memoryOnly?: boolean;
 
   /**
    * Use the `indexes` option to define SQLite indexes.
@@ -417,7 +413,7 @@ export interface Evolu<S extends EvoluSchema = EvoluSchema>
    * The pending promise rejects if this {@link Evolu} instance is disposed
    * before export completion.
    */
-  readonly exportDatabase: () => Promise<Uint8Array>;
+  readonly exportDatabase: () => Promise<Uint8Array<ArrayBuffer>>;
 
   // TODO: Add exportHistory.
 
@@ -584,7 +580,8 @@ export const createEvolu =
   async (run) => {
     const {
       appName,
-      appOwner = createAppOwner(createOwnerSecret(run.deps)),
+      appOwner,
+      memoryOnly = false,
       transports = [{ type: "WebSocket", url: "wss://free.evoluhq.com" }],
     } = config;
 
@@ -676,11 +673,9 @@ export const createEvolu =
 
     const onMutateCompleteCallbacks = stack.use(createCallbacks(run.deps));
 
-    let exportDatabasePending = null as {
-      promise: Promise<Uint8Array>;
-      resolve: (value: Uint8Array | PromiseLike<Uint8Array>) => void;
-      reject: (reason?: any) => void;
-    } | null;
+    let exportDatabasePending = null as PromiseWithResolvers<
+      Uint8Array<ArrayBuffer>
+    > | null;
 
     stack.defer(() => {
       exportDatabasePending?.reject({ type: "EvoluDisposedError" });
@@ -837,6 +832,7 @@ export const createEvolu =
           consoleLevel: console.getLevel(),
           sqliteSchema: evoluSchemaToSqliteSchema(schema, config.indexes),
           encryptionKey: appOwner.encryptionKey,
+          memoryOnly,
           port: dbWorkerChannel.port1.native,
         },
         [dbWorkerChannel.port1.native],
@@ -978,6 +974,7 @@ export const createEvolu =
         assertNotDisposed(moved);
 
         subscribedQueriesRefCount.increment(query);
+        let isSubscribed = true;
 
         let previousRows: unknown = null;
 
@@ -989,8 +986,17 @@ export const createEvolu =
         });
 
         return () => {
+          assert(
+            isSubscribed,
+            "subscribeQuery unsubscribe can be called only once.",
+          );
+          isSubscribed = false;
+
           previousRows = null;
           unsubscribe();
+
+          if (moved.disposed) return;
+
           subscribedQueriesRefCount.decrement(query);
         };
       },
@@ -1000,16 +1006,8 @@ export const createEvolu =
         assertNotDisposed(moved);
 
         if (!exportDatabasePending) {
-          let resolve!: (value: Uint8Array | PromiseLike<Uint8Array>) => void;
-          let reject!: (reason?: any) => void;
-          exportDatabasePending = {
-            promise: new Promise<Uint8Array>((res, rej) => {
-              resolve = res;
-              reject = rej;
-            }),
-            resolve,
-            reject,
-          };
+          exportDatabasePending =
+            Promise.withResolvers<Uint8Array<ArrayBuffer>>();
           postMessage({ type: "Export" });
         }
         return exportDatabasePending.promise;
