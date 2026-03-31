@@ -359,7 +359,9 @@ export interface Evolu<S extends EvoluSchema = EvoluSchema>
    * });
    * ```
    */
-  readonly loadQuery: <R extends Row>(query: Query<R>) => Promise<QueryRows<R>>;
+  readonly loadQuery: <R extends Row>(
+    query: Query<S, R>,
+  ) => Promise<QueryRows<R>>;
 
   /**
    * Load an array of {@link Query} queries and return an array of
@@ -372,7 +374,7 @@ export interface Evolu<S extends EvoluSchema = EvoluSchema>
    * evolu.loadQueries([allTodos, todoById(1)]);
    * ```
    */
-  readonly loadQueries: <R extends Row, Q extends Queries<R>>(
+  readonly loadQueries: <R extends Row, Q extends Queries<S, R>>(
     queries: [...Q],
   ) => [...QueriesToQueryRowsPromises<Q>];
 
@@ -388,7 +390,7 @@ export interface Evolu<S extends EvoluSchema = EvoluSchema>
    * ```
    */
   readonly subscribeQuery: (
-    query: Query,
+    query: Query<S>,
   ) => (listener: Listener) => Unsubscribe;
 
   /**
@@ -402,7 +404,7 @@ export interface Evolu<S extends EvoluSchema = EvoluSchema>
    * });
    * ```
    */
-  readonly getQueryRows: <R extends Row>(query: Query<R>) => QueryRows<R>;
+  readonly getQueryRows: <R extends Row>(query: Query<S, R>) => QueryRows<R>;
 
   /**
    * Exports the SQLite database file.
@@ -592,9 +594,9 @@ export const createEvolu =
     await using stack = new AsyncDisposableStack();
 
     const rowsByQueryMapStore = stack.use(
-      createStore<RowsByQueryMap>(new Map()),
+      createStore<RowsByQueryMap<S>>(new Map()),
     );
-    const subscribedQueriesRefCount = stack.use(createRefCountByKey<Query>());
+    const subscribedQueriesRefCount = stack.use(createRefCountByKey<Query<S>>());
 
     interface LoadingPromise {
       /**
@@ -619,7 +621,7 @@ export const createEvolu =
      * `use` thenables do not hang forever during teardown.
      */
     const loadingPromisesByQuery = stack.adopt(
-      new Map<Query, LoadingPromise>(),
+      new Map<Query<S>, LoadingPromise>(),
       (loadingPromisesByQuery) => {
         for (const loadingPromise of loadingPromisesByQuery.values()) {
           if (loadingPromise.promise.status === "fulfilled") continue;
@@ -704,7 +706,7 @@ export const createEvolu =
     );
 
     const queryBatch = stack.use(
-      createMicrotaskBatch<Query>((queries) => {
+      createMicrotaskBatch<Query<S>>((queries) => {
         const dedupedQueries = new Set(queries);
         assert(
           isNonEmptySet(dedupedQueries),
@@ -744,17 +746,19 @@ export const createEvolu =
             const nextRowsByQueryMap = new Map(state);
 
             for (const [query, patches] of message.patchesByQuery) {
+              const typedQuery = query as Query<S>;
               nextRowsByQueryMap.set(
-                query,
-                applyPatches(patches, state.get(query) ?? emptyArray),
+                typedQuery,
+                applyPatches(patches, state.get(typedQuery) ?? emptyArray),
               );
             }
 
             for (const query of message.patchesByQuery.keys()) {
-              const loadingPromise = loadingPromisesByQuery.get(query);
+              const typedQuery = query as Query<S>;
+              const loadingPromise = loadingPromisesByQuery.get(typedQuery);
               if (!loadingPromise) continue;
 
-              const rows = nextRowsByQueryMap.get(query);
+              const rows = nextRowsByQueryMap.get(typedQuery);
               assert(rows, "Expected patched query rows to exist.");
 
               fulfillLoadingPromise(loadingPromise, rows);
@@ -765,7 +769,7 @@ export const createEvolu =
                * prevents stale cache entries after completion.
                */
               if (loadingPromise.releaseOnResolve) {
-                loadingPromisesByQuery.delete(query);
+                loadingPromisesByQuery.delete(typedQuery);
               }
             }
 
@@ -882,7 +886,7 @@ export const createEvolu =
       };
 
     const loadQuery = <R extends Row>(
-      query: Query<R>,
+      query: Query<S, R>,
     ): Promise<QueryRows<R>> => {
       assertNotDisposed(moved);
 
@@ -909,7 +913,7 @@ export const createEvolu =
       return typedPromise as Promise<QueryRows<R>>;
     };
 
-    const getQueryRows = <R extends Row>(query: Query<R>): QueryRows<R> => {
+    const getQueryRows = <R extends Row>(query: Query<S, R>): QueryRows<R> => {
       assertNotDisposed(moved);
 
       return (rowsByQueryMapStore.get().get(query) ??
@@ -963,7 +967,7 @@ export const createEvolu =
       upsert: createMutation("upsert"),
 
       loadQuery,
-      loadQueries: <R extends Row, Q extends Queries<R>>(
+      loadQueries: <R extends Row, Q extends Queries<S, R>>(
         queries: [...Q],
       ): [...QueriesToQueryRowsPromises<Q>] =>
         queries.map((query) => loadQuery(query)) as [

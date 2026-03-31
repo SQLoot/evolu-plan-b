@@ -1,11 +1,16 @@
 import { emptyArray, lazyVoid } from "@evolu/common";
-import type { Query, QueryRows, Row } from "@evolu/common/local-first";
+import type {
+  EvoluSchema,
+  Query,
+  QueryRows,
+  Row,
+} from "@evolu/common/local-first";
 import { use, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { EvoluContext } from "./EvoluContext.js";
 
 /** Subscribe to {@link Query} {@link QueryRows} changes. */
-export const useQuerySubscription = <R extends Row>(
-  query: Query<R>,
+export const useQuerySubscription = <S extends EvoluSchema, R extends Row>(
+  query: Query<S, R>,
   options: Partial<{
     /**
      * Only subscribe and get the current value once. Subscribed query will not

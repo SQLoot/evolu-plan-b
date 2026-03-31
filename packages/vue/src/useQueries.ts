@@ -1,4 +1,5 @@
 import type {
+  EvoluSchema,
   Queries,
   QueriesToQueryRowsPromises,
   Query,
@@ -9,14 +10,15 @@ import type { Ref } from "vue";
 import { useQuery } from "./useQuery.js";
 
 export type QueriesToQueryRowsRef<Q extends Queries> = {
-  [P in keyof Q]: Q[P] extends Query<infer R> ? Ref<QueryRows<R>> : never;
+  [P in keyof Q]: Q[P] extends Query<any, infer R> ? Ref<QueryRows<R>> : never;
 };
 
 /** The same as {@link useQuery}, but for many queries. */
 export const useQueries = <
+  S extends EvoluSchema,
   R extends Row,
-  Q extends Queries<R>,
-  OQ extends Queries<R>,
+  Q extends Queries<S, R>,
+  OQ extends Queries<S, R>,
 >(
   queries: [...Q],
   options: Partial<{

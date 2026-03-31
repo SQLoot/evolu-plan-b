@@ -1,7 +1,6 @@
 import { describe, expect, expectTypeOf, test } from "vitest";
 import * as z from "zod";
 import type { Brand } from "../../src/Brand.js";
-import { deserializeQuery } from "../../src/local-first/Query.js";
 import type {
   MutationValues,
   ValidateColumnTypes,
@@ -18,6 +17,7 @@ import {
 } from "../../src/local-first/Schema.js";
 import {
   getSqliteSchema,
+  sqliteQueryStringToSqliteQuery,
   SqliteBoolean,
   type SqliteSchema,
   sql,
@@ -506,7 +506,7 @@ describe("createQueryBuilder", () => {
       (db) => db.selectFrom("todo").select(["id", "title"]),
       { prepare: true },
     );
-    const sqliteQuery = deserializeQuery(query);
+    const sqliteQuery = sqliteQueryStringToSqliteQuery(query);
 
     expect(sqliteQuery.sql).toContain('select "id", "title" from "todo"');
     expect(sqliteQuery.parameters).toEqual([]);

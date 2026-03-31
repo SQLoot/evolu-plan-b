@@ -1,4 +1,9 @@
-import type { Query, QueryRows, Row } from "@evolu/common/local-first";
+import type {
+  EvoluSchema,
+  Query,
+  QueryRows,
+  Row,
+} from "@evolu/common/local-first";
 import { use } from "react";
 import { EvoluContext } from "./EvoluContext.js";
 import { useIsSsr } from "./useIsSsr.js";
@@ -34,8 +39,8 @@ import { useQuerySubscription } from "./useQuerySubscription.js";
  * const rows = useQuery(allTodos, { promise: allTodosPromise });
  * ```
  */
-export const useQuery = <R extends Row>(
-  query: Query<R>,
+export const useQuery = <S extends EvoluSchema, R extends Row>(
+  query: Query<S, R>,
   options: Partial<{
     /** Without subscribing to changes. */
     readonly once: boolean;

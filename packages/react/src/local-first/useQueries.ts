@@ -1,4 +1,5 @@
 import type {
+  EvoluSchema,
   Queries,
   QueriesToQueryRows,
   QueriesToQueryRowsPromises,
@@ -16,9 +17,10 @@ import { useQuerySubscription } from "./useQuerySubscription.js";
  * The number of queries must remain stable across renders.
  */
 export const useQueries = <
+  S extends EvoluSchema,
   R extends Row,
-  Q extends Queries<R>,
-  OQ extends Queries<R>,
+  Q extends Queries<S, R>,
+  OQ extends Queries<S, R>,
 >(
   queries: [...Q],
   options: Partial<{

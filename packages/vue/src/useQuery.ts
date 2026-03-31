@@ -1,5 +1,10 @@
 import { emptyArray } from "@evolu/common";
-import type { Query, QueryRows, Row } from "@evolu/common/local-first";
+import type {
+  EvoluSchema,
+  Query,
+  QueryRows,
+  Row,
+} from "@evolu/common/local-first";
 import { onScopeDispose, type Ref, shallowReadonly, shallowRef } from "vue";
 import { useEvolu } from "./useEvolu.js";
 
@@ -29,8 +34,8 @@ import { useEvolu } from "./useEvolu.js";
  * const rows = useQuery(allTodos, { promise: allTodosPromise });
  * ```
  */
-export const useQuery = <R extends Row>(
-  query: Query<R>,
+export const useQuery = <S extends EvoluSchema, R extends Row>(
+  query: Query<S, R>,
   options: Partial<{
     /** Without subscribing to changes. */
     readonly once: boolean;

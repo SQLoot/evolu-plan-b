@@ -28,7 +28,6 @@ import {
   type OwnerTransport,
   type ReadonlyOwner,
 } from "../../src/local-first/Owner.js";
-import { testQuery, testQuery2 } from "../../src/local-first/Query.js";
 import { createQueryBuilder } from "../../src/local-first/Schema.js";
 import {
   type EvoluInput,
@@ -67,7 +66,7 @@ import {
   testWaitForWorkerMessage,
 } from "../../src/Worker.js";
 import { testCreateSqliteDeps } from "../_deps.js";
-import { testAppOwner } from "./_fixtures.js";
+import { testAppOwner, testQuery, testQuery2 } from "./_fixtures.js";
 
 const TodoId = id("Todo");
 

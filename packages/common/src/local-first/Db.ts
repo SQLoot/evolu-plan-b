@@ -29,6 +29,7 @@ import type {
 import {
   booleanToSqliteBoolean,
   createSqlite,
+  sqliteQueryStringToSqliteQuery,
   SqliteBoolean,
   type SqliteValue,
   sql,
@@ -65,7 +66,7 @@ import {
   protocolVersion,
   SubscriptionFlags,
 } from "./Protocol.js";
-import { deserializeQuery, type Query, type RowsByQueryMap } from "./Query.js";
+import type { Query, RowsByQueryMap } from "./Query.js";
 import type { MutationChange, SqliteSchemaDep } from "./Schema.js";
 import {
   ensureSqliteSchema,
@@ -1031,7 +1032,7 @@ const loadQueries =
     const rowsByQuery = new Map<Query, ReadonlyArray<SqliteRow>>();
 
     for (const query of queries) {
-      const { rows } = deps.sqlite.exec(deserializeQuery(query));
+      const { rows } = deps.sqlite.exec(sqliteQueryStringToSqliteQuery(query));
       rowsByQuery.set(query, rows);
     }
 
