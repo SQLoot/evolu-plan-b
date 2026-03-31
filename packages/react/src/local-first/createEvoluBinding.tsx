@@ -22,8 +22,6 @@ import {
 } from "react";
 import { useIsSsr } from "./useIsSsr.js";
 
-const emptySubscribe = () => () => {};
-
 export interface ReactBinding<S extends EvoluSchema = EvoluSchema> {
   readonly EvoluContext: Context<Evolu<S> | null>;
   readonly useEvolu: () => Evolu<S>;
@@ -94,7 +92,7 @@ export const createEvoluBinding = <S extends EvoluSchema>(
     }, [once, subscribeQuery]);
 
     const rows = useSyncExternalStore(
-      once ? emptySubscribe : subscribeQuery,
+      subscribeQuery,
       getQueryRows,
       getQueryRows,
     );
@@ -162,10 +160,8 @@ export const createEvoluBinding = <S extends EvoluSchema>(
       [allQueries, evolu, options.promises],
     );
 
-    const wasSsr = useIsSsr();
-    if (wasSsr) {
-      if (!options.promises) void loadQueriesPromise;
-    } else {
+    const isSsr = useIsSsr();
+    if (!isSsr) {
       use(loadQueriesPromise);
     }
 

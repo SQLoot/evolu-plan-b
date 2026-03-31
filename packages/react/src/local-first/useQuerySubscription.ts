@@ -24,23 +24,26 @@ export const useQuerySubscription = <S extends EvoluSchema, R extends Row>(
   // useRef to not break "rules-of-hooks"
   const { once } = useRef(options).current;
 
-  if (once) {
-    // biome-ignore lint/correctness/useHookAtTopLevel: intentional
-    useEffect(
-      // No useSyncExternalStore, no unnecessary updates.
-      () => evolu.subscribeQuery(query)(lazyVoid),
-      [evolu, query],
-    );
-    return evolu.getQueryRows(query);
-  }
+  const subscribeQuery = useMemo(
+    () => evolu.subscribeQuery(query),
+    [evolu, query],
+  );
+  const getQueryRows = useMemo(
+    () => () => evolu.getQueryRows(query),
+    [evolu, query],
+  );
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional
-  return useSyncExternalStore(
-    // biome-ignore lint/correctness/useHookAtTopLevel: intentional
-    useMemo(() => evolu.subscribeQuery(query), [evolu, query]),
-    // biome-ignore lint/correctness/useHookAtTopLevel: intentional
-    useMemo(() => () => evolu.getQueryRows(query), [evolu, query]),
+  useEffect(() => {
+    if (!once) return;
+    return subscribeQuery(lazyVoid);
+  }, [once, subscribeQuery]);
+
+  const rows = useSyncExternalStore(
+    subscribeQuery,
+    getQueryRows,
     () => emptyArray as QueryRows<R>,
     /* eslint-enable react-hooks/rules-of-hooks */
   );
+
+  return once ? evolu.getQueryRows(query) : rows;
 };

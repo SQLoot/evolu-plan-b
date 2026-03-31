@@ -966,8 +966,11 @@ const createSharedEvolu =
                 console.error("Failed to dispose Evolu instance", error);
               });
 
-              // TODO: Re-enable SharedEvolu release on the last port.
-              // if (hadLastPort) evoluInstance.releaseSharedEvolu();
+              // TODO(#shared-evolu-release): Re-enable
+              // `if (hadLastPort) evoluInstance.releaseSharedEvolu();` once
+              // the last-port disposal path no longer races pending shared ops
+              // and DbWorker lifetime. Releasing SharedEvolu here currently
+              // tears down shared state too early during short-lived churn.
 
               // TODO: Dispose SharedEvolu on the last port.
 
