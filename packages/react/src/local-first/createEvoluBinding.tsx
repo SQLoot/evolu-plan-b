@@ -12,15 +12,17 @@ import type {
   Row,
 } from "@evolu/common/local-first";
 import {
+  type Context,
   createContext,
   use,
   useEffect,
   useMemo,
   useRef,
   useSyncExternalStore,
-  type Context,
 } from "react";
 import { useIsSsr } from "./useIsSsr.js";
+
+const emptySubscribe = () => () => {};
 
 export interface ReactBinding<S extends EvoluSchema = EvoluSchema> {
   readonly EvoluContext: Context<Evolu<S> | null>;
@@ -77,18 +79,27 @@ export const createEvoluBinding = <S extends EvoluSchema>(
   ): QueryRows<R> => {
     const evolu = useEvolu();
     const { once } = useRef(options).current;
-
-    if (once) {
-      // biome-ignore lint/correctness/useHookAtTopLevel: intentional
-      useEffect(() => evolu.subscribeQuery(query)(lazyVoid), [evolu, query]);
-      return evolu.getQueryRows(query);
-    }
-
-    return useSyncExternalStore(
-      useMemo(() => evolu.subscribeQuery(query), [evolu, query]),
-      useMemo(() => () => evolu.getQueryRows(query), [evolu, query]),
-      () => evolu.getQueryRows(query),
+    const subscribeQuery = useMemo(
+      () => evolu.subscribeQuery(query),
+      [evolu, query],
     );
+    const getQueryRows = useMemo(
+      () => () => evolu.getQueryRows(query),
+      [evolu, query],
+    );
+
+    useEffect(() => {
+      if (!once) return;
+      return subscribeQuery(lazyVoid);
+    }, [once, subscribeQuery]);
+
+    const rows = useSyncExternalStore(
+      once ? emptySubscribe : subscribeQuery,
+      getQueryRows,
+      getQueryRows,
+    );
+
+    return once ? evolu.getQueryRows(query) : rows;
   };
 
   const useQuery = <R extends Row>(
@@ -122,52 +133,43 @@ export const createEvoluBinding = <S extends EvoluSchema>(
   ): [...QueriesToQueryRows<Q>, ...QueriesToQueryRows<OQ>] => {
     const evolu = useEvolu();
     const once = useRef(options).current.once;
-    const allQueries = once ? queries.concat(once) : queries;
-    const queriesLengthRef = useRef<number | null>(null);
-    const allQueriesLengthRef = useRef<number | null>(null);
-    const usesPromisesRef = useRef<boolean | null>(null);
+    const allQueries = useMemo(
+      () => (once ? queries.concat(once) : queries),
+      [once, queries],
+    );
+    const getQueryRows = useMemo(
+      () => () =>
+        allQueries.map((query) => evolu.getQueryRows(query)) as [
+          ...QueriesToQueryRows<Q>,
+          ...QueriesToQueryRows<OQ>,
+        ],
+      [allQueries, evolu],
+    );
+    const subscribeQueries = useMemo(
+      () => (listener: () => void) => {
+        const unsubscribes = queries.map((query) =>
+          evolu.subscribeQuery(query)(listener),
+        );
 
-    if (queriesLengthRef.current === null) queriesLengthRef.current = queries.length;
-    else {
-      assert(
-        queriesLengthRef.current === queries.length,
-        "createEvoluBinding.useQueries requires a stable queries length between renders.",
-      );
-    }
-
-    if (allQueriesLengthRef.current === null) {
-      allQueriesLengthRef.current = allQueries.length;
-    } else {
-      assert(
-        allQueriesLengthRef.current === allQueries.length,
-        "createEvoluBinding.useQueries requires a stable total query count between renders.",
-      );
-    }
-
-    if (usesPromisesRef.current === null) {
-      usesPromisesRef.current = options.promises !== undefined;
-    } else {
-      assert(
-        usesPromisesRef.current === (options.promises !== undefined),
-        "createEvoluBinding.useQueries requires stable promise usage between renders.",
-      );
-    }
+        return () => {
+          for (const unsubscribe of unsubscribes) unsubscribe();
+        };
+      },
+      [evolu, queries],
+    );
+    const loadQueriesPromise = useMemo(
+      () => Promise.all(options.promises ?? evolu.loadQueries(allQueries)),
+      [allQueries, evolu, options.promises],
+    );
 
     const wasSsr = useIsSsr();
     if (wasSsr) {
-      if (!options.promises) void evolu.loadQueries(allQueries);
+      if (!options.promises) void loadQueriesPromise;
     } else {
-      const promises = options.promises ?? evolu.loadQueries(allQueries);
-      for (const promise of promises) use(promise);
+      use(loadQueriesPromise);
     }
 
-    const rows = [];
-    for (const [index, query] of allQueries.entries()) {
-      // biome-ignore lint/correctness/useHookAtTopLevel: guarded by stable query-count assertions above
-      rows.push(useQuerySubscription(query, { once: index > queries.length - 1 }));
-    }
-
-    return rows as never;
+    return useSyncExternalStore(subscribeQueries, getQueryRows, getQueryRows);
   };
 
   const useOwner = (

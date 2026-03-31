@@ -1,9 +1,9 @@
 import Alert from "@blazejkustra/react-native-alert";
 import * as Evolu from "@evolu/common";
 import { createEvoluBinding } from "@evolu/react";
-import { EvoluIdenticon, createRun } from "@evolu/react-native";
+import { createRun, EvoluIdenticon } from "@evolu/react-native";
 import { createEvoluDeps } from "@evolu/react-native/expo-sqlite";
-import { Suspense, use, useState, type FC } from "react";
+import { type FC, Suspense, use, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -16,7 +16,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const TodoId = Evolu.id("Todo");
-type TodoId = typeof TodoId.Type;
 
 const Schema = {
   todo: {
@@ -171,7 +170,7 @@ const TodoItem: FC<{
   const handleToggleCompletedPress = () => {
     update("todo", {
       id,
-      isCompleted: Evolu.booleanToSqliteBoolean(!Boolean(isCompleted)),
+      isCompleted: Evolu.booleanToSqliteBoolean(!isCompleted),
     });
   };
 
@@ -188,7 +187,10 @@ const TodoItem: FC<{
 
             const parsedTitle = parseTodoTitle(newTitle);
             if (!parsedTitle.ok) {
-              Alert.alert("Validation error", formatTypeError(parsedTitle.error));
+              Alert.alert(
+                "Validation error",
+                formatTypeError(parsedTitle.error),
+              );
               return;
             }
 
@@ -294,9 +296,16 @@ const Button: FC<{
   return (
     <TouchableOpacity
       onPress={onPress}
-      style={[styles.button, isPrimary ? styles.primaryButton : styles.secondaryButton]}
+      style={[
+        styles.button,
+        isPrimary ? styles.primaryButton : styles.secondaryButton,
+      ]}
     >
-      <Text style={isPrimary ? styles.primaryButtonText : styles.secondaryButtonText}>
+      <Text
+        style={
+          isPrimary ? styles.primaryButtonText : styles.secondaryButtonText
+        }
+      >
         {title}
       </Text>
     </TouchableOpacity>

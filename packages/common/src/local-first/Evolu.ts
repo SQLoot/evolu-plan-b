@@ -596,7 +596,9 @@ export const createEvolu =
     const rowsByQueryMapStore = stack.use(
       createStore<RowsByQueryMap<S>>(new Map()),
     );
-    const subscribedQueriesRefCount = stack.use(createRefCountByKey<Query<S>>());
+    const subscribedQueriesRefCount = stack.use(
+      createRefCountByKey<Query<S>>(),
+    );
 
     interface LoadingPromise {
       /**

@@ -17,10 +17,10 @@ import {
 } from "../../src/local-first/Schema.js";
 import {
   getSqliteSchema,
-  sqliteQueryStringToSqliteQuery,
   SqliteBoolean,
   type SqliteSchema,
   sql,
+  sqliteQueryStringToSqliteQuery,
   testCreateRunWithSqlite,
 } from "../../src/Sqlite.js";
 import {

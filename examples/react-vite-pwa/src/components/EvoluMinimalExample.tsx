@@ -1,13 +1,12 @@
 import * as Evolu from "@evolu/common";
 import { createEvoluBinding } from "@evolu/react";
-import { EvoluIdenticon, createEvoluDeps } from "@evolu/react-web";
+import { createEvoluDeps, EvoluIdenticon } from "@evolu/react-web";
 import { createRun } from "@evolu/web";
 import { IconEdit, IconTrash } from "@tabler/icons-react";
 import clsx from "clsx";
 import { type FC, Suspense, use, useState } from "react";
 
 const TodoId = Evolu.id("Todo");
-type TodoId = typeof TodoId.Type;
 
 const Schema = {
   todo: {
@@ -149,7 +148,7 @@ const TodoItem: FC<{
   const handleToggleCompletedClick = () => {
     update("todo", {
       id,
-      isCompleted: Evolu.booleanToSqliteBoolean(!Boolean(isCompleted)),
+      isCompleted: Evolu.booleanToSqliteBoolean(!isCompleted),
     });
   };
 

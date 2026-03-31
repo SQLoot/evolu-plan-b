@@ -1,7 +1,7 @@
 "use client";
 
 import { assert, type Run } from "@evolu/common";
-import { createContext, use, type Context } from "react";
+import { type Context, createContext, use } from "react";
 
 /**
  * Creates typed React Context and hook for {@link Run}.
