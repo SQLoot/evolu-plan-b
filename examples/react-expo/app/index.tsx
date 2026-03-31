@@ -1,12 +1,9 @@
 import Alert from "@blazejkustra/react-native-alert";
 import * as Evolu from "@evolu/common";
-import { createUseEvolu, EvoluProvider, useQuery } from "@evolu/react";
-import { EvoluIdenticon } from "@evolu/react-native";
-import {
-  evoluReactNativeDeps,
-  localAuth,
-} from "@evolu/react-native/expo-sqlite";
-import { type FC, Suspense, useEffect, useMemo, useState } from "react";
+import { createEvoluBinding } from "@evolu/react";
+import { EvoluIdenticon, createRun } from "@evolu/react-native";
+import { createEvoluDeps } from "@evolu/react-native/expo-sqlite";
+import { Suspense, use, useState, type FC } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -18,126 +15,60 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-// Namespace for the current app (scopes databases, passkeys, etc.)
-const service = "rn-expo";
-
-// Primary keys are branded types, preventing accidental use of IDs across
-// different tables (e.g., a TodoId can't be used where a UserId is expected).
 const TodoId = Evolu.id("Todo");
-// biome-ignore lint/correctness/noUnusedVariables: Context
 type TodoId = typeof TodoId.Type;
 
-// Schema defines database structure with runtime validation.
-// Column types validate data on insert/update/upsert.
 const Schema = {
   todo: {
     id: TodoId,
-    // Branded type ensuring titles are non-empty and ≤100 chars.
-    title: Evolu.NonEmptyString100,
-    // SQLite doesn't support the boolean type; it uses 0 and 1 instead.
+    title: Evolu.NonEmptyTrimmedString100,
     isCompleted: Evolu.nullOr(Evolu.SqliteBoolean),
   },
 };
 
-// Create a query builder (once per schema).
-const createQuery = Evolu.createQueryBuilder(Schema);
+const appName = Evolu.AppName.orThrow("react-expo-minimal");
+const deps = createEvoluDeps();
+const run = createRun(deps);
+const evoluPromise: Promise<Evolu.Evolu<typeof Schema>> = run.orThrow(
+  Evolu.createEvolu(Schema, {
+    appName,
+    appOwner: Evolu.testAppOwner,
+    ...(process.env.NODE_ENV === "development" && {
+      transports: [{ type: "WebSocket", url: "ws://localhost:4000" }],
+    }),
+  }),
+);
 
-// Evolu uses Kysely for type-safe SQL (https://kysely.dev/).
+const { EvoluContext, useEvolu, useQuery } = createEvoluBinding(Schema);
+
+const createQuery = Evolu.createQueryBuilder(Schema);
 const todosQuery = createQuery((db) =>
   db
-    // Type-safe SQL: try autocomplete for table and column names.
     .selectFrom("todo")
     .select(["id", "title", "isCompleted"])
-    // Soft delete: filter out deleted rows.
     .where("isDeleted", "is not", Evolu.sqliteTrue)
-    // Like with GraphQL, all columns except id are nullable in queries
-    // (even if defined without nullOr in the schema) to allow schema
-    // evolution without migrations. Filter nulls with where + $narrowType.
     .where("title", "is not", null)
     .$narrowType<{ title: Evolu.KyselyNotNull }>()
-    // Columns createdAt, updatedAt, isDeleted are auto-added to all tables.
     .orderBy("createdAt"),
 );
 
-// Extract the row type from the query for type-safe component props.
 type TodosRow = typeof todosQuery.Row;
 
+void evoluPromise.catch((error: unknown) => {
+  console.error(error);
+});
+
+deps.evoluError.subscribe(() => {
+  const error = deps.evoluError.get();
+  if (!error) return;
+  Alert.alert("Evolu error occurred", "Check the console for details.");
+  console.error(error);
+});
+
+const parseTodoTitle = (value: string) =>
+  Evolu.NonEmptyTrimmedString100.from(value.trim());
+
 export default function Index(): React.ReactNode {
-  const [authResult, setAuthResult] = useState<Evolu.AuthResult | null>(null);
-  const [ownerIds, setOwnerIds] = useState<Array<Evolu.AuthList> | null>(null);
-  const [evolu, setEvolu] = useState<Evolu.Evolu<typeof Schema> | null>(null);
-
-  useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-
-    (async () => {
-      const authResult = await localAuth.getOwner({ service });
-      const ownerIds = await localAuth.getProfiles({ service });
-      const evolu = Evolu.createEvolu(evoluReactNativeDeps)(Schema, {
-        name: Evolu.Name.orThrow(
-          `${service}-${authResult?.owner?.id ?? "guest"}`,
-        ),
-        encryptionKey: authResult?.owner?.encryptionKey,
-        externalAppOwner: authResult?.owner,
-        // ...(process.env.NODE_ENV === "development" && {
-        //   transports: [{ type: "WebSocket", url: "ws://localhost:4000" }],
-        // }),
-      });
-
-      setEvolu(evolu as Evolu.Evolu<typeof Schema>);
-      setOwnerIds(ownerIds);
-      setAuthResult(authResult);
-
-      /**
-       * Subscribe to unexpected Evolu errors (database, network, sync issues).
-       * These should not happen in normal operation, so always log them for
-       * debugging. Show users a friendly error message instead of technical
-       * details.
-       */
-      unsubscribe = evolu.subscribeError(() => {
-        const error = evolu.getError();
-        if (!error) return;
-        Alert.alert("🚨 Evolu error occurred! Check the console.");
-        console.error(error);
-      });
-    })().catch((error) => {
-      console.error(error);
-    });
-
-    return () => {
-      unsubscribe?.();
-    };
-  }, []);
-
-  if (evolu == null) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-      </View>
-    );
-  }
-
-  return (
-    <EvoluProvider value={evolu}>
-      <EvoluDemo evolu={evolu} ownerIds={ownerIds} authResult={authResult} />
-    </EvoluProvider>
-  );
-}
-
-const EvoluDemo = ({
-  evolu,
-  ownerIds,
-  authResult,
-}: {
-  evolu: Evolu.Evolu<typeof Schema>;
-  ownerIds: Array<Evolu.AuthList> | null;
-  authResult: Evolu.AuthResult | null;
-}): React.ReactNode => {
-  const useEvolu = createUseEvolu(evolu);
-  const { insert, update } = useEvolu();
-  const appOwner = (authResult?.owner as Evolu.AppOwner) ?? null;
-  const todos = useQuery(todosQuery);
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -150,60 +81,53 @@ const EvoluDemo = ({
           <View style={styles.header}>
             <Text style={styles.title}>Minimal Todo App (Evolu + Expo)</Text>
           </View>
-          <EvoluProvider value={evolu}>
-            {/*
-              Suspense delivers great UX (no loading flickers) and DX (no loading
-              states to manage). Highly recommended with Evolu.
-            */}
-            <Suspense>
-              <Todos todos={todos} insert={insert} update={update} />
-              <OwnerActions
-                evolu={evolu}
-                appOwner={appOwner}
-                authResult={authResult}
-              />
-              <AuthActions
-                evolu={evolu}
-                appOwner={appOwner}
-                authResult={authResult}
-                ownerIds={ownerIds}
-              />
-            </Suspense>
-          </EvoluProvider>
+          <Suspense
+            fallback={
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#2563eb" />
+              </View>
+            }
+          >
+            <App />
+          </Suspense>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+const App: FC = () => {
+  const evolu = use(evoluPromise);
+
+  return (
+    <EvoluContext value={evolu}>
+      <Todos />
+      <OwnerActions />
+    </EvoluContext>
+  );
 };
 
-// Define reusable types/interfaces if needed
-type EvoluUpdateFunc = ReturnType<
-  ReturnType<typeof createUseEvolu<typeof Schema>>
->["update"];
-
-const Todos: FC<{
-  todos: readonly TodosRow[];
-  insert: ReturnType<
-    ReturnType<typeof createUseEvolu<typeof Schema>>
-  >["insert"];
-  update: EvoluUpdateFunc;
-}> = ({ todos, insert, update }) => {
+const Todos: FC = () => {
+  const todos = useQuery(todosQuery);
+  const { insert } = useEvolu();
   const [newTodoTitle, setNewTodoTitle] = useState("");
 
   const handleAddTodo = () => {
-    const result = insert(
+    const title = parseTodoTitle(newTodoTitle);
+    if (!title.ok) {
+      Alert.alert("Validation error", formatTypeError(title.error));
+      return;
+    }
+
+    insert(
       "todo",
-      { title: newTodoTitle.trim() },
+      { title: title.value },
       {
         onComplete: () => {
           setNewTodoTitle("");
         },
       },
     );
-
-    if (!result.ok) {
-      Alert.alert("Error", formatTypeError(result.error));
-    }
   };
 
   return (
@@ -217,7 +141,7 @@ const Todos: FC<{
         ]}
       >
         {todos.map((todo) => (
-          <TodoItem key={todo.id} row={todo} update={update} />
+          <TodoItem key={todo.id} row={todo} />
         ))}
       </View>
 
@@ -229,11 +153,11 @@ const Todos: FC<{
           onSubmitEditing={handleAddTodo}
           placeholder="Add a new todo..."
           autoComplete="off"
-          placeholderTextColor={"gray"}
+          placeholderTextColor="gray"
           autoCorrect={false}
           returnKeyType="done"
         />
-        <CustomButton title="Add" onPress={handleAddTodo} variant="primary" />
+        <Button title="Add" onPress={handleAddTodo} variant="primary" />
       </View>
     </View>
   );
@@ -241,30 +165,34 @@ const Todos: FC<{
 
 const TodoItem: FC<{
   row: TodosRow;
-  update: EvoluUpdateFunc;
-}> = ({ row: { id, title, isCompleted }, update }) => {
+}> = ({ row: { id, title, isCompleted } }) => {
+  const { update } = useEvolu();
+
   const handleToggleCompletedPress = () => {
     update("todo", {
       id,
-      isCompleted: Evolu.booleanToSqliteBoolean(!isCompleted),
+      isCompleted: Evolu.booleanToSqliteBoolean(!Boolean(isCompleted)),
     });
   };
 
   const handleRenamePress = () => {
     Alert.prompt(
-      "Edit Todo",
+      "Edit todo",
       "Enter new title:",
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Save",
           onPress: (newTitle?: string) => {
-            if (newTitle?.trim()) {
-              const result = update("todo", { id, title: newTitle.trim() });
-              if (!result.ok) {
-                Alert.alert("Error", formatTypeError(result.error));
-              }
+            if (newTitle == null) return;
+
+            const parsedTitle = parseTodoTitle(newTitle);
+            if (!parsedTitle.ok) {
+              Alert.alert("Validation error", formatTypeError(parsedTitle.error));
+              return;
             }
+
+            update("todo", { id, title: parsedTitle.value });
           },
         },
       ],
@@ -276,7 +204,6 @@ const TodoItem: FC<{
   const handleDeletePress = () => {
     update("todo", {
       id,
-      // Soft delete with isDeleted flag (CRDT-friendly, preserves sync history).
       isDeleted: Evolu.sqliteTrue,
     });
   };
@@ -289,16 +216,7 @@ const TodoItem: FC<{
       >
         <View
           style={[styles.checkbox, isCompleted ? styles.checkboxChecked : null]}
-        >
-          <Text
-            style={[
-              styles.checkmark,
-              { display: isCompleted ? "flex" : "none" },
-            ]}
-          >
-            ✓
-          </Text>
-        </View>
+        />
         <Text
           style={[
             styles.todoTitle,
@@ -310,303 +228,74 @@ const TodoItem: FC<{
       </TouchableOpacity>
 
       <View style={styles.todoActions}>
-        <TouchableOpacity
-          onPress={handleRenamePress}
-          style={styles.actionButton}
-        >
-          <Text style={styles.editIcon}>✏️</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={handleDeletePress}
-          style={styles.actionButton}
-        >
-          <Text style={styles.deleteIcon}>🗑️</Text>
-        </TouchableOpacity>
+        <Button title="Edit" onPress={handleRenamePress} />
+        <Button title="Delete" onPress={handleDeletePress} />
       </View>
     </View>
   );
 };
 
-const OwnerActions: FC<{
-  evolu: Evolu.Evolu<typeof Schema>;
-  appOwner: Evolu.AppOwner | null;
-  authResult: Evolu.AuthResult | null;
-}> = ({ evolu, appOwner, authResult }) => {
+const OwnerActions: FC = () => {
+  const evolu = useEvolu();
   const [showMnemonic, setShowMnemonic] = useState(false);
 
-  // Restore owner from mnemonic to sync data across devices.
-  const handleRestoreAppOwnerPress = () => {
-    Alert.prompt(
-      "Restore Account",
-      "Enter your mnemonic to restore your data:",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Restore",
-          onPress: (mnemonic?: string) => {
-            if (mnemonic == null) return;
-
-            const result = Evolu.Mnemonic.from(mnemonic.trim());
-            if (!result.ok) {
-              Alert.alert("Error", formatTypeError(result.error));
-              return;
-            }
-
-            void evolu.restoreAppOwner(result.value);
-          },
-        },
-      ],
-      "plain-text",
-    );
-  };
-
-  const handleResetAppOwnerPress = () => {
-    Alert.alert(
-      "Reset All Data",
-      "Are you sure? This will delete all your local data.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Reset",
-          style: "destructive",
-          onPress: () => {
-            void evolu.resetAppOwner();
-          },
-        },
-      ],
-    );
+  const handleDownloadDatabasePress = () => {
+    void evolu.exportDatabase().then((array) => {
+      console.info("dbExported", { appName, bytes: array.byteLength });
+      Alert.alert(
+        "Database exported",
+        `Exported ${array.byteLength} bytes. Wire file saving into a share sheet or filesystem plugin for production use.`,
+      );
+    });
   };
 
   return (
-    <View style={styles.ownerActionsContainer}>
-      <Text style={styles.sectionTitle}>Account</Text>
-      {appOwner && (
-        <View style={styles.ownerProfileContainer}>
-          <OwnerProfile
-            ownerId={appOwner.id}
-            username={authResult?.username ?? "Guest"}
-          />
+    <View style={styles.ownerCard}>
+      <View style={styles.ownerHeader}>
+        <EvoluIdenticon id={evolu.appOwner.id} size={40} />
+        <View style={styles.ownerHeaderText}>
+          <Text style={styles.ownerTitle}>App Owner</Text>
+          <Text style={styles.ownerId}>{evolu.appOwner.id}</Text>
         </View>
-      )}
-      <Text style={styles.sectionDescription}>
-        Todos are stored in local SQLite. When you sync across devices, your
-        data is end-to-end encrypted using your mnemonic.
-      </Text>
+      </View>
 
-      <View style={styles.ownerActionsButtons}>
-        <CustomButton
-          title={`${showMnemonic ? "Hide" : "Show"} Mnemonic`}
+      <View style={styles.ownerActionsRow}>
+        <Button
+          title={showMnemonic ? "Hide Mnemonic" : "Show Mnemonic"}
           onPress={() => {
-            setShowMnemonic(!showMnemonic);
+            setShowMnemonic((value) => !value);
           }}
-          style={styles.fullWidthButton}
         />
-
-        {showMnemonic && appOwner?.mnemonic && (
-          <View style={styles.mnemonicContainer}>
-            <Text style={styles.mnemonicLabel}>
-              Your Mnemonic (keep this safe!)
-            </Text>
-            <TextInput
-              value={appOwner.mnemonic}
-              editable={false}
-              multiline
-              style={styles.mnemonicTextArea}
-            />
-          </View>
-        )}
-
-        <View style={styles.actionButtonsRow}>
-          <CustomButton
-            title="Restore from Mnemonic"
-            onPress={handleRestoreAppOwnerPress}
-            style={styles.flexButton}
-          />
-          <CustomButton
-            title="Reset All Data"
-            onPress={handleResetAppOwnerPress}
-            style={styles.flexButton}
-          />
-        </View>
+        <Button title="Export DB" onPress={handleDownloadDatabasePress} />
       </View>
+
+      {showMnemonic ? (
+        <Text selectable style={styles.mnemonic}>
+          {evolu.appOwner.mnemonic}
+        </Text>
+      ) : null}
     </View>
   );
 };
 
-const AuthActions: FC<{
-  evolu: Evolu.Evolu<typeof Schema>;
-  appOwner: Evolu.AppOwner | null;
-  authResult: Evolu.AuthResult | null;
-  ownerIds: Array<Evolu.AuthList> | null;
-}> = ({ evolu, appOwner, authResult, ownerIds }) => {
-  const otherOwnerIds = useMemo(
-    () => ownerIds?.filter(({ ownerId }) => ownerId !== appOwner?.id) ?? [],
-    [appOwner?.id, ownerIds],
-  );
-
-  // Create a new owner and register it to a passkey.
-  const handleRegisterPress = async () => {
-    Alert.prompt(
-      "Register Passkey",
-      "Enter your username:",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Register",
-          onPress: async (username?: string) => {
-            if (username == null) return;
-
-            // Determine if this is a guest login or a new owner.
-            const isGuest = !authResult?.owner;
-
-            // Register the guest owner or create a new one if this is already registered.
-            const mnemonic = isGuest ? appOwner?.mnemonic : undefined;
-            const result = await localAuth.register(username, {
-              service,
-              mnemonic,
-            });
-            if (result) {
-              // If this is a guest owner, we should clear the database and reload.
-              // The owner is transferred to a new database on next login.
-              if (isGuest) {
-                evolu.resetAppOwner({ reload: true });
-                // Otherwise, just reload the app (in RN, we can't reload like web)
-              } else {
-                evolu.reloadApp();
-              }
-            } else {
-              Alert.alert("Error", "Failed to register profile");
-            }
-          },
-        },
-      ],
-      "plain-text",
-    );
-  };
-
-  // Login with a specific owner id using the registered passkey.
-  const handleLoginPress = async (ownerId: Evolu.OwnerId) => {
-    const result = await localAuth.login(ownerId, { service });
-    if (result) {
-      evolu.reloadApp();
-    } else {
-      Alert.alert("Error", "Failed to login");
-    }
-  };
-
-  // Clear all data including passkeys and metadata.
-  const handleClearAllPress = async () => {
-    Alert.alert(
-      "Clear All Data",
-      "Are you sure you want to clear all data? This will remove all passkeys and cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Clear",
-          style: "destructive",
-          onPress: async () => {
-            await localAuth.clearAll({ service });
-            void evolu.resetAppOwner({ reload: true });
-          },
-        },
-      ],
-    );
-  };
-
-  return (
-    <View style={styles.authActionsContainer}>
-      <Text style={styles.sectionTitle}>Passkeys</Text>
-      <Text style={styles.sectionDescription}>
-        Register a new passkey or choose a previously registered one.
-      </Text>
-      <View style={styles.actionButtonsRow}>
-        <CustomButton
-          title="Register Passkey"
-          onPress={handleRegisterPress}
-          style={styles.flexButton}
-        />
-        <CustomButton
-          title="Clear All"
-          onPress={handleClearAllPress}
-          style={styles.flexButton}
-        />
-      </View>
-      {otherOwnerIds.length > 0 && (
-        <View style={styles.otherOwnersContainer}>
-          {otherOwnerIds.map(({ ownerId, username }) => (
-            <OwnerProfile
-              key={ownerId}
-              ownerId={ownerId}
-              username={username}
-              handleLoginPress={handleLoginPress}
-            />
-          ))}
-        </View>
-      )}
-    </View>
-  );
-};
-
-const OwnerProfile: FC<{
-  ownerId: Evolu.OwnerId;
-  username: string;
-  handleLoginPress?: (ownerId: Evolu.OwnerId) => void;
-}> = ({ ownerId, username, handleLoginPress }) => {
-  return (
-    <View style={styles.ownerProfileRow}>
-      <View style={styles.ownerInfo}>
-        <EvoluIdenticon id={ownerId} />
-        <View style={styles.ownerDetails}>
-          <Text style={styles.ownerUsername}>{username}</Text>
-          <Text
-            style={styles.ownerIdText}
-            numberOfLines={1}
-            ellipsizeMode="middle"
-          >
-            {ownerId as string}
-          </Text>
-        </View>
-      </View>
-      {handleLoginPress && (
-        <CustomButton
-          title="Login"
-          onPress={() => handleLoginPress(ownerId)}
-          style={styles.loginButton}
-        />
-      )}
-    </View>
-  );
-};
-
-const CustomButton: FC<{
+const Button: FC<{
   title: string;
-  style?: any;
   onPress: () => void;
   variant?: "primary" | "secondary";
-}> = ({ title, style, onPress, variant = "secondary" }) => {
-  const buttonStyle = [
-    styles.button,
-    variant === "primary" ? styles.buttonPrimary : styles.buttonSecondary,
-    style,
-  ];
-
-  const textStyle = [
-    styles.buttonText,
-    variant === "primary"
-      ? styles.buttonTextPrimary
-      : styles.buttonTextSecondary,
-  ];
-
+}> = ({ title, onPress, variant = "secondary" }) => {
+  const isPrimary = variant === "primary";
   return (
-    <TouchableOpacity style={buttonStyle} onPress={onPress}>
-      <Text style={textStyle}>{title}</Text>
+    <TouchableOpacity
+      onPress={onPress}
+      style={[styles.button, isPrimary ? styles.primaryButton : styles.secondaryButton]}
+    >
+      <Text style={isPrimary ? styles.primaryButtonText : styles.secondaryButtonText}>
+        {title}
+      </Text>
     </TouchableOpacity>
   );
 };
 
-/**
- * Formats Evolu Type errors into user-friendly messages.
- */
 const formatTypeError = Evolu.createFormatTypeError<
   Evolu.MinLengthError | Evolu.MaxLengthError
 >((error): string => {
@@ -621,84 +310,74 @@ const formatTypeError = Evolu.createFormatTypeError<
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f9fafb",
+    backgroundColor: "#f5f7fb",
   },
   scrollView: {
     flex: 1,
   },
   contentContainer: {
-    flexGrow: 1,
-    paddingHorizontal: 32,
-    paddingVertical: 32,
+    paddingHorizontal: 20,
+    paddingVertical: 24,
   },
   maxWidthContainer: {
-    maxWidth: 400,
-    alignSelf: "center",
     width: "100%",
+    maxWidth: 640,
+    alignSelf: "center",
   },
   header: {
-    marginBottom: 8,
     paddingBottom: 16,
-    alignItems: "center",
   },
   title: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#111827",
     textAlign: "center",
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  loadingContainer: {
+    paddingVertical: 32,
   },
   todosContainer: {
-    backgroundColor: "#ffffff",
-    borderRadius: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 24,
-    paddingBottom: 24,
+    borderRadius: 16,
+    backgroundColor: "#fff",
+    padding: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
   },
   todosList: {
-    marginBottom: 24,
+    gap: 10,
+    marginBottom: 20,
   },
   todoItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 8,
-    marginHorizontal: -8,
+    justifyContent: "space-between",
+    gap: 12,
   },
   todoCheckbox: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    flex: 1,
+    gap: 12,
   },
   checkbox: {
-    width: 16,
-    height: 16,
-    borderRadius: 2,
+    width: 22,
+    height: 22,
     borderWidth: 1,
-    borderColor: "#d1d5db",
-    backgroundColor: "#ffffff",
-    marginRight: 12,
-    alignItems: "center",
-    justifyContent: "center",
+    borderColor: "#9ca3af",
+    borderRadius: 6,
+    backgroundColor: "#fff",
   },
   checkboxChecked: {
-    backgroundColor: "#3b82f6",
-    borderColor: "#3b82f6",
-  },
-  checkmark: {
-    color: "#ffffff",
-    fontSize: 10,
-    fontWeight: "bold",
+    backgroundColor: "#2563eb",
+    borderColor: "#2563eb",
   },
   todoTitle: {
-    fontSize: 14,
-    color: "#111827",
     flex: 1,
+    fontSize: 16,
+    color: "#111827",
   },
   todoTitleCompleted: {
     color: "#6b7280",
@@ -706,166 +385,82 @@ const styles = StyleSheet.create({
   },
   todoActions: {
     flexDirection: "row",
-    gap: 4,
-  },
-  actionButton: {
-    padding: 4,
-  },
-  editIcon: {
-    fontSize: 16,
-  },
-  deleteIcon: {
-    fontSize: 16,
+    gap: 8,
   },
   addTodoContainer: {
     flexDirection: "row",
-    gap: 8,
-    marginHorizontal: -8,
+    gap: 12,
   },
   textInput: {
     flex: 1,
-    borderRadius: 6,
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    fontSize: 16,
-    color: "#111827",
     borderWidth: 1,
     borderColor: "#d1d5db",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: "#111827",
+    backgroundColor: "#fff",
   },
   button: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
-  buttonPrimary: {
-    backgroundColor: "#3b82f6",
+  primaryButton: {
+    backgroundColor: "#2563eb",
   },
-  buttonSecondary: {
-    backgroundColor: "#f3f4f6",
+  secondaryButton: {
+    backgroundColor: "#e5e7eb",
   },
-  buttonText: {
-    fontSize: 14,
-    fontWeight: "500",
+  primaryButtonText: {
+    color: "#fff",
+    fontWeight: "600",
   },
-  buttonTextPrimary: {
-    color: "#ffffff",
-  },
-  buttonTextSecondary: {
+  secondaryButtonText: {
     color: "#374151",
+    fontWeight: "600",
   },
-  ownerActionsContainer: {
-    marginTop: 32,
-    backgroundColor: "#ffffff",
-    borderRadius: 8,
-    padding: 24,
-    paddingTop: 18,
+  ownerCard: {
+    marginTop: 20,
+    borderRadius: 16,
+    backgroundColor: "#fff",
+    padding: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "500",
-    color: "#111827",
-    marginBottom: 16,
-  },
-  sectionDescription: {
-    fontSize: 14,
-    color: "#6b7280",
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  ownerActionsButtons: {
+  ownerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
-  fullWidthButton: {
-    width: "100%",
+  ownerHeaderText: {
+    flex: 1,
   },
-  mnemonicContainer: {
-    backgroundColor: "#f9fafb",
-    padding: 12,
-    borderRadius: 6,
-  },
-  mnemonicLabel: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: "#374151",
-    marginBottom: 8,
-  },
-  mnemonicTextArea: {
-    backgroundColor: "#ffffff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#d1d5db",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    fontFamily: "monospace",
-    fontSize: 12,
+  ownerTitle: {
+    fontSize: 16,
+    fontWeight: "600",
     color: "#111827",
   },
-  actionButtonsRow: {
+  ownerId: {
+    marginTop: 2,
+    fontSize: 12,
+    color: "#6b7280",
+  },
+  ownerActionsRow: {
+    marginTop: 16,
     flexDirection: "row",
     gap: 8,
   },
-  flexButton: {
-    flex: 1,
-  },
-  authActionsContainer: {
-    marginTop: 32,
-    backgroundColor: "#ffffff",
-    borderRadius: 8,
-    padding: 24,
-    paddingTop: 18,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-  ownerProfileContainer: {
-    marginBottom: 16,
-  },
-  ownerProfileRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 8,
-    backgroundColor: "#f3f4f6",
-    borderRadius: 6,
-    marginBottom: 8,
-  },
-  ownerInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    gap: 12,
-  },
-  ownerDetails: {
-    flex: 1,
-  },
-  ownerUsername: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#111827",
-  },
-  ownerIdText: {
-    fontSize: 12,
-    color: "#6b7280",
-  },
-  loginButton: {
-    backgroundColor: "#3b82f6",
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-  },
-  otherOwnersContainer: {
+  mnemonic: {
     marginTop: 16,
+    borderRadius: 12,
+    backgroundColor: "#f3f4f6",
+    padding: 12,
+    color: "#374151",
+    fontSize: 12,
   },
 });

@@ -13,6 +13,7 @@
     "@evolu/common": "workspace:*",
     "@evolu/react": "workspace:*",
     "@evolu/react-web": "workspace:*",
+    "@evolu/web": "workspace:*",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },

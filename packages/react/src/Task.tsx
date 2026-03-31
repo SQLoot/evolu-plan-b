@@ -1,35 +1,31 @@
 "use client";
 
-import type { Run } from "@evolu/common";
-import { createContext, type ReactNode } from "react";
-
-const RunContext = /*#__PURE__*/ createContext<Run | null>(null);
+import { assert, type Run } from "@evolu/common";
+import { createContext, use, type ReactNode } from "react";
 
 /**
- * Creates typed React Context and Provider for {@link Run}.
+ * Creates typed React Context and hook for {@link Run}.
  *
- * ### Example
- *
- * ```tsx
- * const run = createRun(createEvoluDeps());
- * const { Run, RunProvider } = createRunContext(run);
- *
- * <RunProvider>
- *   <App />
- * </RunProvider>;
- *
- * // In a component
- * const run = use(Run);
- * ```
+ * The `run` argument is used to infer the deps type for the returned API.
  */
-export const createRunContext = <D,>(
+export const createRunBinding = <D,>(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   run: Run<D>,
 ): {
-  readonly Run: React.Context<Run<D>>;
-  readonly RunProvider: React.FC<{ readonly children?: ReactNode }>;
-} => ({
-  Run: RunContext as React.Context<Run<D>>,
-  RunProvider: ({ children }) => (
-    <RunContext.Provider value={run}>{children}</RunContext.Provider>
-  ),
-});
+  readonly RunContext: React.FC<{
+    readonly value: Run<D>;
+    readonly children?: ReactNode;
+  }>;
+  readonly useRun: () => Run<D>;
+} => {
+  const RunContext = createContext<Run<D> | null>(null);
+
+  return {
+    RunContext,
+    useRun: () => {
+      const currentRun = use(RunContext);
+      assert(currentRun, "RunContext is missing.");
+      return currentRun;
+    },
+  };
+};
