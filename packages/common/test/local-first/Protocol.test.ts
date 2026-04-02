@@ -6,8 +6,8 @@ import { lazyFalse, lazyTrue } from "../../src/Function.js";
 import type { NonEmptyReadonlyArray, RunDeps } from "../../src/index.js";
 import { assertNonEmptyArray, EncryptionKey } from "../../src/index.js";
 import {
-  type OwnerIdBytes,
   ownerIdToOwnerIdBytes,
+  type OwnerIdBytes,
 } from "../../src/local-first/Owner.js";
 import type { TimestampsRangeWithTimestampsBuffer } from "../../src/local-first/Protocol.js";
 import {
@@ -36,10 +36,10 @@ import {
   encodeSqliteValue,
   encodeString,
   MessageType,
-  type ProtocolMessageMaxSize,
+  parseProtocolHeader,
+  ProtocolMessageMaxSize,
   ProtocolMessageRangesMaxSize,
   ProtocolValueType,
-  parseProtocolHeader,
   protocolVersion,
   SubscriptionFlags,
 } from "../../src/local-first/Protocol.js";
@@ -62,7 +62,7 @@ import {
   timestampToTimestampBytes,
 } from "../../src/local-first/Timestamp.js";
 import { err, getOrThrow, ok } from "../../src/Result.js";
-import type { SqliteValue } from "../../src/Sqlite.js";
+import { SqliteValue } from "../../src/Sqlite.js";
 import type { TestDeps } from "../../src/Test.js";
 import { testCreateDeps, testCreateRun } from "../../src/Test.js";
 import {
@@ -72,7 +72,7 @@ import {
   PositiveInt,
   zeroNonNegativeInt,
 } from "../../src/Type.js";
-import { testCreateRunWithSqliteAndRelayStorage } from "../_deps.js";
+import { setupSqliteAndRelayStorage } from "../_deps.js";
 import {
   maxTimestamp,
   testAppOwner,
@@ -94,7 +94,7 @@ test("encodeNumber/decodeNumber", () => {
     0,
     42,
     -123,
-    Number.parseFloat("3.14159"),
+    3.14159,
     Number.MAX_SAFE_INTEGER,
     Number.MIN_SAFE_INTEGER,
     Infinity,
@@ -292,7 +292,7 @@ test("encodeSqliteValue/decodeSqliteValue", () => {
     expect(decodeSqliteValue(encoded)).toStrictEqual(value);
   });
   expect(buffer.unwrap()).toMatchInlineSnapshot(
-    `uint8:[31,21,203,64,94,224,0,0,0,0,0,21,208,133,22,23,3,1,2,3,33,92,226,70,213,118,197,194,43,252,142,193,248,114,213,66,235,0,19,30,123,30,255,127,34,18,130,167,99,111,109,112,97,99,116,195,166,115,99,104,101,109,97,0,36,203,194,204,69,55,130,48,0,0,35,128,232,252,254,173,50,35,128,168,131,232,192,127,35,128,128,200,165,182,128,1,35,255,183,255,144,253,206,57]`,
+    `uint8:[31,21,203,64,94,224,0,0,0,0,0,21,208,133,22,23,3,1,2,3,33,32,99,101,230,222,46,149,166,144,165,217,240,14,24,40,8,0,19,30,123,30,255,127,34,18,130,167,99,111,109,112,97,99,116,195,166,115,99,104,101,109,97,0,36,203,194,204,69,55,130,48,0,0,35,128,232,252,254,173,50,35,128,168,131,232,192,127,35,128,128,200,165,182,128,1,35,255,183,255,144,253,206,57]`,
   );
 });
 
@@ -360,11 +360,11 @@ test("encodeSqliteValue/decodeSqliteValue property tests", () => {
         // Date ISO strings - both valid and invalid
         fc
           .date({ min: new Date("1970-01-01"), max: new Date("2100-01-01") })
-          .filter((d) => !Number.isNaN(d.getTime()))
+          .filter((d) => !isNaN(d.getTime()))
           .map((d) => d.toISOString()),
         fc
           .date({ min: new Date("0000-01-01"), max: new Date("9999-12-31") })
-          .filter((d) => !Number.isNaN(d.getTime()))
+          .filter((d) => !isNaN(d.getTime()))
           .map((d) => d.toISOString()),
         fc.constantFrom(
           "0000-01-01T00:00:00.000Z",
@@ -456,14 +456,12 @@ test("encodeAndEncryptDbChange/decryptAndDecodeDbChange", () => {
   const crdtMessage = createTestCrdtMessage(deps);
   const encryptedMessage = createEncryptedCrdtMessage(deps, crdtMessage);
   expect(encryptedMessage.change).toMatchInlineSnapshot(
-    `uint8:[50,49,238,42,82,178,39,187,240,23,233,222,230,153,81,31,125,209,168,228,214,108,214,84,120,79,230,186,139,235,148,152,83,149,78,152,77,10,222,6,181,230,231,147,24,104,23,8,44,207,176,63,237,93,216,139,95,233,116,6,91,113,84,155,198,114,169,42,195,225,79,228,208,228,56,113,238,151,127,230,65,76,17,1,119,31,189,55,199,101,138,153,112,122,138,67,228,81,116,0,151,249,207,112,235,143,251,91,238,253,221,229,173,170,100,158,22,21,26,113,46,15,221,32,252,155,214,119,178,234,202,48,53,222,99,115,118,233,248,37,22,80,214,193,249]`,
+    `uint8:[241,14,128,41,142,157,38,100,106,119,182,150,57,231,121,203,1,130,102,255,189,176,71,43,120,23,239,6,214,65,111,99,169,234,146,241,12,0,58,45,51,31,132,69,127,250,60,149,153,138,200,19,145,53,210,180,34,126,99,90,197,77,140,109,134,17,112,53,148,133,66,107,149,90,154,174,221,58,233,123,146,196,69,167,238,191,79,236,109,122,109,91,246,157,252,218,187,152,0,207,39,10,32,7,186,217,215,12,165,245,82,236,250,178,227,132,171,89,106,77,81,216,236,92,149,188,250,219,5,20,130,27,55,43,64,164,180,75,222,112,122,62,145,82,171]`,
   );
-  const decrypted = decryptAndDecodeDbChange(
-    encryptedMessage,
-    testAppOwner.encryptionKey,
+  const decrypted = getOrThrow(
+    decryptAndDecodeDbChange(encryptedMessage, testAppOwner.encryptionKey),
   );
-  assert(decrypted.ok);
-  expect(decrypted.value).toEqual(crdtMessage.change);
+  expect(decrypted).toEqual(crdtMessage.change);
 
   const wrongKey = EncryptionKey.orThrow(new Uint8Array(32).fill(42));
   const decryptedWithWrongKey = decryptAndDecodeDbChange(
@@ -608,7 +606,7 @@ describe("createProtocolMessageBuffer", () => {
       messageType: MessageType.Request,
     });
     expect(buffer.unwrap()).toMatchInlineSnapshot(
-      `uint8:[1,213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184,0,0,0,0]`,
+      `uint8:[1,251,208,27,154,71,19,37,213,195,24,203,60,255,39,7,11,0,0,0,0]`,
     );
   });
 
@@ -693,14 +691,14 @@ describe("createProtocolMessageBuffer", () => {
 });
 
 test("createProtocolMessageForSync", async () => {
-  await using run = await testCreateRunWithSqliteAndRelayStorage();
-  const { storage } = run.deps;
+  await using setup = await setupSqliteAndRelayStorage();
+  const { run, storage } = setup;
 
   // Empty DB: version, ownerId, 0 messages, one empty TimestampsRange.
   expect(
     createProtocolMessageForSync(run.deps)(testAppOwner.id),
   ).toMatchInlineSnapshot(
-    `uint8:[1,213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184,0,0,0,0,1,2,0]`,
+    `uint8:[1,251,208,27,154,71,19,37,213,195,24,203,60,255,39,7,11,0,0,0,0,1,2,0]`,
   );
 
   const messages31 = testTimestampsAsc.slice(0, 31).map(
@@ -719,7 +717,7 @@ test("createProtocolMessageForSync", async () => {
   expect(
     createProtocolMessageForSync(run.deps)(testAppOwner.id),
   ).toMatchInlineSnapshot(
-    `uint8:[1,213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184,0,0,0,0,1,2,31,0,250,249,195,1,168,184,125,195,131,34,174,141,103,155,214,209,1,249,185,24,252,240,230,1,223,254,172,8,148,205,26,150,248,240,4,163,204,109,149,170,141,2,228,161,145,2,179,220,186,3,146,218,156,4,155,140,140,3,248,138,143,1,227,155,149,1,245,252,193,5,249,137,78,250,243,249,3,254,253,238,1,248,202,15,139,139,37,213,158,69,140,219,189,1,242,244,157,4,141,229,170,1,142,166,98,245,168,150,5,0,31,0,0,0,0,0,0,0,0,1,104,162,167,191,63,133,160,150,1,153,201,144,40,214,99,106,145,1,104,162,167,191,63,133,160,150,6,153,201,144,40,214,99,106,145,1,104,162,167,191,63,133,160,150,21]`,
+    `uint8:[1,251,208,27,154,71,19,37,213,195,24,203,60,255,39,7,11,0,0,0,0,1,2,31,0,163,205,139,2,152,222,222,3,141,195,32,138,221,210,1,216,167,200,1,243,155,45,128,152,244,5,167,136,182,1,199,139,225,5,131,234,154,8,0,150,132,58,233,134,161,1,222,244,220,1,250,141,170,3,248,167,204,1,0,161,234,59,0,192,227,115,181,188,169,1,224,169,247,4,205,177,37,143,161,242,1,137,231,180,2,161,244,87,235,207,53,133,244,180,1,142,243,223,10,158,141,113,0,11,1,1,0,5,1,1,0,1,1,1,0,11,0,0,0,0,0,0,0,0,1,104,162,167,191,63,133,160,150,1,153,201,144,40,214,99,106,145,1,104,162,167,191,63,133,160,150,11,153,201,144,40,214,99,106,145,1,104,162,167,191,63,133,160,150,6,153,201,144,40,214,99,106,145,1,104,162,167,191,63,133,160,150,1,153,201,144,40,214,99,106,145,1,104,162,167,191,63,133,160,150,6,153,201,144,40,214,99,106,145,1]`,
   );
 
   const message32 = testTimestampsAsc.slice(32, 33).map(
@@ -738,7 +736,7 @@ test("createProtocolMessageForSync", async () => {
   expect(
     createProtocolMessageForSync(run.deps)(testAppOwner.id),
   ).toMatchInlineSnapshot(
-    `uint8:[1,213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184,0,0,0,0,16,162,178,193,2,241,144,137,1,148,144,234,1,219,239,147,10,170,197,139,5,184,246,250,2,151,254,203,5,173,230,168,7,219,166,164,2,238,134,144,6,248,241,232,5,131,214,52,225,249,130,2,255,217,200,5,131,207,248,5,0,15,153,201,144,40,214,99,106,145,1,104,162,167,191,63,133,160,150,14,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,60,106,74,42,243,6,138,90,152,175,169,243,198,137,32,142,62,136,182,76,215,87,6,29,65,11,3,85,126,25,160,146,235,32,205,134,143,79,91,185,175,62,1,162,208,7,116,171,199,85,83,43,126,39,69,165,170,12,19,180,187,199,84,93,30,79,57,195,122,179,50,19,29,19,139,243,231,210,235,131,37,146,165,19,167,174,209,62,68,194,21,205,135,80,178,40,89,225,171,174,199,109,83,198,243,42,203,80,204,17,102,182,8,183,197,20,233,154,227,181,12,169,211,212,39,118,68,169,60,197,16,9,208,73,252,173,54,118,13,116,78,124,68,80,108,124,188,251,29,98,215,49,229,232,196,245,195,68,106,82,90,177,24,91,11,233,28,194,104,48,118,82,240,64,197,180,63,100,32,173,112,238,15,70,223,191,197,114,34,162,106,76]`,
+    `uint8:[1,251,208,27,154,71,19,37,213,195,24,203,60,255,39,7,11,0,0,0,0,16,187,171,234,5,151,160,243,1,203,195,245,1,167,160,170,7,202,245,251,13,150,132,58,199,251,253,2,242,181,246,4,161,234,59,192,227,115,149,230,160,6,220,210,151,2,170,219,140,3,240,195,234,1,172,128,209,11,0,15,153,201,144,40,214,99,106,145,1,104,162,167,191,63,133,160,150,5,153,201,144,40,214,99,106,145,1,104,162,167,191,63,133,160,150,7,153,201,144,40,214,99,106,145,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,79,199,221,49,166,129,34,35,99,27,109,221,72,203,113,173,13,174,108,244,220,53,10,79,91,208,39,170,201,18,73,253,152,51,99,124,0,152,50,246,239,212,6,13,80,19,126,71,76,18,73,200,62,200,42,99,188,63,73,207,154,238,98,14,224,33,103,255,188,202,60,84,33,248,184,78,240,231,221,198,98,244,79,237,208,100,110,251,209,4,221,129,70,179,162,173,26,9,38,199,115,85,231,208,141,13,135,35,144,151,124,233,151,6,119,79,51,128,236,157,32,91,160,104,143,239,236,16,148,246,215,168,225,200,73,253,182,117,53,113,24,52,165,196,73,55,66,212,228,27,187,1,71,143,234,75,93,129,254,145,224,183,203,200,8,205,21,142,6,139,145,237,12,30,146,233,222,152,203,251,132,199,125,55,190,43,113,63,180,29,179,161]`,
   );
 });
 
@@ -821,12 +819,10 @@ describe("E2E versioning", () => {
       messageType: MessageType.Request,
     }).unwrap();
 
-    const relayResponse = await run(
+    const relayResponse = await run.orThrow(
       applyProtocolMessageAsRelay(clientMessage, {}, v0),
     );
-
-    assert(relayResponse.ok);
-    expect(relayResponse.value.message.length).toMatchInlineSnapshot(`20`);
+    expect(relayResponse.message.length).toMatchInlineSnapshot(`20`);
   });
 
   test("non-initiator version is higher", async () => {
@@ -839,13 +835,12 @@ describe("E2E versioning", () => {
       messageType: MessageType.Request,
     }).unwrap();
 
-    const relayResponse = await run(
+    const relayResponse = await run.orThrow(
       applyProtocolMessageAsRelay(clientMessage, {}, v1),
     );
-    assert(relayResponse.ok);
 
     const clientResult = await run(
-      applyProtocolMessageAsClient(relayResponse.value.message, {
+      applyProtocolMessageAsClient(relayResponse.message, {
         version: v0,
       }),
     );
@@ -869,13 +864,12 @@ describe("E2E versioning", () => {
       messageType: MessageType.Request,
     }).unwrap();
 
-    const relayResponse = await run(
+    const relayResponse = await run.orThrow(
       applyProtocolMessageAsRelay(clientMessage, {}, v0),
     );
-    assert(relayResponse.ok);
 
     const clientResult = await run(
-      applyProtocolMessageAsClient(relayResponse.value.message, {
+      applyProtocolMessageAsClient(relayResponse.message, {
         version: v1,
       }),
     );
@@ -928,12 +922,13 @@ describe("E2E errors", () => {
           validateWriteKey: lazyFalse,
         },
       });
-      const response = await run(applyProtocolMessageAsRelay(initiatorMessage));
-      assert(response.ok);
-      expect(response.value.message).toMatchInlineSnapshot(
-        `uint8:[1,213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184,1,1,0]`,
+      const response = await run.orThrow(
+        applyProtocolMessageAsRelay(initiatorMessage),
       );
-      responseMessage = response.value.message;
+      expect(response.message).toMatchInlineSnapshot(
+        `uint8:[1,251,208,27,154,71,19,37,213,195,24,203,60,255,39,7,11,1,1,0]`,
+      );
+      responseMessage = response.message;
     }
 
     await using run = testCreateRun(shouldNotBeCalledStorageDep);
@@ -1050,7 +1045,7 @@ describe("E2E relay options", () => {
     );
 
     expect(initiatorMessage).toMatchInlineSnapshot(
-      `uint8:[1,213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184,0,1,8,97,115,32,4,146,212,2,160,230,45,93,39,195,30,196,0,1,0,0,1,0,0,0,0,0,0,0,0,1,145,1,67,218,186,186,65,186,231,56,50,49,238,42,82,178,39,187,240,23,233,222,230,153,81,31,120,120,128,203,247,216,21,41,229,115,67,144,79,66,18,121,233,239,71,127,21,138,87,161,148,125,181,82,20,211,96,143,23,115,5,199,197,65,188,25,25,136,159,10,162,120,64,255,225,188,91,249,16,104,222,200,226,248,113,190,40,142,233,172,80,90,97,72,226,24,55,108,171,167,165,236,208,52,6,254,41,250,7,21,72,9,7,120,154,245,226,31,110,45,28,198,1,189,29,28,200,198,28,95,252,17,196,15,152,86,56,157,85,235,159,171,179,189,28,15,91]`,
+      `uint8:[1,251,208,27,154,71,19,37,213,195,24,203,60,255,39,7,11,0,1,172,144,67,75,249,177,167,163,209,113,55,184,160,22,72,143,0,1,0,0,1,0,0,0,0,0,0,0,0,1,145,1,154,15,34,119,141,80,147,177,241,14,128,41,142,157,38,100,106,119,182,150,57,231,121,203,120,244,185,167,187,69,70,221,148,117,128,101,150,172,36,118,246,47,92,86,32,115,84,235,133,24,165,213,71,107,135,41,22,156,220,147,76,164,225,32,110,204,134,121,28,157,22,37,84,119,3,255,152,0,42,64,89,207,122,252,24,211,244,82,92,48,212,82,141,76,208,175,248,77,122,127,92,161,9,216,108,124,93,96,54,66,154,24,145,71,40,243,37,153,139,123,191,6,169,17,98,30,225,213,255,109,41,13,94,96,198,34,147,51,144,95,189,162,238,214,182]`,
     );
 
     let broadcastedMessage = null as Uint8Array | null;
@@ -1074,7 +1069,7 @@ describe("E2E relay options", () => {
     assert(broadcastedMessage);
     // Added error and removed writeKey, added subscription flag
     expect(broadcastedMessage).toMatchInlineSnapshot(
-      `uint8:[1,213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184,2,1,0,0,1,0,0,0,0,0,0,0,0,1,145,1,67,218,186,186,65,186,231,56,50,49,238,42,82,178,39,187,240,23,233,222,230,153,81,31,120,120,128,203,247,216,21,41,229,115,67,144,79,66,18,121,233,239,71,127,21,138,87,161,148,125,181,82,20,211,96,143,23,115,5,199,197,65,188,25,25,136,159,10,162,120,64,255,225,188,91,249,16,104,222,200,226,248,113,190,40,142,233,172,80,90,97,72,226,24,55,108,171,167,165,236,208,52,6,254,41,250,7,21,72,9,7,120,154,245,226,31,110,45,28,198,1,189,29,28,200,198,28,95,252,17,196,15,152,86,56,157,85,235,159,171,179,189,28,15,91]`,
+      `uint8:[1,251,208,27,154,71,19,37,213,195,24,203,60,255,39,7,11,2,1,0,0,1,0,0,0,0,0,0,0,0,1,145,1,154,15,34,119,141,80,147,177,241,14,128,41,142,157,38,100,106,119,182,150,57,231,121,203,120,244,185,167,187,69,70,221,148,117,128,101,150,172,36,118,246,47,92,86,32,115,84,235,133,24,165,213,71,107,135,41,22,156,220,147,76,164,225,32,110,204,134,121,28,157,22,37,84,119,3,255,152,0,42,64,89,207,122,252,24,211,244,82,92,48,212,82,141,76,208,175,248,77,122,127,92,161,9,216,108,124,93,96,54,66,154,24,145,71,40,243,37,153,139,123,191,6,169,17,98,30,225,213,255,109,41,13,94,96,198,34,147,51,144,95,189,162,238,214,182]`,
     );
 
     let writeMessagesCalled = false;
@@ -1126,9 +1121,16 @@ describe("E2E sync", { timeout: 15_000 }, () => {
   assertNonEmptyArray(messages);
 
   const createStorages = async () => {
-    const client = await testCreateRunWithSqliteAndRelayStorage();
-    const rela = await testCreateRunWithSqliteAndRelayStorage();
-    return [client.deps.storage, rela.deps.storage];
+    await using stack = new AsyncDisposableStack();
+    const client = stack.use(await setupSqliteAndRelayStorage());
+    const relay = stack.use(await setupSqliteAndRelayStorage());
+    const moved = stack.move();
+
+    return {
+      clientStorage: client.storage,
+      relayStorage: relay.storage,
+      [Symbol.asyncDispose]: () => moved.disposeAsync(),
+    };
   };
 
   const reconcile = async (
@@ -1208,7 +1210,8 @@ describe("E2E sync", { timeout: 15_000 }, () => {
 
   it("client and relay have all data", async () => {
     await using run = testCreateRun();
-    const [clientStorage, relayStorage] = await createStorages();
+    await using storages = await createStorages();
+    const { clientStorage, relayStorage } = storages;
     await run(clientStorage.writeMessages(testAppOwnerIdBytes, messages));
     await run(relayStorage.writeMessages(testAppOwnerIdBytes, messages));
 
@@ -1216,7 +1219,7 @@ describe("E2E sync", { timeout: 15_000 }, () => {
     expect(syncSteps).toMatchInlineSnapshot(`
       {
         "syncSizes": [
-          361,
+          356,
           20,
         ],
         "syncSteps": 2,
@@ -1226,18 +1229,19 @@ describe("E2E sync", { timeout: 15_000 }, () => {
 
   it("client has all data", async () => {
     await using run = testCreateRun();
-    const [clientStorage, relayStorage] = await createStorages();
+    await using storages = await createStorages();
+    const { clientStorage, relayStorage } = storages;
     await run(clientStorage.writeMessages(testAppOwnerIdBytes, messages));
 
     const syncSteps = await reconcile(clientStorage, relayStorage);
     expect(syncSteps).toMatchInlineSnapshot(`
       {
         "syncSizes": [
-          361,
-          184,
-          999935,
+          356,
+          179,
+          999468,
           40,
-          680985,
+          669628,
           20,
         ],
         "syncSteps": 6,
@@ -1247,7 +1251,8 @@ describe("E2E sync", { timeout: 15_000 }, () => {
 
   it("client has all data - many steps", async () => {
     await using run = testCreateRun();
-    const [clientStorage, relayStorage] = await createStorages();
+    await using storages = await createStorages();
+    const { clientStorage, relayStorage } = storages;
     await run(clientStorage.writeMessages(testAppOwnerIdBytes, messages));
 
     const syncSteps = await reconcile(
@@ -1258,19 +1263,19 @@ describe("E2E sync", { timeout: 15_000 }, () => {
     expect(syncSteps).toMatchInlineSnapshot(`
       {
         "syncSizes": [
-          361,
-          184,
-          999935,
+          356,
+          179,
+          999468,
           40,
-          147798,
+          161560,
           40,
-          158575,
+          144597,
           40,
-          148007,
+          152440,
           40,
-          138024,
+          167124,
           40,
-          100753,
+          56082,
           20,
         ],
         "syncSteps": 14,
@@ -1280,7 +1285,8 @@ describe("E2E sync", { timeout: 15_000 }, () => {
 
   it("relay has all data", async () => {
     await using run = testCreateRun();
-    const [clientStorage, relayStorage] = await createStorages();
+    await using storages = await createStorages();
+    const { clientStorage, relayStorage } = storages;
     await run(relayStorage.writeMessages(testAppOwnerIdBytes, messages));
 
     const syncSteps = await reconcile(clientStorage, relayStorage);
@@ -1288,9 +1294,9 @@ describe("E2E sync", { timeout: 15_000 }, () => {
       {
         "syncSizes": [
           24,
-          999738,
+          999909,
           57,
-          698838,
+          686240,
         ],
         "syncSteps": 4,
       }
@@ -1299,7 +1305,8 @@ describe("E2E sync", { timeout: 15_000 }, () => {
 
   it("relay has all data - many steps", async () => {
     await using run = testCreateRun();
-    const [clientStorage, relayStorage] = await createStorages();
+    await using storages = await createStorages();
+    const { clientStorage, relayStorage } = storages;
     await run(relayStorage.writeMessages(testAppOwnerIdBytes, messages));
 
     const syncSteps = await reconcile(
@@ -1311,38 +1318,37 @@ describe("E2E sync", { timeout: 15_000 }, () => {
       {
         "syncSizes": [
           24,
-          156500,
+          158737,
           57,
-          162913,
+          168265,
           57,
-          154918,
+          153402,
           57,
-          157668,
+          167719,
           57,
-          157685,
+          163261,
           57,
-          155905,
+          156844,
           57,
-          158064,
+          157415,
           57,
-          156825,
+          143584,
           57,
-          152168,
+          149391,
           57,
-          141022,
+          163339,
           57,
-          150780,
-          57,
-          8779,
+          116034,
         ],
-        "syncSteps": 24,
+        "syncSteps": 22,
       }
     `);
   });
 
   it("client and relay each have a random half of the data", async () => {
     await using run = testCreateRun();
-    const [clientStorage, relayStorage] = await createStorages();
+    await using storages = await createStorages();
+    const { clientStorage, relayStorage } = storages;
 
     const shuffledMessages = deps.randomLib.shuffle(messages);
     const middle = Math.floor(shuffledMessages.length / 2);
@@ -1359,11 +1365,11 @@ describe("E2E sync", { timeout: 15_000 }, () => {
     expect(syncSteps).toMatchInlineSnapshot(`
       {
         "syncSizes": [
-          379,
-          5120,
-          22678,
-          857744,
-          844045,
+          370,
+          5115,
+          19549,
+          856829,
+          833927,
           20,
         ],
         "syncSteps": 6,
@@ -1373,7 +1379,8 @@ describe("E2E sync", { timeout: 15_000 }, () => {
 
   it("client and relay each have a random half of the data - many steps", async () => {
     await using run = testCreateRun();
-    const [clientStorage, relayStorage] = await createStorages();
+    await using storages = await createStorages();
+    const { clientStorage, relayStorage } = storages;
 
     const shuffledMessages = deps.randomLib.shuffle(messages);
     const middle = Math.floor(shuffledMessages.length / 2);
@@ -1394,48 +1401,46 @@ describe("E2E sync", { timeout: 15_000 }, () => {
     expect(syncSteps).toMatchInlineSnapshot(`
       {
         "syncSizes": [
-          334,
-          2309,
-          2239,
-          118617,
-          110353,
-          2234,
+          392,
+          2297,
+          2312,
+          87652,
+          84100,
+          2261,
+          80570,
+          85941,
           2256,
-          88179,
-          80860,
-          2324,
-          2238,
-          87301,
-          78090,
-          2232,
-          77187,
-          74380,
-          2246,
-          59569,
-          74972,
-          2231,
-          58666,
-          67513,
-          2232,
-          55158,
-          66338,
-          2228,
-          45900,
-          61053,
-          2243,
-          50885,
-          55541,
-          15901,
-          49487,
-          46070,
-          90077,
-          105083,
-          20901,
-          45106,
-          48626,
-          20,
+          82347,
+          73183,
+          2305,
+          2310,
+          75079,
+          82276,
+          2254,
+          76742,
+          73708,
+          2269,
+          63053,
+          71318,
+          2264,
+          61137,
+          62387,
+          2282,
+          67486,
+          63280,
+          2268,
+          55213,
+          57134,
+          2252,
+          44664,
+          53842,
+          47057,
+          88259,
+          38464,
+          74994,
+          72708,
         ],
-        "syncSteps": 40,
+        "syncSteps": 38,
       }
     `);
   });
@@ -1463,15 +1468,17 @@ describe("E2E sync", { timeout: 15_000 }, () => {
       1000 as ProtocolMessageMaxSize,
     );
 
-    await using run = await testCreateRunWithSqliteAndRelayStorage();
-    const relayResult = await run(applyProtocolMessageAsRelay(protocolMessage));
+    await using setup = await setupSqliteAndRelayStorage();
+    const { run } = setup;
+    const relayResult = await run.orThrow(
+      applyProtocolMessageAsRelay(protocolMessage),
+    );
 
-    assert(relayResult.ok);
-    expect(relayResult.value.message).toMatchInlineSnapshot(
-      `uint8:[1,213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184,1,0,0,1,2,9,0,250,249,195,1,168,184,125,195,131,34,174,141,103,155,214,209,1,249,185,24,252,240,230,1,223,254,172,8,0,9,0,0,0,0,0,0,0,0,1,104,162,167,191,63,133,160,150,1,153,201,144,40,214,99,106,145,1,104,162,167,191,63,133,160,150,6]`,
+    expect(relayResult.message).toMatchInlineSnapshot(
+      `uint8:[1,251,208,27,154,71,19,37,213,195,24,203,60,255,39,7,11,1,0,0,1,2,9,0,163,205,139,2,152,222,222,3,141,195,32,138,221,210,1,216,167,200,1,243,155,45,128,152,244,5,167,136,182,1,0,9,0,0,0,0,0,0,0,0,1,104,162,167,191,63,133,160,150,1,153,201,144,40,214,99,106,145,1,104,162,167,191,63,133,160,150,6]`,
     );
     // Sync continue
-    expect(relayResult.value).not.toBe(null);
+    expect(relayResult).not.toBe(null);
   });
 });
 
@@ -1493,7 +1500,7 @@ describe("ranges sizes", () => {
 
     expect(
       getUncompressedAndCompressedSizes(buffer.unwrap()),
-    ).toMatchInlineSnapshot(`"190 178"`);
+    ).toMatchInlineSnapshot(`"240 191"`);
   });
 
   it("testTimestampsAsc", () => {
@@ -1514,7 +1521,7 @@ describe("ranges sizes", () => {
 
     expect(
       getUncompressedAndCompressedSizes(buffer.unwrap()),
-    ).toMatchInlineSnapshot(`"32552 17788"`);
+    ).toMatchInlineSnapshot(`"31636 17683"`);
   });
 
   it("fingerprints", () => {
@@ -1532,6 +1539,6 @@ describe("ranges sizes", () => {
 
     expect(
       getUncompressedAndCompressedSizes(buffer.unwrap()),
-    ).toMatchInlineSnapshot(`"337 313"`);
+    ).toMatchInlineSnapshot(`"332 315"`);
   });
 });
