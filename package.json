@@ -57,6 +57,8 @@
     "lint": "biome check",
     "lint-monorepo": "bunx sherif@1.6.1",
     "format": "biome format --write .",
+    "sync:guard:upstream": "bun ./scripts/sync-guard-upstream.mts",
+    "sync:guard:upstream:strict": "bun ./scripts/sync-guard-upstream.mts --strict",
     "sync:guard:common-v8": "bun ./scripts/sync-guard-common-v8.mts",
     "sync:guard:common-v8:strict": "bun ./scripts/sync-guard-common-v8.mts --strict",
     "verify:fast": "bun run build && bun run test && bun run lint && bun run lint-monorepo",
@@ -79,7 +81,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.10",
-    "@changesets/cli": "^2.29.8",
+    "@changesets/cli": "^2.30.0",
     "@vitest/browser": "^4.1.2",
     "@vitest/browser-playwright": "^4.1.2",
     "@vitest/coverage-istanbul": "^4.1.2",
