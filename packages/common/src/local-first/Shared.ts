@@ -1,5 +1,5 @@
 /**
- * Platform-agnostic Evolu Worker.
+ * Platform-agnostic Evolu SharedWorker.
  *
  * @module
  */

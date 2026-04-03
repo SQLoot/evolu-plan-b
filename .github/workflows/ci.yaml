@@ -53,7 +53,7 @@ jobs:
         run: bun install
 
       - name: Install Playwright browsers
-        run: bun x playwright install --with-deps
+        run: cd packages/common && bunx playwright install --with-deps chromium firefox webkit
 
       - name: Verify
         run: bun run verify

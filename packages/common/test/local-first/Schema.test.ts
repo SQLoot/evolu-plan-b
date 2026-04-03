@@ -9,19 +9,12 @@ import type {
   ValidateSchema,
   ValidateSchemaHasId,
 } from "../../src/local-first/Schema.js";
-import {
-  createQueryBuilder,
-  ensureSqliteSchema,
-  evoluSchemaToSqliteSchema,
-  getEvoluSqliteSchema,
-} from "../../src/local-first/Schema.js";
+import { ensureSqliteSchema } from "../../src/local-first/Schema.js";
 import {
   getSqliteSchema,
   SqliteBoolean,
   type SqliteSchema,
   sql,
-  sqliteQueryStringToSqliteQuery,
-  testCreateRunWithSqlite,
 } from "../../src/Sqlite.js";
 import {
   Boolean,
@@ -31,7 +24,7 @@ import {
   NonEmptyString100,
   nullOr,
 } from "../../src/Type.js";
-import { testCreateSqliteDeps } from "../_deps.js";
+import { setupSqlite } from "../_deps.js";
 
 const TodoId = id("Todo");
 type TodoId = typeof TodoId.Type;
@@ -261,7 +254,7 @@ describe("Zod", () => {
 
 describe("ensureSqliteSchema", () => {
   test("creates new tables", async () => {
-    await using run = await testCreateRunWithSqlite(testCreateSqliteDeps());
+    await using deps = await setupSqlite();
 
     const newSchema: SqliteSchema = {
       tables: {
@@ -270,9 +263,9 @@ describe("ensureSqliteSchema", () => {
       indexes: [],
     };
 
-    ensureSqliteSchema(run.deps)(newSchema);
+    ensureSqliteSchema(deps)(newSchema);
 
-    const sqliteSchema = getSqliteSchema(run.deps)();
+    const sqliteSchema = getSqliteSchema(deps)();
     expect(sqliteSchema.tables.todo).toBeDefined();
     expect(sqliteSchema.tables.todo.has("id")).toBe(true);
     expect(sqliteSchema.tables.todo.has("title")).toBe(true);
@@ -284,7 +277,7 @@ describe("ensureSqliteSchema", () => {
   });
 
   test("adds new columns to existing tables", async () => {
-    await using run = await testCreateRunWithSqlite(testCreateSqliteDeps());
+    await using deps = await setupSqlite();
 
     const initialSchema: SqliteSchema = {
       tables: {
@@ -293,7 +286,7 @@ describe("ensureSqliteSchema", () => {
       indexes: [],
     };
 
-    ensureSqliteSchema(run.deps)(initialSchema);
+    ensureSqliteSchema(deps)(initialSchema);
 
     const updatedSchema: SqliteSchema = {
       tables: {
@@ -302,16 +295,16 @@ describe("ensureSqliteSchema", () => {
       indexes: [],
     };
 
-    ensureSqliteSchema(run.deps)(updatedSchema);
+    ensureSqliteSchema(deps)(updatedSchema);
 
-    const sqliteSchema = getSqliteSchema(run.deps)();
+    const sqliteSchema = getSqliteSchema(deps)();
     expect(sqliteSchema.tables.todo.has("title")).toBe(true);
     expect(sqliteSchema.tables.todo.has("isCompleted")).toBe(true);
     expect(sqliteSchema.tables.todo.has("priority")).toBe(true);
   });
 
   test("creates multiple tables", async () => {
-    await using run = await testCreateRunWithSqlite(testCreateSqliteDeps());
+    await using deps = await setupSqlite();
 
     const newSchema: SqliteSchema = {
       tables: {
@@ -321,9 +314,9 @@ describe("ensureSqliteSchema", () => {
       indexes: [],
     };
 
-    ensureSqliteSchema(run.deps)(newSchema);
+    ensureSqliteSchema(deps)(newSchema);
 
-    const sqliteSchema = getSqliteSchema(run.deps)();
+    const sqliteSchema = getSqliteSchema(deps)();
     expect(sqliteSchema.tables.todo).toBeDefined();
     expect(sqliteSchema.tables.category).toBeDefined();
     expect(sqliteSchema.tables.todo.has("title")).toBe(true);
@@ -331,7 +324,7 @@ describe("ensureSqliteSchema", () => {
   });
 
   test("uses set difference to find new columns", async () => {
-    await using run = await testCreateRunWithSqlite(testCreateSqliteDeps());
+    await using deps = await setupSqlite();
 
     const initialSchema: SqliteSchema = {
       tables: {
@@ -340,7 +333,7 @@ describe("ensureSqliteSchema", () => {
       indexes: [],
     };
 
-    ensureSqliteSchema(run.deps)(initialSchema);
+    ensureSqliteSchema(deps)(initialSchema);
 
     const updatedSchema: SqliteSchema = {
       tables: {
@@ -349,9 +342,9 @@ describe("ensureSqliteSchema", () => {
       indexes: [],
     };
 
-    ensureSqliteSchema(run.deps)(updatedSchema);
+    ensureSqliteSchema(deps)(updatedSchema);
 
-    const sqliteSchema = getSqliteSchema(run.deps)();
+    const sqliteSchema = getSqliteSchema(deps)();
     // Original columns still exist
     expect(sqliteSchema.tables.todo.has("a")).toBe(true);
     expect(sqliteSchema.tables.todo.has("b")).toBe(true);
@@ -362,7 +355,7 @@ describe("ensureSqliteSchema", () => {
   });
 
   test("with currentSchema parameter skips getSqliteSchema call", async () => {
-    await using run = await testCreateRunWithSqlite(testCreateSqliteDeps());
+    await using deps = await setupSqlite();
 
     const currentSchema: SqliteSchema = {
       tables: {
@@ -372,7 +365,7 @@ describe("ensureSqliteSchema", () => {
     };
 
     // First create the table
-    ensureSqliteSchema(run.deps)(currentSchema);
+    ensureSqliteSchema(deps)(currentSchema);
 
     const newSchema: SqliteSchema = {
       tables: {
@@ -382,14 +375,14 @@ describe("ensureSqliteSchema", () => {
     };
 
     // Pass currentSchema to skip getSqliteSchema
-    ensureSqliteSchema(run.deps)(newSchema, currentSchema);
+    ensureSqliteSchema(deps)(newSchema, currentSchema);
 
-    const sqliteSchema = getSqliteSchema(run.deps)();
+    const sqliteSchema = getSqliteSchema(deps)();
     expect(sqliteSchema.tables.todo.has("description")).toBe(true);
   });
 
   test("does not drop Evolu-managed indexes when currentSchema is omitted", async () => {
-    await using run = await testCreateRunWithSqlite(testCreateSqliteDeps());
+    await using deps = await setupSqlite();
 
     const schema: SqliteSchema = {
       tables: {
@@ -398,138 +391,18 @@ describe("ensureSqliteSchema", () => {
       indexes: [],
     };
 
-    ensureSqliteSchema(run.deps)(schema);
-    run.deps.sqlite.exec(sql`
-      create index evolu_internal_test on todo (title);
-    `);
+    ensureSqliteSchema(deps)(schema);
+    deps.sqlite.exec(sql` create index evolu_internal_test on todo (title); `);
 
     // Re-running ensure without currentSchema must keep evolu_ indexes untouched.
-    ensureSqliteSchema(run.deps)(schema);
+    ensureSqliteSchema(deps)(schema);
 
-    const schemaWithInternalIndexes = getSqliteSchema(run.deps)({
-      excludeSqliteInternalIndexes: false,
-    });
+    const schemaWithEvoluIndexes = getSqliteSchema(deps)();
 
     expect(
-      schemaWithInternalIndexes.indexes.some(
+      schemaWithEvoluIndexes.indexes.some(
         ({ name }) => name === "evolu_internal_test",
       ),
     ).toBe(true);
-  });
-
-  test("drops and adds app indexes when currentSchema is provided", async () => {
-    await using run = await testCreateRunWithSqlite(testCreateSqliteDeps());
-
-    ensureSqliteSchema(run.deps)({
-      tables: { todo: new Set(["title"]) },
-      indexes: [],
-    });
-
-    run.deps.sqlite.exec(sql`create index app_todo_old on todo (title);`);
-
-    ensureSqliteSchema(run.deps)(
-      {
-        tables: { todo: new Set(["title"]) },
-        indexes: [
-          {
-            name: "app_todo_new",
-            sql: "create index app_todo_new on todo (title)",
-          },
-        ],
-      },
-      {
-        tables: { todo: new Set(["title"]) },
-        indexes: [
-          {
-            name: "app_todo_old",
-            sql: "create index app_todo_old on todo (title)",
-          },
-        ],
-      },
-    );
-
-    const sqliteSchema = getSqliteSchema(run.deps)({
-      excludeSqliteInternalIndexes: false,
-    });
-    const indexNames = sqliteSchema.indexes.map((index) => index.name);
-
-    expect(indexNames).toContain("app_todo_new");
-    expect(indexNames).not.toContain("app_todo_old");
-  });
-});
-
-describe("evoluSchemaToSqliteSchema", () => {
-  test("creates sqlite schema and excludes id column from table columns", () => {
-    const sqliteSchema = evoluSchemaToSqliteSchema({
-      todo: {
-        id: TodoId,
-        title: NonEmptyString100,
-        isCompleted: nullOr(SqliteBoolean),
-      },
-    });
-
-    expect(sqliteSchema.tables.todo).toEqual(new Set(["title", "isCompleted"]));
-    expect(sqliteSchema.indexes).toEqual([]);
-  });
-
-  test("compiles indexes from indexesConfig", () => {
-    const sqliteSchema = evoluSchemaToSqliteSchema(
-      {
-        todo: {
-          id: TodoId,
-          title: NonEmptyString100,
-        },
-      },
-      (create) => [create("todo_title").on("todo").column("title")],
-    );
-
-    expect(sqliteSchema.indexes).toHaveLength(1);
-    expect(sqliteSchema.indexes[0]).toEqual(
-      expect.objectContaining({
-        name: "todo_title",
-      }),
-    );
-    expect(sqliteSchema.indexes[0]?.sql).toContain("create index");
-  });
-});
-
-describe("createQueryBuilder", () => {
-  const createQuery = createQueryBuilder({
-    todo: {
-      id: TodoId,
-      title: NonEmptyString100,
-    },
-  });
-
-  test("serializes query with options", () => {
-    const query = createQuery(
-      (db) => db.selectFrom("todo").select(["id", "title"]),
-      { prepare: true },
-    );
-    const sqliteQuery = sqliteQueryStringToSqliteQuery(query);
-
-    expect(sqliteQuery.sql).toContain('select "id", "title" from "todo"');
-    expect(sqliteQuery.parameters).toEqual([]);
-    expect(sqliteQuery.options).toEqual({ prepare: true });
-  });
-});
-
-describe("getEvoluSqliteSchema", () => {
-  test("excludes evolu_ prefixed indexes", async () => {
-    await using run = await testCreateRunWithSqlite(testCreateSqliteDeps());
-
-    ensureSqliteSchema(run.deps)({
-      tables: { todo: new Set(["title"]) },
-      indexes: [],
-    });
-
-    run.deps.sqlite.exec(sql`create index evolu_internal on todo (title);`);
-    run.deps.sqlite.exec(sql`create index app_todo_title on todo (title);`);
-
-    const sqliteSchema = getEvoluSqliteSchema(run.deps)();
-    const indexNames = sqliteSchema.indexes.map((index) => index.name);
-
-    expect(indexNames).toContain("app_todo_title");
-    expect(indexNames).not.toContain("evolu_internal");
   });
 });

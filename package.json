@@ -51,6 +51,7 @@
     "coverage:lane:tauri": "bun run test:coverage:tauri && bun run coverage:gate:tauri",
     "coverage:lane:web": "bun run test:coverage:web && bun run coverage:gate:web",
     "coverage:lane:active": "bun run coverage:lane:${EVOLU_ACTIVE_COVERAGE_LANE:-astro}",
+    "playwright:install": "cd packages/common && bunx playwright install chromium firefox webkit",
     "test:watch": "bunx vitest",
     "start": "turbo start",
     "lint": "biome check",

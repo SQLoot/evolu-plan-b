@@ -80,9 +80,21 @@ interface NodeSqliteModule {
 }
 
 const runtimeOverrideEnvKey = "EVOLU_NODEJS_SQLITE_RUNTIME";
+const bunSqliteModuleId = "bun:sqlite";
+const nodeSqliteModuleId = ["node", "sqlite"].join(":");
+
+const loadModule = <T>(specifier: string): T => require(specifier) as T;
+
+const getRuntimeOverride = (): "bun" | "node" | null => {
+  const runtimeOverride = process.env[runtimeOverrideEnvKey];
+
+  if (runtimeOverride === "bun") return "bun";
+  if (runtimeOverride === "node") return "node";
+  return null;
+};
 
 const hasBunRuntime = (): boolean => {
-  const runtimeOverride = process.env[runtimeOverrideEnvKey];
+  const runtimeOverride = getRuntimeOverride();
 
   if (runtimeOverride === "bun") return true;
   if (runtimeOverride === "node") return false;
@@ -132,7 +144,7 @@ const createBetterDb = (filename: string): DbLike => {
 };
 
 const createBunDb = (filename: string): DbLike => {
-  const { Database } = require("bun:sqlite") as BunSqliteModule;
+  const { Database } = loadModule<BunSqliteModule>(bunSqliteModuleId);
   const db = new Database(filename);
 
   return {
@@ -150,7 +162,7 @@ const createBunDb = (filename: string): DbLike => {
 };
 
 const createNodeDb = (filename: string): DbLike => {
-  const { DatabaseSync } = require("node:sqlite") as NodeSqliteModule;
+  const { DatabaseSync } = loadModule<NodeSqliteModule>(nodeSqliteModuleId);
   const db = new DatabaseSync(filename);
 
   return {
@@ -170,6 +182,43 @@ const createNodeDb = (filename: string): DbLike => {
 };
 
 const createDb = (filename: string): DbLike => {
+  const runtimeOverride = getRuntimeOverride();
+
+  if (runtimeOverride === "node") {
+    try {
+      return createNodeDb(filename);
+    } catch (nodeError) {
+      try {
+        return createBetterDb(filename);
+      } catch {
+        if (hasBunRuntime()) {
+          try {
+            return createBunDb(filename);
+          } catch {
+            throw nodeError;
+          }
+        }
+        throw nodeError;
+      }
+    }
+  }
+
+  if (runtimeOverride === "bun") {
+    try {
+      return createBunDb(filename);
+    } catch (bunError) {
+      try {
+        return createBetterDb(filename);
+      } catch {
+        try {
+          return createNodeDb(filename);
+        } catch {
+          throw bunError;
+        }
+      }
+    }
+  }
+
   if (hasBunRuntime()) {
     try {
       return createBunDb(filename);

@@ -194,7 +194,7 @@ export const createRandomWithSeed = (seed: string): Random => {
  * Seeded pseudo-random utility used by test helpers.
  */
 export interface RandomLibDep {
-  randomLib: RandomLib;
+  readonly randomLib: RandomLib;
 }
 
 export interface RandomLib {

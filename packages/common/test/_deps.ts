@@ -25,7 +25,7 @@ import type {
 } from "../src/Sqlite.js";
 import {
   createPreparedStatementsCache,
-  testCreateRunWithSqlite as createTestRunWithSqlite,
+  testSetupSqlite,
 } from "../src/Sqlite.js";
 import type { Run } from "../src/Task.js";
 import type { TestDeps } from "../src/Test.js";
@@ -36,26 +36,14 @@ export const testTimingSafeEqual: TimingSafeEqual = timingSafeEqual;
 
 /** In-memory sqlite driver for tests with Bun and Node fallbacks. */
 export const testCreateSqliteDriver: CreateSqliteDriver = (name) =>
-  createBetterSqliteDriver(name, { mode: "memory" });
+  createTestSqliteDriver(name, { mode: "memory" });
 
-const sqliteDeps = {
+export const testCreateSqliteDep: CreateSqliteDriverDep = {
   createSqliteDriver: testCreateSqliteDriver,
-} satisfies CreateSqliteDriverDep;
+};
 
-type TestCreateSqliteDeps = CreateSqliteDriverDep &
-  (() => CreateSqliteDriverDep);
-
-// Keep backward compatibility for both call styles:
-// - testCreateSqliteDeps()
-// - testCreateSqliteDeps.createSqliteDriver(...)
-export const testCreateSqliteDeps: TestCreateSqliteDeps = Object.assign(
-  () => sqliteDeps,
-  sqliteDeps,
-);
-
-export const testCreateRunWithSqlite = async (): Promise<
-  Run<TestDeps & CreateSqliteDriverDep & SqliteDep>
-> => createTestRunWithSqlite(testCreateSqliteDeps);
+export const setupSqlite: () => ReturnType<typeof testSetupSqlite> = () =>
+  testSetupSqlite(testCreateSqliteDep);
 
 interface StatementLike {
   readonly reader?: boolean;
@@ -202,7 +190,7 @@ const createDb = (filename: string): DbLike => {
 
 // Duplicated from @evolu/nodejs because @evolu/common cannot depend on it
 // (nodejs depends on common — importing back would create a circular dependency).
-const createBetterSqliteDriver: CreateSqliteDriver = (name, options) => () => {
+const createTestSqliteDriver: CreateSqliteDriver = (name, options) => () => {
   const filename = options?.mode === "memory" ? ":memory:" : `${name}.db`;
   const db = createDb(filename);
   let isDisposed = false;
@@ -251,22 +239,36 @@ const createBetterSqliteDriver: CreateSqliteDriver = (name, options) => () => {
   return ok(driver);
 };
 
-/** Creates a test Run with relay storage and SQLite deps. */
-export const testCreateRunWithSqliteAndRelayStorage = async (
-  config?: Partial<StorageConfig>,
-): Promise<Run<TestDeps & CreateSqliteDriverDep & SqliteDep & StorageDep>> => {
-  const runWithSqlite = await testCreateRunWithSqlite();
+export interface TestSqliteAndRelayStorageSetup extends AsyncDisposable {
+  readonly run: Run<TestDeps & CreateSqliteDriverDep & SqliteDep & StorageDep>;
+  readonly sqlite: SqliteDep["sqlite"];
+  readonly storage: StorageDep["storage"];
+}
 
-  createBaseSqliteStorageTables(runWithSqlite.deps);
-  createRelayStorageTables(runWithSqlite.deps);
+/** Creates a disposable test setup with relay storage and SQLite deps. */
+export const setupSqliteAndRelayStorage = async (
+  config?: Partial<StorageConfig>,
+): Promise<TestSqliteAndRelayStorageSetup> => {
+  await using stack = new AsyncDisposableStack();
+  const sqliteSetup = stack.use(await setupSqlite());
+  const { run, sqlite } = sqliteSetup;
+
+  createBaseSqliteStorageTables({ sqlite });
+  createRelayStorageTables({ sqlite });
 
   const storage = createRelaySqliteStorage({
-    ...runWithSqlite.deps,
+    ...run.deps,
     timingSafeEqual: testTimingSafeEqual,
   })({
     isOwnerWithinQuota: lazyTrue,
     ...config,
   });
+  const moved = stack.move();
 
-  return runWithSqlite.addDeps<StorageDep>({ storage });
+  return {
+    run: run.addDeps<StorageDep>({ storage }),
+    sqlite,
+    storage,
+    [Symbol.asyncDispose]: () => moved.disposeAsync(),
+  };
 };

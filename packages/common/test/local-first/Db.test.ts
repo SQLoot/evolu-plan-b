@@ -1,25 +1,25 @@
 import { expect, test } from "vitest";
 import { createConsoleStoreOutput } from "../../src/Console.js";
-import { type DbWorkerInit, initDbWorker } from "../../src/local-first/Db.js";
+import { type DbWorkerInit, startDbWorker } from "../../src/local-first/Db.js";
 import { ok } from "../../src/Result.js";
 import type { CreateSqliteDriver } from "../../src/Sqlite.js";
 import { testCreateRun } from "../../src/Test.js";
 import { Name } from "../../src/Type.js";
 import { testCreateWorker } from "../../src/Worker.js";
-import { testCreateRunWithSqlite } from "../_deps.js";
+import { setupSqlite } from "../_deps.js";
 import { testAppOwner } from "./_fixtures.js";
 
 const neverUsedCreateSqliteDriver = (() => () => {
   throw new Error("createSqliteDriver should not be called in this unit test");
 }) as CreateSqliteDriver;
 
-test("initDbWorker registers onMessage handler", async () => {
+test("startDbWorker registers onMessage handler before init", async () => {
   const worker = testCreateWorker<DbWorkerInit>();
   const storeOutput = createConsoleStoreOutput();
 
   await using run = testCreateRun({
     leaderLock: {
-      acquire: () => () => ok({ [Symbol.dispose]: () => undefined }),
+      lock: () => () => ok({ [Symbol.dispose]: () => undefined }),
     },
     createSqliteDriver: neverUsedCreateSqliteDriver,
     createMessagePort: () => {
@@ -30,87 +30,78 @@ test("initDbWorker registers onMessage handler", async () => {
     consoleStoreOutputEntry: storeOutput.entry,
   });
 
-  const result = await run(initDbWorker(worker.self));
-  expect(result.ok).toBe(true);
+  const resultPromise = run(startDbWorker(worker.self));
   expect(typeof worker.self.onMessage).toBe("function");
+  await run[Symbol.asyncDispose]();
+  await expect(resultPromise).rejects.toThrow();
 });
 
-test("initDbWorker handles console store entries once and rejects repeated init", async () => {
+test("startDbWorker handles console store entries once and rejects repeated init", async () => {
   const worker = testCreateWorker<DbWorkerInit>();
   const storeOutput = createConsoleStoreOutput();
   const forwardedMessages: Array<unknown> = [];
   let createMessagePortCalls = 0;
 
-  const run = await testCreateRunWithSqlite();
-  try {
-    const result = await run.addDeps({
-      leaderLock: {
-        acquire: () => () => ok({ [Symbol.dispose]: () => undefined }),
-      },
-      createMessagePort: () => {
-        createMessagePortCalls += 1;
-        return {
-          postMessage: (message: unknown) => {
-            forwardedMessages.push(message);
-          },
-          onMessage: null,
-          native: {} as never,
-          [Symbol.dispose]: () => {},
-        };
-      },
-      consoleStoreOutputEntry: storeOutput.entry,
-    })(initDbWorker(worker.self));
+  await using setup = await setupSqlite();
+  const { run } = setup;
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    const workerStack = result.value;
+  const resultPromise = run.addDeps({
+    leaderLock: {
+      lock: () => () => ok({ [Symbol.dispose]: () => undefined }),
+    },
+    createMessagePort: () => {
+      createMessagePortCalls += 1;
+      return {
+        postMessage: (message: unknown) => {
+          forwardedMessages.push(message);
+        },
+        onMessage: null,
+        native: {} as never,
+        [Symbol.dispose]: () => {},
+      };
+    },
+    consoleStoreOutputEntry: storeOutput.entry,
+  })(startDbWorker(worker.self));
 
-    const initInput: DbWorkerInit = {
-      type: "Init",
-      name: Name.orThrow("DbWorkerInitOnce"),
-      consoleLevel: "debug",
-      sqliteSchema: { tables: {}, indexes: [] },
-      encryptionKey: testAppOwner.encryptionKey,
-      port: {} as never,
-    };
+  expect(typeof worker.self.onMessage).toBe("function");
 
-    worker.self.onMessage?.(initInput);
+  const initInput: DbWorkerInit = {
+    type: "Init",
+    name: Name.orThrow("DbWorkerInitOnce"),
+    consoleLevel: "debug",
+    sqliteSchema: { tables: {}, indexes: [] },
+    encryptionKey: testAppOwner.encryptionKey,
+    port: {} as never,
+  };
 
-    storeOutput.write({
+  worker.self.onMessage?.(initInput);
+
+  const result = await resultPromise;
+  expect(result).toEqual(ok());
+
+  storeOutput.write({
+    method: "info",
+    path: [],
+    args: ["entry"],
+  });
+  storeOutput.entry.set(null);
+
+  expect(forwardedMessages).toContainEqual({
+    type: "OnConsoleEntry",
+    entry: {
       method: "info",
       path: [],
       args: ["entry"],
-    });
-    storeOutput.entry.set(null);
+    },
+  });
 
-    expect(forwardedMessages).toContainEqual({
-      type: "OnConsoleEntry",
-      entry: {
-        method: "info",
-        path: [],
-        args: ["entry"],
-      },
-    });
-
-    expect(() =>
-      worker.self.onMessage?.({
-        ...initInput,
-        name: Name.orThrow("DbWorkerInitTwice"),
-      }),
-    ).toThrow("DbWorker must be initialized only once");
-    expect(createMessagePortCalls).toBe(1);
-
-    await workerStack[Symbol.asyncDispose]();
-    const before = forwardedMessages.length;
-    storeOutput.write({
-      method: "warn",
-      path: [],
-      args: ["after-dispose"],
-    });
-    expect(forwardedMessages).toHaveLength(before);
-  } finally {
-    await run[Symbol.asyncDispose]();
-  }
+  expect(() =>
+    worker.self.onMessage?.({
+      ...initInput,
+      name: Name.orThrow("DbWorkerInitTwice"),
+    }),
+  ).toThrow("DbWorker must be initialized only once");
+  expect(createMessagePortCalls).toBe(1);
 });
 
 // const createInitializedDbWorker = async (): Promise<{

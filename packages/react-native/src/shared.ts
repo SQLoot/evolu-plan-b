@@ -21,8 +21,8 @@ import type {
 } from "@evolu/common/local-first";
 import {
   createEvoluDeps as createCommonEvoluDeps,
-  initDbWorker,
   initSharedWorker,
+  startDbWorker,
 } from "@evolu/common/local-first";
 import {
   createMessageChannel,
@@ -61,7 +61,7 @@ export const createEvoluDeps = (
   const createDbWorker: CreateDbWorker = (): DbWorker =>
     createWorker<DbWorkerInit, never>((self) => {
       const dbWorkerRun = createWorkerRun();
-      dbWorkerRun(initDbWorker(self));
+      dbWorkerRun(startDbWorker(self));
     });
 
   const sharedWorker = createSharedWorker<SharedWorkerInput, never>((self) => {
