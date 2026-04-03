@@ -11,8 +11,8 @@
     "examples/*"
   ],
   "scripts": {
-    "dev": "turbo --filter @evolu/relay dev",
-    "relay": "turbo --filter @evolu/relay dev",
+    "dev": "turbo --filter relay dev",
+    "relay": "turbo --filter relay dev",
     "build": "bun run clean:ts && turbo --filter @evolu/* build",
     "build:web": "bun run build:docs",
     "build:docs": "bun run docs:generate:api",
