@@ -1,35 +1,59 @@
-# Evolu Plan B vs Upstream Evolu (High-Level)
+# Evolu Plan B vs Upstream Evolu
 
-This document summarizes the main differences between `SQLoot/evolu-plan-b` and upstream `evoluhq/evolu`.
+This document tracks the current upstream sync baseline and the remaining fork
+delta for `SQLoot/evolu-plan-b`.
 
-Scope: high-level product and engineering deltas, not a full commit-by-commit changelog.
+## Canonical References
 
-## What Is Different
+- upstream baseline: `upstream/main@e201eeb5`
+- common-v8 merge anchor in upstream: `5aed29ff`
+- current fork main after this sync wave: `origin/main` plus post-wave commits from
+  `sync/upstream-main-2026-04-03`
 
-| Area | Plan B Delta | Why |
-| --- | --- | --- |
-| Tooling baseline | Bun-first monorepo workflows (`bun install`, `bun run ...`) with Turborepo orchestration. | Faster local workflows and a single runtime/tooling story. |
-| Formatting and linting | Biome-first formatting/linting policy. | Reduce tooling complexity and keep style/lint fast and consistent. |
-| Upstream sync process | Added sync guard tooling and explicit compatibility tracking for `common-v8` sync waves. | Keep upstream parity while avoiding accidental regressions in fork-specific work. |
-| Coverage governance | Added file-level coverage gates for critical local-first paths (`Sync`, `Db`, `Worker`, `DbWorker`, etc.). | Enforce reliability on highest-risk runtime paths before merges. |
-| Bun runtime adapter | Added Bun-specific worker/db adapter package (`@evolu/bun`, currently private). | Native Bun runtime support and experimentation without changing upstream APIs. |
-| Test expansion | Extra tests for sync/worker/sqlite/refactor edge cases, including runtime adapter races (`DbWorker initPromise` cleanup, Relay WS lifecycle/broadcast flows). | Protect against regressions during aggressive sync and refactor work. |
+## Post-Merge Upstream Commits Synced In This Wave
 
-## What Is Intentionally the Same
+- `a3cf8bf3` Rename `@evolu/relay` package to `relay`
+- `9143c9f4` Bump changesets schema; remove assemble patch
+- `aa5cbbe8` Update `bun.lock`
+- `e201eeb5` Create `.changeset/pre.json`
 
-| Area | Compatibility Target |
-| --- | --- |
-| Public local-first API | Keep API compatibility with upstream where possible. |
-| Protocol and schema direction | Follow upstream `common-v8` refactor direction and naming. |
-| Core behavior | Preserve upstream semantics unless explicitly documented as fork-only behavior. |
+## Current Audit Summary
 
-## What Is Extra in Plan B
+### Root / Tooling
 
-- Integration coverage dashboards/gates in fork workflow.
-- Bun-focused adapter experiments and tests.
-- SQLoot-specific maintenance/docs structure for sync operations.
+- `same`: changesets schema/pre mode now match upstream post-merge baseline.
+- `merge-both`: relay naming follows upstream `relay`, while Bun-first scripts,
+  coverage gates and fork-specific maintenance scripts remain intact.
+- `fork-intentional`: sync guard is generalized to `upstream/main`, but the
+  legacy `common-v8` command stays as a deprecated alias for one wave.
 
-## Non-Goals
+### Runtime / API Parity
 
-- This fork is not intended to fragment protocol behavior from upstream.
-- This file is not a replacement for release notes.
+- No post-merge upstream code delta was found in:
+  `packages/common`, `packages/nodejs`, `packages/web`, `packages/react`,
+  `packages/react-web`, `packages/react-native`, `packages/vue`, `packages/svelte`.
+- Result for this wave: no additional runtime/API cherry-picks are required
+  before rebasing SQLoot compat metadata to the new upstream baseline.
+
+### Remaining Fork Delta
+
+- `fork-intentional`
+  - Bun-first monorepo workflow and dependency policy.
+  - Extra coverage gates and compat tree-shaking checks.
+  - Bun-specific adapter/runtime experimentation and related tests.
+  - SQLoot-facing maintenance/docs structure.
+- `fork-suspect`
+  - None identified by this post-merge sync sweep in compat-relevant package
+    paths.
+- `deferred`
+  - Broader historical fork-vs-upstream drift outside this post-merge wave is
+    still handled by targeted sync work, not by this summary file.
+
+## Maintainer Rules
+
+- Treat `upstream/main` as the canonical semantic baseline.
+- Treat `evolu-plan-b/main` as the operational baseline for downstream compat
+  consumers.
+- If a compat-relevant package diff is not explained by upstream history or an
+  explicit fork decision, classify it as `fork-suspect` and fix it in this repo
+  before propagating it downstream.
