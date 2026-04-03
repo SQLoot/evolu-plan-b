@@ -18,9 +18,9 @@ import {
   AppName,
   createEvolu,
   createEvoluDeps,
-  testAppName,
   type Evolu,
   type EvoluPlatformDeps,
+  testAppName,
 } from "../../src/local-first/Evolu.js";
 import {
   createOwnerWebSocketTransport,
@@ -30,19 +30,19 @@ import {
 } from "../../src/local-first/Owner.js";
 import { createQueryBuilder } from "../../src/local-first/Schema.js";
 import {
-  initSharedWorker,
   type EvoluInput,
   type EvoluOutput,
   type EvoluTabOutput,
+  initSharedWorker,
   type SharedWorker,
   type SharedWorkerInput,
 } from "../../src/local-first/Shared.js";
 import { err, ok } from "../../src/Result.js";
 import {
+  type CreateSqliteDriver,
   createSqlite,
   getSqliteSnapshot,
   SqliteBoolean,
-  type CreateSqliteDriver,
   type SqliteDriverOptions,
 } from "../../src/Sqlite.js";
 import { createInMemoryLeaderLock, type Task } from "../../src/Task.js";
@@ -71,7 +71,6 @@ import { testCreateSqliteDep } from "../_deps.js";
 import { testAppOwner } from "./_fixtures.js";
 
 const TodoId = id("Todo");
-type TodoId = typeof TodoId.Type;
 
 const Schema = {
   todo: {
@@ -1382,6 +1381,7 @@ describe("unit tests", () => {
             changes: [
               {
                 id: expect.any(String),
+                ownerId: expect.any(String),
               },
             ],
           },
@@ -1394,7 +1394,7 @@ describe("unit tests", () => {
               "id": Any<String>,
               "isDelete": null,
               "isInsert": true,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": Any<String>,
               "table": "todo",
               "values": {
                 "title": "Todo 1",
@@ -1439,9 +1439,11 @@ describe("unit tests", () => {
             changes: [
               {
                 id: updateId,
+                ownerId: expect.any(String),
               },
               {
                 id: upsertId,
+                ownerId: expect.any(String),
               },
             ],
           },
@@ -1454,7 +1456,7 @@ describe("unit tests", () => {
               "id": "VPIPiOGb2m2OlsM-pg18CA",
               "isDelete": true,
               "isInsert": false,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": Any<String>,
               "table": "todo",
               "values": {
                 "title": "Updated",
@@ -1464,7 +1466,7 @@ describe("unit tests", () => {
               "id": "j4rh6UkYDIqXKLCOX4ru2A",
               "isDelete": null,
               "isInsert": true,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": Any<String>,
               "table": "todo",
               "values": {
                 "title": "Upserted",
@@ -1508,12 +1510,15 @@ describe("unit tests", () => {
             changes: [
               {
                 id: expect.any(String),
+                ownerId: expect.any(String),
               },
               {
                 id: updateId,
+                ownerId: expect.any(String),
               },
               {
                 id: upsertId,
+                ownerId: expect.any(String),
               },
             ],
           },
@@ -1526,7 +1531,7 @@ describe("unit tests", () => {
               "id": Any<String>,
               "isDelete": null,
               "isInsert": true,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": Any<String>,
               "table": "todo",
               "values": {
                 "title": "A",
@@ -1536,7 +1541,7 @@ describe("unit tests", () => {
               "id": "fOTG65tQ_ZYHpSBp3GbogA",
               "isDelete": null,
               "isInsert": false,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": Any<String>,
               "table": "todo",
               "values": {
                 "title": "B",
@@ -1546,7 +1551,7 @@ describe("unit tests", () => {
               "id": "3I1Sfwp5IxdacWcpAna5qg",
               "isDelete": null,
               "isInsert": true,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": Any<String>,
               "table": "todo",
               "values": {
                 "title": "C",
@@ -1583,6 +1588,7 @@ describe("unit tests", () => {
             changes: [
               {
                 id: expect.any(String),
+                ownerId: expect.any(String),
               },
             ],
             onCompleteIds: [expect.any(String)],
@@ -1596,7 +1602,7 @@ describe("unit tests", () => {
               "id": Any<String>,
               "isDelete": null,
               "isInsert": true,
-              "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+              "ownerId": Any<String>,
               "table": "todo",
               "values": {
                 "title": "With callback",
@@ -1928,7 +1934,7 @@ describe("integration tests", () => {
             "name": "evolu_config",
             "rows": [
               {
-                "clock": uint8:[0,0,0,0,0,0,0,1,2,0,125,85,114,123,39,28],
+                "clock": uint8:[0,0,0,0,0,0,0,1,76,30,181,71,191,84,133,34],
               },
             ],
           },
@@ -1937,18 +1943,18 @@ describe("integration tests", () => {
             "rows": [
               {
                 "column": "title",
-                "id": uint8:[192,25,220,129,232,160,52,142,147,60,132,127,87,13,194,106],
-                "ownerId": uint8:[251,208,27,154,71,19,37,213,195,24,203,60,255,39,7,11],
+                "id": uint8:[249,25,30,78,250,233,45,235,6,250,53,220,201,165,183,49],
+                "ownerId": uint8:[213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184],
                 "table": "todo",
-                "timestamp": uint8:[0,0,0,0,0,0,0,1,2,0,125,85,114,123,39,28],
+                "timestamp": uint8:[0,0,0,0,0,0,0,1,76,30,181,71,191,84,133,34],
                 "value": "Integration todo",
               },
               {
                 "column": "createdAt",
-                "id": uint8:[192,25,220,129,232,160,52,142,147,60,132,127,87,13,194,106],
-                "ownerId": uint8:[251,208,27,154,71,19,37,213,195,24,203,60,255,39,7,11],
+                "id": uint8:[249,25,30,78,250,233,45,235,6,250,53,220,201,165,183,49],
+                "ownerId": uint8:[213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184],
                 "table": "todo",
-                "timestamp": uint8:[0,0,0,0,0,0,0,1,2,0,125,85,114,123,39,28],
+                "timestamp": uint8:[0,0,0,0,0,0,0,1,76,30,181,71,191,84,133,34],
                 "value": "1970-01-01T00:00:00.000Z",
               },
             ],
@@ -1962,11 +1968,11 @@ describe("integration tests", () => {
             "rows": [
               {
                 "c": 1,
-                "h1": 226788241197268,
-                "h2": 198651634711178,
-                "l": 2,
-                "ownerId": uint8:[251,208,27,154,71,19,37,213,195,24,203,60,255,39,7,11],
-                "t": uint8:[0,0,0,0,0,0,0,1,2,0,125,85,114,123,39,28],
+                "h1": 160625592932811,
+                "h2": 63811512510140,
+                "l": 1,
+                "ownerId": uint8:[213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184],
+                "t": uint8:[0,0,0,0,0,0,0,1,76,30,181,71,191,84,133,34],
               },
             ],
           },
@@ -1974,10 +1980,10 @@ describe("integration tests", () => {
             "name": "evolu_usage",
             "rows": [
               {
-                "firstTimestamp": uint8:[0,0,0,0,0,0,0,1,2,0,125,85,114,123,39,28],
-                "lastTimestamp": uint8:[0,0,0,0,0,0,0,1,2,0,125,85,114,123,39,28],
-                "ownerId": uint8:[251,208,27,154,71,19,37,213,195,24,203,60,255,39,7,11],
-                "storedBytes": 1,
+                "firstTimestamp": uint8:[0,0,0,0,0,0,0,1,76,30,181,71,191,84,133,34],
+                "lastTimestamp": uint8:[0,0,0,0,0,0,0,1,76,30,181,71,191,84,133,34],
+                "ownerId": uint8:[213,187,31,214,138,191,248,80,138,181,64,156,48,57,155,184],
+                "storedBytes": 105,
               },
             ],
           },
@@ -1986,10 +1992,10 @@ describe("integration tests", () => {
             "rows": [
               {
                 "createdAt": "1970-01-01T00:00:00.000Z",
-                "id": "wBncgeigNI6TPIR_Vw3Cag",
+                "id": "-RkeTvrpLesG-jXcyaW3MQ",
                 "isCompleted": null,
                 "isDeleted": null,
-                "ownerId": "-9AbmkcTJdXDGMs8_ycHCw",
+                "ownerId": "1bsf1oq_-FCKtUCcMDmbuA",
                 "title": "Integration todo",
                 "updatedAt": null,
               },
@@ -2002,7 +2008,7 @@ describe("integration tests", () => {
 
   test("memoryOnly opens SQLite in memory mode", async () => {
     const consoleStoreOutput = createConsoleStoreOutput();
-    const sqliteDriverOptions = new Array<SqliteDriverOptions | undefined>();
+    const sqliteDriverOptions: (SqliteDriverOptions | undefined)[] = [];
     const sqliteDriverOptionsCalled = Promise.withResolvers<void>();
     const createSqliteDriver: CreateSqliteDriver = (name, options) => {
       sqliteDriverOptions.push(options);

@@ -105,14 +105,14 @@ describe("writeMessages", () => {
     expect(getStoredBytes({ sqlite })(testAppOwnerIdBytes)).toBe(3);
   });
 
-  test("accumulates storedBytes across multiple writes", async () => {
+  test("does not accumulate storedBytes for duplicate timestamp writes", async () => {
     await using setup = await setupSqliteAndRelayStorage();
     const { run, storage, sqlite } = setup;
 
     await run(storage.writeMessages(testAppOwnerIdBytes, [message]));
     await run(storage.writeMessages(testAppOwnerIdBytes, [message]));
 
-    expect(getStoredBytes({ sqlite })(testAppOwnerIdBytes)).toBe(6);
+    expect(getStoredBytes({ sqlite })(testAppOwnerIdBytes)).toBe(3);
   });
 
   test("prevents duplicate timestamp writes", async () => {

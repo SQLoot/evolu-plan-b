@@ -1,10 +1,16 @@
+import { existsSync, unlinkSync } from "node:fs";
 import { createSqlite, Name, sql, testCreateRun } from "@evolu/common";
 import BetterSQLite from "better-sqlite3";
-import { existsSync, unlinkSync } from "fs";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { createBetterSqliteDriver } from "../src/Sqlite.js";
 
 const testName = Name.orThrow("Test");
+const runtimeOverrideEnvKey = "EVOLU_NODEJS_SQLITE_RUNTIME";
+const isBunRuntime = (globalThis as Record<string, unknown>).Bun != null;
+
+beforeEach(() => {
+  process.env[runtimeOverrideEnvKey] = "node";
+});
 
 const setupBetterSqlite = async () => {
   await using stack = new AsyncDisposableStack();
@@ -22,7 +28,11 @@ const setupBetterSqlite = async () => {
   };
 };
 
-describe("createBetterSqliteDriver", () => {
+afterEach(() => {
+  delete process.env[runtimeOverrideEnvKey];
+});
+
+describe.skipIf(isBunRuntime)("createBetterSqliteDriver", () => {
   test("creates in-memory database", async () => {
     await using setup = await setupBetterSqlite();
     const { sqlite } = setup;
@@ -71,22 +81,25 @@ describe("createBetterSqliteDriver", () => {
     expect(exported.length).toBeGreaterThan(0);
   });
 
-  test("export copies bytes when serialize is not backed by ArrayBuffer", async () => {
-    const serialized = new Uint8Array(new SharedArrayBuffer(3));
-    serialized.set([1, 2, 3]);
+  test.skipIf(isBunRuntime)(
+    "export copies bytes when serialize is not backed by ArrayBuffer",
+    async () => {
+      const serialized = new Uint8Array(new SharedArrayBuffer(3));
+      serialized.set([1, 2, 3]);
 
-    using _serializeSpy = vi
-      .spyOn(BetterSQLite.prototype, "serialize")
-      .mockImplementation(() => serialized as Buffer);
+      using _serializeSpy = vi
+        .spyOn(BetterSQLite.prototype, "serialize")
+        .mockImplementation(() => serialized as Buffer);
 
-    await using setup = await setupBetterSqlite();
-    const { sqlite } = setup;
+      await using setup = await setupBetterSqlite();
+      const { sqlite } = setup;
 
-    const exported = sqlite.export();
+      const exported = sqlite.export();
 
-    expect(exported).toEqual(new Uint8Array([1, 2, 3]));
-    expect(exported.buffer).toBeInstanceOf(ArrayBuffer);
-  });
+      expect(exported).toEqual(new Uint8Array([1, 2, 3]));
+      expect(exported.buffer).toBeInstanceOf(ArrayBuffer);
+    },
+  );
 
   test("dispose is idempotent", async () => {
     await using setup = await setupBetterSqlite();
@@ -122,19 +135,22 @@ describe("createBetterSqliteDriver", () => {
     driver[Symbol.dispose]();
   });
 
-  test("better-sqlite3 serialize returns Buffer backed by ArrayBuffer", () => {
-    const db = new BetterSQLite(":memory:");
-    db.exec("create table t (data text);");
-    db.exec("insert into t (data) values ('x');");
+  test.skipIf(isBunRuntime)(
+    "better-sqlite3 serialize returns Buffer backed by ArrayBuffer",
+    () => {
+      const db = new BetterSQLite(":memory:");
+      db.exec("create table t (data text);");
+      db.exec("insert into t (data) values ('x');");
 
-    const serialized = db.serialize();
+      const serialized = db.serialize();
 
-    expect(serialized).toBeInstanceOf(Uint8Array);
-    expect(Buffer.isBuffer(serialized)).toBe(true);
-    expect(serialized.buffer).toBeInstanceOf(ArrayBuffer);
+      expect(serialized).toBeInstanceOf(Uint8Array);
+      expect(Buffer.isBuffer(serialized)).toBe(true);
+      expect(serialized.buffer).toBeInstanceOf(ArrayBuffer);
 
-    db.close();
-  });
+      db.close();
+    },
+  );
 
   describe("file-based database", () => {
     const dbPath = `${testName}.db`;

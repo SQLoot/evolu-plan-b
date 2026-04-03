@@ -15,10 +15,10 @@ import {
   timestampBytesToFingerprint,
 } from "../../src/local-first/Storage.js";
 import {
-  Counter,
+  type Counter,
   createTimestamp,
   orderTimestampBytes,
-  TimestampBytes,
+  type TimestampBytes,
   timestampToTimestampBytes,
 } from "../../src/local-first/Timestamp.js";
 import { computeBalancedBuckets } from "../../src/Number.js";
@@ -30,7 +30,7 @@ import type { Millis } from "../../src/Time.js";
 import {
   createId,
   NonNegativeInt,
-  PositiveInt,
+  type PositiveInt,
   zeroNonNegativeInt,
 } from "../../src/Type.js";
 import { setupSqlite } from "../_deps.js";

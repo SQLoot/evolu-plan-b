@@ -844,7 +844,8 @@ export interface Run<D = unknown> extends AsyncDisposable {
  * @group Core Types
  */
 export interface Fiber<T = unknown, E = unknown, D = unknown>
-  extends PromiseLike<Result<T, E | AbortError>>, Disposable {
+  extends PromiseLike<Result<T, E | AbortError>>,
+    Disposable {
   readonly then: PromiseLike<Result<T, E | AbortError>>["then"];
 
   /**

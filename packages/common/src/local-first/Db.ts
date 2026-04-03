@@ -19,7 +19,7 @@ import type {
 } from "../Crypto.js";
 import { exhaustiveCheck, lazyFalse, lazyVoid } from "../Function.js";
 import { createRecord, getProperty, objectToEntries } from "../Object.js";
-import { ok, type Result } from "../Result.js";
+import { err, ok, type Result } from "../Result.js";
 import type {
   CreateSqliteDriverDep,
   SqliteDep,
@@ -36,14 +36,14 @@ import {
   sqliteQueryStringToSqliteQuery,
 } from "../Sqlite.js";
 import { callback, type LeaderLockDep, type Task } from "../Task.js";
-import { Millis, millisToDateIso, type TimeDep } from "../Time.js";
+import { type Millis, millisToDateIso, type TimeDep } from "../Time.js";
 import type { Name } from "../Type.js";
 import {
-  Id,
-  IdBytes,
+  type Id,
+  type IdBytes,
   idBytesToId,
   idToIdBytes,
-  onePositiveInt,
+  PositiveInt,
 } from "../Type.js";
 import type { ExtractType } from "../Types.js";
 import type {
@@ -83,6 +83,7 @@ import {
   getOwnerUsage,
   getTimestampInsertStrategy,
   type Storage,
+  type StorageWriteMessagesError,
   updateOwnerUsage,
 } from "./Storage.js";
 import type {
@@ -233,9 +234,11 @@ export const startDbWorker =
         case "ForEvolu": {
           switch (request.message.type) {
             case "Mutate": {
-              const result = handleMutation({ ...dbDeps, clock })(
-                request.message,
-              );
+              const result = handleMutation({
+                ...dbDeps,
+                clock,
+                encryptionKey: initMessage.encryptionKey,
+              })(request.message);
               if (!result.ok) {
                 port.postMessage({ type: "OnError", error: result.error });
               } else {
@@ -681,7 +684,7 @@ const createClientStorage =
           );
           if (!change.ok) {
             onError(change.error);
-            return ok();
+            return err<StorageWriteMessagesError>(change.error);
           }
           messages.push({ timestamp: message.timestamp, change: change.value });
         }
@@ -695,15 +698,25 @@ const createClientStorage =
           );
           if (!nextTimestamp.ok) {
             onError(nextTimestamp.error);
-            return ok();
+            return err<StorageWriteMessagesError>(nextTimestamp.error);
           }
           clockTimestamp = nextTimestamp.value;
         }
 
         assertNonEmptyReadonlyArray(messages);
+        const incomingBytes = PositiveInt.orThrow(
+          encryptedMessages.reduce(
+            (sum, message) => sum + message.change.length,
+            0,
+          ),
+        );
 
         return deps.sqlite.transaction(() => {
-          applyMessages(deps)(ownerIdBytesToOwnerId(ownerIdBytes), messages);
+          applyMessages(deps)(
+            ownerIdBytesToOwnerId(ownerIdBytes),
+            messages,
+            incomingBytes,
+          );
           deps.clock.save(clockTimestamp);
           didWriteMessages = true;
           return ok();
@@ -776,7 +789,9 @@ const handleMutation =
       RandomBytesDep &
       SqliteDep &
       TimeDep &
-      TimestampConfigDep,
+      TimestampConfigDep & {
+        readonly encryptionKey: EncryptionKey;
+      },
   ) =>
   (
     message: ExtractType<
@@ -866,11 +881,15 @@ const applyMessages =
     deps: BaseSqliteStorageDep &
       ClockDep &
       SqliteSchemaDep &
-      SqliteDep,
+      RandomBytesDep &
+      SqliteDep & {
+        readonly encryptionKey?: EncryptionKey;
+      },
   ) =>
   (
     ownerId: OwnerId,
     messages: NonEmptyReadonlyArray<CrdtMessage>,
+    incomingBytes?: PositiveInt,
   ): void => {
     const ownerIdBytes = ownerIdToOwnerIdBytes(ownerId);
 
@@ -880,7 +899,7 @@ const applyMessages =
     );
     if (!usage.ok) return;
 
-    let { firstTimestamp, lastTimestamp } = usage.value;
+    let { storedBytes, firstTimestamp, lastTimestamp } = usage.value;
 
     for (const { timestamp, change } of messages) {
       const columns = dbChangeToColumns(change, timestamp.millis);
@@ -931,9 +950,28 @@ const applyMessages =
       );
     }
 
+    const newStoredBytes =
+      incomingBytes ??
+      (() => {
+        assert(
+          deps.encryptionKey != null,
+          "encryptionKey is required for local storedBytes computation",
+        );
+        const encryptionKey = deps.encryptionKey;
+
+        return PositiveInt.orThrow(
+          messages.reduce(
+            (sum, message) =>
+              sum +
+              encodeAndEncryptDbChange(deps)(message, encryptionKey).byteLength,
+            0,
+          ),
+        );
+      })();
+
     updateOwnerUsage(deps)(
       ownerIdBytes,
-      onePositiveInt, // Placeholder until proper tracking implemented
+      PositiveInt.orThrow((storedBytes ?? 0) + newStoredBytes),
       firstTimestamp,
       lastTimestamp,
     );

@@ -5,25 +5,25 @@
  */
 
 import {
-  testCreateConsole,
   type TestConsole,
   type TestConsoleDep,
+  testCreateConsole,
 } from "./Console.js";
-import { testCreateRandomBytes, type RandomBytes } from "./Crypto.js";
+import { type RandomBytes, testCreateRandomBytes } from "./Crypto.js";
 import {
   type Random,
+  type RandomLibDep,
   testCreateRandom,
   testCreateRandomLib,
-  type RandomLibDep,
 } from "./Random.js";
 import { createRun, type Run, type RunDeps } from "./Task.js";
 import {
+  type Duration,
   minMillis,
   setTimeout,
-  testCreateTime,
-  type Duration,
   type TestTime,
   type TestTimeDep,
+  testCreateTime,
 } from "./Time.js";
 
 /**

@@ -15,8 +15,8 @@ import {
 import { type AnyResult, err, ok, type Result } from "../src/Result.js";
 import { type AbortError, runStoppedError, type Task } from "../src/Task.js";
 import { testCreateRun, testWaitForMacrotask } from "../src/Test.js";
-import { type Duration } from "../src/Time.js";
-import { NonNegativeInt } from "../src/Type.js";
+import type { Duration } from "../src/Time.js";
+import type { NonNegativeInt } from "../src/Type.js";
 
 type TestResource = {
   readonly id: string;

@@ -12,17 +12,17 @@ import type {
 import { ensureSqliteSchema } from "../../src/local-first/Schema.js";
 import {
   getSqliteSchema,
-  sql,
   SqliteBoolean,
   type SqliteSchema,
+  sql,
 } from "../../src/Sqlite.js";
 import {
   Boolean,
   Id,
+  type InferType,
   id,
   NonEmptyString100,
   nullOr,
-  type InferType,
 } from "../../src/Type.js";
 import { setupSqlite } from "../_deps.js";
 

@@ -21,8 +21,8 @@ import type {
 } from "@evolu/common/local-first";
 import {
   createEvoluDeps as createCommonEvoluDeps,
-  startDbWorker,
   initSharedWorker,
+  startDbWorker,
 } from "@evolu/common/local-first";
 import {
   createMessageChannel,
